@@ -15,7 +15,7 @@ NetCraft 不是移植。这里没有逐行翻译原版 Java，也没有反编译
 | 规模 | ~1.7k 个 `.cs` 文件 |
 | 测试 | 1163 个用例，0 失败 |
 | 运行时 | .NET 10 / C# 14。跨平台，不使用 `-windows` TFM，不调 WinAPI。 |
-| 许可 | GPL-3.0 |
+| 许可 | Apache-2.0 |
 
 ## 已经能跑通的部分
 
@@ -107,4 +107,4 @@ NetCraft 不是移植。这里没有逐行翻译原版 Java，也没有反编译
 
 ## 许可
 
-GPL-3.0，见 [LICENSE](../LICENSE)。
+Apache-2.0，见 [LICENSE](../LICENSE)。

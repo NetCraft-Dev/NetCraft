@@ -13,7 +13,7 @@ NetCraft is not a port. Nothing here is translated line by line from the origina
 | Size | ~1.7k `.cs` files |
 | Tests | 1163 cases, 0 failed |
 | Runtime | .NET 10 / C# 14. Cross-platform — no `-windows` TFM, no WinAPI. |
-| License | GPL-3.0 |
+| License | Apache-2.0 |
 
 ## What works
 
@@ -105,4 +105,4 @@ Client, server and loader builds are published separately.
 
 ## License
 
-GPL-3.0. See [LICENSE](./LICENSE).
+Apache-2.0. See [LICENSE](./LICENSE).

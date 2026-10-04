@@ -95,6 +95,8 @@ GPU 重构
 ### Changed
 变更
 
+- License changed from GPL-3.0 to Apache-2.0
+  许可证由 GPL-3.0 改为 Apache-2.0，闭源模组不再受传染性条款约束
 - Tags 70% → 90%, TagsReloadListener wired to startup
   `NetCraft.Tags` 完成度 70% → 90%，TagsReloadListener 已接入 ReloadableServerResources 启动序列
 - Resources 60% → 85%, reload framework added
