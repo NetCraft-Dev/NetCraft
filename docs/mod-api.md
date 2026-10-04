@@ -205,7 +205,7 @@ The event fires **after** the command finishes; it cannot change execution. Synt
 
 | Property       | Type                    | Notes                                        |
 | -------------- | ----------------------- | -------------------------------------------- |
-| `Level`        | `PersistentServerLevel` | the level advanced this tick                 |
+| `Level`        | `NcLevel`               | the level advanced this tick                 |
 | `RunsNormally` | `bool`                  | whether it advanced normally; `false` during `/tick freeze` |
 
 Fires once per loaded level per tick, so a multi-level world receives several per tick. The trigger point is after the level tick **has completed**; it is an observation point, not an interception point.
@@ -332,13 +332,15 @@ Facades are `Nc*` static classes that gather capabilities scattered across the k
 | --- | --- |
 | `NcServer` | server instance, tick rate, commands, entity tracking, player data, game rules, broadcast, command execution |
 | `NcPlayers` | online player queries and operations (kick, teleport, health, game mode, permissions) |
-| `NcWorld` | overworld block read/write and breaking, weather, time, border, clock, sounds, level events |
+| `NcWorld` | overworld block read/write and breaking, weather, time, border, clock, sounds, level events; takes `NcLevel` handles to reach other dimensions, coordinates are plain `x y z` ints |
 | `NcRegistries` | built-in registries looked up by name (blocks, items, fluids, effects, biomes, particles, entities, block entities) |
 | `NcRecipes` | recipe queries (grid crafting, stonecutting, cooking; fetch recipes by id) |
 | `NcLists` | lists and config (whitelist, ops, bans, `server.properties`) |
 | `NcStartup` | startup arguments (kernel-unrecognized tokens and name-based subscription) |
 
 `NcPlayer` is not a static facade but an **object handle**: `NcPlayers.All` / `Find` return it, and `Player` / `Attacker` in player events are also it. Handles are read-only and constructed by probes; mods cannot get the kernel's `ServerPlayer` — the first anchor of "no kernel types on the public surface". The same kernel player always maps to the same handle, cached internally by weak reference and automatically invalidated once the player logs off.
+
+`NcLevel` follows the same shape for levels. `NcWorld.Overworld` / `Nether` / `End` and `NcWorld.Get("minecraft:the_nether")` return it, and `LevelTickArgs.Level` is one too. It carries the dimension id, time, weather, build height, tick count, and chunk force-loading; block operations stay on `NcWorld` and take the handle plus `x y z`. `BlockPos` never shows up, so a mod's dll carries no reference to the kernel level type.
 
 ### 4.1 Registries
 

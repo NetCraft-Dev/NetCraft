@@ -389,7 +389,7 @@ The source type must be in **the mod's own assembly**, so neither the manifest n
 
 | Namespace | Contents | What you get |
 | --- | --- | --- |
-| `NetCraft.ModApi.Wrapper` | `ServerEvents` / `ClientEvents` / `NetworkEvents`, `NcServer` / `NcWorld` / `NcPlayers` / `NcLists` / `NcRegistries` / `NcRecipes` / `NcStartup`, and object handles like `NcPlayer` | wrapper types; no kernel types on the public surface |
+| `NetCraft.ModApi.Wrapper` | `ServerEvents` / `ClientEvents` / `NetworkEvents`, `NcServer` / `NcWorld` / `NcPlayers` / `NcLists` / `NcRegistries` / `NcRecipes` / `NcStartup`, and object handles like `NcPlayer` / `NcLevel` | wrapper types; no kernel types on the public surface |
 | `NetCraft.ModApi.Extension` | `[Inject]` / `[Mixin]` annotations | rules bind to kernel class and method names |
 
 The two are **parallel** routes, not one layered on top of the other:
@@ -397,7 +397,7 @@ The two are **parallel** routes, not one layered on top of the other:
 - **For stability, use `Wrapper`**. The facades handle the kernel's tedious call ordering for you (writing a single block while touching the level, the player list, and the sync chain is one example), and event args are all wrapper types. The cost is that capabilities the facades do not expose are unavailable to you.
 - **For completeness, use `Extension`**. Injection rules modify kernel classes and methods directly, but the target names you write are the kernel's names, so when the kernel changes the rules must change with it.
 
-You can reference both. The `Wrapper` line is being consolidated toward "no kernel types on the public surface"; the player part is already done — `Player` / `Attacker` in events and the in/out parameters of `NcPlayers` are all `NcPlayer` handles; levels, entities, and value types (`BlockPos` / `BlockState` / `Vec3`) are not wrapped yet, and this round proceeds with object handles first.
+You can reference both. The `Wrapper` line is being consolidated toward "no kernel types on the public surface"; the player and level parts are done — `Player` / `Attacker` in player events and the in/out parameters of `NcPlayers` are `NcPlayer` handles, `NcWorld.Overworld` / `Nether` / `End` / `Get` and `LevelTickArgs.Level` are `NcLevel` handles, and block coordinates are plain `x y z` ints; entities and the remaining value types (`BlockPos` / `BlockState` / `Vec3`) are not wrapped yet.
 
 One more boundary to call out: **the wrapper layer does not shield injection**. The `hooks` rules or `[Inject]` annotations you write still bind to kernel class and method names, and break just the same when the kernel changes.
 
