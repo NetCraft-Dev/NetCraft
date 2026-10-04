@@ -1,3 +1,4 @@
+using NetCraft.Game.World.Entity;
 using NetCraft.Game.World.Items;
 using NetCraft.Registry;
 
@@ -47,6 +48,17 @@ public class Slot
 
     //Remove 移除指定数量
     public virtual ItemStack Remove(int count) => Container.RemoveItem(SlotIndex, count);
+
+    //SafeTake 从槽位安全取走若干 数量同时受 amount 与 maxAmount 约束 对应原版 safeTake
+    public virtual ItemStack SafeTake(int amount, int maxAmount, Player player)
+    {
+        var stack = GetItem();
+        var taken = Math.Min(Math.Min(amount, maxAmount), stack.GetCount());
+        if (taken <= 0) return ItemStack.Empty;
+        var result = stack.Split(taken);
+        Set(stack);
+        return result;
+    }
 
     //MayPlace 该槽位是否接受该物品
     public virtual bool MayPlace(ItemStack stack) => Container.CanPlaceItem(SlotIndex, stack);

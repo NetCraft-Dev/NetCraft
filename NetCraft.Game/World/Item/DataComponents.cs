@@ -1,5 +1,6 @@
 using NetCraft.Codec;
 using NetCraft.DataFixer.Util;
+using NetCraft.Game.World.Items.Component;
 using NetCraft.Network;
 using NetCraft.Network.Component;
 using NetCraft.Registry;
@@ -45,6 +46,14 @@ public static class DataComponents
     public static readonly DataComponentType<object> ENCHANTMENT_GLINT_OVERRIDE = Register(
         "enchantment_glint_override", BooleanObjectNbtCodec.Instance, new BooleanObjectCodec());
 
+    //BEES 蜂巢里装的蜜蜂 持久化 Codec 待 NBT 侧接入后补
+    public static readonly DataComponentType<object> BEES = Register(
+        "bees", null, new ObjectStreamCodec<Bees>(Bees.StreamCodec));
+
+    //BUNDLE_CONTENTS 收纳袋内容 持久化 Codec 待 NBT 侧接入后补
+    public static readonly DataComponentType<object> BUNDLE_CONTENTS = Register(
+        "bundle_contents", null, new ObjectStreamCodec<BundleContents>(BundleContents.StreamCodec));
+
     //Register 注册单个组件类型到 BuiltInRegistries.DATA_COMPONENT_TYPE
     private static DataComponentType<object> Register(
         string name, Codec<object>? codec, StreamCodec<RegistryFriendlyByteBuf, object> streamCodec)
@@ -59,7 +68,21 @@ public static class DataComponents
     public static void Bootstrap()
     {
         _ = MAX_STACK_SIZE;
+        _ = BEES;
+        _ = BUNDLE_CONTENTS;
     }
+}
+
+//ObjectStreamCodec 把某个引用类型的流编解码适配成 object 版 供 DataComponents 注册复杂组件
+internal sealed class ObjectStreamCodec<T> : StreamCodec<RegistryFriendlyByteBuf, object> where T : class
+{
+    private readonly StreamCodec<RegistryFriendlyByteBuf, T> _inner;
+
+    public ObjectStreamCodec(StreamCodec<RegistryFriendlyByteBuf, T> inner) => _inner = inner;
+
+    public object Decode(RegistryFriendlyByteBuf buf) => _inner.Decode(buf);
+
+    public void Encode(RegistryFriendlyByteBuf buf, object value) => _inner.Encode(buf, (T)value);
 }
 
 //VarIntObjectCodec int 装箱为 object 的 StreamCodec 用 VarInt 编解码

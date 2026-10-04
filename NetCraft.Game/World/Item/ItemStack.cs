@@ -10,7 +10,7 @@ namespace NetCraft.Game.World.Items;
 //STREAM_CODEC 编码 count+Item.STREAM_CODEC+DataComponentPatch.STREAM_CODEC
 //OPTIONAL_STREAM_CODEC 允许空栈 count<=0 视为 EMPTY
 //STREAM_CODEC 在 OPTIONAL 基础上禁止空栈编解码抛 EncoderException/DecoderException
-public sealed class ItemStack
+public sealed class ItemStack : ItemInstance
 {
     //Empty 空栈单例 _item=null
     public static readonly ItemStack Empty = new();
@@ -44,6 +44,15 @@ public sealed class ItemStack
     //GetCount 物品数量
     public int GetCount() => _count;
 
+    //Count 数量 对应 ItemInstance 只读视图
+    public int Count => _count;
+
+    //TypeHolder 物品类型句柄 对应 ItemInstance 只读视图 空栈抛异常
+    public Holder<Item> TypeHolder => _item ?? throw new InvalidOperationException("Cannot get item from empty ItemStack");
+
+    //Get 查该栈的组件 对应 ItemInstance 只读视图
+    public T? Get<T>(DataComponentType<T> type) where T : class => _components.Get(type);
+
     //SetCount 设置数量
     public void SetCount(int count)
     {
@@ -52,6 +61,16 @@ public sealed class ItemStack
 
     //Shrink 数量减少 落到 0 为止 对应原版 shrink
     public void Shrink(int amount) => _count = Math.Max(0, _count - amount);
+
+    //Split 取出 amount 个做新栈 原栈相应减少 对应原版 split
+    public ItemStack Split(int amount)
+    {
+        var taken = Math.Min(amount, _count);
+        if (taken <= 0) return Empty;
+        var result = CopyWithCount(taken);
+        Shrink(taken);
+        return result;
+    }
 
     //GetMaxStackSize 堆叠上限 空栈按 64 对应原版 getMaxStackSize
     public int GetMaxStackSize() => IsEmpty() ? 64 : GetItem().GetDefaultMaxStackSize();

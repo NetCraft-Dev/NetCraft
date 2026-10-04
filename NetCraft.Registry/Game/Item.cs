@@ -39,4 +39,7 @@ public abstract class Item
     //CraftingRemainder 作为容器类用途消耗后留下的物品 没有返回 null
     //对应原版 Item.getCraftingRemainder 燃料槽烧掉岩浆桶后要换回空桶就是靠它
     public virtual Item? CraftingRemainder => null;
+
+    //CanFitInsideContainerItems 能否塞进收纳袋这类容器物品 对应原版 canFitInsideContainerItems
+    public virtual bool CanFitInsideContainerItems => true;
 }
