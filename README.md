@@ -1,92 +1,108 @@
 # NetCraft
 
-**Active development. M1–M4 reached, GPU submission/render phase refactor done, pushing toward M5 (bootstrap + single-player tick). Documentation is kept in sync with the codebase; per-module `Overview.md` reflects current status.**
+A from-scratch reimplementation of the Minecraft 26.2 kernel in C# / .NET 10.
 
-A from-scratch reimplementation of the Minecraft 26.2 vanilla kernel in C# / .NET 10.
+NetCraft is not a port. Nothing here is translated line by line from the original Java, and nothing is decompiled. Each subsystem is written against C# idioms — `readonly struct`, `Span<T>`, source generators, `AssemblyLoadContext` — while keeping observable behavior identical: the same NBT bytes, the same registry ids, the same chunk files, the same packet layouts, the same DFU upgrade paths.
 
-NetCraft is not a port: subsystems are rewritten following C# idioms (readonly structs, `Span<T>`, source generators, `AssemblyLoadContext`) while preserving the original runtime behavior — NBT bytes, registry ids, chunk serialization, packet wire format, and DFU upgrade paths stay byte-compatible with vanilla.
-
-## Status
+## Where it stands
 
 | | |
 |---|---|
-| Milestone | **M4 passed** (end-to-end TCP handshake) — pushing toward M5 (bootstrap + single-player tick) |
-| Overall completion | ~65% (kernel framework ~85%, game layer ~62%, GPU ~95%) |
-| Codebase | ~1.7k `.cs` files across the kernel, game layer and GPU subsystem |
-| Tests | 1163 cases all passing, 0 failed, 0 errored |
-| Target framework | .NET 10 / C# 14, cross-platform (no `-windows` TFM, no WinAPI) |
+| Milestone | M1–M4 done. M4 verified a byte-level end-to-end TCP handshake. M5 (bootstrap + single-player tick) is in progress. |
+| Scope | Kernel framework ~85%, game layer ~62%, GPU subsystem ~95% |
+| Size | ~1.7k `.cs` files |
+| Tests | 1163 cases, 0 failed |
+| Runtime | .NET 10 / C# 14. Cross-platform — no `-windows` TFM, no WinAPI. |
 | License | GPL-3.0 |
 
-## Highlights
+## What works
 
-- **DFU in pure C#** — Higher-kind simulation via `K1`/`K2`/`App`/`Kind1` and a Profunctor optics system, including 13 V1_21 schemas and 28 fixes. `v121fix` end-to-end test green.
-- **NBT 100%** — 13 tag types, big-endian, GZIP, streaming + full visitors, `NbtOps` bridge to Codec, SNBT grammar. 24/24 round-trip cases byte-compatible with 26.2.
-- **Storage** — MCA region files, `SimpleBitStorage`, 4 `PalettedContainer` strategies, `IOWorker` three-priority preemptive async scheduler, `ChunkSource`/`ChunkHolder`/`ChunkMap` async pipeline replacing synchronous `GetChunk` waits.
-- **Registry** — `Identifier` value type, per-T `ResourceKey<T>` intern pool, two-phase `Direct`/`Reference` `Holder<T>` binding.
-- **Network** — `ClientConnection`/`ServerConnection` state machines, `Varint`/`Varlong` codecs, packet compression, M4 end-to-end handshake verified at the byte level.
-- **GPU / GUI** — Vulkan renderer on Silk.NET with **submission/render phase separation** mirroring vanilla 26.2 Blaze3D: the submission phase (`GuiRenderContext`) constructs immutable `RenderState` value objects into `GuiRenderState` (node tree + strata); the render phase (`GuiRenderer`) sorts by (pipeline, texture, scissor) and batches to a single `DrawCall` per group. Declarative `Pipeline` + `Snippet` composition with `PipelineCache` (zero runtime shader compile), dynamic rendering via `VkPipelineRenderingCreateInfoKHR`, PIP offscreen 3D render, blur post-processing, nine-slice sprite, dynamic atlas, full font provider chain, 3D item rendering. Tick and render are decoupled (tick on an independent 20 tps thread, render still serial in the window loop). See `NetCraft.Gpu/Overview.md`.
-- **Commands** — full brigadier port (`LiteralArgumentBuilder`, `RequiredArgumentBuilder`, dispatcher, redirect, `ParsedCommandNode`), 100%.
-- **TPGA** — ancillary auth/proxy service (Yggdrasil API on 25565 + WSS/API on 25566, self-signed certificate fallback, ASP.NET Core async I/O, SQLite with master/player DB split). Independent of the kernel.
+**Data formats**
 
-## Repository layout
+- **NBT** — all 13 tag types, big-endian, GZIP, streaming readers plus the full visitor set, `NbtOps` bridging into `Codec`, and an SNBT grammar. 24/24 round-trip cases match 26.2 byte for byte.
+- **DFU** — the data fixer upper in pure C#: higher-kinded simulation through `K1`/`K2`/`App`/`Kind1` and a Profunctor optics layer, 13 V1_21 schemas and 28 fixes. The `v121fix` end-to-end test is green.
 
-Layers map directly to dependency tiers. Per-module details live in each `Overview.md`.
+**World**
 
-| Layer | Module | .cs | Completion | Role |
+- **Storage** — MCA region files, `SimpleBitStorage`, all four `PalettedContainer` strategies, and an `IOWorker` with a three-priority preemptive async scheduler behind the `ChunkSource` / `ChunkHolder` / `ChunkMap` pipeline.
+- **Registry** — `Identifier` as a value type, a per-`T` `ResourceKey<T>` intern pool, two-phase `Direct` / `Reference` `Holder<T>` binding.
+
+**Networking**
+
+- **Network** — `ClientConnection` / `ServerConnection` state machines, `Varint` / `Varlong` codecs, packet compression. The M4 handshake was checked at the byte level.
+
+**Rendering**
+
+- **GPU / GUI** — a Vulkan renderer on Silk.NET that mirrors 26.2 Blaze3D's submission/render split. The submission phase builds immutable `RenderState` values into `GuiRenderState` (node tree + strata); the render phase sorts by pipeline, texture and scissor, then batches one `DrawCall` per group. Declarative `Pipeline` + `Snippet` composition backed by a `PipelineCache`, dynamic rendering via `VkPipelineRenderingCreateInfoKHR`, offscreen PIP 3D, blur post-processing, nine-slice sprites, a dynamic atlas, the full font provider chain, and 3D item rendering. Tick and render are decoupled — tick runs on its own 20 tps thread.
+
+**Commands**
+
+- **Brigadier port** — `LiteralArgumentBuilder`, `RequiredArgumentBuilder`, the dispatcher, redirects, `ParsedCommandNode`. Complete.
+
+**Side services**
+
+- **TPGA** — an auth/proxy service used alongside the kernel: Yggdrasil API on 25565, WSS/API on 25566, self-signed certificate fallback, ASP.NET Core async I/O, SQLite split into a master and a player database. It has no kernel dependency.
+
+## Layout
+
+Layers are dependency tiers — layer 0 depends on nothing, layer 4 sits on top of everything. Each module carries its own `Overview.md` with a file list and current status.
+
+| Layer | Module | Files | Done | Role |
 |---|---|---|---|---|
-| 0 | `NetCraft.Primitives` | 30 | 85% | Value types: `ChunkPos`, `BlockPos`, `SectionPos`, `Vec3i`, `Direction` ... |
+| 0 | `NetCraft.Primitives` | 30 | 85% | `ChunkPos`, `BlockPos`, `SectionPos`, `Vec3i`, `Direction`, voxel shapes |
 | 0 | `NetCraft.Config` | 5 | 100% | `SharedConstants`, `Fixes`, `Optimizations`, `DebugFlags` |
 | 1 | `NetCraft.Util` | 87 | 80% | Logging, `CrashReport`, `BitSet`, `Mth`, executors, `Xoroshiro128++`, `Profiler` |
 | 1 | `NetCraft.Nbt` | 28 | 100% | 13 tags, `NbtOps`, SNBT parser |
-| 1 | `NetCraft.Codec` | 18 | 70% | `Codec`/`MapCodec`/`DynamicOps`, `RecordCodecBuilder.Of2..Of4` |
-| 1 | `NetCraft.Tags` | 4 | 70% | `TagLoader`, `TagManager`, `ITagLoader` non-generic marker |
-| 1 | `NetCraft.DataFixer` | 166 | 95% | DFU stages A–E, HKT simulation, Profunctor optics |
+| 1 | `NetCraft.Codec` | 18 | 70% | `Codec` / `MapCodec` / `DynamicOps`, `RecordCodecBuilder.Of2..Of4` |
+| 1 | `NetCraft.Tags` | 4 | 70% | `TagLoader`, `TagManager` |
+| 1 | `NetCraft.DataFixer` | 166 | 95% | DFU stages A–E, higher-kinded simulation, Profunctor optics |
 | 2 | `NetCraft.Storage` | 110 | 90% | MCA, `PalettedContainer`, `IOWorker`, `ChunkSource` |
 | 2 | `NetCraft.Registry` | 85 | 90% | `Identifier`, `ResourceKey<T>`, `Holder<T>` |
 | 2 | `NetCraft.Interop` | 3 | 85% | Native interop shims |
 | 3 | `NetCraft.Network` | 137 | 80% | Connection state machines, codecs |
-| 3 | `NetCraft.Commands` | 50 | 100% | brigadier port |
+| 3 | `NetCraft.Commands` | 50 | 100% | Brigadier port |
 | 4 | `NetCraft.Resources` | 13 | 60% | Resource pack framework |
-| 4 | `NetCraft.Gpu` | 132 | ~95% | Vulkan + submission/render phase separation |
-| 4 | `NetCraft.Optimizations` | 11 | 70% | 5/10 integrations (FerriteCore-style `FastMap` etc.) |
-| - | `NetCraft` | 13 | 90% | Kernel entry, embeds all sub-DLLs as resources |
-| - | `NetCraft.Game` | 660 | 60% | Blocks, entities, items, chunk gen, level, client/server |
-| - | `NetCraft.Client` | 48 | - | Client runtime |
-| - | `NetCraft.Server` | 30 | - | Dedicated server runtime |
-| - | `NetCraft.ModLoader` | 17 | - | Runtime mod loading and injection |
-| - | `NetCraft.Loader` | 1 | - | CLI launcher, jar asset extraction |
-| - | `NetCraft.TPGA` | 43 | - | Auth/proxy service (independent) |
-| - | `NetCraft.DataFixer.SourceGenerator` | 1 | - | Roslyn source generator for DFU |
-
-## Related repositories
-
-| Repository | Contents |
-|---|---|
-| [NetCraft.ModApi](https://github.com/NetCraft-Dev/NetCraft.ModApi) | Mod API surface — source plus the kernel reference assemblies it builds against |
-| [NetCraft.DevTools](https://github.com/NetCraft-Dev/NetCraft.DevTools) | `ncm` CLI and the mod project templates |
-
-Client, server and loader builds are published separately.
+| 4 | `NetCraft.Gpu` | 132 | ~95% | Vulkan, submission/render phase separation |
+| 4 | `NetCraft.Optimizations` | 11 | 70% | 5/10 integrations (FerriteCore-style `FastMap` and friends) |
+| — | `NetCraft` | 13 | 90% | Kernel entry, embeds the sub-DLLs as resources |
+| — | `NetCraft.Game` | 660 | 60% | Blocks, entities, items, chunk generation, levels, client/server |
+| — | `NetCraft.Client` | 48 | — | Client runtime |
+| — | `NetCraft.Server` | 30 | — | Dedicated server runtime |
+| — | `NetCraft.ModLoader` | 17 | — | Runtime mod loading and injection |
+| — | `NetCraft.Loader` | 1 | — | CLI launcher, jar asset extraction |
+| — | `NetCraft.TPGA` | 43 | — | Auth/proxy service, independent of the kernel |
+| — | `NetCraft.DataFixer.SourceGenerator` | 1 | — | Roslyn source generator for DFU |
 
 ## Build
 
-Requires the .NET 10 SDK. The repo uses a `.slnx` solution and a single `build.ps1` orchestrator that also builds the `webui` React frontend into `NetCraft.TPGA/wwwroot`.
+Needs the .NET 10 SDK. The solution is `NetCraft.slnx`. `build.ps1` wraps the whole thing and also compiles the `webui` React frontend into `NetCraft.TPGA/wwwroot`.
 
 ```powershell
-./build.ps1                 # webui + Debug
-./build.ps1 Release         # webui + Release
-./build.ps1 Rebuild         # clean + rebuild (incl. webui)
-./build.ps1 Debug -SkipFrontend   # .NET only, skip npm
+./build.ps1                      # webui + Debug
+./build.ps1 Release              # webui + Release
+./build.ps1 Rebuild              # clean, rebuild, webui included
+./build.ps1 Debug -SkipFrontend  # .NET only, skip npm
 ```
+
+## Repositories
+
+| Repository | What it holds |
+|---|---|
+| **NetCraft** (this one) | Kernel, game layer, GPU, client/server, loader, TPGA |
+| [NetCraft.ModApi](https://github.com/NetCraft-Dev/NetCraft.ModApi) | The mod API surface, together with the kernel reference assemblies it builds against |
+| [NetCraft.DevTools](https://github.com/NetCraft-Dev/NetCraft.DevTools) | The `ncm` CLI and the `dotnet new ncm` project template |
+
+Client, server and loader builds are published separately.
 
 ## Documentation
 
-- `docs/modding-guide.md` — how to write a NetCraft mod
+- `docs/modding-guide.md` — writing a mod
 - `docs/mod-api.md` — ModApi reference
 - `docs/server-console.md` — server console modes and commands
-- `docs/README.zh-CN.md` — Chinese version of this README
-- `CHANGELOG.md` — bilingual (en/zh) release and commit changelog
-- Per-module `Overview.md` — module purpose, file list, status, plan chain position
+- `docs/README.zh-CN.md` — this README in Chinese
+- `CHANGELOG.md` — bilingual changelog
+- `NetCraft.*/Overview.md` — per-module status
 
 ## License
 
-GPL-3.0 — see [LICENSE](./LICENSE).
+GPL-3.0. See [LICENSE](./LICENSE).
