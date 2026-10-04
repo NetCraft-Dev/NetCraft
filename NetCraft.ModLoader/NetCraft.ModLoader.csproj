@@ -8,7 +8,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NetCraft\NetCraft.csproj" />
-    <ProjectReference Include="..\..\Lead.Hook\Lead.Hook.csproj" />
+    <!--注入库走 NuGet 它不是本仓库的一部分 本地那份裸拷贝不再参与构建-->
+    <PackageReference Include="Lead.Hook" Version="2.1.0" />
   </ItemGroup>
 
   <!--彩蛋图标 资源名写死不跟项目名走 取的时候按这个名字找-->
