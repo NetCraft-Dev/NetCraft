@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetCraft\NetCraft.csproj" />
+    <ProjectReference Include="..\NetCraft.Network\NetCraft.Network.csproj" />
+    <ProjectReference Include="..\NetCraft.DataFixer\NetCraft.DataFixer.csproj" />
+    <ProjectReference Include="..\NetCraft.Commands\NetCraft.Commands.csproj" />
+    <ProjectReference Include="..\NetCraft.Resources\NetCraft.Resources.csproj" />
+    <ProjectReference Include="..\NetCraft.Tags\NetCraft.Tags.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 原版方块注册表 顺序与状态属性由 tools 从原版 sources 推导生成 -->
+    <EmbeddedResource Include="World\Level\Block\blocks.txt" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

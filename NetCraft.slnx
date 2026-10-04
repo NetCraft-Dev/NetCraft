@@ -1,0 +1,27 @@
+<Solution>
+  <Project Path="NetCraft.Commands/NetCraft.Commands.csproj" />
+  <Project Path="NetCraft.Config/NetCraft.Config.csproj" />
+  <Project Path="NetCraft.Gpu/NetCraft.Gpu.csproj" />
+  <Project Path="NetCraft.Interop/NetCraft.Interop.csproj" />
+  <Project Path="NetCraft.Codec/NetCraft.Codec.csproj" />
+  <Project Path="NetCraft.DataFixer/NetCraft.DataFixer.csproj" />
+  <Project Path="NetCraft.DataFixer.SourceGenerator/NetCraft.DataFixer.SourceGenerator.csproj" />
+  <Project Path="NetCraft.Client/NetCraft.Client.csproj" />
+  <Project Path="NetCraft.Game/NetCraft.Game.csproj" />
+  <Project Path="NetCraft.Server/NetCraft.Server.csproj" />
+  <Project Path="NetCraft.Server.Exe/NetCraft.Server.Exe.csproj" />
+  <Project Path="NetCraft.Client.Exe/NetCraft.Client.Exe.csproj" />
+  <Project Path="NetCraft.Nbt/NetCraft.Nbt.csproj" />
+  <Project Path="NetCraft.Network/NetCraft.Network.csproj" />
+  <Project Path="NetCraft.ModLoader/NetCraft.ModLoader.csproj" />
+  <Project Path="NetCraft.Optimizations/NetCraft.Optimizations.csproj" />
+  <Project Path="NetCraft.Primitives/NetCraft.Primitives.csproj" />
+  <Project Path="NetCraft.Registry/NetCraft.Registry.csproj" />
+  <Project Path="NetCraft.Resources/NetCraft.Resources.csproj" />
+  <Project Path="NetCraft.Storage/NetCraft.Storage.csproj" />
+  <Project Path="NetCraft.Tags/NetCraft.Tags.csproj" />
+  <Project Path="NetCraft.Util/NetCraft.Util.csproj" />
+  <Project Path="NetCraft/NetCraft.csproj" />
+  <Project Path="NetCraft.Loader/NetCraft.Loader.csproj" />
+  <Project Path="NetCraft.TPGA/NetCraft.TPGA.csproj" />
+</Solution>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+
+  <PropertyGroup>
+    <!-- 目标框架：.NET 10，跨平台（不使用 -windows TFM） -->
+    <TargetFramework>net10.0</TargetFramework>
+
+    <!-- 语言版本：最新（C# 14 / .NET 10） -->
+    <LangVersion>latest</LangVersion>
+
+    <!-- 可空引用类型：全局启用 -->
+    <Nullable>enable</Nullable>
+
+    <!-- 隐式 using：启用 -->
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- 允许 unsafe 代码（Vulkan/IO/SIMD 必需） -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- 中性资源语言 -->
+    <NeutralLanguage>en-US</NeutralLanguage>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- 产品/公司信息 -->
+    <Authors>NetCraft Contributors</Authors>
+    <Product>NetCraft</Product>
+    <Copyright>Copyright (c) NetCraft Contributors</Copyright>
+
+    <!-- 版本号 -->
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+
+    <!-- 库的友好名（用于内嵌资源加载时的程序集名识别） -->
+    <RootNamespace>$(MSBuildProjectName.Replace(".", ""))</RootNamespace>
+    <AssemblyName>$(MSBuildProjectName)</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- 编译警告：将可空警告视为错误（生产质量要求） -->
+    <WarningsAsErrors>$(WarningsAsErrors);CS8597;CS8601;CS8602;CS8603;CS8604;CS8625</WarningsAsErrors>
+
+    <!-- 启用 NET 分析器 -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <AnalysisMode>Default</AnalysisMode>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- 确定性构建（可复现） -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true' Or '$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+</Project>

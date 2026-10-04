@@ -1,0 +1,48 @@
+{
+  "config.header": "NetCraft.TPGA 配置文件 由系统生成 修改后重启生效 范围越界字段自动还原默认",
+  "config.logDirectory": "日志目录 相对程序工作目录",
+  "config.language": "界面语言 en_US / zh_CN",
+  "config.database": "数据库 sqlite:文件路径 或其他前缀连接字符串 postgres:Host=...",
+  "config.playerDatabase": "玩家数据库，和玩家档案数据库隔离存游戏账户令牌档案与服务器加入记录",
+  "config.mainPort": "主服务端口 Yggdrasil 验证 API",
+  "config.apiPort": "API 服务端口 wss 与管理后台",
+  "config.certificatePath": "HTTPS/WSS 证书路径 留空自动生成自签名证书",
+  "config.certificatePassword": "证书密码 PFX 私钥保护 自动生成时随机生成并写回",
+  "config.serverName": "服务器名称 metadata 与日志展示用",
+  "config.skinDomains": "皮肤域名白名单 逗号分隔 客户端按此加载贴图",
+  "config.oauthProviders": "OAuth 提供商列表 配置几个前端显示几个登录按钮 留空禁用 type=github 预置 type=generic 填端点",
+
+  "boot.starting": "NetCraft.TPGA 启动中",
+  "boot.configLoaded": "配置加载完成",
+  "boot.i18nReady": "国际化系统就绪 语言={0}",
+  "boot.logReady": "日志系统就绪 目录={0}",
+  "boot.dbReady": "数据库系统就绪",
+  "boot.authReady": "验证系统就绪",
+  "boot.webReady": "ASP.NET 启动 主端口={0} api端口={1}",
+
+  "config.notExist": "配置文件不存在已生成默认",
+  "config.repaired": "配置已修复并写回",
+  "config.yamlError": "yaml 格式错误走全默认",
+  "config.portOutOfRange": "端口越界还原默认",
+
+  "cert.loaded": "已加载证书 {0}",
+  "cert.generated": "已自动生成自签名证书 {0}",
+  "cert.passwordGenerated": "证书密码为空已随机生成并写回配置",
+  "cert.loadFailed": "证书加载失败 {0}",
+
+  "admin.bootstrap": "管理员账户表为空，已创建默认 admin/admin 首登强制改密",
+
+  "yggdrasil.authenticate": "authenticate 入口 user={0}",
+  "yggdrasil.hasJoined": "hasJoined 查询 user={0} serverId={1}",
+  "yggdrasil.invalidCredentials": "凭据无效",
+  "yggdrasil.invalidToken": "令牌无效",
+  "yggdrasil.profileNotFound": "档案不存在",
+
+  "wss.connected": "wss 连接已建立",
+  "wss.pubkeySent": "已下发公钥",
+  "wss.authOk": "身份校验通过 颁发 uuid={0}",
+  "wss.authFailed": "身份校验失败 {0}",
+  "wss.disconnected": "wss 连接断开 uuid={0}",
+
+  "error.internal": "内部错误"
+}

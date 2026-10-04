@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetCraft\NetCraft.csproj" />
+    <ProjectReference Include="..\..\Lead.Hook\Lead.Hook.csproj" />
+  </ItemGroup>
+
+  <!--彩蛋图标 资源名写死不跟项目名走 取的时候按这个名字找-->
+  <ItemGroup>
+    <EmbeddedResource Include="logo_net.png" LogicalName="logo_net.png" />
+  </ItemGroup>
+
+  <!--测试要直接验版本约束判定 这块是内部实现不进公开面-->
+  <ItemGroup>
+    <InternalsVisibleTo Include="NetCraft.Test" />
+  </ItemGroup>
+
+</Project>

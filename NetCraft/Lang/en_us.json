@@ -1,0 +1,19 @@
+{
+  "netcraft.gui.chunk.terrain": "Terrain generation",
+  "netcraft.gui.chunk.players": "Players",
+  "netcraft.gui.chunk.goto_section": "Go to chunk",
+  "netcraft.gui.chunk.goto": "Go",
+  "netcraft.gui.chunk.strong": "Strong",
+  "netcraft.gui.chunk.weak": "Weak",
+  "netcraft.gui.chunk.unloaded": "Unloaded",
+  "netcraft.gui.chunk.world_center": "World center",
+  "netcraft.gui.chunk.center": "Center [%s, %s] · holders %s · drawn %s",
+  "netcraft.gui.chunk.scale": "%s px/chunk",
+  "netcraft.gui.chunk.hover": "Hover [%s, %s]",
+  "netcraft.gui.chunk.hover_players": "Hover [%s, %s] · players %s",
+  "netcraft.gui.chunk.generating": "%s generating · %s loaded\n%s holders · view distance %s",
+  "netcraft.gui.log.no_match": "No match",
+  "netcraft.gui.log.filter_stats": "Showing %s / %s lines",
+  "netcraft.gui.log.search_watermark": "<regex or text>",
+  "netcraft.gui.jit.methods": "%s methods"
+}

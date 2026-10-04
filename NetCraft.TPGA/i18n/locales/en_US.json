@@ -1,0 +1,48 @@
+{
+  "config.header": "NetCraft.TPGA configuration file. System-generated. Restart after edit. Out-of-range fields reset to default.",
+  "config.logDirectory": "Log directory. Relative to program working directory.",
+  "config.language": "UI language. en_US / zh_CN.",
+  "config.database": "Database. sqlite:filepath or other prefix connection string postgres:Host=...",
+  "config.playerDatabase": "Player database. Isolated from main DB. Stores game accounts, tokens, profiles, server joins.",
+  "config.mainPort": "Main port. Yggdrasil authentication API.",
+  "config.apiPort": "API port. wss + admin backend.",
+  "config.certificatePath": "HTTPS/WSS certificate path. Empty to auto-generate self-signed.",
+  "config.certificatePassword": "Certificate password. PFX private key protection. Random on auto-generate.",
+  "config.serverName": "Server name. Shown in metadata and logs.",
+  "config.skinDomains": "Skin domains whitelist. Comma-separated. Client loads textures from these.",
+  "config.oauthProviders": "OAuth providers list. Configured count = button count. Empty disables. type=github preset, type=generic fills endpoints.",
+
+  "boot.starting": "NetCraft.TPGA starting",
+  "boot.configLoaded": "Configuration loaded",
+  "boot.i18nReady": "I18n ready language={0}",
+  "boot.logReady": "Logging ready directory={0}",
+  "boot.dbReady": "Database ready",
+  "boot.authReady": "Auth ready",
+  "boot.webReady": "ASP.NET started mainPort={0} apiPort={1}",
+
+  "config.notExist": "Config file missing, default generated",
+  "config.repaired": "Config repaired and written back",
+  "config.yamlError": "yaml format error, using defaults",
+  "config.portOutOfRange": "Port out of range, reset to default",
+
+  "cert.loaded": "Certificate loaded {0}",
+  "cert.generated": "Self-signed certificate generated {0}",
+  "cert.passwordGenerated": "Certificate password empty, random generated and written back",
+  "cert.loadFailed": "Certificate load failed {0}",
+
+  "admin.bootstrap": "Admin table empty, default admin/admin created, change on first login",
+
+  "yggdrasil.authenticate": "authenticate entry user={0}",
+  "yggdrasil.hasJoined": "hasJoined query user={0} serverId={1}",
+  "yggdrasil.invalidCredentials": "Invalid credentials",
+  "yggdrasil.invalidToken": "Invalid token",
+  "yggdrasil.profileNotFound": "Profile not found",
+
+  "wss.connected": "wss connection established",
+  "wss.pubkeySent": "Public key sent",
+  "wss.authOk": "Auth ok, uuid={0}",
+  "wss.authFailed": "Auth failed {0}",
+  "wss.disconnected": "wss disconnected uuid={0}",
+
+  "error.internal": "Internal error"
+}

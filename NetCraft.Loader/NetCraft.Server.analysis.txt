@@ -1,0 +1,300 @@
+程序集分析报告: NetCraft.Server
+版本: 0.1.0.0
+============================================================
+
+统计信息:
+  [类] <Module>
+  [类] NetCraft.Server.Gui.AnsiLogParser
+      -> List`1 Parse()
+  [结构] NetCraft.Server.Gui.AnsiLogParser/LogSpan
+      -> String ToString()
+      -> Boolean op_Inequality()
+      -> Boolean op_Equality()
+      -> Int32 GetHashCode()
+      -> Boolean Equals()
+      -> Boolean Equals()
+      -> Void Deconstruct()
+  [类] NetCraft.Server.Gui.ChunkGridView
+      -> Void add_CenterPanned()
+      -> Void remove_CenterPanned()
+      -> Void add_HoverChanged()
+      -> Void remove_HoverChanged()
+      -> Void SetSnapshot()
+      -> Void Render()
+  [类] NetCraft.Server.Gui.ChunkGridView/CellState
+  [类] NetCraft.Server.Gui.LogRowAnimation
+      -> Void Play()
+  [结构] NetCraft.Server.Gui.LogRowAnimation/<RunAsync>d__2
+  [类] NetCraft.Server.Gui.LogStore
+      -> Void add_LineAdded()
+      -> Void remove_LineAdded()
+      -> Void Attach()
+      -> Void Detach()
+      -> Entry[] Snapshot()
+  [结构] NetCraft.Server.Gui.LogStore/Entry
+      -> String ToString()
+      -> Boolean op_Inequality()
+      -> Boolean op_Equality()
+      -> Int32 GetHashCode()
+      -> Boolean Equals()
+      -> Boolean Equals()
+      -> Void Deconstruct()
+  [类] NetCraft.Server.Gui.MemoryGraph
+      -> Void Push()
+      -> Void Render()
+  [类] NetCraft.Server.Gui.PotatoIcon
+      -> Void Apply()
+  [结构] NetCraft.Server.Gui.PotatoIcon/<Apply>d__15
+  [结构] NetCraft.Server.Gui.PotatoIcon/<DownloadAsync>d__19
+  [结构] NetCraft.Server.Gui.PotatoIcon/<LoadIconAsync>d__16
+  [类] NetCraft.Server.Gui.ServerChunkPage
+      -> Void Refresh()
+      -> Void InitializeComponent()
+  [类] NetCraft.Server.Gui.ServerChunkPage/<>c
+  [类] NetCraft.Server.Gui.ServerChunkPage/<>c__DisplayClass24_0
+  [类] NetCraft.Server.Gui.ServerChunkPage/<>c__DisplayClass27_0
+  [类] NetCraft.Server.Gui.ServerChunkPage/<>c__DisplayClass27_1
+  [类] NetCraft.Server.Gui.ServerChunkPage/<>c__DisplayClass29_0
+  [类] NetCraft.Server.Gui.ServerGuiApp
+      -> Void Initialize()
+      -> Void OnFrameworkInitializationCompleted()
+  [类] NetCraft.Server.Gui.ServerGuiApp/<>c__DisplayClass5_0
+  [类] NetCraft.Server.Gui.ServerGuiHost
+      -> Void Run()
+  [类] NetCraft.Server.Gui.ServerGuiHost/<>c__DisplayClass0_0
+  [类] NetCraft.Server.Gui.ServerJitPanel
+      -> Void Refresh()
+      -> Void InitializeComponent()
+  [结构] NetCraft.Server.Gui.ServerJitPanel/<PlayAppear>d__9
+  [类] NetCraft.Server.Gui.ServerJitPanel/XamlClosure_1
+      -> Object Build_1()
+      -> Context`1 CreateContext()
+  [类] NetCraft.Server.Gui.JitRow
+      -> Void add_PropertyChanged()
+      -> Void remove_PropertyChanged()
+      -> Void Update()
+  [类] NetCraft.Server.Gui.RangeObservableCollection`1
+      -> Void AddRange()
+      -> Void RemoveRange()
+      -> Void ReplaceAll()
+  [类] NetCraft.Server.Gui.ServerLogPage
+      -> Void Detach()
+      -> Void InitializeComponent()
+  [类] NetCraft.Server.Gui.ServerLogPage/<>c__DisplayClass27_0
+  [类] NetCraft.Server.Gui.ServerLogPage/XamlClosure_2
+      -> Object Build_1()
+      -> Context`1 CreateContext()
+  [类] NetCraft.Server.Gui.ServerLogPanel
+      -> Void SetInputEnabled()
+      -> Void Detach()
+      -> Void InitializeComponent()
+  [类] NetCraft.Server.Gui.ServerLogPanel/<>c__DisplayClass29_0
+  [类] NetCraft.Server.Gui.ServerLogPanel/XamlClosure_3
+      -> Object Build_1()
+      -> Context`1 CreateContext()
+  [类] NetCraft.Server.Gui.LogRow
+  [类] NetCraft.Server.Gui.LogRowSpans
+      -> Void SetSpans()
+      -> IReadOnlyList`1 GetSpans()
+      -> Void SetMatches()
+      -> IReadOnlyList`1 GetMatches()
+  [类] NetCraft.Server.Gui.LogRowSpans/<>c
+  [类] NetCraft.Server.Gui.ServerPlayerListPanel
+      -> Void Refresh()
+      -> Void InitializeComponent()
+  [类] NetCraft.Server.Gui.ServerPlayerListPanel/<>c
+  [类] NetCraft.Server.Gui.ServerPlayerListPanel/XamlClosure_4
+      -> Object Build_1()
+      -> Context`1 CreateContext()
+  [类] NetCraft.Server.Gui.ServerStatsPanel
+      -> Void Refresh()
+      -> Void InitializeComponent()
+  [类] NetCraft.Server.Gui.ServerWindow
+      -> Void InitializeComponent()
+  [类] NetCraft.Server.Gui.ServerWindow/XamlClosure_5
+      -> Object Build_1()
+      -> Context`1 CreateContext()
+      -> Object Build_2()
+      -> Object Build_3()
+      -> Object Build_4()
+      -> Object Build_5()
+      -> Object Build_6()
+      -> Object Build_7()
+      -> Object Build_8()
+      -> Object Build_9()
+      -> Object Build_10()
+      -> Object Build_11()
+      -> Object Build_12()
+      -> Object Build_13()
+      -> Object Build_14()
+      -> Object Build_15()
+      -> Object Build_16()
+      -> Object Build_17()
+      -> Object Build_18()
+      -> Object Build_19()
+      -> Object Build_20()
+      -> Object Build_21()
+      -> Object Build_22()
+      -> Object Build_23()
+      -> Object Build_24()
+      -> Object Build_25()
+      -> Object Build_26()
+      -> Object Build_27()
+      -> Object Build_28()
+      -> Object Build_29()
+  [类] NetCraft.Server.Diagnostics.GcEventMonitor
+      -> Void Start()
+      -> Void Stop()
+      -> Int32 TakePending()
+  [类] NetCraft.Server.Diagnostics.GcEventMonitor/<>O
+  [枚举] NetCraft.Server.Diagnostics.JitTier
+  [类] NetCraft.Server.Diagnostics.JitMethodState
+  [类] NetCraft.Server.Diagnostics.JitEventMonitor
+      -> Void Start()
+      -> ValueTuple`2 TakePending()
+      -> Boolean IsTracked()
+      -> List`1 Snapshot()
+  [类] NetCraft.Server.Diagnostics.JitEventMonitor/Listener
+  [类] NetCraft.Server.Diagnostics.JitEventMonitor/<>O
+  [类] NetCraft.Game.ServerMain
+      -> Int32 Main()
+      -> Void Run()
+      -> Void WaitForServer()
+  [类] NetCraft.Game.ServerMain/<>c__DisplayClass2_0
+  [类] NetCraft.Game.Network.Protocol.Status.ServerStatusPacketListenerImpl
+      -> Void HandleStatusRequest()
+      -> Void HandlePingRequest()
+      -> Void OnDisconnect()
+  [类] NetCraft.Game.Network.Protocol.Login.ServerLoginPacketListenerImpl
+      -> Void HandleHello()
+      -> Void HandleKey()
+      -> Void HandleCustomQueryPacket()
+      -> Void HandleLoginAcknowledgement()
+      -> Void OnDisconnect()
+  [接口] NetCraft.Game.Network.Protocol.Login.ServerLoginContext
+      -> Void TransitionToConfiguration()
+  [类] NetCraft.Game.Network.Protocol.Handshake.ServerHandshakePacketListenerImpl
+      -> Void HandleIntention()
+      -> Void OnDisconnect()
+  [接口] NetCraft.Game.Network.Protocol.Handshake.ServerHandshakeContext
+      -> Void TransitionToStatus()
+      -> Void TransitionToLogin()
+  [类] NetCraft.Game.Network.Protocol.Configuration.ServerConfigurationPacketListenerImpl
+      -> Void HandleConfigurationFinished()
+      -> Void HandleSelectKnownPacks()
+      -> Void TickListener()
+      -> Void HandleAcceptCodeOfConduct()
+      -> Void HandleClientInformation()
+      -> Void HandleCustomPayload()
+      -> Void HandleKeepAlive()
+      -> Void HandlePong()
+      -> Void HandleResourcePack()
+      -> Void HandleCustomClickAction()
+      -> Void HandleCookieResponse()
+      -> Void OnDisconnect()
+  [接口] NetCraft.Game.Network.Protocol.Configuration.ServerConfigurationContext
+      -> Void TransitionToGame()
+      -> Void SendSynchronizedRegistries()
+      -> Task[] PrepareSpawnChunks()
+      -> Void KeepAliveSpawnTickets()
+  [类] NetCraft.Game.Server.DedicatedServer
+      -> PersistentServerLevel GetLevel()
+      -> Void SetDefaultGameType()
+      -> Void SetSpawnPos()
+      -> Void StartNetwork()
+      -> Void InitServer()
+      -> Void KeepAliveSpawnTickets()
+      -> Void SetWeatherParameters()
+      -> Void AddPlayer()
+      -> Boolean RemovePlayer()
+      -> Void TransitionToStatus()
+      -> Void TransitionToLogin()
+      -> Void TransitionToConfiguration()
+      -> Void SendSynchronizedRegistries()
+      -> Task[] PrepareSpawnChunks()
+      -> Void TransitionToGame()
+      -> Void SetSavingEnabled()
+      -> Void SaveAllNow()
+      -> Void Stop()
+      -> Void RunStatus()
+      -> Void Dispose()
+  [类] NetCraft.Game.Server.DedicatedServer/<>O
+  [类] NetCraft.Game.Server.DedicatedServer/<>c
+  [类] NetCraft.Game.Server.DedicatedServer/<>c__DisplayClass128_0
+  [结构] NetCraft.Game.Server.DedicatedServer/<>c__DisplayClass128_0/<<Tick>b__0>d
+  [类] NetCraft.Game.Server.DedicatedServer/<>c__DisplayClass43_0
+  [类] NetCraft.Game.Server.DedicatedServer/<>c__DisplayClass45_0
+  [类] NetCraft.Game.Server.DedicatedServer/<PlayerBoxes>d__114
+  [类] <PrivateImplementationDetails>
+  [类] CompiledAvaloniaXaml.XamlIlHelpers
+      -> IPropertyInfo NetCraft.Server.Gui.JitRow,NetCraft.Server.Status!Property()
+      -> IPropertyInfo NetCraft.Server.Gui.JitRow,NetCraft.Server.Brush!Property()
+      -> IPropertyInfo NetCraft.Server.Gui.JitRow,NetCraft.Server.Name!Property()
+      -> IPropertyInfo NetCraft.Server.Gui.LogRow,NetCraft.Server.Spans!Property()
+      -> IPropertyInfo NetCraft.Server.Gui.LogRow,NetCraft.Server.Matches!Property()
+      -> IPropertyInfo Avalonia.Styling.Setter,Avalonia.Base.Value!Property()
+  [类] CompiledAvaloniaXaml.!IndexerAccessorFactoryClosure
+  [类] CompiledAvaloniaXaml.XamlIlTrampolines
+  [类] CompiledAvaloniaXaml.XamlDynamicSetters
+  [类] CompiledAvaloniaXaml.XamlIlContext
+  [类] CompiledAvaloniaXaml.XamlIlContext/Context`1
+      -> Object GetService()
+      -> Void PushParent()
+      -> Void PopParent()
+  [类] CompiledAvaloniaXaml.XamlIlContext/ParentStackEnumerable
+      -> IEnumerator`1 GetEnumerator()
+  [类] CompiledAvaloniaXaml.XamlIlContext/ParentStackEnumerable/Enumerator
+  [类] CompiledAvaloniaXaml.!XamlLoader
+      -> Object TryLoad()
+      -> Object TryLoad()
+  [类] CompiledAvaloniaXaml.!AvaloniaResources
+      -> Void Populate:/ServerGui/Theme.axaml()
+      -> Styles Build:/ServerGui/Theme.axaml()
+  [类] CompiledAvaloniaXaml.!AvaloniaResources/NamespaceInfo:/ServerGui/ServerChunkPage.axaml
+  [类] CompiledAvaloniaXaml.!AvaloniaResources/NamespaceInfo:/ServerGui/ServerJitPanel.axaml
+  [类] CompiledAvaloniaXaml.!AvaloniaResources/NamespaceInfo:/ServerGui/ServerLogPage.axaml
+  [类] CompiledAvaloniaXaml.!AvaloniaResources/NamespaceInfo:/ServerGui/ServerLogPanel.axaml
+  [类] CompiledAvaloniaXaml.!AvaloniaResources/NamespaceInfo:/ServerGui/ServerPlayerListPanel.axaml
+  [类] CompiledAvaloniaXaml.!AvaloniaResources/NamespaceInfo:/ServerGui/ServerStatsPanel.axaml
+  [类] CompiledAvaloniaXaml.!AvaloniaResources/NamespaceInfo:/ServerGui/ServerWindow.axaml
+  [类] CompiledAvaloniaXaml.!AvaloniaResources/NamespaceInfo:/ServerGui/Theme.axaml
+
+总计: 类=75, 接口=3, 枚举=1, 结构=8, 方法=168
+
+依赖项:
+  - Avalonia.Base (v12.1.3.0)
+  - Avalonia.Controls (v12.1.3.0)
+  - Avalonia.Desktop (v12.1.3.0)
+  - Avalonia.Fonts.Inter (v12.1.3.0)
+  - Avalonia.Markup.Xaml (v12.1.3.0)
+  - Avalonia.Themes.Fluent (v12.1.3.0)
+  - Microsoft.Diagnostics.NETCore.Client (v0.2.14.45401)
+  - Microsoft.Diagnostics.Tracing.TraceEvent (v3.2.8.0)
+  - NetCraft (v0.1.0.0)
+  - NetCraft.Codec (v0.1.0.0)
+  - NetCraft.Commands (v0.1.0.0)
+  - NetCraft.DataFixer (v0.1.0.0)
+  - NetCraft.Game (v0.1.0.0)
+  - NetCraft.Nbt (v0.1.0.0)
+  - NetCraft.Network (v0.1.0.0)
+  - NetCraft.Primitives (v0.1.0.0)
+  - NetCraft.Registry (v0.1.0.0)
+  - NetCraft.Resources (v0.1.0.0)
+  - NetCraft.Storage (v0.1.0.0)
+  - NetCraft.Util (v0.1.0.0)
+  - System.Collections (v10.0.0.0)
+  - System.ComponentModel (v10.0.0.0)
+  - System.ComponentModel.Primitives (v10.0.0.0)
+  - System.ComponentModel.TypeConverter (v10.0.0.0)
+  - System.Console (v10.0.0.0)
+  - System.Diagnostics.Tracing (v10.0.0.0)
+  - System.Linq (v10.0.0.0)
+  - System.Memory (v10.0.0.0)
+  - System.Net.Http (v10.0.0.0)
+  - System.Net.Primitives (v10.0.0.0)
+  - System.ObjectModel (v10.0.0.0)
+  - System.Runtime (v10.0.0.0)
+  - System.Runtime.InteropServices (v10.0.0.0)
+  - System.Text.RegularExpressions (v10.0.0.0)
+  - System.Threading (v10.0.0.0)
+  - System.Threading.Thread (v10.0.0.0)

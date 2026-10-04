@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NetCraft.Server.Gui.ServerPlayerListPanel">
+
+  <Grid RowDefinitions="Auto,10,*">
+    <TextBlock Classes="cardTitle" Text="PLAYERS" />
+    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+      <ItemsControl x:Name="Players">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Classes="listRowBox">
+              <TextBlock Classes="listRow" Text="{Binding}" />
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+
+</UserControl>

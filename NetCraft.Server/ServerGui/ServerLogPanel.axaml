@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:gui="using:NetCraft.Server.Gui"
+             x:Class="NetCraft.Server.Gui.ServerLogPanel">
+
+  <Grid RowDefinitions="Auto,10,*,10,Auto">
+    <TextBlock Classes="cardTitle" Text="LOG AND CHAT" />
+
+    <Border Grid.Row="2" CornerRadius="4"
+            Background="{DynamicResource ConsoleBackground}"
+            BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
+      <!--日志不折行 超出宽度靠横向滚动条看 不设 Auto 的话长行会被直接裁掉-->
+      <!--用 ListBox 而不是 StackPanel 它自带虚拟化 一千行的文本布局常驻降到看得见的几十行-->
+      <!--行内容由 OnRowPrepared 按 LogRow 里的片段填 不用绑定是因为 TextBlock.Inlines 挂不上绑定-->
+      <ListBox x:Name="LogLines" Classes="plain" Padding="8,6"
+               ScrollViewer.VerticalScrollBarVisibility="Auto"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto"
+               ContainerPrepared="OnRowPrepared">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="gui:LogRow">
+            <!--片段靠附加属性灌进 Inlines 而不是在 ContainerPrepared 里手填
+                ItemTemplate 生成的控件不是 ListBoxItem.Content 它挂在 ContentPresenter 下-->
+            <TextBlock Classes="logLine" gui:LogRowSpans.Spans="{Binding Spans}" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+
+    <Border Grid.Row="4" CornerRadius="4" Padding="8,6"
+            Background="{DynamicResource ConsoleBackground}"
+            BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
+      <Grid ColumnDefinitions="Auto,8,*">
+        <TextBlock Text="&#x203A;" FontSize="14" VerticalAlignment="Center"
+                   Foreground="{DynamicResource Accent}" />
+        <TextBox x:Name="CommandInput" Grid.Column="2" Classes="command" />
+      </Grid>
+    </Border>
+
+  </Grid>
+
+</UserControl>

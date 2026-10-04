@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetCraft.Util\NetCraft.Util.csproj" />
+    <ProjectReference Include="..\NetCraft.Registry\NetCraft.Registry.csproj" />
+    <ProjectReference Include="..\NetCraft.Nbt\NetCraft.Nbt.csproj" />
+    <ProjectReference Include="..\NetCraft.Storage\NetCraft.Storage.csproj" />
+    <ProjectReference Include="..\NetCraft.Network\NetCraft.Network.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

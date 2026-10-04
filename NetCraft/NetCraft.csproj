@@ -1,0 +1,133 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    主启动类库（聚合所有子库）。
+    子库通过项目引用确保编译顺序（底层先编译），
+    但运行时不复制到输出目录（Private=false），
+    而是通过 MSBuild target 嵌入为内嵌资源，
+    运行时由 EmbeddedAssemblyLoader 从内嵌资源加载（.NET 独家技术）。
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- 标记为主启动类库 -->
+    <IsPackable>true</IsPackable>
+    <PackageId>NetCraft</PackageId>
+    <Description>Minecraft 26.2 内核 C#/.NET 10 重写 - 主启动聚合类库</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      子库引用：编译顺序由依赖决定（底层先编译）。
+      OutputItemType=ReferencePath 让子库输出 dll 进入 ReferencePath（用于嵌入与类型解析）。
+      ReferenceOutputAssembly=true 确保生成引用。
+      Private=false 不复制到输出目录（运行时从内嵌资源加载）。
+    -->
+    <!--
+      原 NetCraft.Bootstrap 项目已并入主库（Bootstrap/ 目录），这里直接引它用到的子库。
+      Gpu 不在此列：引导层与内核层都不碰图形，客户端侧自行引用。
+    -->
+    <ProjectReference Include="..\NetCraft.Registry\NetCraft.Registry.csproj">
+      <OutputItemType>ReferencePath</OutputItemType>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\NetCraft.Storage\NetCraft.Storage.csproj">
+      <OutputItemType>ReferencePath</OutputItemType>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\NetCraft.Resources\NetCraft.Resources.csproj">
+      <OutputItemType>ReferencePath</OutputItemType>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\NetCraft.Tags\NetCraft.Tags.csproj">
+      <OutputItemType>ReferencePath</OutputItemType>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\NetCraft.Network\NetCraft.Network.csproj">
+      <OutputItemType>ReferencePath</OutputItemType>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\NetCraft.Commands\NetCraft.Commands.csproj">
+      <OutputItemType>ReferencePath</OutputItemType>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\NetCraft.Optimizations\NetCraft.Optimizations.csproj">
+      <OutputItemType>ReferencePath</OutputItemType>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <!--
+    嵌入所有传递依赖的子库 dll 为内嵌资源。
+    显式列出每个子库自己的 bin 目录（不包含它依赖的子库，避免重复）。
+    资源名格式：NetCraft.Embedded.{AssemblyName}.dll
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\NetCraft.Primitives\bin\$(Configuration)\net10.0\NetCraft.Primitives.dll">
+      <LogicalName>NetCraft.Embedded.NetCraft.Primitives.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\NetCraft.Config\bin\$(Configuration)\net10.0\NetCraft.Config.dll">
+      <LogicalName>NetCraft.Embedded.NetCraft.Config.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\NetCraft.Interop\bin\$(Configuration)\net10.0\NetCraft.Interop.dll">
+      <LogicalName>NetCraft.Embedded.NetCraft.Interop.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\NetCraft.Nbt\bin\$(Configuration)\net10.0\NetCraft.Nbt.dll">
+      <LogicalName>NetCraft.Embedded.NetCraft.Nbt.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\NetCraft.Util\bin\$(Configuration)\net10.0\NetCraft.Util.dll">
+      <LogicalName>NetCraft.Embedded.NetCraft.Util.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\NetCraft.Registry\bin\$(Configuration)\net10.0\NetCraft.Registry.dll">
+      <LogicalName>NetCraft.Embedded.NetCraft.Registry.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\NetCraft.Storage\bin\$(Configuration)\net10.0\NetCraft.Storage.dll">
+      <LogicalName>NetCraft.Embedded.NetCraft.Storage.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\NetCraft.Resources\bin\$(Configuration)\net10.0\NetCraft.Resources.dll">
+      <LogicalName>NetCraft.Embedded.NetCraft.Resources.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\NetCraft.Tags\bin\$(Configuration)\net10.0\NetCraft.Tags.dll">
+      <LogicalName>NetCraft.Embedded.NetCraft.Tags.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\NetCraft.Network\bin\$(Configuration)\net10.0\NetCraft.Network.dll">
+      <LogicalName>NetCraft.Embedded.NetCraft.Network.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\NetCraft.Commands\bin\$(Configuration)\net10.0\NetCraft.Commands.dll">
+      <LogicalName>NetCraft.Embedded.NetCraft.Commands.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\NetCraft.Optimizations\bin\$(Configuration)\net10.0\NetCraft.Optimizations.dll">
+      <LogicalName>NetCraft.Embedded.NetCraft.Optimizations.dll</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- NC 自有语言文件 编译期内嵌 启动时由 NcLanguageFiles 解压到根目录 lang/
+         资源名带上 assets/netcraft/lang/ 前缀 解压时按这个前缀认领 -->
+    <EmbeddedResource Include="Lang\*.json" LogicalName="assets/netcraft/lang/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!--
+    清理输出目录中冗余的子库 dll。
+    运行时通过内嵌资源加载，不需要独立 dll 文件。
+    只保留主库 NetCraft.dll 和非 NetCraft 的 NuGet 依赖。
+  -->
+  <Target Name="CleanRedundantSubLibraries" AfterTargets="Build">
+    <ItemGroup>
+      <RedundantSubLibraries Include="$(OutputPath)NetCraft.*.dll" Exclude="$(OutputPath)NetCraft.dll" />
+    </ItemGroup>
+    <Delete Files="@(RedundantSubLibraries)" />
+    <Message Text="[CleanRedundantSubLibraries] 已删除冗余子库 dll: %(RedundantSubLibraries.Filename)" Importance="high" />
+  </Target>
+
+</Project>

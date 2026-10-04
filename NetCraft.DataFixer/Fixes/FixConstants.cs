@@ -1,0 +1,41 @@
+namespace NetCraft.DataFixer.Fixes;
+
+//游戏业务字面常量集合集中替代原版散落在各业务类的TAG_*/Fields.*
+//避免引入NetCraft.Game依赖按需直接用字面值
+public static class FixConstants
+{
+    public const string LivingEntityAttributes = "attributes";
+    public const string LivingEntityBrain = "Brain";
+    public const string EntityUuid = "UUID";
+    public const string StateHolderName = "Name";
+    public const string StateHolderProperties = "Properties";
+    public const string MobDropChances = "DropChances";
+    public const string ItemInstanceComponents = "components";
+    public const string ItemInstanceCount = "Count";
+    public const string JigsawBlockEntityName = "name";
+    public const string JigsawBlockEntityTarget = "target";
+    public const string DecoratedPotBlockEntityItem = "item";
+    public const string DecoratedPotBlockEntitySherds = "sherds";
+    public const string JukeboxBlockEntityTicksSinceSongStarted = "ticks_since_song_started";
+    public const string ChunkRegionIoEventType = "type";
+    public const string ChunkRegionIoEventDimension = "dimension";
+    public const string PartNameFeet = "feet";
+    public const string PartNameHead = "head";
+    public const string PartNameBody = "body";
+    public const string StructureTemplateBlocks = "blocks";
+    public const string ContainerHelperItems = "Items";
+    public const string ServerPlayerEnderPearls = "ender_pearls";
+    public const string ServerRecipeBookRecipeBook = "recipe_book";
+    public const string InventoryCarrierInventory = "Inventory";
+    public const string PlayerRootVehicle = "RootVehicle";
+    public const string PlayerEnderItems = "EnderItems";
+    public const string PlayerShoulderEntityLeft = "ShoulderEntityLeft";
+    public const string PlayerShoulderEntityRight = "ShoulderEntityRight";
+    public const string RecipeBookRecipes = "recipes";
+    public const string RecipeBookToBeDisplayed = "toBeDisplayed";
+    public const string WrittenBookPages = "pages";
+    public const string WrittenBookRaw = "raw";
+    public const string WrittenBookFiltered = "filtered";
+    public const string FoodUsingConvertsTo = "using_converts_to";
+    public const string EntityItem = "Item";
+}

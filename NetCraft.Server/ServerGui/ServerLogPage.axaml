@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:gui="using:NetCraft.Server.Gui"
+             x:Class="NetCraft.Server.Gui.ServerLogPage">
+
+  <Grid ColumnDefinitions="152,12,*">
+    <!--左边是级别过滤 按钮由 code-behind 按可用的级别生成 debug 时才多一个 DBG-->
+    <Border Grid.Column="0" Classes="card">
+      <StackPanel Spacing="10">
+        <TextBlock Classes="cardTitle" Text="LEVEL" />
+        <StackPanel x:Name="Filters" Spacing="6" />
+        <TextBlock x:Name="FilterStats" Classes="hintText" TextWrapping="Wrap" />
+        <TextBlock Classes="hintText" TextWrapping="Wrap"/>
+      </StackPanel>
+    </Border>
+
+    <!--右边上搜索下日志 与主页日志区同一套渲染 区别是没有命令输入区-->
+    <Grid Grid.Column="2" RowDefinitions="Auto,10,*">
+      <Border Classes="card" Padding="10,7">
+        <Grid ColumnDefinitions="*,8,Auto,8,Auto,6,Auto">
+          <TextBox x:Name="SearchBox" Classes="searchBox"
+                   Watermark="{x:Static gui:GuiText.LogSearchWatermark}" />
+          <TextBlock x:Name="MatchLabel" Grid.Column="2" Classes="metricLabel"
+                     VerticalAlignment="Center" MinWidth="52" TextAlignment="Right" />
+          <Button x:Name="PrevButton" Grid.Column="4" Classes="navButton" Content="&#x2191;" />
+          <Button x:Name="NextButton" Grid.Column="6" Classes="navButton" Content="&#x2193;" />
+        </Grid>
+      </Border>
+
+      <Border Grid.Row="2" CornerRadius="4"
+              Background="{DynamicResource ConsoleBackground}"
+              BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
+        <!--日志不折行 超出宽度靠横向滚动条看 不设 Auto 的话长行会被直接裁掉-->
+        <!--用 ListBox 而不是 StackPanel 它自带虚拟化 两千行的文本布局常驻降到看得见的几十行-->
+        <!--命中搜索的那几个词由 LogRowSpans 在行内挑出来加底 只标词不标整行-->
+        <ListBox x:Name="LogLines" Classes="plain" Padding="8,6"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                 ContainerPrepared="OnRowPrepared">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="gui:LogRow">
+              <TextBlock Classes="logLine"
+                         gui:LogRowSpans.Spans="{Binding Spans}"
+                         gui:LogRowSpans.Matches="{Binding Matches}" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+    </Grid>
+  </Grid>
+
+</UserControl>

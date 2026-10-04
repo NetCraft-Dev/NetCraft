@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetCraft.Codec\NetCraft.Codec.csproj" />
+    <ProjectReference Include="..\NetCraft.Util\NetCraft.Util.csproj" />
+    <ProjectReference Include="..\NetCraft.Nbt\NetCraft.Nbt.csproj" />
+    <ProjectReference Include="..\NetCraft.Commands\NetCraft.Commands.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetCraft.DataFixer.SourceGenerator\NetCraft.DataFixer.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+
+</Project>

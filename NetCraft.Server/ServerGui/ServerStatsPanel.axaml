@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:gui="clr-namespace:NetCraft.Server.Gui"
+             x:Class="NetCraft.Server.Gui.ServerStatsPanel">
+
+  <StackPanel Spacing="10">
+    <TextBlock Classes="cardTitle" Text="STATS" />
+    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,6,Auto">
+      <TextBlock Classes="metricLabel" Text="Memory use" />
+      <TextBlock x:Name="MemoryLine" Grid.Column="1" Classes="metricValue" Text="--" />
+      <TextBlock Grid.Row="2" Classes="metricLabel" Text="Average tick" />
+      <TextBlock x:Name="TickLine" Grid.Row="2" Grid.Column="1" Classes="metricValue" Text="--" />
+    </Grid>
+    <gui:MemoryGraph x:Name="Memory" Height="96" BackdropBrush="{DynamicResource GraphBackground}" />
+  </StackPanel>
+
+</UserControl>

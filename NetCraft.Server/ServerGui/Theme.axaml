@@ -1,0 +1,287 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--卡片 白底圆角细边 承载 Stats/Players/Log 三块区域-->
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="12" />
+  </Style>
+
+  <!--卡片小标题 小字号次要色 与内容拉开层次-->
+  <Style Selector="TextBlock.cardTitle">
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="1.2" />
+  </Style>
+
+  <!--指标行的标签与数值 值靠右加粗便于扫读-->
+  <Style Selector="TextBlock.metricLabel">
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="TextBlock.metricValue">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="HorizontalAlignment" Value="Right" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!--玩家名单一行 行间细线分隔代替选中高亮-->
+  <Style Selector="TextBlock.listRow">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+
+  <Style Selector="Border.listRowBox">
+    <Setter Property="BorderBrush" Value="{DynamicResource RowSeparator}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Padding" Value="2,6" />
+  </Style>
+
+  <!--日志行 等宽字体 深底上用浅色字 行内颜色由 AnsiLogParser 逐段给-->
+  <Style Selector="TextBlock.logLine">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="TextWrapping" Value="NoWrap" />
+    <Setter Property="Padding" Value="0,1" />
+  </Style>
+
+  <!--命令输入框 去掉 Fluent 默认的边框与最小高度 外观交给外层 Border-->
+  <Style Selector="TextBox.command">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{DynamicResource ConsoleText}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource ConsoleText}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <!--聚焦时那圈高亮框是装饰器画的不属于模板 关掉它-->
+    <Setter Property="FocusAdorner" Value="{x:Null}" />
+  </Style>
+
+  <!--不写模板元素名 直接盖住模板内所有 Border 焦点态 Fluent 会把某个 Border 的底刷成主题聚焦色-->
+  <Style Selector="TextBox.command /template/ Border">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+
+  <!--聚焦态要单独写一遍 带伪类的选择器优先级更高 只覆盖无状态那份挡不住它-->
+  <Style Selector="TextBox.command:focus">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="TextBox.command:focus /template/ Border">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+
+  <!--纯列表 去掉选中与悬停的高亮和所有内边距 只留内容本身-->
+  <Style Selector="ListBox.plain">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+
+  <Style Selector="ListBox.plain ListBoxItem">
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="ListBox.plain ListBoxItem /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="ListBox.plain ListBoxItem:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="ListBox.plain ListBoxItem:selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <!--服务端就绪前命令框禁用 压暗一档与可输入状态区分开 禁用由面板按 Running 切换-->
+  <Style Selector="TextBox.command:disabled">
+    <Setter Property="Opacity" Value="0.45" />
+  </Style>
+
+  <!--日志页的搜索框 它坐在浅色卡片上 不能沿用命令框那套深底浅字-->
+  <Style Selector="TextBox.searchBox">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Padding" Value="6,4" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="FocusAdorner" Value="{x:Null}" />
+  </Style>
+
+  <Style Selector="TextBox.searchBox /template/ Border">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+
+  <!--正则写错时描一圈红底 提示这条搜索没生效 而不是把日志全清掉-->
+  <Style Selector="TextBox.searchBox.invalid /template/ Border">
+    <Setter Property="Background" Value="#22F87171" />
+    <Setter Property="BorderBrush" Value="#F87171" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
+  <!--级别过滤开关 底色透明 文字用该级别自己的颜色 选中时加一层同色淡底与描边-->
+  <Style Selector="ToggleButton.levelToggle">
+    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Padding" Value="0,6" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <!--按下时缩一下当反馈 松开弹回 过渡走弹性曲线就不生硬-->
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" Easing="CubicEaseOut" />
+        <BrushTransition Property="Background" Duration="0:0:0.15" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="ToggleButton.levelToggle:pressed">
+    <Setter Property="RenderTransform" Value="scale(0.95)" />
+  </Style>
+
+  <Style Selector="ToggleButton.levelToggle.dbg">
+    <Setter Property="Foreground" Value="#22D3EE" />
+  </Style>
+
+  <Style Selector="ToggleButton.levelToggle.info">
+    <Setter Property="Foreground" Value="#4ADE80" />
+  </Style>
+
+  <Style Selector="ToggleButton.levelToggle.warn">
+    <Setter Property="Foreground" Value="#FACC15" />
+  </Style>
+
+  <Style Selector="ToggleButton.levelToggle.error">
+    <Setter Property="Foreground" Value="#F87171" />
+  </Style>
+
+  <Style Selector="ToggleButton.levelToggle.crit">
+    <Setter Property="Foreground" Value="#C084FC" />
+  </Style>
+
+  <Style Selector="ToggleButton.levelToggle.dbg:checked">
+    <Setter Property="Background" Value="#3322D3EE" />
+    <Setter Property="BorderBrush" Value="#22D3EE" />
+  </Style>
+
+  <Style Selector="ToggleButton.levelToggle.info:checked">
+    <Setter Property="Background" Value="#334ADE80" />
+    <Setter Property="BorderBrush" Value="#4ADE80" />
+  </Style>
+
+  <Style Selector="ToggleButton.levelToggle.warn:checked">
+    <Setter Property="Background" Value="#33FACC15" />
+    <Setter Property="BorderBrush" Value="#FACC15" />
+  </Style>
+
+  <Style Selector="ToggleButton.levelToggle.error:checked">
+    <Setter Property="Background" Value="#33F87171" />
+    <Setter Property="BorderBrush" Value="#F87171" />
+  </Style>
+
+  <Style Selector="ToggleButton.levelToggle.crit:checked">
+    <Setter Property="Background" Value="#33C084FC" />
+    <Setter Property="BorderBrush" Value="#C084FC" />
+  </Style>
+
+  <!--匹配跳转按钮 小方块 与过滤开关同样按一下缩一下 悬停给一点底色-->
+  <Style Selector="Button.navButton">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Width" Value="26" />
+    <Setter Property="Height" Value="26" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" Easing="CubicEaseOut" />
+        <BrushTransition Property="Background" Duration="0:0:0.12" />
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="Button.navButton:pressed">
+    <Setter Property="RenderTransform" Value="scale(0.9)" />
+  </Style>
+
+  <Style Selector="Button.navButton:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource RowSeparator}" />
+  </Style>
+
+  <!--注释性小字 过滤区那条说明用它-->
+  <Style Selector="TextBlock.hintText">
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Opacity" Value="0.75" />
+  </Style>
+
+  <!--区块页的坐标行 等宽字让上下几行的方块坐标对齐-->
+  <Style Selector="TextBlock.monoValue">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    <Setter Property="Padding" Value="0,1" />
+  </Style>
+
+  <!--区块页的玩家开关 一行一个 选中时用强调色描边加淡底 与旁边未选中的拉开区别-->
+  <Style Selector="ToggleButton.playerToggle">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Padding" Value="8,5" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" Easing="CubicEaseOut" />
+        <BrushTransition Property="Background" Duration="0:0:0.15" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="ToggleButton.playerToggle:pressed">
+    <Setter Property="RenderTransform" Value="scale(0.96)" />
+  </Style>
+
+  <Style Selector="ToggleButton.playerToggle:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource RowSeparator}" />
+  </Style>
+
+  <Style Selector="ToggleButton.playerToggle:checked">
+    <Setter Property="Background" Value="#333B82F6" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+  </Style>
+
+</Styles>

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Vulkan" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
+    <PackageReference Include="Veldrid.SPIRV" Version="1.0.15" />
+    <PackageReference Include="StbTrueTypeSharp" Version="1.26.3" />
+    <PackageReference Include="StbImageSharp" Version="2.30.15" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!--Shaders 嵌入资源供 ShaderManager 加载 GLSL 编译为 SPIR-V-->
+  <ItemGroup>
+    <EmbeddedResource Include="Shaders\**\*.glsl" />
+  </ItemGroup>
+
+  <!--F9 FontProviderTests 需访问 SheetBakedGlyph(internal) 验证 italic/bold/shadow 顶点逻辑-->
+  <!--对标原版 BakedSheetGlyph.renderChar 的 4 顶点偏移计算是 F7 核心实现不能不测-->
+  <ItemGroup>
+    <InternalsVisibleTo Include="NetCraft.Test" />
+  </ItemGroup>
+
+</Project>

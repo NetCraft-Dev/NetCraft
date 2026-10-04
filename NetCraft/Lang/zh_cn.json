@@ -1,0 +1,19 @@
+{
+  "netcraft.gui.chunk.terrain": "地形生成",
+  "netcraft.gui.chunk.players": "玩家",
+  "netcraft.gui.chunk.goto_section": "前往区块",
+  "netcraft.gui.chunk.goto": "前往",
+  "netcraft.gui.chunk.strong": "强加载",
+  "netcraft.gui.chunk.weak": "弱加载",
+  "netcraft.gui.chunk.unloaded": "卸载",
+  "netcraft.gui.chunk.world_center": "世界中心",
+  "netcraft.gui.chunk.center": "中心 [%s, %s] · 持有 %s · 绘制 %s",
+  "netcraft.gui.chunk.scale": "%s px/格",
+  "netcraft.gui.chunk.hover": "悬停 [%s, %s]",
+  "netcraft.gui.chunk.hover_players": "悬停 [%s, %s] · 玩家 %s",
+  "netcraft.gui.chunk.generating": "生成中 %s 个 · 已加载 %s 个\n持有 %s 个 · 视距 %s",
+  "netcraft.gui.log.no_match": "无匹配",
+  "netcraft.gui.log.filter_stats": "显示 %s / %s 行",
+  "netcraft.gui.log.search_watermark": "<正则表达式/文本>",
+  "netcraft.gui.jit.methods": "共 %s 个方法"
+}
