@@ -17,6 +17,11 @@ public sealed class BundleContents : TooltipComponent
 
     public static readonly BundleContents Empty = new(new List<ItemStackTemplate>());
 
+    //PersistentCodec 持久化编解码 对应原版 CODEC 内容就是模板列表
+    public static readonly Codec<BundleContents> PersistentCodec = ItemStackTemplate.PersistentCodec.ListOf().ComapFlatMap(
+        items => DataResult<BundleContents>.Success(new BundleContents(items)),
+        contents => contents.Items);
+
     public static readonly StreamCodec<RegistryFriendlyByteBuf, BundleContents> StreamCodec = new BundleContentsStreamCodec();
 
     private readonly List<ItemStackTemplate> _items;

@@ -46,13 +46,13 @@ public static class DataComponents
     public static readonly DataComponentType<object> ENCHANTMENT_GLINT_OVERRIDE = Register(
         "enchantment_glint_override", BooleanObjectNbtCodec.Instance, new BooleanObjectCodec());
 
-    //BEES 蜂巢里装的蜜蜂 持久化 Codec 待 NBT 侧接入后补
+    //BEES 蜂巢里装的蜜蜂
     public static readonly DataComponentType<object> BEES = Register(
-        "bees", null, new ObjectStreamCodec<Bees>(Bees.StreamCodec));
+        "bees", new ObjectCodec<Bees>(Bees.Codec), new ObjectStreamCodec<Bees>(Bees.StreamCodec));
 
-    //BUNDLE_CONTENTS 收纳袋内容 持久化 Codec 待 NBT 侧接入后补
+    //BUNDLE_CONTENTS 收纳袋内容
     public static readonly DataComponentType<object> BUNDLE_CONTENTS = Register(
-        "bundle_contents", null, new ObjectStreamCodec<BundleContents>(BundleContents.StreamCodec));
+        "bundle_contents", new ObjectCodec<BundleContents>(BundleContents.PersistentCodec), new ObjectStreamCodec<BundleContents>(BundleContents.StreamCodec));
 
     //Register 注册单个组件类型到 BuiltInRegistries.DATA_COMPONENT_TYPE
     private static DataComponentType<object> Register(
@@ -83,6 +83,18 @@ internal sealed class ObjectStreamCodec<T> : StreamCodec<RegistryFriendlyByteBuf
     public object Decode(RegistryFriendlyByteBuf buf) => _inner.Decode(buf);
 
     public void Encode(RegistryFriendlyByteBuf buf, object value) => _inner.Encode(buf, (T)value);
+}
+
+//ObjectCodec 把某个引用类型的持久化编解码适配成 object 版 与 ObjectStreamCodec 对应
+internal sealed class ObjectCodec<T> : ScalarCodec<object> where T : class
+{
+    private readonly Codec<T> _inner;
+
+    public ObjectCodec(Codec<T> inner) => _inner = inner;
+
+    public override DataResult<object> Parse<U>(DynamicOps<U> ops, U input) => _inner.Parse(ops, input).Map(value => (object)value);
+
+    public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, object value) => _inner.EncodeStart(ops, (T)value);
 }
 
 //VarIntObjectCodec int 装箱为 object 的 StreamCodec 用 VarInt 编解码

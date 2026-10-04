@@ -1,3 +1,4 @@
+using NetCraft.Codec;
 using NetCraft.Game.World.Items.Component;
 using NetCraft.Network;
 using NetCraft.Registry;
@@ -12,6 +13,19 @@ public sealed record Occupant(TypedEntityData<Holder<EntityType<object>>> Entity
 
     internal static readonly StreamCodec<RegistryFriendlyByteBuf, TypedEntityData<Holder<EntityType<object>>>> EntityDataCodec
         = TypedEntityData<Holder<EntityType<object>>>.StreamCodecOf(EntityTypeCodec);
+
+    internal static readonly Codec<TypedEntityData<Holder<EntityType<object>>>> EntityDataPersistentCodec
+        = TypedEntityData<Holder<EntityType<object>>>.CodecOf(HolderSetCodecs.EntityTypeRef);
+
+    //Codec 持久化编解码 对应原版 Occupant.CODEC
+    public static readonly Codec<Occupant> Codec = RecordCodecBuilder.Of3(
+        EntityDataPersistentCodec.FieldOf("entity_data").ForGetter((Occupant occupant) => occupant.EntityData),
+        Codecs.Int.FieldOf("ticks_in_hive").ForGetter((Occupant occupant) => occupant.TicksInHive),
+        Codecs.Int.FieldOf("min_ticks_in_hive").ForGetter((Occupant occupant) => occupant.MinTicksInHive),
+        (entityData, ticksInHive, minTicksInHive) => new Occupant(entityData, ticksInHive, minTicksInHive));
+
+    //ListCodec 列表编解码 对应原版 Occupant.LIST_CODEC
+    public static readonly Codec<IReadOnlyList<Occupant>> ListCodec = Codec.ListOf();
 
     public static readonly StreamCodec<RegistryFriendlyByteBuf, Occupant> StreamCodec = new OccupantStreamCodec();
 }

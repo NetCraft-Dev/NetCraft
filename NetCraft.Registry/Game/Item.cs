@@ -30,6 +30,9 @@ public abstract class Item
     //Id 物品的注册名子类必须实现
     public abstract Identifier Id { get; }
 
+    //CODEC 按注册名引用物品 对应原版 Item.CODEC
+    public static readonly Codec<Holder<Item>> CODEC = new HolderRefCodec<Item>(BuiltInRegistries.ITEM);
+
     //Components 默认空组件 map 子类可重写提供预置组件
     public virtual DataComponentMap Components => DataComponentMap.Empty;
 

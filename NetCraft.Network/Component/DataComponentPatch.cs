@@ -12,6 +12,9 @@ public sealed class DataComponentPatch
     //Empty 空补丁单例
     public static readonly DataComponentPatch Empty = new(new Dictionary<object, Optional<object>>());
 
+    //PersistentCodec 持久化编解码 对应原版 DataComponentPatch.CODEC
+    public static readonly Codec<DataComponentPatch> PersistentCodec = new DataComponentPatchMapCodec();
+
     //StreamCodec 网络同步编解码
     public static readonly StreamCodec<RegistryFriendlyByteBuf, DataComponentPatch> StreamCodec
         = new DataComponentPatchStreamCodec();

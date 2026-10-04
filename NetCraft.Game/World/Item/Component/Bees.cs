@@ -1,3 +1,4 @@
+using NetCraft.Codec;
 using NetCraft.Game.World.Level.Block.Entity;
 using NetCraft.Network;
 
@@ -7,6 +8,11 @@ namespace NetCraft.Game.World.Items.Component;
 public sealed record Bees(IReadOnlyList<Occupant> Occupants)
 {
     public static readonly Bees Empty = new(Array.Empty<Occupant>());
+
+    //Codec 持久化编解码 对应原版 Bees.CODEC
+    public static readonly Codec<Bees> Codec = Occupant.ListCodec.ComapFlatMap(
+        occupants => DataResult<Bees>.Success(new Bees(occupants)),
+        bees => bees.Occupants);
 
     public static readonly StreamCodec<RegistryFriendlyByteBuf, Bees> StreamCodec = new BeesStreamCodec();
 }

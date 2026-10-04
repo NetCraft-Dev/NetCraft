@@ -31,6 +31,10 @@ public static class HolderSetCodecs
     //StructureSetRef 单个结构集合引用 codec 供放置排斥区的 other_set 字段使用
     public static readonly Codec<Holder<StructureSet>> StructureSetRef =
         new HolderRefCodec<StructureSet>(BuiltInRegistries.STRUCTURE_SET);
+
+    //EntityTypeRef 单个实体类型引用 codec 供收纳袋的蜜蜂存档这类带类型标识的数据使用
+    public static readonly Codec<Holder<EntityType<object>>> EntityTypeRef =
+        new HolderRefCodec<EntityType<object>>(BuiltInRegistries.ENTITY_TYPE);
 }
 
 //HolderRefCodec 单元素注册表引用 codec 对应原版 RegistryFileCodec 的字符串形式
