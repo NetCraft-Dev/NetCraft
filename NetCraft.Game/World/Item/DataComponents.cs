@@ -54,6 +54,15 @@ public static class DataComponents
     public static readonly DataComponentType<object> BUNDLE_CONTENTS = Register(
         "bundle_contents", new ObjectCodec<BundleContents>(BundleContents.PersistentCodec), new ObjectStreamCodec<BundleContents>(BundleContents.StreamCodec));
 
+    //BLOCK_ENTITY_DATA 方块物品携带的方块实体数据 放下方块时刷进新方块实体
+    public static readonly DataComponentType<object> BLOCK_ENTITY_DATA = Register(
+        "block_entity_data",
+        new ObjectCodec<TypedEntityData<Holder<BlockEntityType<object>>>>(
+            TypedEntityData<Holder<BlockEntityType<object>>>.CodecOf(HolderSetCodecs.BlockEntityTypeRef)),
+        new ObjectStreamCodec<TypedEntityData<Holder<BlockEntityType<object>>>>(
+            TypedEntityData<Holder<BlockEntityType<object>>>.StreamCodecOf(
+                ByteBufCodecs.Holder(Registries.BLOCK_ENTITY_TYPE))));
+
     //Register 注册单个组件类型到 BuiltInRegistries.DATA_COMPONENT_TYPE
     private static DataComponentType<object> Register(
         string name, Codec<object>? codec, StreamCodec<RegistryFriendlyByteBuf, object> streamCodec)
@@ -70,6 +79,7 @@ public static class DataComponents
         _ = MAX_STACK_SIZE;
         _ = BEES;
         _ = BUNDLE_CONTENTS;
+        _ = BLOCK_ENTITY_DATA;
     }
 }
 

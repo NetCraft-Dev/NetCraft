@@ -13,21 +13,38 @@ public static class ExtraCodecs
             : DataResult<int>.Error(() => $"Value {value} outside of range [{min}; {max}]"),
         value => value);
 
-    //GuardedPathCodec 限定在给定目录内的路径 codec 对应原版 ExtraCodecs.guardedPathCodec
-    //只接受相对路径 且解析后仍落在这个目录里 越界一律拒绝
+    //GuardedPathCodec 限定在给定目录下的路径 codec 对应原版 ExtraCodecs.guardedPathCodec
+    //相对路径先归一 首段不许是 . 或 .. 也不许为空 再挂到目录下成为绝对路径
     public static Codec<string> GuardedPathCodec(string directory) => Codecs.String.ComapFlatMap(
-        value => ValidateGuardedPath(directory, value),
-        value => value);
+        value => ParseGuardedPath(directory, value),
+        value => ToRelativePath(directory, value));
 
-    private static DataResult<string> ValidateGuardedPath(string directory, string path)
+    private static DataResult<string> ParseGuardedPath(string directory, string text)
     {
-        if (string.IsNullOrEmpty(path)) return DataResult<string>.Error(() => "Path must not be empty");
-        if (Path.IsPathRooted(path)) return DataResult<string>.Error(() => $"Path must be relative: {path}");
-        var basePath = Path.GetFullPath(directory);
-        var fullPath = Path.GetFullPath(Path.Combine(basePath, path));
-        var relative = Path.GetRelativePath(basePath, fullPath);
-        if (relative.StartsWith("..") || Path.IsPathRooted(relative))
-            return DataResult<string>.Error(() => $"Path escapes the guarded directory: {path}");
-        return DataResult<string>.Success(path);
+        if (Path.IsPathRooted(text)) return DataResult<string>.Error(() => $"Illegal absolute path: {text}");
+        var normalized = NormalizeRelative(text);
+        if (normalized is null) return DataResult<string>.Error(() => $"Illegal path traversal: {text}");
+        return DataResult<string>.Success(Path.Combine(Path.GetFullPath(directory), normalized));
+    }
+
+    private static string ToRelativePath(string directory, string value)
+        => Path.GetRelativePath(Path.GetFullPath(directory), value).Replace('\\', '/');
+
+    //NormalizeRelative 按段归一 空路径与跳出目录的 .. 都判非法
+    private static string? NormalizeRelative(string text)
+    {
+        var segments = new List<string>();
+        foreach (var raw in text.Replace('\\', '/').Split('/'))
+        {
+            if (raw.Length == 0 || raw == ".") continue;
+            if (raw == "..")
+            {
+                if (segments.Count == 0) return null;
+                segments.RemoveAt(segments.Count - 1);
+                continue;
+            }
+            segments.Add(raw);
+        }
+        return segments.Count == 0 ? null : string.Join('/', segments);
     }
 }

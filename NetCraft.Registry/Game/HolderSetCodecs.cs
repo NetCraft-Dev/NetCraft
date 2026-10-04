@@ -35,6 +35,10 @@ public static class HolderSetCodecs
     //EntityTypeRef 单个实体类型引用 codec 供收纳袋的蜜蜂存档这类带类型标识的数据使用
     public static readonly Codec<Holder<EntityType<object>>> EntityTypeRef =
         new HolderRefCodec<EntityType<object>>(BuiltInRegistries.ENTITY_TYPE);
+
+    //BlockEntityTypeRef 单个方块实体类型引用 codec 供方块物品携带的方块实体数据使用
+    public static readonly Codec<Holder<BlockEntityType<object>>> BlockEntityTypeRef =
+        new HolderRefCodec<BlockEntityType<object>>(BuiltInRegistries.BLOCK_ENTITY_TYPE);
 }
 
 //HolderRefCodec 单元素注册表引用 codec 对应原版 RegistryFileCodec 的字符串形式

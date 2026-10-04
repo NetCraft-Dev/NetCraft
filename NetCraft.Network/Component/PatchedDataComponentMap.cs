@@ -9,7 +9,7 @@ namespace NetCraft.Network.Component;
 public sealed class PatchedDataComponentMap : DataComponentMap
 {
     private readonly DataComponentMap _prototype;
-    private readonly DataComponentPatch _patch;
+    private DataComponentPatch _patch;
 
     public PatchedDataComponentMap(DataComponentMap prototype, DataComponentPatch patch)
     {
@@ -55,6 +55,20 @@ public sealed class PatchedDataComponentMap : DataComponentMap
                 yield return key;
             }
         }
+    }
+
+    //Set 覆写一个组件值 对应原版 PatchedDataComponentMap.set
+    public void Set<T>(DataComponentType<T> type, T value) where T : class
+    {
+        var map = new Dictionary<object, Optional<object>>(_patch.AsMap()) { [type] = Optional<object>.Of(value) };
+        _patch = new DataComponentPatch(map);
+    }
+
+    //Remove 移除一个组件 对应原版 PatchedDataComponentMap.remove
+    public void Remove<T>(DataComponentType<T> type) where T : class
+    {
+        var map = new Dictionary<object, Optional<object>>(_patch.AsMap()) { [type] = Optional<object>.Empty() };
+        _patch = new DataComponentPatch(map);
     }
 
     //AsPatch 返回 patch 供 ItemStack.STREAM_CODEC 编码

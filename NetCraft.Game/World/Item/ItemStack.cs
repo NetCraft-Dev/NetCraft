@@ -53,6 +53,23 @@ public sealed class ItemStack : ItemInstance
     //Get 查该栈的组件 对应 ItemInstance 只读视图
     public T? Get<T>(DataComponentType<T> type) where T : class => _components.Get(type);
 
+    //GetOrDefault 查组件缺失时用兜底值 对应原版 getOrDefault
+    public T GetOrDefault<T>(DataComponentType<T> type, T fallback) where T : class => Get(type) ?? fallback;
+
+    //Set 覆写组件 对应原版 set 空栈不允许改
+    public void Set<T>(DataComponentType<T> type, T value) where T : class
+    {
+        if (IsEmpty()) throw new InvalidOperationException("Cannot modify an empty ItemStack");
+        _components.Set(type, value);
+    }
+
+    //Remove 移除组件 对应原版 remove
+    public void Remove<T>(DataComponentType<T> type) where T : class
+    {
+        if (IsEmpty()) return;
+        _components.Remove(type);
+    }
+
     //SetCount 设置数量
     public void SetCount(int count)
     {

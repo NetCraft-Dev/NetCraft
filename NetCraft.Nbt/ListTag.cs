@@ -137,6 +137,24 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
     private static bool IsWrapper(CompoundTag tag)
         => tag.Count == 1 && tag.Contains("");
 
+    //判等按元素顺序逐个比较 对应原版 ListTag.equals
+    public override bool Equals(object? obj)
+    {
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj is not ListTag other || other._list.Count != _list.Count) return false;
+        for (var i = 0; i < _list.Count; i++)
+            if (!_list[i].Equals(other._list[i])) return false;
+        return true;
+    }
+
+    //哈希与判等一致 按顺序聚合元素哈希 对应原版 List.hashCode
+    public override int GetHashCode()
+    {
+        var hash = 1;
+        foreach (var tag in _list) hash = hash * 31 + tag.GetHashCode();
+        return hash;
+    }
+
     public override string ToString()
     {
         var sb = new StringBuilder();

@@ -1,6 +1,9 @@
 using NetCraft.Codec;
+using NetCraft.Game.World.Level.Block;
+using NetCraft.Logging;
 using NetCraft.Nbt;
 using NetCraft.Network;
+using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items.Component;
 
@@ -22,10 +25,56 @@ public sealed class TypedEntityData<T> where T : class
 
     public T Type => _type;
 
+    //判等要求类型与数据都相同 对应原版 equals
+    public override bool Equals(object? obj)
+        => ReferenceEquals(this, obj)
+            || (obj is TypedEntityData<T> other && Equals(_type, other._type) && _tag.Equals(other._tag));
+
+    //哈希与判等一致 对应原版 hashCode
+    public override int GetHashCode() => HashCode.Combine(_type, _tag);
+
+    public override string ToString() => $"{_type} {_tag}";
+
     public bool Contains(string name) => _tag.Contains(name);
 
     //CopyTagWithoutId 取不含 id 的数据副本
     public CompoundTag CopyTagWithoutId() => (CompoundTag)_tag.Copy();
+
+    //LoadInto 把这份数据盖到实体上 对应原版 loadInto(Entity)
+    //原版走 ProblemReporter 与 TagValueOutput 一整套上下文写入 NC 尚未接入
+    //这里直接走实体的 CompoundTag 读写 并保住原 UUID 不被数据里的值顶掉
+    public void LoadInto(NetCraft.Registry.Entity entity)
+    {
+        var entityData = new CompoundTag();
+        entity.SaveWithoutId(entityData);
+        entityData.Merge(CopyTagWithoutId());
+        var uuid = entity.Uuid;
+        entity.Load(entityData);
+        entity.Uuid = uuid;
+    }
+
+    //LoadInto 把这份数据盖到方块实体上 对应原版 loadInto(BlockEntity)
+    //只有内容真的变了才回写 失败时用旧标签回滚 返回是否应用成功
+    //NC 的方块实体落盘是全量写 没有基类的 setChanged 脏标记 那一步省略
+    public bool LoadInto(BlockEntity blockEntity)
+    {
+        var newTag = new CompoundTag();
+        blockEntity.SaveAdditional(newTag);
+        var oldTag = (CompoundTag)newTag.Copy();
+        newTag.Merge(CopyTagWithoutId());
+        if (NbtUtils.AreEqual(newTag, oldTag)) return false;
+        try
+        {
+            blockEntity.LoadCustomOnly(newTag);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Log.Warning($"Failed to apply custom data to block entity at {blockEntity.Pos}: {e.Message}");
+            blockEntity.LoadCustomOnly(oldTag);
+            return false;
+        }
+    }
 
     //StreamCodecOf 网络编解码 先写类型再写整块 NBT
     public static StreamCodec<RegistryFriendlyByteBuf, TypedEntityData<T>> StreamCodecOf(StreamCodec<RegistryFriendlyByteBuf, T> typeCodec)

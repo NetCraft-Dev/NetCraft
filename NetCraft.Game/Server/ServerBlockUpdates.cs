@@ -169,6 +169,8 @@ public static class ServerBlockUpdates
             return false;
 
         if (!SetBlock(level, players, placePos, state)) return false;
+        //放置后把物品携带的方块实体数据刷进新方块实体 对应原版 updateCustomBlockEntityTag
+        BlockItem.UpdateCustomBlockEntityTag(level, placePos, held);
         //放置完成后回调 中继器要靠它排首刻 对应原版 Block.setPlacedBy
         placementBehaviour?.SetPlacedBy(level, placePos, state, player);
 

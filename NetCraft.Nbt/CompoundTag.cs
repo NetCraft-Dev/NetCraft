@@ -121,6 +121,25 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
         output.WriteByte(Tag.TagEnd);
     }
 
+    //判等按键值集合语义 与键序无关 值递归比较 对应原版 CompoundTag.equals
+    public override bool Equals(object? obj)
+    {
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj is not CompoundTag other || other._tags.Count != _tags.Count) return false;
+        foreach (var (key, tag) in _tags)
+            if (!other._tags.TryGetValue(key, out var otherTag) || !tag.Equals(otherTag)) return false;
+        return true;
+    }
+
+    //哈希与判等一致 逐键值对异或后求和 因此与键序无关 对应原版 Map.hashCode
+    public override int GetHashCode()
+    {
+        var hash = 0;
+        foreach (var (key, tag) in _tags)
+            hash += key.GetHashCode() ^ tag.GetHashCode();
+        return hash;
+    }
+
     public override string ToString()
     {
         var sb = new StringBuilder();
