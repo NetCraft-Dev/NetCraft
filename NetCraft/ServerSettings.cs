@@ -75,6 +75,9 @@ public sealed class ServerSettings : Settings<ServerSettings>
     //是否启用 Query 协议默认 false
     public bool EnableQuery => GetBool("enable-query", false);
 
+    //是否上报服务端运行指标默认 false 对应原版 enable-jmx-monitoring
+    public bool EnableJmxMonitoring => GetBool("enable-jmx-monitoring", false);
+
     //op-permission-level 执行 /op 时默认授予的权限等级 默认 4
     public int OpPermissionLevel => GetInt("op-permission-level", 4);
 

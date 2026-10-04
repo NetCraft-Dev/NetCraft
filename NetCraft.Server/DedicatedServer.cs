@@ -6,6 +6,7 @@ using NetCraft.DataFixer;
 using NetCraft.Game.Commands;
 using NetCraft.Game.DFU;
 using NetCraft.Game.Network;
+using NetCraft.Game.Util.Monitoring.Jmx;
 using NetCraft.Network.Protocol.Configuration;
 using NetCraft.Network.Protocol.Common;
 using NetCraft.Network.Protocol.Handshake;
@@ -95,6 +96,8 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
     private RegistryAccess? _registryAccess;
     //_commandStorage 命令存储 /data ... storage 的目标 首次用到时挂上 SavedData 存储
     private CommandStorage? _commandStorage;
+    //_statistics 运行指标上报 仅 enable-jmx-monitoring 开启时非空
+    private MinecraftServerStatistics? _statistics;
 
     //RegistryAccessForConnection 惰性构建注册表访问集合
     //必须等 BootstrapClass.BootStrap 冻结注册表之后才可构建 服务端构造时已满足
@@ -446,6 +449,12 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
     {
         if (!_levelData.Initialized) SearchInitialSpawn();
         StartNetwork();
+        //指标上报默认关闭 与原版 enable-jmx-monitoring 一致
+        if (_settings.EnableJmxMonitoring)
+        {
+            _statistics = MinecraftServerStatistics.Register(this);
+            Log.Info("JMX monitoring enabled");
+        }
         //启动即固化 level.dat 与 saveddata 对应原版 initServer 末尾 saveEverything
         //新世界种子立刻落盘防止窗口期内崩溃重启换种子
         SaveLevelData();
@@ -1032,6 +1041,7 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
     public void Dispose()
     {
         if (_disposed) return;
+        _statistics?.Dispose();
         _acceptor?.Dispose();
         _dataStorage.Dispose();
         foreach (var storage in _entityStorages.Values) storage.Dispose();
