@@ -260,6 +260,17 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         return new AABB(pos.X - half, pos.Y, pos.Z - half, pos.X + half, pos.Y + Height, pos.Z + half);
     }
 
+    //GetOnPos 脚下支撑方块位置 对应原版 getOnPos 默认偏移 0.2
+    public BlockPos GetOnPos() => GetOnPos(0.2f);
+
+    //GetOnPos 按给定位移向下取格 对应原版 getOnPos(float)
+    public BlockPos GetOnPos(float yOffset)
+        => new(Mth.Floor(Pos.X), Mth.Floor(Pos.Y - yOffset), Mth.Floor(Pos.Z));
+
+    //GetBlockPosBelowThatAffectsMyMovement 影响移动的脚下方块位置 对应原版同名方法
+    //原版就是拿 0.500001 的偏移
+    public BlockPos GetBlockPosBelowThatAffectsMyMovement() => GetOnPos(0.500001f);
+
     //Health 当前血量 默认 20 对齐原版 MAX_HEALTH 默认值
     public float Health { get; private set; } = 20f;
 

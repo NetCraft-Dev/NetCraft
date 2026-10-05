@@ -17,6 +17,6 @@ public sealed record EntityTypePredicate(HolderSet<EntityType<object>> Types) : 
     public bool Matches(Holder<EntityType<object>> type) => Types.Contains(type);
 
     //Matches 取实体类型后比对 对应原版 matches
-    public bool Matches(NetCraft.Registry.Entity entity, Vec3? position)
+    public bool Matches(NetCraft.Registry.Entity entity, ILevelReader? level, Vec3? position)
         => entity.Type is { } type && Matches(BuiltInRegistries.ENTITY_TYPE.WrapAsHolder(type));
 }

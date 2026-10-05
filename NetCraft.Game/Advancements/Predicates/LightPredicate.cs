@@ -1,7 +1,7 @@
 using NetCraft.Codec;
 using NetCraft.Game.Commands.Arguments;
 using NetCraft.Primitives;
-using NetCraft.Storage;
+using NetCraft.Registry;
 
 namespace NetCraft.Game.Advancements.Predicates;
 
@@ -16,6 +16,6 @@ public sealed record LightPredicate(MinMaxBounds.Ints Composite)
         composite => new LightPredicate(composite));
 
     //Matches 位置已加载且亮度落在区间 对应原版 matches
-    public bool Matches(ServerLevel level, BlockPos pos)
+    public bool Matches(ILevelReader level, BlockPos pos)
         => level.IsLoaded(pos) && Composite.Matches(level.GetMaxLocalRawBrightness(pos));
 }

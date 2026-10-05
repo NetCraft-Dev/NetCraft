@@ -16,6 +16,6 @@ public sealed record PeriodicEntityTickPredicate(int PeriodicTick) : EntitySubPr
         predicate => predicate.PeriodicTick);
 
     //Matches 存活刻数整除周期即通过 对应原版 matches
-    public bool Matches(NetCraft.Registry.Entity entity, Vec3? position)
+    public bool Matches(NetCraft.Registry.Entity entity, ILevelReader? level, Vec3? position)
         => entity.TickCount % PeriodicTick == 0;
 }

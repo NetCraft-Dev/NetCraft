@@ -65,7 +65,7 @@ public sealed record MovementPredicate(
     }
 
     //Matches 本刻位移取 Pos 与上一刻之差再乘 20 换成每秒速度 对应原版 matches
-    public bool Matches(NetCraft.Registry.Entity entity, Vec3? position)
+    public bool Matches(NetCraft.Registry.Entity entity, ILevelReader? level, Vec3? position)
     {
         var velocity = entity.Pos.Subtract(entity.PreviousPos).Multiply(20.0);
         return Matches(velocity.X, velocity.Y, velocity.Z, entity.FallDistance);

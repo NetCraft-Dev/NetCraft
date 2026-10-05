@@ -15,7 +15,7 @@ public sealed record EntityNbtPredicate(NbtPredicate Nbt) : EntitySubPredicate
         predicate => predicate.Nbt);
 
     //Matches 把实体写成不含类型 id 的存档再比对 对应原版 matches
-    public bool Matches(NetCraft.Registry.Entity entity, Vec3? position)
+    public bool Matches(NetCraft.Registry.Entity entity, ILevelReader? level, Vec3? position)
     {
         var tag = new CompoundTag();
         entity.SaveWithoutId(tag);

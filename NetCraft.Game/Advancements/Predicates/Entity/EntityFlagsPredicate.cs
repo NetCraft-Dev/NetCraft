@@ -57,5 +57,5 @@ public sealed record EntityFlagsPredicate(
     }
 
     //Matches 忽略位置参数的接口实现 对应原版 matches
-    public bool Matches(NetCraft.Registry.Entity entity, Vec3? position) => Matches(entity);
+    public bool Matches(NetCraft.Registry.Entity entity, ILevelReader? level, Vec3? position) => Matches(entity);
 }

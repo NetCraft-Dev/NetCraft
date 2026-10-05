@@ -32,8 +32,8 @@ public sealed class EntityPredicate
     }
 
     //Matches 实体非空时交给合并子谓词 对应原版 matches
-    public bool Matches(Vec3? position, NetCraft.Registry.Entity? entity)
-        => entity is not null && _combinedPart.Matches(entity, position);
+    public bool Matches(ILevelReader? level, Vec3? position, NetCraft.Registry.Entity? entity)
+        => entity is not null && _combinedPart.Matches(entity, level, position);
 
     //LookupCodec 按类型名取注册表里已登记的 codec 未登记给出报错 codec
     private static Codec<EntitySubPredicate> LookupCodec(Identifier typeName)
@@ -93,6 +93,16 @@ public sealed class EntityPredicate
         //PeriodicTick 登记周期刻谓词 对应原版 periodicTick
         public Builder PeriodicTick(PeriodicEntityTickPredicate predicate) => Put("periodic_tick", predicate);
 
+        //Located 登记实体所在位置谓词 对应原版 located
+        public Builder Located(LocationPredicate location) => Put("location", new EntityLocationPredicate(location));
+
+        //SteppingOn 登记踩踏位置谓词 对应原版 steppingOn
+        public Builder SteppingOn(LocationPredicate location) => Put("stepping_on", new SteppingOnPredicate(location));
+
+        //MovementAffectedBy 登记移动受影响谓词 对应原版 movementAffectedBy
+        public Builder MovementAffectedBy(LocationPredicate location)
+            => Put("movement_affected_by", new MovementAffectedByPredicate(location));
+
         //Build 产出组合体 对应原版 build
         public EntityPredicate Build() => new(_parts);
     }
@@ -106,16 +116,16 @@ internal sealed class TrueSubPredicate : EntitySubPredicate
 
     private TrueSubPredicate() { }
 
-    public bool Matches(NetCraft.Registry.Entity entity, Vec3? position) => true;
+    public bool Matches(NetCraft.Registry.Entity entity, ILevelReader? level, Vec3? position) => true;
 }
 
 //CompositeSubPredicate 多个子谓词的合取 对应原版 combine 多于两个时的合并
 internal sealed class CompositeSubPredicate(IReadOnlyList<EntitySubPredicate> parts) : EntitySubPredicate
 {
-    public bool Matches(NetCraft.Registry.Entity entity, Vec3? position)
+    public bool Matches(NetCraft.Registry.Entity entity, ILevelReader? level, Vec3? position)
     {
         foreach (var part in parts)
-            if (!part.Matches(entity, position)) return false;
+            if (!part.Matches(entity, level, position)) return false;
         return true;
     }
 }

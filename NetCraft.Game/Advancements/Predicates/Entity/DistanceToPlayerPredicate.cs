@@ -14,7 +14,7 @@ public sealed record DistanceToPlayerPredicate(DistancePredicate Distance) : Ent
         predicate => predicate.Distance);
 
     //Matches 参照位置与实体位置逐轴比对 缺少参照位置时判否 对应原版 matches
-    public bool Matches(NetCraft.Registry.Entity entity, Vec3? position)
+    public bool Matches(NetCraft.Registry.Entity entity, ILevelReader? level, Vec3? position)
         => position is { } origin
             && Distance.Matches(origin.X, origin.Y, origin.Z, entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
 }
