@@ -42,10 +42,16 @@ public abstract class ChunkAccess : LevelHeightAccessor
 
     //BlockTicks 该区块的方块调度刻容器 对应原版 LevelChunk.blockTicks
     //生成期与运行期共用一套容器 原版生成期另有 ProtoChunkTicks 会把延迟丢成 0 这里先不区分
-    public Ticks.LevelChunkTicks<NetCraft.Registry.Block> BlockTicks { get; } = new();
+    public Ticks.LevelChunkTicks<NetCraft.Registry.Block> BlockTicks { get; private set; } = new();
 
     //FluidTicks 该区块的流体调度刻容器
-    public Ticks.LevelChunkTicks<NetCraft.Registry.Fluid> FluidTicks { get; } = new();
+    public Ticks.LevelChunkTicks<NetCraft.Registry.Fluid> FluidTicks { get; private set; } = new();
+
+    //SetBlockTicks 读档还原时整体替换方块调度刻容器 对应原版构造期注入 blockTicks
+    public void SetBlockTicks(Ticks.LevelChunkTicks<NetCraft.Registry.Block> ticks) => BlockTicks = ticks;
+
+    //SetFluidTicks 读档还原时整体替换流体调度刻容器
+    public void SetFluidTicks(Ticks.LevelChunkTicks<NetCraft.Registry.Fluid> ticks) => FluidTicks = ticks;
 
     //SetBlockState 按世界坐标写方块对应原版 setBlockState 越界区段直接丢弃
     public virtual void SetBlockState(int worldX, int worldY, int worldZ, BlockState state)

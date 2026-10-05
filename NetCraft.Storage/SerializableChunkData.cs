@@ -6,6 +6,7 @@ using NetCraft.Registry;
 using NetCraft.Registry.State;
 using NetCraft.Storage.Chunk;
 using NetCraft.Storage.Paletted;
+using NetCraft.Storage.Ticks;
 
 namespace NetCraft.Storage;
 
@@ -358,7 +359,7 @@ public sealed class SerializableChunkData
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), 0L, chunk.ChunkStatus,
             null, null, UpgradeData.Empty,
             chunk is ProtoChunk proto ? proto.ExistingCarvingMask?.ToArray() : null,
-            heightmaps, new PackedTicks(), postProcessingSections, false,
+            heightmaps, PackTicks(chunk, level.GameTime), postProcessingSections, false,
             sectionData, new List<CompoundTag>(),
             //方块实体由 Game 层桥采集 未注入时该区块不带方块实体
             level.BlockEntityBridge?.Collect(chunk.Pos) ?? new List<CompoundTag>(),
@@ -390,6 +391,12 @@ public sealed class SerializableChunkData
             chunk.SetCarvingMask(new NetCraft.Storage.Chunk.CarvingMask(CarvingMask, MinSectionY * 16));
         chunk.SetPostProcessingSections(PostProcessingSections);
 
+        //调度刻容器整体换成读档带回的那批 延迟保持相对值 等区块登记进关卡时再按当时游戏刻展开
+        chunk.SetBlockTicks(new LevelChunkTicks<NetCraft.Registry.Block>(
+            UnpackTicks(PackedTicks.Blocks, ResolveBlock)));
+        chunk.SetFluidTicks(new LevelChunkTicks<NetCraft.Registry.Fluid>(
+            UnpackTicks(PackedTicks.Fluids, ResolveFluid)));
+
         foreach (var section in SectionDataList)
         {
             if (section.ChunkSection is null) continue;
@@ -410,4 +417,44 @@ public sealed class SerializableChunkData
         //Log.Debug($"Read 出口 result={chunk}");
         return chunk;
     }
+
+    //PackTicks 把区块内两套调度刻容器打包成存档形态 对应原版 ChunkAccess.getPackedTicks
+    //不打包的话中继器观察者这类靠调度刻推进的元件会在读档后停在半路
+    private static PackedTicks PackTicks(ChunkAccess chunk, long gameTime)
+    {
+        var blocks = new List<CompoundTag>();
+        foreach (var tick in chunk.BlockTicks.Pack(gameTime))
+        {
+            var name = BuiltInRegistries.BLOCK.GetKey(tick.Type);
+            if (name is not null) blocks.Add(tick.ToCompoundTag(name.ToString()));
+        }
+        var fluids = new List<CompoundTag>();
+        foreach (var tick in chunk.FluidTicks.Pack(gameTime))
+        {
+            var name = BuiltInRegistries.FLUID.GetKey(tick.Type);
+            if (name is not null) fluids.Add(tick.ToCompoundTag(name.ToString()));
+        }
+        return new PackedTicks(blocks, fluids);
+    }
+
+    //UnpackTicks 把存档形态的刻列表还原成待展开批 查不到类型名的条目丢弃
+    private static List<SavedTick<T>> UnpackTicks<T>(IEnumerable<CompoundTag> tags, Func<string, T?> resolve)
+        where T : class
+    {
+        var result = new List<SavedTick<T>>();
+        foreach (var tag in tags)
+        {
+            var tick = SavedTick<T>.FromCompoundTag(tag, resolve);
+            if (tick is not null) result.Add(tick);
+        }
+        return result;
+    }
+
+    //ResolveBlock 按注册名找回方块类型
+    private static NetCraft.Registry.Block? ResolveBlock(string name)
+        => Identifier.TryParse(name) is { } id ? BuiltInRegistries.BLOCK.GetValue(id) : null;
+
+    //ResolveFluid 按注册名找回流体类型
+    private static NetCraft.Registry.Fluid? ResolveFluid(string name)
+        => Identifier.TryParse(name) is { } id ? BuiltInRegistries.FLUID.GetValue(id) : null;
 }

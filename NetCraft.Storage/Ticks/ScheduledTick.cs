@@ -1,3 +1,4 @@
+using NetCraft.Nbt;
 using NetCraft.Primitives;
 
 namespace NetCraft.Storage.Ticks;
@@ -78,6 +79,33 @@ public sealed class SavedTick<T> where T : class
     //Unpack 换算成绝对触发刻 对应原版 unpack
     public ScheduledTick<T> Unpack(long currentTick, long currentSubTick)
         => new(Type, Pos, currentTick + Delay, Priority, currentSubTick);
+
+    //ToCompoundTag 序列化成存档形态 对应原版 SavedTick codec 的编码
+    //字段名对齐原版 i 类型名 x y z 坐标 t 延迟 p 优先级
+    public CompoundTag ToCompoundTag(string typeName)
+    {
+        var tag = new CompoundTag();
+        tag.PutString("i", typeName);
+        tag.PutInt("x", Pos.X);
+        tag.PutInt("y", Pos.Y);
+        tag.PutInt("z", Pos.Z);
+        tag.PutInt("t", Delay);
+        tag.PutInt("p", (int)Priority);
+        return tag;
+    }
+
+    //FromCompoundTag 从存档形态还原 类型名交给调用方按注册表找回
+    //类型名缺失或查不到类型返回 null 与原版读档解不出类型的刻直接丢弃一致
+    public static SavedTick<T>? FromCompoundTag(CompoundTag tag, Func<string, T?> resolveType)
+    {
+        var name = tag.GetStringValue("i");
+        if (string.IsNullOrEmpty(name)) return null;
+        var type = resolveType(name);
+        if (type is null) return null;
+        return new SavedTick<T>(type,
+            new BlockPos(tag.GetIntValue("x"), tag.GetIntValue("y"), tag.GetIntValue("z")),
+            tag.GetIntValue("t"), TickPriorities.ByValue(tag.GetIntValue("p")));
+    }
 
     //UniqueTickComparer 与 ScheduledTick 判重规则一致
     public sealed class UniqueTickComparer : IEqualityComparer<SavedTick<T>>
