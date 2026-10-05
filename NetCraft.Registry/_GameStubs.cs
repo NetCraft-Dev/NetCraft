@@ -42,7 +42,6 @@ public interface CowSoundVariant { }
 public interface CowVariant { }
 public interface CreativeModeTab { }
 public interface CriterionTrigger<T1> { }
-public interface DamageType { }
 public interface DataComponentPredicateType<T1> { }
 public interface DebugSubscription<T1> { }
 public interface DecoratedPotPattern { }

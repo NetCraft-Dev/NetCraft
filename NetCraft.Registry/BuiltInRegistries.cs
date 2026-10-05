@@ -115,6 +115,7 @@ public static class BuiltInRegistries
     public static readonly Registry<object> DATA_COMPONENT_TYPE = RegisterSimple<object>(Registries.DATA_COMPONENT_TYPE);
     public static readonly Registry<GameRule<object>> GAME_RULE = RegisterSimple<GameRule<object>>(Registries.GAME_RULE);
     public static readonly Registry<Codec<EntitySubPredicate>> ENTITY_SUB_PREDICATE_TYPE = RegisterSimple<Codec<EntitySubPredicate>>(Registries.ENTITY_SUB_PREDICATE_TYPE);
+    public static readonly Registry<DamageType> DAMAGE_TYPE = RegisterSimple<DamageType>(Registries.DAMAGE_TYPE);
     public static readonly Registry<DataComponentPredicateType<object>> DATA_COMPONENT_PREDICATE_TYPE = RegisterSimple<DataComponentPredicateType<object>>(Registries.DATA_COMPONENT_PREDICATE_TYPE);
     public static readonly Registry<MapDecorationType> MAP_DECORATION_TYPE = RegisterSimple<MapDecorationType>(Registries.MAP_DECORATION_TYPE);
     public static readonly Registry<object> ENCHANTMENT_EFFECT_COMPONENT_TYPE = RegisterSimple<object>(Registries.ENCHANTMENT_EFFECT_COMPONENT_TYPE);
