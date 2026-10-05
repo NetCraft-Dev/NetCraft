@@ -1,3 +1,5 @@
+using NetCraft.Codec;
+using NetCraft.Registry.Codec;
 using NetCraft.Util;
 
 namespace NetCraft.Registry.EntityAttribute;
@@ -88,6 +90,24 @@ public enum AttributeOperation
 //id 标识 amount 数值 operation 决定运算方式 三值相等即同一个修饰符
 public sealed record AttributeModifier(Identifier Id, double Amount, AttributeOperation Operation)
 {
+    //OperationCodec 运算方式按序列化名编解码 对应原版 Operation.CODEC
+    //必须先于 MapCodec 声明 静态字段按声明顺序初始化
+    public static readonly Codec<AttributeOperation> OperationCodec = Codecs.String.ComapFlatMap(
+        name => TryFromName(name) is { } operation
+            ? DataResult<AttributeOperation>.Success(operation)
+            : DataResult<AttributeOperation>.Error(() => $"未知的运算方式: {name}"),
+        GetSerializedName);
+
+    //MapCodec 持久化编解码 id 加数值加运算 对应原版 MAP_CODEC
+    public static readonly Codec<AttributeModifier> MapCodec = RecordCodecBuilder.Of3(
+        IdentifierCodec.Instance.FieldOf("id").ForGetter((AttributeModifier modifier) => modifier.Id),
+        Codecs.Double.FieldOf("amount").ForGetter((AttributeModifier modifier) => modifier.Amount),
+        OperationCodec.FieldOf("operation").ForGetter((AttributeModifier modifier) => modifier.Operation),
+        (id, amount, operation) => new AttributeModifier(id, amount, operation));
+
+    //Codec 与 MapCodec 同体 对应原版 CODEC
+    public static readonly Codec<AttributeModifier> Codec = MapCodec;
+
     //GetSerializedName 运算的序列化名 对应原版 StringRepresentable 的取值
     public static string GetSerializedName(AttributeOperation operation) => operation switch
     {
@@ -105,3 +125,5 @@ public sealed record AttributeModifier(Identifier Id, double Amount, AttributeOp
         _ => null,
     };
 }
+
+

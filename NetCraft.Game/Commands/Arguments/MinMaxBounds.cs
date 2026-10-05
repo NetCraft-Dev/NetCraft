@@ -80,6 +80,21 @@ public static class MinMaxBounds
     {
         public static readonly Doubles Any = new(null, null);
 
+        //SingleCodec 单浮点形态 上下界相等 对应原版 Doubles.CODEC 的浮点分支
+        private static readonly Codec<Doubles> SingleCodec = new DoubleExactlyCodec();
+
+        //MinMaxCodec 复合标签形态 缺省一侧表示无界
+        private static readonly Codec<Doubles> MinMaxCodec = RecordCodecBuilder.Of2(
+            Codecs.Double.OptionalFieldOf("min").ForGetter((Doubles range) => ToOptional(range.Min)),
+            Codecs.Double.OptionalFieldOf("max").ForGetter((Doubles range) => ToOptional(range.Max)),
+            (min, max) => new Doubles(min.IsPresent ? min.Get() : null, max.IsPresent ? max.Get() : null));
+
+        //CODEC 持久化编解码 先试单浮点再试 min/max 对应原版 Doubles.CODEC
+        public static readonly Codec<Doubles> CODEC = Codecs.WithAlternative(SingleCodec, MinMaxCodec);
+
+        private static Optional<double> ToOptional(double? value)
+            => value is { } present ? Optional<double>.Of(present) : Optional<double>.Empty();
+
         public Doubles(double? min, double? max)
         {
             Min = min;
@@ -209,4 +224,17 @@ internal sealed class IntExactlyCodec : ScalarCodec<MinMaxBounds.Ints>
         => value.Min is { } min && min == value.Max
             ? Codecs.Int.EncodeStart(ops, min)
             : DataResult<U>.Error(() => "区间不是单值 无法按整数编码");
+}
+
+//DoubleExactlyCodec 单浮点形态的浮点区间编解码
+//解析恒得到上下界相等 编码只在上下界相等时成立 否则交给候选链的下一项 对应原版 Doubles.CODEC 的浮点分支
+internal sealed class DoubleExactlyCodec : ScalarCodec<MinMaxBounds.Doubles>
+{
+    public override DataResult<MinMaxBounds.Doubles> Parse<U>(DynamicOps<U> ops, U input)
+        => Codecs.Double.Parse(ops, input).Map(value => new MinMaxBounds.Doubles(value, value));
+
+    public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, MinMaxBounds.Doubles value)
+        => value.Min is { } min && min == value.Max
+            ? Codecs.Double.EncodeStart(ops, min)
+            : DataResult<U>.Error(() => "区间不是单值 无法按浮点编码");
 }

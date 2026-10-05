@@ -98,6 +98,10 @@ public static class HolderSetCodecs
     //AttributeSet 属性集合 codec 供属性修饰谓词的字段使用
     public static readonly Codec<HolderSet<EntityAttribute.Attribute>> AttributeSet =
         new HolderSetCodec<EntityAttribute.Attribute>(BuiltInRegistries.ATTRIBUTE);
+
+    //AttributeRef 单个属性引用 codec 供属性修饰条目使用
+    public static readonly Codec<Holder<EntityAttribute.Attribute>> AttributeRef =
+        new HolderRefCodec<EntityAttribute.Attribute>(BuiltInRegistries.ATTRIBUTE);
 }
 
 //HolderRefCodec 单元素注册表引用 codec 对应原版 RegistryFileCodec 的字符串形式

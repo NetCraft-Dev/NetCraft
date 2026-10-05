@@ -58,11 +58,7 @@ BenchmarkDotNet.Artifacts/
 
 *.tmp
 *.bak
-
-# 本地发版脚本 带 nuget 密钥不进仓库
 updata.ps1
-
-# 开发期的测试与实验项目 不随公开发布 本地保留但不提交
 NetCraft.Test/
 NetCraft.Test1/
 NetCraft.Test2/

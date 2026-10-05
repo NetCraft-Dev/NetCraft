@@ -8,6 +8,10 @@ namespace NetCraft.Game.World.Items.Component.Predicates;
 //Bootstrap 由 DataComponents.Bootstrap 一并调用 必须在注册表冻结之前
 public static class DataComponentPredicates
 {
+    //ATTRIBUTE_MODIFIERS 属性修饰谓词
+    public static readonly ConcreteType<AttributeModifiersPredicate> ATTRIBUTE_MODIFIERS =
+        Register("attribute_modifiers", AttributeModifiersPredicate.Codec);
+
     //BUNDLE_CONTENTS 收纳袋内容谓词
     public static readonly ConcreteType<BundlePredicate> BUNDLE_CONTENTS =
         Register("bundle_contents", BundlePredicate.Codec);
@@ -66,6 +70,7 @@ public static class DataComponentPredicates
     //Bootstrap 触发静态字段初始化完成注册
     public static void Bootstrap()
     {
+        _ = ATTRIBUTE_MODIFIERS;
         _ = BUNDLE_CONTENTS;
         _ = CONTAINER;
         _ = CUSTOM_DATA;

@@ -9,24 +9,25 @@ namespace NetCraft.Game.World.Items.Component.Predicates;
 //对应原版 net.minecraft.core.component.predicates.EnchantmentsPredicate
 public abstract class EnchantmentsPredicate : SingleComponentItemPredicate<ItemEnchantments>
 {
-    protected EnchantmentsPredicate(IReadOnlyList<EnchantmentPredicate> enchantments) => Enchantments = enchantments;
+    protected EnchantmentsPredicate(IReadOnlyList<EnchantmentPredicate> enchantments)
+        => EnchantmentPredicates = enchantments;
 
-    //Enchantments 判定用的附魔谓词列表
-    public IReadOnlyList<EnchantmentPredicate> Enchantments { get; }
+    //EnchantmentPredicates 判定用的附魔谓词列表 属性名不能与嵌套类 Enchantments 同名
+    public IReadOnlyList<EnchantmentPredicate> EnchantmentPredicates { get; }
 
     //CodecOf 列表编解码加构造器 对应原版 codec
     public static Codec<T> CodecOf<T>(Func<IReadOnlyList<EnchantmentPredicate>, T> constructor)
         where T : EnchantmentsPredicate
         => EnchantmentPredicate.Codec.ListOf().ComapFlatMap(
             list => DataResult<T>.Success(constructor(list)),
-            predicate => predicate.Enchantments);
+            predicate => predicate.EnchantmentPredicates);
 
     public abstract DataComponentType<object> ComponentType { get; }
 
     //MatchesValue 逐条附魔谓词都要在附魔表里找到匹配
     public bool MatchesValue(ItemEnchantments appliedEnchantments)
     {
-        foreach (var enchantment in Enchantments)
+        foreach (var enchantment in EnchantmentPredicates)
             if (!enchantment.ContainedIn(appliedEnchantments)) return false;
         return true;
     }

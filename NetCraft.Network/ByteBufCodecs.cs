@@ -29,6 +29,18 @@ public static class ByteBufCodecs
     //StringUtf8 变长长度前缀的 UTF-8 字符串编解码 maxLength 长度上限校验
     public static StreamCodec<RegistryFriendlyByteBuf, string> StringUtf8(int maxLength = 32767)
         => new StringStreamCodec(maxLength);
+
+    //Identifier 命名空间标识编解码 对应原版 ByteBufCodecs 里的 Identifier
+    public static StreamCodec<RegistryFriendlyByteBuf, Identifier> Identifier()
+        => new IdentifierStreamCodec();
+}
+
+//IdentifierStreamCodec 命名空间标识编解码 走 namespace:path 字符串
+internal sealed class IdentifierStreamCodec : StreamCodec<RegistryFriendlyByteBuf, Identifier>
+{
+    public Identifier Decode(RegistryFriendlyByteBuf buf) => buf.ReadIdentifier();
+
+    public void Encode(RegistryFriendlyByteBuf buf, Identifier value) => buf.WriteIdentifier(value);
 }
 
 //StringStreamCodec 字符串编解码 对应原版 ByteBufCodecs.stringUtf8

@@ -94,6 +94,12 @@ public static class DataComponents
         new ObjectCodec<ItemContainerContents>(ItemContainerContents.Codec),
         new ObjectStreamCodec<ItemContainerContents>(ItemContainerContents.StreamCodec));
 
+    //ATTRIBUTE_MODIFIERS 物品属性修饰条目
+    public static readonly DataComponentType<object> ATTRIBUTE_MODIFIERS = Register(
+        "attribute_modifiers",
+        new ObjectCodec<ItemAttributeModifiers>(ItemAttributeModifiers.Codec),
+        new ObjectStreamCodec<ItemAttributeModifiers>(ItemAttributeModifiers.StreamCodec));
+
     //ENCHANTMENTS 物品附魔表
     public static readonly DataComponentType<object> ENCHANTMENTS = Register(
         "enchantments",
@@ -157,6 +163,7 @@ public static class DataComponents
         _ = FIREWORKS;
         _ = POTION_CONTENTS;
         _ = CONTAINER;
+        _ = ATTRIBUTE_MODIFIERS;
         _ = ENCHANTMENTS;
         _ = STORED_ENCHANTMENTS;
         _ = TRIM;
