@@ -54,12 +54,34 @@ public interface EnchantmentEntityEffect { }
 public interface EnchantmentLocationBasedEffect { }
 public interface EnchantmentProvider { }
 public interface EnchantmentValueEffect { }
+//ILevelReader 谓词层需要的最小关卡读取能力 对应原版 ServerLevel 被谓词用到的那组方法
+//ServerLevel 在 Storage 层 Registry 层够不着 故在 Registry 定义这组能力由 ServerLevel 实现
+public interface ILevelReader
+{
+    //Dimension 维度注册名
+    Identifier Dimension { get; }
+
+    //IsLoaded 该位置所在区块是否已在内存
+    bool IsLoaded(BlockPos pos);
+
+    //GetBlockState 读方块状态 区块未加载返回 null
+    BlockState? GetBlockState(BlockPos pos);
+
+    //GetBiome 读该位置生物群系 区块不在内存返回 null
+    Holder<Biome>? GetBiome(BlockPos pos);
+
+    //GetMaxLocalRawBrightness 该位置最大局部亮度
+    int GetMaxLocalRawBrightness(BlockPos pos);
+
+    //CanSeeSky 该位置能否直见天空
+    bool CanSeeSky(BlockPos pos);
+}
 //EntitySubPredicate 实体子谓词对应原版 net.minecraft.advancements.predicates.entity.EntitySubPredicate
-//原版签名带 ServerLevel 该层在上游 Registry 不能反向引用 故去掉 level 只留实体与参照位置
+//原版签名带 ServerLevel 该层在上游 Registry 不能反向引用 改用 ILevelReader 抽象出所需能力
 public interface EntitySubPredicate
 {
-    //Matches 判定实体是否满足本谓词 position 为发起方位置 距离类谓词据此比对
-    bool Matches(Entity entity, Vec3? position);
+    //Matches 判定实体是否满足本谓词 level 为发起方所在关卡 position 为发起方位置
+    bool Matches(Entity entity, ILevelReader? level, Vec3? position);
 }
 //Feature 特征标记接口对应原版 Feature<FC>
 //原版按配置类型泛型 这里非泛型化 子类在 Place 里 is 模式匹配转配置

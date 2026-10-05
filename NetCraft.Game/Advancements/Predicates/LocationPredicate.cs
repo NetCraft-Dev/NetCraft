@@ -41,7 +41,7 @@ public sealed record LocationPredicate(
             new LocationPredicate(position, biomes, dimension, smokey, light, block, canSeeSky));
 
     //Matches 坐标逐项比对 需要读世界的那几项统一先看区块在不在内存 对应原版 matches
-    public bool Matches(ServerLevel level, double x, double y, double z)
+    public bool Matches(ILevelReader level, double x, double y, double z)
     {
         if (Position.IsPresent && !Position.Get().Matches(x, y, z)) return false;
         if (Dimension.IsPresent && Dimension.Get() != level.Dimension) return false;

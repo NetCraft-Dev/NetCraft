@@ -702,7 +702,7 @@ public static partial class Blocks
 
         //IsSmokeyPos 该位置是否处在营火烟柱上 向下一到五格找点燃的营火 对应原版 isSmokeyPos
         //原版还有"烟被实体方块挡住就只看再往下一格"的分支 本作只保留主语义
-        public static bool IsSmokeyPos(ServerLevel level, BlockPos pos)
+        public static bool IsSmokeyPos(ILevelReader level, BlockPos pos)
         {
             for (var i = 1; i <= 5; i++)
             {

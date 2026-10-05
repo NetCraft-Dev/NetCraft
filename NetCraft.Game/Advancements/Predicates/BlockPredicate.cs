@@ -40,7 +40,7 @@ public sealed record BlockPredicate(
 
     //Matches 位置已加载且状态命中 对应原版 matches
     //nbt 与组件匹配要读方块实体 方块实体体系未接通 有这类要求时按无法验证处理
-    public bool Matches(ServerLevel level, BlockPos pos)
+    public bool Matches(ILevelReader level, BlockPos pos)
     {
         if (!level.IsLoaded(pos)) return false;
         var state = level.GetBlockState(pos);

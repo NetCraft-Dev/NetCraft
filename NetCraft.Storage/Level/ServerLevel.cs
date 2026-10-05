@@ -14,7 +14,8 @@ namespace NetCraft.Storage;
 
 //ServerLevel 服务端关卡抽象类对应原版 net.minecraft.world.level.ServerLevel
 //持有维度标识与关卡数据访问入口 方块更新链也在这里 它是所有世界变更的唯一入口
-public abstract class ServerLevel
+//实现 ILevelReader 把谓词层需要的那组读取能力暴露给 Registry 侧
+public abstract class ServerLevel : ILevelReader
 {
     //懒建 构造期实例还没初始化完不能建
     private INeighborUpdater? _neighborUpdater;
