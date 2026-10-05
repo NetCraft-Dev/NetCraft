@@ -3,6 +3,7 @@ namespace NetCraft.Network.Chat;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using NetCraft.Codec;
 using NetCraft.Nbt;
 using NetCraft.Network.Chat.Contents;
 using NetCraft.Network;
@@ -16,6 +17,22 @@ public static class ComponentSerialization
     //FriendlyByteBuf StreamCodec对应原版STREAM_CODEC
     //写JSON字符串到FriendlyByteBuf读JSON字符串解析为Component
     public static StreamCodec<FriendlyByteBuf, Component> StreamCodec { get; } = new ComponentStreamCodec();
+
+    //Codec 组件持久化编解码 对应原版 CODEC
+    //简化走 JSON 文本 解析失败返回错误而不是抛异常
+    public static readonly Codec<Component> Codec = Codecs.String.ComapFlatMap(
+        json =>
+        {
+            try
+            {
+                return DataResult<Component>.Success(FromJson(json));
+            }
+            catch (Exception e)
+            {
+                return DataResult<Component>.Error(() => e.Message);
+            }
+        },
+        component => ToJson(component));
 
     //JSON序列化Component为字符串
     public static string ToJson(Component component)

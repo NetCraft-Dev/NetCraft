@@ -39,6 +39,29 @@ public static class HolderSetCodecs
     //BlockEntityTypeRef 单个方块实体类型引用 codec 供方块物品携带的方块实体数据使用
     public static readonly Codec<Holder<BlockEntityType<object>>> BlockEntityTypeRef =
         new HolderRefCodec<BlockEntityType<object>>(BuiltInRegistries.BLOCK_ENTITY_TYPE);
+
+    //ItemSet 物品集合 codec 供物品谓词的 items 字段使用
+    public static readonly Codec<HolderSet<Item>> ItemSet = new HolderSetCodec<Item>(BuiltInRegistries.ITEM);
+
+    //VillagerTypeSet 村民类型集合 codec 供村民类型谓词的字段使用
+    public static readonly Codec<HolderSet<VillagerType>> VillagerTypeSet =
+        new HolderSetCodec<VillagerType>(BuiltInRegistries.VILLAGER_TYPE);
+
+    //VillagerTypeRef 单个村民类型引用 codec 供村民变体组件使用
+    public static readonly Codec<Holder<VillagerType>> VillagerTypeRef =
+        new HolderRefCodec<VillagerType>(BuiltInRegistries.VILLAGER_TYPE);
+
+    //MobEffectRef 单个药水效果引用 codec 供效果实例与药水内容使用
+    public static readonly Codec<Holder<MobEffect>> MobEffectRef =
+        new HolderRefCodec<MobEffect>(BuiltInRegistries.MOB_EFFECT);
+
+    //PotionSet 药水集合 codec 供药水谓词的字段使用
+    public static readonly Codec<HolderSet<Potion>> PotionSet =
+        new HolderSetCodec<Potion>(BuiltInRegistries.POTION);
+
+    //PotionRef 单个药水引用 codec 供药水内容组件使用
+    public static readonly Codec<Holder<Potion>> PotionRef =
+        new HolderRefCodec<Potion>(BuiltInRegistries.POTION);
 }
 
 //HolderRefCodec 单元素注册表引用 codec 对应原版 RegistryFileCodec 的字符串形式

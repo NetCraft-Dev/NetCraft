@@ -1,0 +1,42 @@
+using NetCraft.Codec;
+using NetCraft.Game.Advancements.Predicates;
+using NetCraft.Network.Component;
+using NetCraft.Registry;
+
+namespace NetCraft.Game.World.Items.Component.Predicates;
+
+//FireworkExplosionPredicate 烟花爆炸谓词 判定形状与拖尾与闪烁三项开关
+//对应原版 net.minecraft.core.component.predicates.FireworkExplosionPredicate
+public sealed record FireworkExplosionPredicate(FireworkExplosionPredicate.FireworkPredicate Value)
+    : SingleComponentItemPredicate<FireworkExplosion>
+{
+    //Codec 持久化编解码 本体就是三项开关 对应原版 CODEC
+    public static readonly Codec<FireworkExplosionPredicate> Codec = FireworkPredicate.Codec.ComapFlatMap(
+        predicate => DataResult<FireworkExplosionPredicate>.Success(new FireworkExplosionPredicate(predicate)),
+        explosion => explosion.Value);
+
+    public DataComponentType<object> ComponentType => DataComponents.FIREWORK_EXPLOSION;
+
+    public bool MatchesValue(FireworkExplosion value) => Value.Test(value);
+
+    //FireworkPredicate 三项开关谓词 缺省即不约束 对应原版 FireworkPredicate
+    public sealed record FireworkPredicate(
+        Optional<bool> Shape,
+        Optional<bool> Trail,
+        Optional<bool> Twinkle) : IValuePredicate<FireworkExplosion>
+    {
+        public static readonly Codec<FireworkPredicate> Codec = RecordCodecBuilder.Of3(
+            Codecs.Bool.OptionalFieldOf("shape").ForGetter((FireworkPredicate predicate) => predicate.Shape),
+            Codecs.Bool.OptionalFieldOf("trail").ForGetter((FireworkPredicate predicate) => predicate.Trail),
+            Codecs.Bool.OptionalFieldOf("twinkle").ForGetter((FireworkPredicate predicate) => predicate.Twinkle),
+            (shape, trail, twinkle) => new FireworkPredicate(shape, trail, twinkle));
+
+        public bool Test(FireworkExplosion value)
+        {
+            if (Shape.IsPresent && Shape.Get() != value.HasShape()) return false;
+            if (Trail.IsPresent && Trail.Get() != value.Trail) return false;
+            if (Twinkle.IsPresent && Twinkle.Get() != value.Twinkle) return false;
+            return true;
+        }
+    }
+}

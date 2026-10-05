@@ -64,6 +64,54 @@ public static class DataComponents
             TypedEntityData<Holder<BlockEntityType<object>>>.StreamCodecOf(
                 ByteBufCodecs.Holder(Registries.BLOCK_ENTITY_TYPE))));
 
+    //CUSTOM_DATA 自由格式自定义数据 物品 NBT 谓词靠它判内容
+    public static readonly DataComponentType<object> CUSTOM_DATA = Register(
+        "custom_data",
+        new ObjectCodec<CustomData>(CustomData.PersistentCodec),
+        new ObjectStreamCodec<CustomData>(CustomData.StreamCodec));
+
+    //FIREWORK_EXPLOSION 烟花爆炸效果
+    public static readonly DataComponentType<object> FIREWORK_EXPLOSION = Register(
+        "firework_explosion",
+        new ObjectCodec<FireworkExplosion>(FireworkExplosion.Codec),
+        new ObjectStreamCodec<FireworkExplosion>(FireworkExplosion.StreamCodec));
+
+    //FIREWORKS 烟花火箭数据
+    public static readonly DataComponentType<object> FIREWORKS = Register(
+        "fireworks",
+        new ObjectCodec<Fireworks>(Fireworks.Codec),
+        new ObjectStreamCodec<Fireworks>(Fireworks.StreamCodec));
+
+    //POTION_CONTENTS 药水内容
+    public static readonly DataComponentType<object> POTION_CONTENTS = Register(
+        "potion_contents",
+        new ObjectCodec<PotionContents>(PotionContents.Codec),
+        new ObjectStreamCodec<PotionContents>(PotionContents.StreamCodec));
+
+    //CONTAINER 物品容器内容
+    public static readonly DataComponentType<object> CONTAINER = Register(
+        "container",
+        new ObjectCodec<ItemContainerContents>(ItemContainerContents.Codec),
+        new ObjectStreamCodec<ItemContainerContents>(ItemContainerContents.StreamCodec));
+
+    //WRITABLE_BOOK_CONTENT 书与笔内容
+    public static readonly DataComponentType<object> WRITABLE_BOOK_CONTENT = Register(
+        "writable_book_content",
+        new ObjectCodec<WritableBookContent>(WritableBookContent.Codec),
+        new ObjectStreamCodec<WritableBookContent>(WritableBookContent.StreamCodec));
+
+    //WRITTEN_BOOK_CONTENT 成书内容
+    public static readonly DataComponentType<object> WRITTEN_BOOK_CONTENT = Register(
+        "written_book_content",
+        new ObjectCodec<WrittenBookContent>(WrittenBookContent.Codec),
+        new ObjectStreamCodec<WrittenBookContent>(WrittenBookContent.StreamCodec));
+
+    //VILLAGER_VARIANT 村民变体 值是指向村民类型注册表的引用
+    public static readonly DataComponentType<object> VILLAGER_VARIANT = Register(
+        "villager_variant",
+        new ObjectCodec<Holder<VillagerType>>(HolderSetCodecs.VillagerTypeRef),
+        new ObjectStreamCodec<Holder<VillagerType>>(ByteBufCodecs.Holder(Registries.VILLAGER_TYPE)));
+
     //Register 注册单个组件类型到 BuiltInRegistries.DATA_COMPONENT_TYPE
     private static DataComponentType<object> Register(
         string name, Codec<object>? codec, StreamCodec<RegistryFriendlyByteBuf, object> streamCodec)
@@ -81,6 +129,13 @@ public static class DataComponents
         _ = BEES;
         _ = BUNDLE_CONTENTS;
         _ = BLOCK_ENTITY_DATA;
+        _ = FIREWORK_EXPLOSION;
+        _ = FIREWORKS;
+        _ = POTION_CONTENTS;
+        _ = CONTAINER;
+        _ = WRITABLE_BOOK_CONTENT;
+        _ = WRITTEN_BOOK_CONTENT;
+        _ = VILLAGER_VARIANT;
         DataComponentPredicates.Bootstrap();
     }
 }

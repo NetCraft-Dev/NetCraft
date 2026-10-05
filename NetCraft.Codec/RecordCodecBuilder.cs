@@ -5,6 +5,9 @@ namespace NetCraft.Codec;
 //覆盖Of2..Of16常见record字段数
 public static class RecordCodecBuilder
 {
+    public static Codec<T> Of1<T, F1>(FieldCodec<T, F1> f1, Func<F1, T> ctor)
+        => new RecordCodec1<T, F1>(f1, ctor);
+
     public static Codec<T> Of2<T, F1, F2>(
         FieldCodec<T, F1> f1, FieldCodec<T, F2> f2, Func<F1, F2, T> ctor)
         => new RecordCodec2<T, F1, F2>(f1, f2, ctor);
@@ -98,6 +101,27 @@ public static class RecordCodecBuilder
         FieldCodec<T, F13> f13, FieldCodec<T, F14> f14, FieldCodec<T, F15> f15, FieldCodec<T, F16> f16,
         Func<F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, T> ctor)
         => new RecordCodec16<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16>(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, ctor);
+}
+
+//1字段record codec
+internal sealed class RecordCodec1<T, F1> : AbstractMapCodec<T>
+{
+    private readonly FieldCodec<T, F1> _f1;
+    private readonly Func<F1, T> _ctor;
+
+    public RecordCodec1(FieldCodec<T, F1> f1, Func<F1, T> ctor)
+    {
+        _f1 = f1; _ctor = ctor;
+    }
+
+    public override DataResult<T> Decode<U>(DynamicOps<U> ops, MapLike<U> input)
+        => _f1.Codec.Decode(ops, input).Map(value => _ctor(value));
+
+    public override RecordBuilder<U> EncodeTo<U>(DynamicOps<U> ops, T value, RecordBuilder<U> builder)
+    {
+        _f1.Codec.EncodeTo(ops, _f1.Getter(value), builder);
+        return builder;
+    }
 }
 
 //2字段record codec

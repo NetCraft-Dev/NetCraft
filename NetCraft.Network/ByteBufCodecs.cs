@@ -25,6 +25,22 @@ public static class ByteBufCodecs
     //elementCodec 单元素编解码 maxSize 长度上限校验
     public static StreamCodec<B, List<V>> Collection<B, V>(StreamCodec<B, V> elementCodec, int maxSize = int.MaxValue) where B : class
         => new CollectionStreamCodec<B, V>(elementCodec, maxSize);
+
+    //StringUtf8 变长长度前缀的 UTF-8 字符串编解码 maxLength 长度上限校验
+    public static StreamCodec<RegistryFriendlyByteBuf, string> StringUtf8(int maxLength = 32767)
+        => new StringStreamCodec(maxLength);
+}
+
+//StringStreamCodec 字符串编解码 对应原版 ByteBufCodecs.stringUtf8
+internal sealed class StringStreamCodec : StreamCodec<RegistryFriendlyByteBuf, string>
+{
+    private readonly int _maxLength;
+
+    public StringStreamCodec(int maxLength) => _maxLength = maxLength;
+
+    public string Decode(RegistryFriendlyByteBuf buf) => buf.ReadString(_maxLength);
+
+    public void Encode(RegistryFriendlyByteBuf buf, string value) => buf.WriteString(value, _maxLength);
 }
 
 //HolderStreamCodec 注册表 id 与 Holder.Reference 双向编解码
