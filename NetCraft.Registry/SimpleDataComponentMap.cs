@@ -1,6 +1,4 @@
-using NetCraft.Registry;
-
-namespace NetCraft.Network.Component;
+namespace NetCraft.Registry;
 
 //SimpleDataComponentMap DataComponentMap 简单实现对应原版 DataComponentMap.Builder.ImmutableMap
 //内部用 Dictionary<object,object> 存 key 是 DataComponentType 实例 value 是装箱值
@@ -45,6 +43,13 @@ public sealed class DataComponentMapBuilder
     public DataComponentMapBuilder Remove<T>(DataComponentType<T> type) where T : class
     {
         _map.Remove(type);
+        return this;
+    }
+
+    //SetUnchecked 按非泛型键值写入 供补丁拆分与整表解码这类只知道 object 的场景用 对应原版 setUnchecked
+    public DataComponentMapBuilder SetUnchecked(object type, object value)
+    {
+        _map[type] = value;
         return this;
     }
 

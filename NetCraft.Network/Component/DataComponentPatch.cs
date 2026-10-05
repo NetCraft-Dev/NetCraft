@@ -1,5 +1,6 @@
 using NetCraft.Codec;
 using NetCraft.Registry;
+using System.Text;
 
 namespace NetCraft.Network.Component;
 
@@ -39,6 +40,123 @@ public sealed class DataComponentPatch
 
     //AsMap 返回内部映射副本
     public IReadOnlyDictionary<object, Optional<object>> AsMap() => _map.ToDictionary(kv => kv.Key, kv => kv.Value);
+
+    //Size 补丁项数
+    public int Size => _map.Count;
+
+    //EntrySet 补丁项集合
+    public IEnumerable<KeyValuePair<object, Optional<object>>> EntrySet => _map;
+
+    //GetFrom 取补丁覆盖后的最终值 补丁有该 type 时以补丁为准 否则回退 prototype
+    //对应原版 DataComponentPatch.get
+    public T? GetFrom<T>(DataComponentGetter prototype, DataComponentType<T> type) where T : class
+    {
+        if (_map.TryGetValue(type, out var value))
+            return value.IsPresent ? (T)value.Get() : null;
+        return prototype.Get(type);
+    }
+
+    //Forget 丢弃匹配的补丁项 对应原版 forget
+    public DataComponentPatch Forget(Func<object, bool> test)
+    {
+        if (IsEmpty) return Empty;
+        var copy = new Dictionary<object, Optional<object>>();
+        foreach (var kv in _map)
+            if (!test(kv.Key)) copy[kv.Key] = kv.Value;
+        return copy.Count == 0 ? Empty : new DataComponentPatch(copy);
+    }
+
+    //Split 拆成新增映射与移除集合 对应原版 split
+    public SplitResult Split()
+    {
+        if (IsEmpty) return SplitResult.Empty;
+        var builder = new DataComponentMapBuilder();
+        var removed = new HashSet<object>();
+        foreach (var kv in _map)
+        {
+            if (kv.Value.IsPresent) builder.SetUnchecked(kv.Key, kv.Value.Get());
+            else removed.Add(kv.Key);
+        }
+        return new SplitResult(builder.Build(), removed);
+    }
+
+    //NewBuilder 造补丁构造器 对应原版 DataComponentPatch.builder
+    public static Builder NewBuilder() => new();
+
+    //判等按补丁内容逐项比 对应原版 equals
+    public override bool Equals(object? obj)
+        => ReferenceEquals(this, obj) || (obj is DataComponentPatch other && MapEquals(other));
+
+    private bool MapEquals(DataComponentPatch other)
+    {
+        if (other._map.Count != _map.Count) return false;
+        foreach (var kv in _map)
+        {
+            if (!other._map.TryGetValue(kv.Key, out var value)) return false;
+            if (kv.Value.IsPresent != value.IsPresent) return false;
+            if (kv.Value.IsPresent && !Equals(kv.Value.Get(), value.Get())) return false;
+        }
+        return true;
+    }
+
+    //哈希与判等一致
+    public override int GetHashCode()
+    {
+        var hash = 0;
+        foreach (var kv in _map)
+            hash += kv.Key.GetHashCode() ^ kv.Value.GetHashCode();
+        return hash;
+    }
+
+    //移除项带 ! 前缀 对应原版 toString
+    public override string ToString()
+    {
+        var sb = new StringBuilder();
+        sb.Append('{');
+        var first = true;
+        foreach (var kv in _map)
+        {
+            if (!first) sb.Append(", ");
+            first = false;
+            if (kv.Value.IsPresent) sb.Append(kv.Key).Append("=>").Append(kv.Value.Get());
+            else sb.Append('!').Append(kv.Key);
+        }
+        sb.Append('}');
+        return sb.ToString();
+    }
+
+    //SplitResult 补丁拆分结果 对应原版 DataComponentPatch.SplitResult
+    public sealed record SplitResult(DataComponentMap Added, IReadOnlySet<object> Removed)
+    {
+        public static readonly SplitResult Empty = new(DataComponentMap.Empty, new HashSet<object>());
+    }
+
+    //Builder 补丁构造器 对应原版 DataComponentPatch.Builder
+    public sealed class Builder
+    {
+        private readonly Dictionary<object, Optional<object>> _map = new();
+
+        //Set 写入或覆盖该项
+        public Builder Set<T>(DataComponentType<T> type, T value) where T : class
+        {
+            _map[type] = Optional<object>.Of(value);
+            return this;
+        }
+
+        //Remove 标记移除该项
+        public Builder Remove<T>(DataComponentType<T> type) where T : class
+        {
+            _map[type] = Optional<object>.Empty();
+            return this;
+        }
+
+        //Set 按带类型的组件条目写入
+        public Builder Set<T>(TypedDataComponent<T> component) where T : class => Set(component.Type, component.Value);
+
+        //Build 空补丁返回单例
+        public DataComponentPatch Build()
+            => _map.Count == 0 ? Empty : new DataComponentPatch(new Dictionary<object, Optional<object>>(_map));
+    }
 }
 
 //DataComponentPatchStreamCodec DataComponentPatch 网络编解码实现

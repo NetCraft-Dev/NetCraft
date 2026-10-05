@@ -4,7 +4,7 @@ namespace NetCraft.Game.World.Items;
 
 //ItemInstance 物品实例的只读视图 对应原版 net.minecraft.world.item.ItemInstance
 //原版继承 TypedInstance<Item> 与 DataComponentGetter 这里把用到的成员直接列出来
-public interface ItemInstance
+public interface ItemInstance : DataComponentGetter
 {
     public const string FieldId = "id";
     public const string FieldCount = "count";

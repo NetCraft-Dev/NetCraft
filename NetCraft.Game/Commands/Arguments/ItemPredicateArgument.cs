@@ -7,6 +7,7 @@ using NetCraft.Commands.Suggestion;
 using NetCraft.Game.Commands;
 using NetCraft.Game.World.Items;
 using NetCraft.Nbt;
+using NetCraft.Network.Component;
 using NetCraft.Registry;
 using NetCraft.Util;
 using StringReader = NetCraft.Commands.StringReader;
@@ -176,7 +177,9 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
             {
                 reader.Skip();
                 var expected = ReadComponentValue(reader, componentType, start);
-                return stack => !stack.IsEmpty() && Equals(stack.GetComponents().Get(componentType), expected);
+                //值匹配的语义就是精确谓词 对应原版 DataComponentExactPredicate.expect(type, value)
+                var exact = DataComponentExactPredicate.Expect(componentType, expected);
+                return stack => !stack.IsEmpty() && exact.Test(stack.GetComponents());
             }
             return stack => !stack.IsEmpty() && stack.GetComponents().Get(componentType) is not null;
         }

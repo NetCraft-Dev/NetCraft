@@ -10,7 +10,7 @@ namespace NetCraft.Game.World.Items;
 //STREAM_CODEC 编码 count+Item.STREAM_CODEC+DataComponentPatch.STREAM_CODEC
 //OPTIONAL_STREAM_CODEC 允许空栈 count<=0 视为 EMPTY
 //STREAM_CODEC 在 OPTIONAL 基础上禁止空栈编解码抛 EncoderException/DecoderException
-public sealed class ItemStack : ItemInstance
+public sealed class ItemStack : ItemInstance, DataComponentHolder
 {
     //Empty 空栈单例 _item=null
     public static readonly ItemStack Empty = new();
@@ -131,6 +131,9 @@ public sealed class ItemStack : ItemInstance
     //GetComponents 获取组件映射
     public PatchedDataComponentMap GetComponents() => _components;
 
+    //显式实现 DataComponentHolder 按基接口类型暴露同一份映射
+    DataComponentMap DataComponentHolder.GetComponents() => _components;
+
     //Copy 复制物品栈
     public ItemStack Copy()
     {
@@ -145,15 +148,26 @@ public sealed class ItemStack : ItemInstance
         return new ItemStack(_item!, count, _components.AsPatch());
     }
 
-    //WriteNbt 按原版 1.20.5+ 的 id + count 结构写出物品栈 空栈不写
-    //组件层未接入 写出时丢掉 与 PlayerDataStorage 的存档口径一致
+    //WriteNbt 按原版 1.20.5+ 的 id + count + components 结构写出物品栈 空栈不写
     public static void WriteNbt(CompoundTag parent, string key, ItemStack stack)
     {
-        if (stack.IsEmpty()) return;
+        if (ToNbt(stack) is { } entry) parent.Put(key, entry);
+    }
+
+    //ToNbt 写出物品栈的标签 组件以补丁形式落在 components 字段 空栈返回 null
+    public static CompoundTag? ToNbt(ItemStack stack)
+    {
+        if (stack.IsEmpty()) return null;
         var entry = new CompoundTag();
         entry.PutString("id", stack.GetItem().Id.ToString());
         entry.PutInt("count", stack.GetCount());
-        parent.Put(key, entry);
+        var patch = stack.GetComponents().AsPatch();
+        if (!patch.IsEmpty)
+        {
+            var encoded = DataComponentPatch.PersistentCodec.EncodeStart(NbtOps.Instance, patch);
+            if (encoded.Result().IsPresent) entry.Put("components", encoded.GetOrThrow());
+        }
+        return entry;
     }
 
     //ReadNbt 读回物品栈 缺 id 或物品未注册或数量非法一律返回空栈
@@ -167,7 +181,14 @@ public sealed class ItemStack : ItemInstance
         var itemId = Identifier.TryParse(idText);
         if (itemId is null) return Empty;
         var holder = BuiltInRegistries.ITEM.GetValue(ResourceKey<Item>.Create(Registries.ITEM, itemId.Value));
-        return holder is null ? Empty : new ItemStack(holder.BuiltInRegistryHolder, count, DataComponentPatch.Empty);
+        if (holder is null) return Empty;
+        var patch = DataComponentPatch.Empty;
+        if (tag.GetCompound("components") is { } components)
+        {
+            var parsed = DataComponentPatch.PersistentCodec.Parse(NbtOps.Instance, components);
+            if (parsed.Result().IsPresent) patch = parsed.GetOrThrow();
+        }
+        return new ItemStack(holder.BuiltInRegistryHolder, count, patch);
     }
 }
 

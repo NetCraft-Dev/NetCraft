@@ -23,6 +23,62 @@ public static class Codecs
     //WithAlternative先尝试first失败用second对应原版Codec.withAlternative
     public static Codec<T> WithAlternative<T>(Codec<T> first, Codec<T> second)
         => new AlternativeCodec<T>(first, second);
+
+    //DispatchedMap 键决定值编解码的映射对应原版Codec.dispatchedMap
+    //keyCodec解出键valueCodecGetter按该键给出值codec
+    public static Codec<Dictionary<K, V>> DispatchedMap<K, V>(Codec<K> keyCodec, Func<K, Codec<V>> valueCodecGetter)
+        where K : notnull
+        => new DispatchedMapCodec<K, V>(keyCodec, valueCodecGetter);
+}
+
+//DispatchedMapCodec 键分派映射编解码实现
+//解析按map逐项先解键再用该键的codec解值编码反向
+internal sealed class DispatchedMapCodec<K, V> : ScalarCodec<Dictionary<K, V>> where K : notnull
+{
+    private readonly Codec<K> _keyCodec;
+    private readonly Func<K, Codec<V>> _valueCodecGetter;
+
+    public DispatchedMapCodec(Codec<K> keyCodec, Func<K, Codec<V>> valueCodecGetter)
+    {
+        _keyCodec = keyCodec;
+        _valueCodecGetter = valueCodecGetter;
+    }
+
+    public override DataResult<Dictionary<K, V>> Parse<U>(DynamicOps<U> ops, U input)
+    {
+        return ops.GetMapValues(input).FlatMap(entries =>
+        {
+            var map = new Dictionary<K, V>();
+            foreach (var entry in entries)
+            {
+                var keyResult = _keyCodec.Parse(ops, entry.First);
+                if (!keyResult.Result().IsPresent)
+                    return DataResult<Dictionary<K, V>>.Error(() => "映射键解析失败");
+                var key = keyResult.GetOrThrow();
+                var valueResult = _valueCodecGetter(key).Parse(ops, entry.Second);
+                if (!valueResult.Result().IsPresent)
+                    return DataResult<Dictionary<K, V>>.Error(() => $"映射值解析失败: {key}");
+                map[key] = valueResult.GetOrThrow();
+            }
+            return DataResult<Dictionary<K, V>>.Success(map);
+        });
+    }
+
+    public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, Dictionary<K, V> value)
+    {
+        var pairs = new List<Pair<U, U>>(value.Count);
+        foreach (var kv in value)
+        {
+            var keyResult = _keyCodec.EncodeStart(ops, kv.Key);
+            if (!keyResult.Result().IsPresent)
+                return DataResult<U>.Error(() => $"映射键编码失败: {kv.Key}");
+            var valueResult = _valueCodecGetter(kv.Key).EncodeStart(ops, kv.Value);
+            if (!valueResult.Result().IsPresent)
+                return DataResult<U>.Error(() => $"映射值编码失败: {kv.Key}");
+            pairs.Add(new Pair<U, U>(keyResult.GetOrThrow(), valueResult.GetOrThrow()));
+        }
+        return DataResult<U>.Success(ops.CreateMap(pairs));
+    }
 }
 
 //Alternative codec对应原版Codec.AlternativeCodec
