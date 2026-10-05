@@ -1,3 +1,4 @@
+using NetCraft.Primitives;
 using NetCraft.Registry.State;
 
 namespace NetCraft.Registry;
@@ -53,7 +54,13 @@ public interface EnchantmentEntityEffect { }
 public interface EnchantmentLocationBasedEffect { }
 public interface EnchantmentProvider { }
 public interface EnchantmentValueEffect { }
-public interface EntitySubPredicate { }
+//EntitySubPredicate 实体子谓词对应原版 net.minecraft.advancements.predicates.entity.EntitySubPredicate
+//原版签名带 ServerLevel 该层在上游 Registry 不能反向引用 故去掉 level 只留实体与参照位置
+public interface EntitySubPredicate
+{
+    //Matches 判定实体是否满足本谓词 position 为发起方位置 距离类谓词据此比对
+    bool Matches(Entity entity, Vec3? position);
+}
 //Feature 特征标记接口对应原版 Feature<FC>
 //原版按配置类型泛型 这里非泛型化 子类在 Place 里 is 模式匹配转配置
 public interface Feature { }

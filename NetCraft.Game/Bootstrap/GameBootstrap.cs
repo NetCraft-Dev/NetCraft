@@ -86,6 +86,8 @@ public static class GameBootstrap
             //实体属性先于实体类型登记 实体构造按属性建表 也要早于注册表冻结
             NetCraft.Registry.EntityAttribute.Attributes.Bootstrap();
             EntityTypes.Bootstrap();
+            //实体子谓词按注册名登记 供实体谓词组合体按类型名分派
+            NetCraft.Game.Advancements.Predicates.Entity.EntitySubPredicates.Bootstrap();
             //实体类型的属性默认表要在任何实体构造之前装配好
             NetCraft.Game.World.Entity.DefaultAttributes.Bootstrap();
             BlockEntityTypes.Bootstrap();

@@ -36,6 +36,10 @@ public static class HolderSetCodecs
     public static readonly Codec<Holder<EntityType<object>>> EntityTypeRef =
         new HolderRefCodec<EntityType<object>>(BuiltInRegistries.ENTITY_TYPE);
 
+    //EntityTypeSet 实体类型集合 codec 供实体类型谓词的 types 字段使用
+    public static readonly Codec<HolderSet<EntityType<object>>> EntityTypeSet =
+        new HolderSetCodec<EntityType<object>>(BuiltInRegistries.ENTITY_TYPE);
+
     //BlockEntityTypeRef 单个方块实体类型引用 codec 供方块物品携带的方块实体数据使用
     public static readonly Codec<Holder<BlockEntityType<object>>> BlockEntityTypeRef =
         new HolderRefCodec<BlockEntityType<object>>(BuiltInRegistries.BLOCK_ENTITY_TYPE);

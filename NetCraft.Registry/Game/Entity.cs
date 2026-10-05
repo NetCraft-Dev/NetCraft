@@ -210,6 +210,27 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
     //OnGround 是否接触地面默认 false
     public bool OnGround { get; set; }
 
+    //IsOnFire 是否正在燃烧 对应原版 isOnFire
+    public bool IsOnFire { get; set; }
+
+    //IsCrouching 是否潜行 对应原版 isCrouching
+    public bool IsCrouching { get; set; }
+
+    //IsSprinting 是否疾跑 对应原版 isSprinting
+    public bool IsSprinting { get; set; }
+
+    //IsSwimming 是否处于游泳姿态 对应原版 isSwimming
+    public bool IsSwimming { get; set; }
+
+    //IsBaby 是否幼年 对应原版 LivingEntity.isBaby
+    public bool IsBaby { get; set; }
+
+    //IsFallFlying 是否鞘翅滑翔 对应原版 LivingEntity.isFallFlying
+    public bool IsFallFlying { get; set; }
+
+    //IsFlying 是否处于飞行 对应原版玩家能力 flying 本作所有实体通用
+    public bool IsFlying { get; set; }
+
     //IsDescending 是否处于下落姿态 对应原版 isDescending
     //碰撞上下文按它放宽脚手架一类方块的侧向判定 基类实体一律否
     public virtual bool IsDescending() => false;
