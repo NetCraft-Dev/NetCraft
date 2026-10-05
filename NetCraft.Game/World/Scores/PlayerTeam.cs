@@ -1,3 +1,4 @@
+using NetCraft.Codec;
 using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.World.Scores;
@@ -135,4 +136,43 @@ public sealed class PlayerTeam : Team
 
     //RemovePlayer 移出成员 对应原版 getPlayers().remove 那条路径
     internal bool RemovePlayer(string player) => _players.Remove(player);
+
+    //Packed 队伍的存档形态 对应原版 PlayerTeam.Packed
+    public sealed record Packed(
+        string Name,
+        Optional<Component> DisplayName,
+        Optional<TeamColor> Color,
+        bool AllowFriendlyFire,
+        bool SeeFriendlyInvisibles,
+        Component MemberNamePrefix,
+        Component MemberNameSuffix,
+        Team.Visibility NameTagVisibility,
+        Team.Visibility DeathMessageVisibility,
+        Team.CollisionRule CollisionRule,
+        IReadOnlyList<string> Players)
+    {
+        //Codec 持久化编解码 字段名对齐原版 CODEC
+        public static readonly Codec<Packed> Codec = RecordCodecBuilder.Of11(
+            Codecs.String.FieldOf("Name").ForGetter((Packed packed) => packed.Name),
+            ComponentSerialization.Codec.OptionalFieldOf("DisplayName")
+                .ForGetter((Packed packed) => packed.DisplayName),
+            TeamColorExtensions.Codec.OptionalFieldOf("TeamColor").ForGetter((Packed packed) => packed.Color),
+            Codecs.Bool.FieldOf("AllowFriendlyFire").ForGetter((Packed packed) => packed.AllowFriendlyFire),
+            Codecs.Bool.FieldOf("SeeFriendlyInvisibles").ForGetter((Packed packed) => packed.SeeFriendlyInvisibles),
+            ComponentSerialization.Codec.FieldOf("MemberNamePrefix")
+                .ForGetter((Packed packed) => packed.MemberNamePrefix),
+            ComponentSerialization.Codec.FieldOf("MemberNameSuffix")
+                .ForGetter((Packed packed) => packed.MemberNameSuffix),
+            TeamEnums.VisibilityCodec.FieldOf("NameTagVisibility")
+                .ForGetter((Packed packed) => packed.NameTagVisibility),
+            TeamEnums.VisibilityCodec.FieldOf("DeathMessageVisibility")
+                .ForGetter((Packed packed) => packed.DeathMessageVisibility),
+            TeamEnums.CollisionRuleCodec.FieldOf("CollisionRule")
+                .ForGetter((Packed packed) => packed.CollisionRule),
+            Codecs.String.ListOf().FieldOf("Players").ForGetter((Packed packed) => packed.Players),
+            (name, displayName, color, allowFriendlyFire, seeFriendlyInvisibles, prefix, suffix, nameTagVisibility,
+                deathMessageVisibility, collisionRule, players) =>
+                new Packed(name, displayName, color, allowFriendlyFire, seeFriendlyInvisibles, prefix, suffix,
+                    nameTagVisibility, deathMessageVisibility, collisionRule, players));
+    }
 }

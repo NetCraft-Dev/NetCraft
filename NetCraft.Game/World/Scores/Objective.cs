@@ -1,3 +1,4 @@
+using NetCraft.Codec;
 using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.World.Scores;
@@ -57,5 +58,24 @@ public sealed class Objective
     {
         DisplayAutoUpdate = displayAutoUpdate;
         Scoreboard.OnObjectiveChanged(this);
+    }
+
+    //Packed 目标的存档形态 对应原版 Objective.Packed
+    //原版的编号格式字段依赖 NumberFormat 未接通故省略
+    public sealed record Packed(string Name, ObjectiveCriteria Criteria, Component DisplayName,
+        ObjectiveCriteria.RenderType RenderType, bool DisplayAutoUpdate)
+    {
+        //Codec 持久化编解码 字段名 Name/CriteriaName/DisplayName/RenderType/display_auto_update 对应原版 CODEC
+        public static readonly Codec<Packed> Codec = RecordCodecBuilder.Of5(
+            Codecs.String.FieldOf("Name").ForGetter((Packed packed) => packed.Name),
+            ObjectiveCriteria.Codec.OptionalFieldOf("CriteriaName", ObjectiveCriteria.DUMMY)
+                .ForGetter((Packed packed) => packed.Criteria),
+            ComponentSerialization.Codec.FieldOf("DisplayName").ForGetter((Packed packed) => packed.DisplayName),
+            ObjectiveCriteria.RenderTypeCodec.OptionalFieldOf("RenderType", ObjectiveCriteria.RenderType.INTEGER)
+                .ForGetter((Packed packed) => packed.RenderType),
+            Codecs.Bool.OptionalFieldOf("display_auto_update", false)
+                .ForGetter((Packed packed) => packed.DisplayAutoUpdate),
+            (name, criteria, displayName, renderType, displayAutoUpdate) =>
+                new Packed(name, criteria, displayName, renderType, displayAutoUpdate));
     }
 }

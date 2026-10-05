@@ -1,3 +1,4 @@
+using NetCraft.Codec;
 using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.World.Scores;
@@ -27,4 +28,16 @@ public sealed class Score : ReadOnlyScoreInfo
 
     //SetDisplay 写自定义显示文本 对应原版 display(Component)
     public void SetDisplay(Component? display) => _display = display;
+
+    //Packed 分数的存档形态 对应原版 Score.Packed
+    //原版的编号格式字段依赖 NumberFormat 未接通故省略
+    public sealed record Packed(int Value, bool Locked, Optional<Component> Display)
+    {
+        //Codec 持久化编解码 字段名 Score/Locked/display 对应原版 MAP_CODEC
+        public static readonly Codec<Packed> Codec = RecordCodecBuilder.Of3(
+            Codecs.Int.OptionalFieldOf("Score", 0).ForGetter((Packed packed) => packed.Value),
+            Codecs.Bool.OptionalFieldOf("Locked", false).ForGetter((Packed packed) => packed.Locked),
+            ComponentSerialization.Codec.OptionalFieldOf("display").ForGetter((Packed packed) => packed.Display),
+            (value, locked, display) => new Packed(value, locked, display));
+    }
 }

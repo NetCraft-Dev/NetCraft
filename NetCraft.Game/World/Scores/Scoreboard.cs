@@ -1,3 +1,4 @@
+using NetCraft.Codec;
 using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.World.Scores;
@@ -228,6 +229,100 @@ public class Scoreboard
     {
         ResetAllPlayerScores(ScoreHolder.ForNameOnly(scoreboardName));
         RemovePlayerFromTeam(scoreboardName);
+    }
+
+    //PackObjectives 打包全部目标 对应原版 packObjectives
+    public List<Objective.Packed> PackObjectives()
+        => _objectivesByName.Values
+            .Select(objective => new Objective.Packed(objective.Name, objective.Criteria, objective.DisplayName,
+                objective.RenderType, objective.DisplayAutoUpdate))
+            .ToList();
+
+    //LoadObjective 还原一个目标 加载期不触发 onObjectiveAdded 对应原版 loadObjective
+    public void LoadObjective(Objective.Packed packed)
+    {
+        var objective = new Objective(this, packed.Name, packed.Criteria, packed.DisplayName, packed.RenderType,
+            packed.DisplayAutoUpdate);
+        if (!_objectivesByCriteria.TryGetValue(packed.Criteria, out var list))
+        {
+            list = new List<Objective>();
+            _objectivesByCriteria[packed.Criteria] = list;
+        }
+        list.Add(objective);
+        _objectivesByName[packed.Name] = objective;
+    }
+
+    //PackPlayerScores 打包全部玩家分数 对应原版 packPlayerScores
+    public List<PackedScore> PackPlayerScores()
+    {
+        var result = new List<PackedScore>();
+        foreach (var (owner, scores) in _playerScores)
+            foreach (var (objective, score) in scores.RawScores)
+                result.Add(new PackedScore(owner, objective.Name,
+                    new Score.Packed(score.Value(), score.IsLocked(), Optional<Component>.OfNullable(score.Display()))));
+        return result;
+    }
+
+    //LoadPlayerScore 还原一条玩家分数 对应原版 loadPlayerScore
+    public void LoadPlayerScore(PackedScore packed)
+    {
+        if (GetObjective(packed.Objective) is not { } objective) return;
+        var score = GetOrCreatePlayerInfo(packed.Owner).GetOrCreate(objective);
+        score.SetValue(packed.ScoreData.Value);
+        score.SetLocked(packed.ScoreData.Locked);
+        score.SetDisplay(packed.ScoreData.Display.IsPresent ? packed.ScoreData.Display.Get() : null);
+    }
+
+    //PackPlayerTeams 打包全部队伍 对应原版 packPlayerTeams
+    public List<PlayerTeam.Packed> PackPlayerTeams()
+        => _teamsByName.Values
+            .Select(team => new PlayerTeam.Packed(team.GetName(), Optional<Component>.Of(team.DisplayName),
+                team.GetColor() is { } color ? Optional<TeamColor>.Of(color) : Optional<TeamColor>.Empty(),
+                team.IsAllowFriendlyFire(),
+                team.CanSeeFriendlyInvisibles(), team.PlayerPrefix, team.PlayerSuffix, team.GetNameTagVisibility(),
+                team.GetDeathMessageVisibility(), team.GetCollisionRule(), team.GetPlayers().ToList()))
+            .ToList();
+
+    //LoadPlayerTeam 还原一支队伍 加载走 setter 会触发 onTeamChanged 但加载期没接同步故无副作用
+    //对应原版 loadPlayerTeam
+    public void LoadPlayerTeam(PlayerTeam.Packed packed)
+    {
+        var team = new PlayerTeam(this, packed.Name);
+        if (packed.DisplayName.IsPresent) team.SetDisplayName(packed.DisplayName.Get());
+        if (packed.Color.IsPresent) team.SetColor(packed.Color.Get());
+        team.SetAllowFriendlyFire(packed.AllowFriendlyFire);
+        team.SetSeeFriendlyInvisibles(packed.SeeFriendlyInvisibles);
+        team.SetPlayerPrefix(packed.MemberNamePrefix);
+        team.SetPlayerSuffix(packed.MemberNameSuffix);
+        team.SetNameTagVisibility(packed.NameTagVisibility);
+        team.SetDeathMessageVisibility(packed.DeathMessageVisibility);
+        team.SetCollisionRule(packed.CollisionRule);
+        _teamsByName[team.GetName()] = team;
+        foreach (var player in packed.Players)
+        {
+            _teamsByPlayer[player] = team;
+            team.AddPlayer(player);
+        }
+    }
+
+    //PackDisplaySlots 打包显示槽映射 对应原版 packDisplaySlots
+    public Dictionary<DisplaySlot, string> PackDisplaySlots()
+    {
+        var result = new Dictionary<DisplaySlot, string>();
+        foreach (var (slot, objective) in _displayObjectives) result[slot] = objective.Name;
+        return result;
+    }
+
+    //PackedScore 单条玩家分数的存档形态 对应原版 Scoreboard.PackedScore
+    public sealed record PackedScore(string Owner, string Objective, Score.Packed ScoreData)
+    {
+        //Codec 持久化编解码 字段名 Name/Objective/Score 对应原版 CODEC
+        //原版把分数 map 直接并入本层 本作编码体系不支持 map 合并 改成嵌套字段
+        public static readonly Codec<PackedScore> Codec = RecordCodecBuilder.Of3(
+            Codecs.String.FieldOf("Name").ForGetter((PackedScore packed) => packed.Owner),
+            Codecs.String.FieldOf("Objective").ForGetter((PackedScore packed) => packed.Objective),
+            Score.Packed.Codec.FieldOf("Score").ForGetter((PackedScore packed) => packed.ScoreData),
+            (owner, objective, scoreData) => new PackedScore(owner, objective, scoreData));
     }
 }
 
