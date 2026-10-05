@@ -426,13 +426,13 @@ public sealed class SerializableChunkData
         foreach (var tick in chunk.BlockTicks.Pack(gameTime))
         {
             var name = BuiltInRegistries.BLOCK.GetKey(tick.Type);
-            if (name is not null) blocks.Add(tick.ToCompoundTag(name.ToString()));
+            if (name is { } id) blocks.Add(tick.ToCompoundTag(id.ToString()));
         }
         var fluids = new List<CompoundTag>();
         foreach (var tick in chunk.FluidTicks.Pack(gameTime))
         {
             var name = BuiltInRegistries.FLUID.GetKey(tick.Type);
-            if (name is not null) fluids.Add(tick.ToCompoundTag(name.ToString()));
+            if (name is { } id) fluids.Add(tick.ToCompoundTag(id.ToString()));
         }
         return new PackedTicks(blocks, fluids);
     }
