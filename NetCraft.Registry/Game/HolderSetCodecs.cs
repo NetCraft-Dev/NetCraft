@@ -62,6 +62,42 @@ public static class HolderSetCodecs
     //PotionRef 单个药水引用 codec 供药水内容组件使用
     public static readonly Codec<Holder<Potion>> PotionRef =
         new HolderRefCodec<Potion>(BuiltInRegistries.POTION);
+
+    //TrimMaterialRef 单个纹饰材料引用 codec 供盔甲纹饰组件使用
+    public static readonly Codec<Holder<TrimMaterial>> TrimMaterialRef =
+        new HolderRefCodec<TrimMaterial>(BuiltInRegistries.TRIM_MATERIAL);
+
+    //TrimPatternRef 单个纹饰图案引用 codec 供盔甲纹饰组件使用
+    public static readonly Codec<Holder<TrimPattern>> TrimPatternRef =
+        new HolderRefCodec<TrimPattern>(BuiltInRegistries.TRIM_PATTERN);
+
+    //TrimMaterialSet 纹饰材料集合 codec 供纹饰谓词的字段使用
+    public static readonly Codec<HolderSet<TrimMaterial>> TrimMaterialSet =
+        new HolderSetCodec<TrimMaterial>(BuiltInRegistries.TRIM_MATERIAL);
+
+    //TrimPatternSet 纹饰图案集合 codec 供纹饰谓词的字段使用
+    public static readonly Codec<HolderSet<TrimPattern>> TrimPatternSet =
+        new HolderSetCodec<TrimPattern>(BuiltInRegistries.TRIM_PATTERN);
+
+    //JukeboxSongRef 单张唱片引用 codec 供唱片机组件使用
+    public static readonly Codec<Holder<JukeboxSong>> JukeboxSongRef =
+        new HolderRefCodec<JukeboxSong>(BuiltInRegistries.JUKEBOX_SONG);
+
+    //JukeboxSongSet 唱片集合 codec 供唱片机谓词的字段使用
+    public static readonly Codec<HolderSet<JukeboxSong>> JukeboxSongSet =
+        new HolderSetCodec<JukeboxSong>(BuiltInRegistries.JUKEBOX_SONG);
+
+    //EnchantmentSet 附魔集合 codec 供附魔谓词的字段使用
+    public static readonly Codec<HolderSet<Enchantment>> EnchantmentSet =
+        new HolderSetCodec<Enchantment>(BuiltInRegistries.ENCHANTMENT);
+
+    //EnchantmentRef 单个附魔引用 codec 供附魔表的键与单条谓词使用
+    public static readonly Codec<Holder<Enchantment>> EnchantmentRef =
+        new HolderRefCodec<Enchantment>(BuiltInRegistries.ENCHANTMENT);
+
+    //AttributeSet 属性集合 codec 供属性修饰谓词的字段使用
+    public static readonly Codec<HolderSet<EntityAttribute.Attribute>> AttributeSet =
+        new HolderSetCodec<EntityAttribute.Attribute>(BuiltInRegistries.ATTRIBUTE);
 }
 
 //HolderRefCodec 单元素注册表引用 codec 对应原版 RegistryFileCodec 的字符串形式

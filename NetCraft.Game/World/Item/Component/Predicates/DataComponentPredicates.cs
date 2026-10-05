@@ -23,6 +23,14 @@ public static class DataComponentPredicates
     //DAMAGE 耐久与损坏值谓词
     public static readonly ConcreteType<DamagePredicate> DAMAGE = Register("damage", DamagePredicate.Codec);
 
+    //ENCHANTMENTS 附魔谓词
+    public static readonly ConcreteType<EnchantmentsPredicate.Enchantments> ENCHANTMENTS =
+        Register("enchantments", EnchantmentsPredicate.Enchantments.Codec);
+
+    //STORED_ENCHANTMENTS 附魔书谓词
+    public static readonly ConcreteType<EnchantmentsPredicate.StoredEnchantments> STORED_ENCHANTMENTS =
+        Register("stored_enchantments", EnchantmentsPredicate.StoredEnchantments.Codec);
+
     //FIREWORK_EXPLOSION 烟花爆炸谓词
     public static readonly ConcreteType<FireworkExplosionPredicate> FIREWORK_EXPLOSION =
         Register("firework_explosion", FireworkExplosionPredicate.Codec);
@@ -31,9 +39,17 @@ public static class DataComponentPredicates
     public static readonly ConcreteType<FireworksPredicate> FIREWORKS =
         Register("fireworks", FireworksPredicate.Codec);
 
+    //JUKEBOX_PLAYABLE 唱片机谓词
+    public static readonly ConcreteType<JukeboxPlayablePredicate> JUKEBOX_PLAYABLE =
+        Register("jukebox_playable", JukeboxPlayablePredicate.Codec);
+
     //POTION_CONTENTS 药水谓词
     public static readonly ConcreteType<PotionsPredicate> POTION_CONTENTS =
         Register("potion_contents", PotionsPredicate.Codec);
+
+    //TRIM 盔甲纹饰谓词
+    public static readonly ConcreteType<TrimPredicate> TRIM =
+        Register("trim", TrimPredicate.Codec);
 
     //VILLAGER_VARIANT 村民变体谓词
     public static readonly ConcreteType<VillagerTypePredicate> VILLAGER_VARIANT =
@@ -54,9 +70,13 @@ public static class DataComponentPredicates
         _ = CONTAINER;
         _ = CUSTOM_DATA;
         _ = DAMAGE;
+        _ = ENCHANTMENTS;
+        _ = STORED_ENCHANTMENTS;
         _ = FIREWORK_EXPLOSION;
         _ = FIREWORKS;
+        _ = JUKEBOX_PLAYABLE;
         _ = POTION_CONTENTS;
+        _ = TRIM;
         _ = VILLAGER_VARIANT;
         _ = WRITABLE_BOOK_CONTENT;
         _ = WRITTEN_BOOK_CONTENT;

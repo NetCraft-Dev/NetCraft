@@ -94,6 +94,30 @@ public static class DataComponents
         new ObjectCodec<ItemContainerContents>(ItemContainerContents.Codec),
         new ObjectStreamCodec<ItemContainerContents>(ItemContainerContents.StreamCodec));
 
+    //ENCHANTMENTS 物品附魔表
+    public static readonly DataComponentType<object> ENCHANTMENTS = Register(
+        "enchantments",
+        new ObjectCodec<ItemEnchantments>(ItemEnchantments.Codec),
+        new ObjectStreamCodec<ItemEnchantments>(ItemEnchantments.StreamCodec));
+
+    //STORED_ENCHANTMENTS 附魔书内附魔表
+    public static readonly DataComponentType<object> STORED_ENCHANTMENTS = Register(
+        "stored_enchantments",
+        new ObjectCodec<ItemEnchantments>(ItemEnchantments.Codec),
+        new ObjectStreamCodec<ItemEnchantments>(ItemEnchantments.StreamCodec));
+
+    //TRIM 盔甲纹饰
+    public static readonly DataComponentType<object> TRIM = Register(
+        "trim",
+        new ObjectCodec<ArmorTrim>(ArmorTrim.Codec),
+        new ObjectStreamCodec<ArmorTrim>(ArmorTrim.StreamCodec));
+
+    //JUKEBOX_PLAYABLE 唱片机可播放曲目
+    public static readonly DataComponentType<object> JUKEBOX_PLAYABLE = Register(
+        "jukebox_playable",
+        new ObjectCodec<JukeboxPlayable>(JukeboxPlayable.Codec),
+        new ObjectStreamCodec<JukeboxPlayable>(JukeboxPlayable.StreamCodec));
+
     //WRITABLE_BOOK_CONTENT 书与笔内容
     public static readonly DataComponentType<object> WRITABLE_BOOK_CONTENT = Register(
         "writable_book_content",
@@ -133,6 +157,10 @@ public static class DataComponents
         _ = FIREWORKS;
         _ = POTION_CONTENTS;
         _ = CONTAINER;
+        _ = ENCHANTMENTS;
+        _ = STORED_ENCHANTMENTS;
+        _ = TRIM;
+        _ = JUKEBOX_PLAYABLE;
         _ = WRITABLE_BOOK_CONTENT;
         _ = WRITTEN_BOOK_CONTENT;
         _ = VILLAGER_VARIANT;

@@ -29,6 +29,59 @@ public static class Codecs
     public static Codec<Dictionary<K, V>> DispatchedMap<K, V>(Codec<K> keyCodec, Func<K, Codec<V>> valueCodecGetter)
         where K : notnull
         => new DispatchedMapCodec<K, V>(keyCodec, valueCodecGetter);
+
+    //UnboundedMap 键值各自独立编解码的映射对应原版Codec.unboundedMap
+    public static Codec<Dictionary<K, V>> UnboundedMap<K, V>(Codec<K> keyCodec, Codec<V> valueCodec)
+        where K : notnull
+        => new UnboundedMapCodec<K, V>(keyCodec, valueCodec);
+}
+
+//UnboundedMapCodec 键值独立编解码的映射实现
+internal sealed class UnboundedMapCodec<K, V> : ScalarCodec<Dictionary<K, V>> where K : notnull
+{
+    private readonly Codec<K> _keyCodec;
+    private readonly Codec<V> _valueCodec;
+
+    public UnboundedMapCodec(Codec<K> keyCodec, Codec<V> valueCodec)
+    {
+        _keyCodec = keyCodec;
+        _valueCodec = valueCodec;
+    }
+
+    public override DataResult<Dictionary<K, V>> Parse<U>(DynamicOps<U> ops, U input)
+    {
+        return ops.GetMapValues(input).FlatMap(entries =>
+        {
+            var map = new Dictionary<K, V>();
+            foreach (var entry in entries)
+            {
+                var keyResult = _keyCodec.Parse(ops, entry.First);
+                if (!keyResult.Result().IsPresent)
+                    return DataResult<Dictionary<K, V>>.Error(() => "映射键解析失败");
+                var valueResult = _valueCodec.Parse(ops, entry.Second);
+                if (!valueResult.Result().IsPresent)
+                    return DataResult<Dictionary<K, V>>.Error(() => "映射值解析失败");
+                map[keyResult.GetOrThrow()] = valueResult.GetOrThrow();
+            }
+            return DataResult<Dictionary<K, V>>.Success(map);
+        });
+    }
+
+    public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, Dictionary<K, V> value)
+    {
+        var pairs = new List<Pair<U, U>>(value.Count);
+        foreach (var kv in value)
+        {
+            var keyResult = _keyCodec.EncodeStart(ops, kv.Key);
+            if (!keyResult.Result().IsPresent)
+                return DataResult<U>.Error(() => "映射键编码失败");
+            var valueResult = _valueCodec.EncodeStart(ops, kv.Value);
+            if (!valueResult.Result().IsPresent)
+                return DataResult<U>.Error(() => "映射值编码失败");
+            pairs.Add(new Pair<U, U>(keyResult.GetOrThrow(), valueResult.GetOrThrow()));
+        }
+        return DataResult<U>.Success(ops.CreateMap(pairs));
+    }
 }
 
 //DispatchedMapCodec 键分派映射编解码实现

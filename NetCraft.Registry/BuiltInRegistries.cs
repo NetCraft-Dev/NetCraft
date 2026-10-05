@@ -147,6 +147,11 @@ public static class BuiltInRegistries
     //WORLD_CLOCK/TIMELINE 注册顺序必须按字典序与 SynchronizedRegistryData 同步列表一致
     public static readonly Registry<WorldClock> WORLD_CLOCK = RegisterSimple<WorldClock>(Registries.WORLD_CLOCK);
     public static readonly Registry<Timeline> TIMELINE = RegisterSimple<Timeline>(Registries.TIMELINE);
+    //ENCHANTMENT/JUKEBOX_SONG/TRIM_MATERIAL/TRIM_PATTERN 供附魔 唱片 纹饰组件与谓词使用
+    public static readonly Registry<Enchantment> ENCHANTMENT = RegisterSimple<Enchantment>(Registries.ENCHANTMENT);
+    public static readonly Registry<JukeboxSong> JUKEBOX_SONG = RegisterSimple<JukeboxSong>(Registries.JUKEBOX_SONG);
+    public static readonly Registry<TrimMaterial> TRIM_MATERIAL = RegisterSimple<TrimMaterial>(Registries.TRIM_MATERIAL);
+    public static readonly Registry<TrimPattern> TRIM_PATTERN = RegisterSimple<TrimPattern>(Registries.TRIM_PATTERN);
 
     //简单注册表注册
     //返回具体类型而非 Registry<T> 便于启动期按名字逐个注册(如 TICKET_TYPE 这类无默认值的表)
