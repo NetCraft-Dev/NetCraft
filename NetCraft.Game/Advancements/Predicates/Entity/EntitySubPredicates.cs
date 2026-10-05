@@ -20,6 +20,7 @@ public static class EntitySubPredicates
         Register("location", EntityLocationPredicate.Codec);
         Register("stepping_on", SteppingOnPredicate.Codec);
         Register("movement_affected_by", MovementAffectedByPredicate.Codec);
+        Register("equipment", EntityEquipmentPredicate.Codec);
     }
 
     //Register 把具体子谓词的 codec 适配成接口版后按名登记

@@ -1,3 +1,4 @@
+using NetCraft.Game.World.Items;
 using NetCraft.Nbt;
 using NetCraft.Registry;
 using NetCraft.Registry.EntityAttribute;
@@ -9,9 +10,15 @@ namespace NetCraft.Game.World.Entity;
 //Mob 生物实体对应原版 net.minecraft.world.entity.Mob
 //继承 Entity 持有实体类型引用与 AI 标志位
 //具体生物类(僵尸/猪等)待 AI/寻路接入后按需新增 当前由类型工厂直接建 Mob 承载
-public class Mob : NetCraft.Registry.Entity
+public class Mob : NetCraft.Registry.Entity, IEquipmentHolder
 {
     private readonly EntityType<object> _type;
+
+    //Equipment 生物装备槽 供实体谓词与后续装备同步使用
+    public EntityEquipment Equipment { get; } = new();
+
+    //GetItemBySlot 取指定槽位物品 对应原版 LivingEntity.getItemBySlot
+    public ItemStack GetItemBySlot(EquipmentSlot slot) => Equipment.Get(slot);
 
     //Mob 构造 实体类型由注册表注册时传入 决定注册名与网络序号
     //属性表按类型从 DefaultAttributes 取 物种差异全在那张表里 该类型没登记过就退回空表

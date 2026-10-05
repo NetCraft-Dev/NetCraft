@@ -1,3 +1,4 @@
+using NetCraft.Game.World.Items;
 using NetCraft.Primitives;
 using NetCraft.Registry;
 using NetCraft.Registry.EntityAttribute;
@@ -36,8 +37,14 @@ public sealed class Inventory
 //Player 玩家实体对应原版 net.minecraft.world.entity.player.Player
 //继承 Entity 持有经验/生命值/饥饿值核心字段
 //Inventory/Abilities 等子系统待后续接入此处仅基础字段
-public class Player : NetCraft.Registry.Entity
+public class Player : NetCraft.Registry.Entity, IEquipmentHolder
 {
+    //Equipment 玩家装备槽 供实体谓词与后续装备同步使用
+    public EntityEquipment Equipment { get; } = new();
+
+    //GetItemBySlot 取指定槽位物品 对应原版 LivingEntity.getItemBySlot
+    public ItemStack GetItemBySlot(EquipmentSlot slot) => Equipment.Get(slot);
+
     //Id 玩家实体类型注册名固定 minecraft:player
     public override Identifier Id => Identifier.WithDefaultNamespace("player");
 

@@ -103,6 +103,9 @@ public sealed class EntityPredicate
         public Builder MovementAffectedBy(LocationPredicate location)
             => Put("movement_affected_by", new MovementAffectedByPredicate(location));
 
+        //Equipment 登记装备谓词 对应原版 equipment
+        public Builder Equipment(EntityEquipmentPredicate equipment) => Put("equipment", equipment);
+
         //Build 产出组合体 对应原版 build
         public EntityPredicate Build() => new(_parts);
     }
