@@ -1,32 +1,11 @@
 <Project>
 
-  <!--
-    内核程序集分发。
-    内核程序集留在输出根目录时会登记进 deps.json，运行时把它们当 TPA 项按路径解析，
-    而 TPA 命中却找不到文件时不会回退解析回调，直接抛 FileNotFound。
-    所以要做两件事：把 dll 挪进 kernel/ 子目录，并把 deps.json 里的登记摘掉。
-    登记摘掉之后运行时会走 AssemblyLoadContext.Resolving，
-    由 EmbeddedAssemblyLoader 从 kernel/ 或主库内嵌资源取字节，改写器才有机会介入。
-
-    留给 deps.json 与根目录的只有三类：主库（内嵌宿主）、加载器自身（引导代码要先跑起来）、
-    项目自己的入口程序集（apphost 靠它启动）。代价是入口自身那一层注入不到，其余不受影响。
-  -->
 
   <PropertyGroup>
-    <!-- 与 EmbeddedAssemblyLoader.KernelDirectoryName 保持一致 -->
     <KernelDirectoryName Condition="'$(KernelDirectoryName)' == ''">kernel</KernelDirectoryName>
-    <!-- 程序集简单名（不带扩展名），主库与加载器必须留在根目录 -->
     <KernelKeepAssemblies Condition="'$(KernelKeepAssemblies)' == ''">NetCraft;NetCraft.ModLoader</KernelKeepAssemblies>
     <KernelKeepAssemblies>$(KernelKeepAssemblies);$(AssemblyName)</KernelKeepAssemblies>
   </PropertyGroup>
-
-  <!--
-    从 deps.json 摘掉内核程序集的登记。
-    三处都要动：libraries 段、targets 段下该程序集自己的条目、以及别的条目对它的依赖声明，
-    少动一处 hostpolicy 就会按残留的依赖名去找那个已经不在列表里的程序集。
-    处理逻辑在 NetCraft.StripKernelDeps.ps1 里，构建期改 JSON 用脚本比内联任务省事。
-  -->
-
   <Target Name="DeployKernelAssemblies" AfterTargets="Build">
     <ItemGroup>
       <KernelKeepAssembly Include="$(KernelKeepAssemblies)" />
@@ -34,7 +13,6 @@
                             Exclude="@(KernelKeepAssembly->'$(OutputPath)%(Identity).dll')" />
     </ItemGroup>
     <MakeDir Directories="$(OutputPath)$(KernelDirectoryName)" />
-    <!-- 先复制再删原件 目标已存在时复制会覆盖 比对直接 Move 稳 -->
     <Copy SourceFiles="@(KernelAssemblyToMove)"
           DestinationFolder="$(OutputPath)$(KernelDirectoryName)"
           SkipUnchangedFiles="true" />
