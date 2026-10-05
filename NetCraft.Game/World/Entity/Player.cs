@@ -37,10 +37,13 @@ public sealed class Inventory
 //Player 玩家实体对应原版 net.minecraft.world.entity.player.Player
 //继承 Entity 持有经验/生命值/饥饿值核心字段
 //Inventory/Abilities 等子系统待后续接入此处仅基础字段
-public class Player : NetCraft.Registry.Entity, IEquipmentHolder
+public class Player : NetCraft.Registry.Entity, IEquipmentHolder, IEffectHolder
 {
     //Equipment 玩家装备槽 供实体谓词与后续装备同步使用
     public EntityEquipment Equipment { get; } = new();
+
+    //Effects 活跃药水效果 供实体谓词与后续效果同步使用
+    public EntityEffects Effects { get; } = new();
 
     //GetItemBySlot 取指定槽位物品 对应原版 LivingEntity.getItemBySlot
     public ItemStack GetItemBySlot(EquipmentSlot slot) => Equipment.Get(slot);

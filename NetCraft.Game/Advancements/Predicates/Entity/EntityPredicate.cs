@@ -106,6 +106,9 @@ public sealed class EntityPredicate
         //Equipment 登记装备谓词 对应原版 equipment
         public Builder Equipment(EntityEquipmentPredicate equipment) => Put("equipment", equipment);
 
+        //Effects 登记效果谓词 对应原版 effects
+        public Builder Effects(EntityEffectsPredicate effects) => Put("effects", effects);
+
         //Build 产出组合体 对应原版 build
         public EntityPredicate Build() => new(_parts);
     }
