@@ -6,7 +6,7 @@
     与 ServerMain 启动逻辑，以及 dedicated 侧各阶段协议监听器实现。
     服务端共享能力(世界/玩家/命令/时钟/方块实体)以抽象成员形式挂在 MinecraftServer 基类上，
     留在 NetCraft.Game 供内置服务器共用。
-    进程入口不在这里 由 NetCraft.Server.Exe 提供 壳项目不含业务代码 内核程序集才能整体挪出 deps.json。
+    进程入口不在这里 由 NetCraft.ServerExe 提供 壳项目不含业务代码 内核程序集才能整体挪出 deps.json。
   -->
 
   <PropertyGroup>

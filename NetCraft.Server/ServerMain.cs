@@ -35,7 +35,7 @@ public static class ServerMain
     private static int _started;
 
     //Run 服务端启动主函数
-    //进程入口在 NetCraft.Server.Exe 里 模组引导也在那边做 这里只负责启动流程本身
+    //进程入口在 NetCraft.ServerExe 里 模组引导也在那边做 这里只负责启动流程本身
     //args 命令行参数 内核识别的消费未识别的通过事件传给 GameOptions
     public static void Run(string[] args)
     {

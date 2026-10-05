@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    NetCraft.ClientExe 客户端独立启动壳。
+    只承载进程入口与模组引导 真正的客户端实现留在 NetCraft.Client 类库里。
+    分成壳与实现两层是为了让壳自己不含业务代码 于是 NetCraft.Client.dll 也能挪进 kernel 子目录，
+    独立启动这条路径才注入得到客户端主循环这一层。
+    从 NetCraft.Loader 启动走的是同一条引导链 两者等价。
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- 可执行文件图标 ico 由 NetCraft\icon.png 转出来 多尺寸内嵌 换图后重新生成即可 -->
+    <ApplicationIcon>..\icon.ico</ApplicationIcon>
+    <!-- Avalonia 在 Windows 上要用 COM 互操作 runtimeconfig 取自入口项目 所以放在这里 -->
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetCraft\NetCraft.csproj" />
+    <ProjectReference Include="..\NetCraft.ModLoader\NetCraft.ModLoader.csproj" />
+    <ProjectReference Include="..\NetCraft.Client\NetCraft.Client.csproj" />
+  </ItemGroup>
+
+  <!--内核程序集构建后挪进 kernel 子目录 否则 deps.json 会让运行时绕过改写器-->
+  <Import Project="..\NetCraft.KernelDeploy.targets" />
+
+  <!--
+    编译前结束正在运行的客户端实例
+    否则上一轮跑着的进程会锁住输出目录里的 DLL 复制阶段直接报 MSB3027
+  -->
+  <Target Name="KillRunningClient" BeforeTargets="BeforeBuild" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Command="taskkill /F /IM NetCraft.ClientExe.exe /T"
+          Condition="$([MSBuild]::IsOSPlatform('Windows'))"
+          ContinueOnError="true"
+          StandardOutputImportance="low" StandardErrorImportance="low" />
+    <Exec Command="pkill -f NetCraft.ClientExe"
+          Condition="!$([MSBuild]::IsOSPlatform('Windows'))"
+          ContinueOnError="true"
+          StandardOutputImportance="low" StandardErrorImportance="low" />
+  </Target>
+
+</Project>

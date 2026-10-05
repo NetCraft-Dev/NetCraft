@@ -9,8 +9,8 @@
   <Project Path="NetCraft.Client/NetCraft.Client.csproj" />
   <Project Path="NetCraft.Game/NetCraft.Game.csproj" />
   <Project Path="NetCraft.Server/NetCraft.Server.csproj" />
-  <Project Path="NetCraft.Server.Exe/NetCraft.Server.Exe.csproj" />
-  <Project Path="NetCraft.Client.Exe/NetCraft.Client.Exe.csproj" />
+  <Project Path="NetCraft.ServerExe/NetCraft.ServerExe.csproj" />
+  <Project Path="NetCraft.ClientExe/NetCraft.ClientExe.csproj" />
   <Project Path="NetCraft.Nbt/NetCraft.Nbt.csproj" />
   <Project Path="NetCraft.Network/NetCraft.Network.csproj" />
   <Project Path="NetCraft.ModLoader/NetCraft.ModLoader.csproj" />
@@ -23,5 +23,4 @@
   <Project Path="NetCraft.Util/NetCraft.Util.csproj" />
   <Project Path="NetCraft/NetCraft.csproj" />
   <Project Path="NetCraft.Loader/NetCraft.Loader.csproj" />
-  <Project Path="NetCraft.TPGA/NetCraft.TPGA.csproj" />
 </Solution>

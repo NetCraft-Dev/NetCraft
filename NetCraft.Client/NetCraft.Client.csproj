@@ -5,7 +5,7 @@
     承载 Game 两个 jar 都没有的纯客户端部分：渲染/输入/GUI/客户端世界与主循环，
     以及客户端侧的协议监听器实现。
     共享业务（内置服务器也要的那部分）全部留在 NetCraft.Game。
-    进程入口不在这里 由 NetCraft.Client.Exe 提供 壳项目不含业务代码 内核程序集才能整体挪出 deps.json。
+    进程入口不在这里 由 NetCraft.ClientExe 提供 壳项目不含业务代码 内核程序集才能整体挪出 deps.json。
   -->
 
   <ItemGroup>

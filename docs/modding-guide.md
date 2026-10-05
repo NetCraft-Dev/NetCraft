@@ -14,10 +14,10 @@ NC has three entry points, and the mod injection pipeline is the same for all th
 | Entry | Purpose |
 | --- | --- |
 | `NetCraft.Loader` | one exe for both sides: `--server` starts the server; `--client` or no mode flag starts the client |
-| `NetCraft.Server.Exe` | standalone server executable |
-| `NetCraft.Client.Exe` | standalone client executable |
+| `NetCraft.ServerExe` | standalone server executable |
+| `NetCraft.ClientExe` | standalone client executable |
 
-`Main` itself is a thin shell that only registers callbacks and hands the work to the next method. Take `NetCraft.Server.Exe`:
+`Main` itself is a thin shell that only registers callbacks and hands the work to the next method. Take `NetCraft.ServerExe`:
 
 ```csharp
 public static int Main(string[] args)
@@ -37,10 +37,10 @@ This separation is not a matter of style. When the JIT compiles a method it reso
 The output directory after a build looks like this:
 
 ```
-NetCraft.Server.Exe.exe
+NetCraft.ServerExe.exe
 NetCraft.dll              <- main library, embeds all lower-level sub-libraries
 NetCraft.ModLoader.dll    <- the loader itself
-NetCraft.Server.Exe.dll   <- entry assembly
+NetCraft.ServerExe.dll    <- entry assembly
 kernel/
   NetCraft.Game.dll
   NetCraft.Server.dll
@@ -55,7 +55,7 @@ The .NET host treats assemblies registered in `deps.json` as TPA (Trusted Platfo
 
 The three kinds left in the root cannot be moved: the main library (it is the embedding host and must start first), the loader itself (the bootstrap code lives in it), and the entry assembly (the apphost starts from it).
 
-**Cost**: the entry assembly itself cannot be injected into. If your hook target happens to live in the `NetCraft.Server.Exe.dll` assembly, it is ineffective. Kernel business code is all under `kernel/`, so normally this is not a problem.
+**Cost**: the entry assembly itself cannot be injected into. If your hook target happens to live in the `NetCraft.ServerExe.dll` assembly, it is ineffective. Kernel business code is all under `kernel/`, so normally this is not a problem.
 
 ### 1.3 Mod loading sequence
 
@@ -632,7 +632,7 @@ Cannot be hooked:
 
 - the main library `NetCraft.dll`
 - the loader `NetCraft.ModLoader.dll`
-- entry assemblies (`NetCraft.Server.Exe.dll`, etc.)
+- entry assemblies (`NetCraft.ServerExe.dll`, etc.)
 
 Every hook's `target` must be findable in the kernel or in some mod assembly, otherwise assembly reports "the injection target is not in any known assembly". Note that **a namespace does not imply an assembly** — `NetCraft.Game.Server.DedicatedServer` actually lives in `NetCraft.Server.dll`; the loader looks it up by an index built from metadata tables, so just write the full name.
 

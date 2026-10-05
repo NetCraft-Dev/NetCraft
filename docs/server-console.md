@@ -15,7 +15,7 @@ At startup it checks whether input and output are redirected and automatically p
 Pass-through mode is for scripts:
 
 ```powershell
-@('version', 'stop') | .\NetCraft.Server.Exe.exe --nogui
+@('version', 'stop') | .\NetCraft.ServerExe.exe --nogui
 ```
 
 The pipe can feed commands before the server is ready: when `stop` arrives before the main loop, the shutdown request is recorded and the main loop exits immediately once it starts.
@@ -23,7 +23,7 @@ The pipe can feed commands before the server is ready: when `stop` arrives befor
 To turn off the terminal command line entirely (handing it to a script, CI, or an external wrapper), add `--noconsole`:
 
 ```powershell
-.\NetCraft.Server.Exe.exe --nogui --noconsole
+.\NetCraft.ServerExe.exe --nogui --noconsole
 ```
 
 ## Shortcuts
