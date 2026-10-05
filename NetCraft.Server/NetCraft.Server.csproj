@@ -1,16 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!--
-    NetCraft.Server 服务端专属实现库。
-    只承载 dedicated 才有的部分：DedicatedServer(端口接入/配置加载/服务端初始化)
-    与 ServerMain 启动逻辑，以及 dedicated 侧各阶段协议监听器实现。
-    服务端共享能力(世界/玩家/命令/时钟/方块实体)以抽象成员形式挂在 MinecraftServer 基类上，
-    留在 NetCraft.Game 供内置服务器共用。
-    进程入口不在这里 由 NetCraft.ServerExe 提供 壳项目不含业务代码 内核程序集才能整体挪出 deps.json。
-  -->
-
   <PropertyGroup>
-    <!-- Avalonia 在 Windows 上要用 COM 互操作(拖放/剪贴板/系统对话框) -->
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
   </PropertyGroup>
 
@@ -26,7 +16,6 @@
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.8" />
   </ItemGroup>
 
-  <!--界面用的图片要走 avares:// 取 Avalonia 默认只收 axaml 图片得自己声明-->
   <ItemGroup>
     <AvaloniaResource Include="ServerGui\Assets\**" />
   </ItemGroup>

@@ -10,7 +10,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 原版方块注册表 顺序与状态属性由 tools 从原版 sources 推导生成 -->
     <EmbeddedResource Include="World\Level\Block\blocks.txt" />
   </ItemGroup>
 

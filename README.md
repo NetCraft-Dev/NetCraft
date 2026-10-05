@@ -1,35 +1,24 @@
 # NetCraft
 
-A from-scratch reimplementation of the Minecraft 26.2 kernel in C# / .NET 10.
+A from-scratch reimplementation of Minecraft 26.2 in C# / .NET 10.
 
 NetCraft is not a port. Nothing here is translated line by line from the original Java, and nothing is decompiled. Each subsystem is written against C# idioms — `readonly struct`, `Span<T>`, source generators, `AssemblyLoadContext` — while keeping observable behavior identical: the same NBT bytes, the same registry ids, the same chunk files, the same packet layouts, the same DFU upgrade paths.
 
-## Where it stands
-
-| | |
-|---|---|
-| Milestone | M1–M4 done. M4 verified a byte-level end-to-end TCP handshake. M5 (bootstrap + single-player tick) is in progress. |
-| Scope | Kernel framework ~85%, game layer ~62%, GPU subsystem ~95% |
-| Size | ~1.7k `.cs` files |
-| Tests | 1163 cases, 0 failed |
-| Runtime | .NET 10 / C# 14. Cross-platform — no `-windows` TFM, no WinAPI. |
-| License | Apache-2.0 |
-
-## What works
+## Capabilities
 
 **Data formats**
 
-- **NBT** — all 13 tag types, big-endian, GZIP, streaming readers plus the full visitor set, `NbtOps` bridging into `Codec`, and an SNBT grammar. 24/24 round-trip cases match 26.2 byte for byte.
-- **DFU** — the data fixer upper in pure C#: higher-kinded simulation through `K1`/`K2`/`App`/`Kind1` and a Profunctor optics layer, 13 V1_21 schemas and 28 fixes. The `v121fix` end-to-end test is green.
+- **NBT** — all 13 tag types, big-endian, GZIP, streaming readers plus the full visitor set, `NbtOps` bridging into `Codec`, and an SNBT grammar. Round-trips match 26.2 byte for byte.
+- **DFU** — the data fixer upper in pure C#: higher-kinded simulation through `K1`/`K2`/`App`/`Kind1` and a Profunctor optics layer, the V1_21 schemas and their fixes.
 
 **World**
 
-- **Storage** — MCA region files, `SimpleBitStorage`, all four `PalettedContainer` strategies, and an `IOWorker` with a three-priority preemptive async scheduler behind the `ChunkSource` / `ChunkHolder` / `ChunkMap` pipeline.
+- **Storage** — MCA region files, `SimpleBitStorage`, all four `PalettedContainer` strategies, and an `IOWorker` with a three-priority preemptive async scheduler behind the `ChunkSource` / `ChunkHolder` / `ChunkMap` pipeline. Chunk data, scheduled block and fluid ticks, lighting and saved data all round-trip through the same on-disk formats the original uses.
 - **Registry** — `Identifier` as a value type, a per-`T` `ResourceKey<T>` intern pool, two-phase `Direct` / `Reference` `Holder<T>` binding.
 
 **Networking**
 
-- **Network** — `ClientConnection` / `ServerConnection` state machines, `Varint` / `Varlong` codecs, packet compression. The M4 handshake was checked at the byte level.
+- **Network** — `ClientConnection` / `ServerConnection` state machines, `Varint` / `Varlong` codecs, packet compression, and the full handshake, status, login, configuration and play protocol surface.
 
 **Rendering**
 
@@ -37,7 +26,11 @@ NetCraft is not a port. Nothing here is translated line by line from the origina
 
 **Commands**
 
-- **Brigadier port** — `LiteralArgumentBuilder`, `RequiredArgumentBuilder`, the dispatcher, redirects, `ParsedCommandNode`. Complete.
+- **Brigadier port** — `LiteralArgumentBuilder`, `RequiredArgumentBuilder`, the dispatcher, redirects, `ParsedCommandNode`.
+
+**Modding**
+
+- **ModLoader** — runtime mod loading with call-site, member and annotation driven injection rules, plus an embedded-assembly kernel that keeps sub-libraries out of the output directory.
 
 **Side services**
 
@@ -45,33 +38,34 @@ NetCraft is not a port. Nothing here is translated line by line from the origina
 
 ## Layout
 
-Layers are dependency tiers — layer 0 depends on nothing, layer 4 sits on top of everything. Each module carries its own `Overview.md` with a file list and current status.
+Layers are dependency tiers — layer 0 depends on nothing, layer 4 sits on top of everything. Each module carries its own `README.md` describing what it is responsible for.
 
-| Layer | Module | Files | Done | Role |
-|---|---|---|---|---|
-| 0 | `NetCraft.Primitives` | 30 | 85% | `ChunkPos`, `BlockPos`, `SectionPos`, `Vec3i`, `Direction`, voxel shapes |
-| 0 | `NetCraft.Config` | 5 | 100% | `SharedConstants`, `Fixes`, `Optimizations`, `DebugFlags` |
-| 1 | `NetCraft.Util` | 87 | 80% | Logging, `CrashReport`, `BitSet`, `Mth`, executors, `Xoroshiro128++`, `Profiler` |
-| 1 | `NetCraft.Nbt` | 28 | 100% | 13 tags, `NbtOps`, SNBT parser |
-| 1 | `NetCraft.Codec` | 18 | 70% | `Codec` / `MapCodec` / `DynamicOps`, `RecordCodecBuilder.Of2..Of4` |
-| 1 | `NetCraft.Tags` | 4 | 70% | `TagLoader`, `TagManager` |
-| 1 | `NetCraft.DataFixer` | 166 | 95% | DFU stages A–E, higher-kinded simulation, Profunctor optics |
-| 2 | `NetCraft.Storage` | 110 | 90% | MCA, `PalettedContainer`, `IOWorker`, `ChunkSource` |
-| 2 | `NetCraft.Registry` | 85 | 90% | `Identifier`, `ResourceKey<T>`, `Holder<T>` |
-| 2 | `NetCraft.Interop` | 3 | 85% | Native interop shims |
-| 3 | `NetCraft.Network` | 137 | 80% | Connection state machines, codecs |
-| 3 | `NetCraft.Commands` | 50 | 100% | Brigadier port |
-| 4 | `NetCraft.Resources` | 13 | 60% | Resource pack framework |
-| 4 | `NetCraft.Gpu` | 132 | ~95% | Vulkan, submission/render phase separation |
-| 4 | `NetCraft.Optimizations` | 11 | 70% | 5/10 integrations (FerriteCore-style `FastMap` and friends) |
-| — | `NetCraft` | 13 | 90% | Kernel entry, embeds the sub-DLLs as resources |
-| — | `NetCraft.Game` | 660 | 60% | Blocks, entities, items, chunk generation, levels, client/server |
-| — | `NetCraft.Client` | 48 | — | Client runtime |
-| — | `NetCraft.Server` | 30 | — | Dedicated server runtime |
-| — | `NetCraft.ModLoader` | 17 | — | Runtime mod loading and injection |
-| — | `NetCraft.Loader` | 1 | — | CLI launcher, jar asset extraction |
-| — | `NetCraft.TPGA` | 43 | — | Auth/proxy service, independent of the kernel |
-| — | `NetCraft.DataFixer.SourceGenerator` | 1 | — | Roslyn source generator for DFU |
+| Layer | Module | Role |
+|---|---|---|
+| 0 | `NetCraft.Primitives` | `ChunkPos`, `BlockPos`, `SectionPos`, `Vec3i`, `Direction`, voxel shapes |
+| 0 | `NetCraft.Config` | `SharedConstants`, `Fixes`, `Optimizations`, `DebugFlags` |
+| 1 | `NetCraft.Util` | Logging, `CrashReport`, `BitSet`, `Mth`, executors, `Xoroshiro128++`, `Profiler` |
+| 1 | `NetCraft.Nbt` | 13 tags, `NbtOps`, SNBT parser |
+| 1 | `NetCraft.Codec` | `Codec` / `MapCodec` / `DynamicOps`, `RecordCodecBuilder` |
+| 1 | `NetCraft.Tags` | `TagLoader`, `TagManager` |
+| 1 | `NetCraft.DataFixer` | DFU stages, higher-kinded simulation, Profunctor optics |
+| 2 | `NetCraft.Storage` | MCA, `PalettedContainer`, `IOWorker`, `ChunkSource`, scheduled ticks |
+| 2 | `NetCraft.Registry` | `Identifier`, `ResourceKey<T>`, `Holder<T>` |
+| 2 | `NetCraft.Interop` | Native interop shims |
+| 3 | `NetCraft.Network` | Connection state machines, codecs |
+| 3 | `NetCraft.Commands` | Brigadier port |
+| 3 | `NetCraft.Network.Chat` | Text components |
+| 4 | `NetCraft.Resources` | Resource pack framework |
+| 4 | `NetCraft.Gpu` | Vulkan, submission/render phase separation |
+| 4 | `NetCraft.Optimizations` | FerriteCore-style `FastMap` and friends |
+| — | `NetCraft` | Kernel entry, embeds the sub-DLLs as resources |
+| — | `NetCraft.Game` | Shared client/server gameplay code |
+| — | `NetCraft.Client` | Client runtime and client-side protocol listeners |
+| — | `NetCraft.Server` | Dedicated server runtime |
+| — | `NetCraft.ModLoader` | Runtime mod loading and injection |
+| — | `NetCraft.Loader` | CLI launcher, jar asset extraction |
+| — | `NetCraft.TPGA` | Auth/proxy service, independent of the kernel |
+| — | `NetCraft.DataFixer.SourceGenerator` | Roslyn source generator for DFU |
 
 ## Build
 
@@ -100,8 +94,8 @@ Client, server and loader builds are published separately.
 - `docs/mod-api.md` — ModApi reference
 - `docs/server-console.md` — server console modes and commands
 - `docs/README.zh-CN.md` — this README in Chinese
-- `CHANGELOG.md` — bilingual changelog
-- `NetCraft.*/Overview.md` — per-module status
+- `CHANGELOG.md` — release notes
+- `NetCraft.*/README.md` — per-module description
 
 ## License
 

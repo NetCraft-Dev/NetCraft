@@ -1,14 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!--
-    NetCraft.Loader 启动器（控制台 EXE）
-    职责：解析顶层模式参数 server/client 分发到 ServerMain/ClientMain
-    其余参数透传给 Run 由现有 LaunchOptions+GameOptions 事件机制解析
-    引用 NetCraft 主库获取 LaunchOptions/NetCraftKernel
-    引用 NetCraft.ModLoader 在主函数最早期装配模组注入规则
-    引用 NetCraft.Client/NetCraft.Server 获取 ClientMain/ServerMain 两者本身也是可执行项目
-  -->
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -25,16 +16,8 @@
     <ProjectReference Include="..\NetCraft.Server\NetCraft.Server.csproj" />
   </ItemGroup>
 
-  <!--内核程序集构建后挪进 kernel 子目录 否则 deps.json 会让运行时绕过改写器-->
   <Import Project="..\NetCraft.KernelDeploy.targets" />
 
-  <!--
-    编译前结束正在运行的启动器实例
-    否则上一轮跑着的进程会锁住输出目录里的 DLL 复制阶段直接报 MSB3027
-    两个平台命令不同: Windows 按映像名 taskkill Linux/macOS 按命令行 pkill
-    没在运行时命令返回非零 用 ContinueOnError 吞掉不打断构建
-    设计时构建跳过 免得 IDE 每次刷新工程都去杀进程
-  -->
   <Target Name="KillRunningLoader" BeforeTargets="BeforeBuild" Condition="'$(DesignTimeBuild)' != 'true'">
     <Exec Command="taskkill /F /IM NetCraft.Loader.exe /T"
           Condition="$([MSBuild]::IsOSPlatform('Windows'))"

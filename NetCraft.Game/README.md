@@ -1,0 +1,16 @@
+# NetCraft.Game
+
+The shared code layer for both the client and the dedicated server. Whatever both sides need lives here — the world model, world generation, the play-stage protocol payloads and the server main-loop contract — so the in-client integrated server and the dedicated server run the same gameplay code. Client-only rendering and windowing live in `NetCraft.Client`, dedicated-server wiring in `NetCraft.Server`.
+
+## Features
+
+- Startup scaffolding — `GameOptions` collects arguments the kernel does not recognise by subscribing to `LaunchOptions.UnhandledArgument` and splits them into flags, key/value options and positionals; `AssetsExtractor` unpacks the jar referenced by launch options into the fixed `assets/` and `data/` trees and copies the sound directory in, skipping work when the targets are already populated.
+- Layer bootstrap — `GameBootstrap` fills the built-in registries (blocks and fluids, items, entity types and attributes, particles, mob effects, command argument types, carvers, features and placement modifiers, structures, piece and processor types, template pools) before the data-driven registries are decoded, so element JSON can resolve the types it references.
+- World model — blocks and block entities under `World.Level.Block` including redstone, pistons, dispensers, furnaces and other interactive blocks; item stacks and data components; entities, mobs and players; inventories and menus; mob effects, damage sources, recipes and cooking, scoreboards and teams, world clocks and timelines.
+- World generation — `World.Level.LevelGen` holds the chunk generators (`ChunkGenerator`, `NoiseBasedChunkGenerator`, `ChunkStatusProcessor`), the density-function family, noise routers, noise chunks and aquifers, climate and biome sources, surface rules and the surface system, the noise synthesizers, carvers, configured features and placement modifiers, and structure generation with template pools, processors and jigsaw placement.
+- Network payloads — `Network.Protocol.Game` defines the play-stage clientbound and serverbound packets together with the client and server packet listeners.
+- Localisation — `LanguageTable` and `LanguageAssets` assemble a language instance from pack `assets/<namespace>/lang/<code>.json` files and program-root `lang/<code>.json` overrides, with `en_us` as the fallback below the selected code.
+- Commands — `Commands` implements the concrete server commands and their argument types on top of the `NetCraft.Commands` dispatcher, with data accessors and wire synchronisation for argument types.
+- Server runtime — `Server.MinecraftServer` is the abstract 20 TPS main loop and shared server-state contract; `ReloadableServerResources` owns the resource, tag and recipe managers and drives the reload listeners that bind tags and rebuild recipes and fuel values.
+- Data fixing — `DFU` registers the game's schemas and fixes per version segment through `GameDataFixers`.
+- The play-stage packet types live in this layer rather than in the payload-agnostic `NetCraft.Network` kernel, asset and data paths resolve against the application base directory rather than the working directory, and bootstrap runs under a single gate so the registries are filled exactly once.
