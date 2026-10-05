@@ -55,7 +55,8 @@ artifacts/
 publish/
 TestResults/
 BenchmarkDotNet.Artifacts/
-
+dotnet-tools.json
+*.js
 *.tmp
 *.bak
 updata.ps1
