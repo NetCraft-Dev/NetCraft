@@ -67,16 +67,6 @@ Layers are dependency tiers — layer 0 depends on nothing, layer 4 sits on top 
 | — | `NetCraft.TPGA` | Auth/proxy service, independent of the kernel |
 | — | `NetCraft.DataFixer.SourceGenerator` | Roslyn source generator for DFU |
 
-## Build
-
-Needs the .NET 10 SDK. The solution is `NetCraft.slnx`. `build.ps1` wraps the whole thing and also compiles the `webui` React frontend into `NetCraft.TPGA/wwwroot`.
-
-```powershell
-./build.ps1                      # webui + Debug
-./build.ps1 Release              # webui + Release
-./build.ps1 Rebuild              # clean, rebuild, webui included
-./build.ps1 Debug -SkipFrontend  # .NET only, skip npm
-```
 
 ## Repositories
 
