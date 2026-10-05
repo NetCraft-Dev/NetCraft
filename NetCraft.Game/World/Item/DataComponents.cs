@@ -1,6 +1,7 @@
 using NetCraft.Codec;
 using NetCraft.DataFixer.Util;
 using NetCraft.Game.World.Items.Component;
+using NetCraft.Game.World.Items.Component.Predicates;
 using NetCraft.Network;
 using NetCraft.Network.Component;
 using NetCraft.Registry;
@@ -80,6 +81,7 @@ public static class DataComponents
         _ = BEES;
         _ = BUNDLE_CONTENTS;
         _ = BLOCK_ENTITY_DATA;
+        DataComponentPredicates.Bootstrap();
     }
 }
 

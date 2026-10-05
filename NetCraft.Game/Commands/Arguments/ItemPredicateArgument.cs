@@ -183,15 +183,20 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
             }
             return stack => !stack.IsEmpty() && stack.GetComponents().Get(componentType) is not null;
         }
-        //谓词分支 本作没有数据组件谓词注册表 只能按原版 lookupPredicateType 的 or 链回退到组件存在性
-        if (LookupPredicateType(id) is { } predicateType)
+        //谓词分支 谓词类型经注册表分派 值按该类型的 codec 从 SNBT 解出 对应原版 predicate_type '~' tag
+        if (LookupPredicateType(id) is { } predicateType
+            && reader.CanRead() && reader.Peek() == '~')
         {
-            if (reader.CanRead() && reader.Peek() == '~')
+            reader.Skip();
+            var predicateTag = ReadNbt(reader);
+            var parsed = predicateType.Codec.Parse(RegistryOpsForCommands, predicateTag);
+            if (!parsed.Result().IsPresent)
             {
-                reader.Skip();
-                ReadNbt(reader);
-                return predicateType;
+                reader.SetCursor(start);
+                throw ErrorMalformedComponent.CreateWithContext(reader, id.ToString()!, "谓词值解析失败");
             }
+            var predicateValue = parsed.GetOrThrow();
+            return stack => !stack.IsEmpty() && predicateType.Matches(stack.GetComponents(), predicateValue);
         }
         reader.SetCursor(start);
         throw ErrorUnknownComponent.CreateWithContext(reader, id.ToString());
@@ -203,15 +208,10 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
             ? type
             : null;
 
-    //LookupPredicateType 按标识符查谓词 注册表为空时回退到同名组件的存在性检查 对应原版 or 链
-    private static Predicate<ItemStack>? LookupPredicateType(Identifier id)
-    {
-        if (BuiltInRegistries.DATA_COMPONENT_PREDICATE_TYPE.GetValue(id) is not null)
-            return null;
-        return LookupComponentType(id) is { } componentType
-            ? stack => !stack.IsEmpty() && stack.GetComponents().Get(componentType) is not null
-            : null;
-    }
+    //LookupPredicateType 按标识符查谓词类型 对应原版 lookupPredicateType
+    //组件类型侧不走这里 组件存在性与值匹配在前面两个分支已处理
+    private static DataComponentPredicate.Type? LookupPredicateType(Identifier id)
+        => BuiltInRegistries.DATA_COMPONENT_PREDICATE_TYPE.GetValue(id) as DataComponentPredicate.Type;
 
     //ReadComponentValue 组件值先按 SNBT 读成 Tag 再交给组件 Codec 解析
     private static object ReadComponentValue(StringReader reader, DataComponentType<object> type, int errorStart)

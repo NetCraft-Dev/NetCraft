@@ -1,4 +1,5 @@
 using System.Globalization;
+using NetCraft.Codec;
 using NetCraft.Commands;
 using NetCraft.Commands.Exceptions;
 using StringReader = NetCraft.Commands.StringReader;
@@ -120,6 +121,21 @@ public static class MinMaxBounds
     {
         public static readonly Ints Any = new(null, null);
 
+        //SingleCodec 单整数形态 上下界相等 对应原版 Ints.CODEC 的整数分支
+        private static readonly Codec<Ints> SingleCodec = new IntExactlyCodec();
+
+        //MinMaxCodec 复合标签形态 缺省一侧表示无界
+        private static readonly Codec<Ints> MinMaxCodec = RecordCodecBuilder.Of2(
+            Codecs.Int.OptionalFieldOf("min").ForGetter((Ints range) => ToOptional(range.Min)),
+            Codecs.Int.OptionalFieldOf("max").ForGetter((Ints range) => ToOptional(range.Max)),
+            (min, max) => new Ints(min.IsPresent ? min.Get() : null, max.IsPresent ? max.Get() : null));
+
+        //CODEC 持久化编解码 先试单整数再试 min/max 对应原版 Ints.CODEC
+        public static readonly Codec<Ints> CODEC = Codecs.WithAlternative(SingleCodec, MinMaxCodec);
+
+        private static Optional<int> ToOptional(int? value)
+            => value is { } present ? Optional<int>.Of(present) : Optional<int>.Empty();
+
         public Ints(int? min, int? max)
         {
             Min = min;
@@ -180,4 +196,17 @@ public static class MinMaxBounds
             return new FloatDegrees(min, max);
         }
     }
+}
+
+//IntExactlyCodec 单整数形态的整数区间编解码
+//解析恒得到上下界相等 编码只在上下界相等时成立 否则交给候选链的下一项 对应原版 Ints.CODEC 的整数分支
+internal sealed class IntExactlyCodec : ScalarCodec<MinMaxBounds.Ints>
+{
+    public override DataResult<MinMaxBounds.Ints> Parse<U>(DynamicOps<U> ops, U input)
+        => Codecs.Int.Parse(ops, input).Map(value => new MinMaxBounds.Ints(value, value));
+
+    public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, MinMaxBounds.Ints value)
+        => value.Min is { } min && min == value.Max
+            ? Codecs.Int.EncodeStart(ops, min)
+            : DataResult<U>.Error(() => "区间不是单值 无法按整数编码");
 }
