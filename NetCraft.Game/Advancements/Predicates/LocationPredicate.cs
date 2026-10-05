@@ -58,33 +58,7 @@ public sealed record LocationPredicate(
         return true;
     }
 
-    //PositionPredicate 坐标区间谓词 三轴都命中才算通过 对应原版内嵌的位置谓词
-    public sealed record PositionPredicate(
-        MinMaxBounds.Doubles X,
-        MinMaxBounds.Doubles Y,
-        MinMaxBounds.Doubles Z)
-    {
-        //Codec 持久化编解码 字段名 x y z 对应原版 CODEC
-        public static readonly Codec<PositionPredicate> Codec = RecordCodecBuilder.Of3(
-            MinMaxBounds.Doubles.CODEC.OptionalFieldOf("x", MinMaxBounds.Doubles.Any)
-                .ForGetter((PositionPredicate predicate) => predicate.X),
-            MinMaxBounds.Doubles.CODEC.OptionalFieldOf("y", MinMaxBounds.Doubles.Any)
-                .ForGetter((PositionPredicate predicate) => predicate.Y),
-            MinMaxBounds.Doubles.CODEC.OptionalFieldOf("z", MinMaxBounds.Doubles.Any)
-                .ForGetter((PositionPredicate predicate) => predicate.Z),
-            (x, y, z) => new PositionPredicate(x, y, z));
-
-        //Of 三轴都是任意区间时不加位置约束 对应原版 of
-        public static Optional<PositionPredicate> Of(MinMaxBounds.Doubles x, MinMaxBounds.Doubles y,
-            MinMaxBounds.Doubles z)
-            => x.IsAny && y.IsAny && z.IsAny
-                ? Optional<PositionPredicate>.Empty()
-                : Optional<PositionPredicate>.Of(new PositionPredicate(x, y, z));
-
-        //Matches 三轴区间逐项判定 对应原版 matches
-        public bool Matches(double x, double y, double z) => X.Matches(x) && Y.Matches(y) && Z.Matches(z);
-    }
-
+    //PositionPredicate 坐标区间谓词 定义见文件末尾 主构造参数处直接引用顶层类型
     //Builder 位置谓词构造器 对应原版 Builder
     public sealed class Builder
     {
@@ -133,4 +107,31 @@ public sealed record LocationPredicate(
         public LocationPredicate Build()
             => new(PositionPredicate.Of(_x, _y, _z), _biomes, _dimension, _smokey, _light, _block, _canSeeSky);
     }
+}
+
+//PositionPredicate 坐标区间谓词 三轴都命中才算通过 对应原版 LocationPredicate 内嵌的位置谓词
+public sealed record PositionPredicate(
+    MinMaxBounds.Doubles X,
+    MinMaxBounds.Doubles Y,
+    MinMaxBounds.Doubles Z)
+{
+    //Codec 持久化编解码 字段名 x y z 对应原版 CODEC
+    public static readonly Codec<PositionPredicate> Codec = RecordCodecBuilder.Of3(
+        MinMaxBounds.Doubles.CODEC.OptionalFieldOf("x", MinMaxBounds.Doubles.Any)
+            .ForGetter((PositionPredicate predicate) => predicate.X),
+        MinMaxBounds.Doubles.CODEC.OptionalFieldOf("y", MinMaxBounds.Doubles.Any)
+            .ForGetter((PositionPredicate predicate) => predicate.Y),
+        MinMaxBounds.Doubles.CODEC.OptionalFieldOf("z", MinMaxBounds.Doubles.Any)
+            .ForGetter((PositionPredicate predicate) => predicate.Z),
+        (x, y, z) => new PositionPredicate(x, y, z));
+
+    //Of 三轴都是任意区间时不加位置约束 对应原版 of
+    public static Optional<PositionPredicate> Of(MinMaxBounds.Doubles x, MinMaxBounds.Doubles y,
+        MinMaxBounds.Doubles z)
+        => x.IsAny && y.IsAny && z.IsAny
+            ? Optional<PositionPredicate>.Empty()
+            : Optional<PositionPredicate>.Of(new PositionPredicate(x, y, z));
+
+    //Matches 三轴区间逐项判定 对应原版 matches
+    public bool Matches(double x, double y, double z) => X.Matches(x) && Y.Matches(y) && Z.Matches(z);
 }
