@@ -216,6 +216,11 @@ public abstract class ServerLevel
     public virtual bool CanSeeSky(BlockPos pos)
         => GetLightValue(NetCraft.Registry.LightLayer.Sky, pos) >= 15;
 
+    //GetBiome 该位置所在区块的生物群系 区块不在内存时给 null 对应原版 getBiome
+    public virtual Holder<Biome>? GetBiome(BlockPos pos)
+        => GetLoadedChunk(new ChunkPos(pos.X >> 4, pos.Z >> 4))?
+            .GetNoiseBiome(pos.X >> 2, pos.Y >> 2, pos.Z >> 2);
+
     //UpdateLight 方块变化后的光照重算 无光照引擎的关卡为空实现
     public virtual void UpdateLight(BlockPos pos) { }
 

@@ -18,7 +18,7 @@ using GameConfiguredWorldCarver = NetCraft.Game.World.Level.LevelGen.Carver.Conf
 //注册表与关卡定义各有一个 DimensionType 前者是标记接口 这里固定指 Game 层的真实类型
 using GameDimensionType = NetCraft.Game.World.Level.LevelGen.Dimension.DimensionType;
 
-namespace NetCraft.Game;
+namespace NetCraft.Game; 
 
 //ClientMain 客户端主入口
 //对应原版 net.minecraft.client.main.Main

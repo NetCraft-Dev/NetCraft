@@ -699,6 +699,26 @@ public static partial class Blocks
             if (player.GameType != NetCraft.Game.World.Level.GameType.Creative) held.Shrink(1);
             return true;
         }
+
+        //IsSmokeyPos 该位置是否处在营火烟柱上 向下一到五格找点燃的营火 对应原版 isSmokeyPos
+        //原版还有"烟被实体方块挡住就只看再往下一格"的分支 本作只保留主语义
+        public static bool IsSmokeyPos(ServerLevel level, BlockPos pos)
+        {
+            for (var i = 1; i <= 5; i++)
+            {
+                var state = level.GetBlockState(pos.Offset(0, -i, 0));
+                if (state is null) return false;
+                if (IsLitCampfire(state.Value)) return true;
+            }
+            return false;
+        }
+
+        //IsLitCampfire 是否点燃的营火 对应原版 isLitCampfire
+        //原版按 CAMPFIRES 标签判定 本作营火只有内置两种
+        public static bool IsLitCampfire(BlockState state)
+            => (ReferenceEquals(state.Owner, CAMPFIRE) || ReferenceEquals(state.Owner, SOUL_CAMPFIRE))
+                && state.HasProperty(BlockStateProperties.Lit)
+                && state.GetValue(BlockStateProperties.Lit);
     }
 
     //BaseFireBlock 火与灵魂火 一像素厚的火苗层 且不参与碰撞
