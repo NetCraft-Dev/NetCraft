@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using NetCraft.Codec;
+using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry;
 
@@ -21,6 +23,12 @@ public sealed class TagKey<T> : IEquatable<TagKey<T>> where T : class
     //创建并intern去重
     public static TagKey<T> Create(ResourceKey<Registry<T>> registry, Identifier location)
         => _pool.GetOrAdd(new InternKey(registry, location), _ => new TagKey<T>(registry, location));
+
+    //Codec 按标签位置编解码 对应原版 codec
+    public static Codec<TagKey<T>> Codec(ResourceKey<Registry<T>> registryName)
+        => IdentifierCodec.Instance.ComapFlatMap(
+            location => DataResult<TagKey<T>>.Success(Create(registryName, location)),
+            tag => tag.Location);
 
     //判断是否属于registry引用比较依赖ResourceKey intern
     public bool IsFor(ResourceKey<Registry<T>> registry) => ReferenceEquals(Registry, registry);

@@ -196,6 +196,26 @@ public abstract class ServerLevel
         return chunk?.GetSection(pos.Y >> 4)?.GetBlockState(pos.X & 15, pos.Y & 15, pos.Z & 15);
     }
 
+    //IsLoaded 该位置在建造高度内且所在区块已在内存 对应原版 isLoaded
+    //原版按区块加载等级判定 本作只认内存里有没有区块 够谓词与命令查询用
+    public virtual bool IsLoaded(BlockPos pos)
+        => pos.Y >= MinBuildHeight && pos.Y < MaxBuildHeight
+            && GetLoadedChunk(new ChunkPos(pos.X >> 4, pos.Z >> 4)) is not null;
+
+    //GetFluidState 该位置的流体状态 取不到方块状态时给空流体 对应原版 getFluidState
+    public virtual FluidState GetFluidState(BlockPos pos)
+        => GetBlockState(pos)?.FluidState ?? FluidState.Empty;
+
+    //GetMaxLocalRawBrightness 该位置的最大局部亮度 取方块光与天光的较大者 对应原版 getMaxLocalRawBrightness
+    public virtual int GetMaxLocalRawBrightness(BlockPos pos)
+        => Math.Max(
+            GetLightValue(NetCraft.Registry.LightLayer.Block, pos),
+            GetLightValue(NetCraft.Registry.LightLayer.Sky, pos));
+
+    //CanSeeSky 该位置能直见天空 天光满 15 即视为可见 对应原版 canSeeSky
+    public virtual bool CanSeeSky(BlockPos pos)
+        => GetLightValue(NetCraft.Registry.LightLayer.Sky, pos) >= 15;
+
     //UpdateLight 方块变化后的光照重算 无光照引擎的关卡为空实现
     public virtual void UpdateLight(BlockPos pos) { }
 

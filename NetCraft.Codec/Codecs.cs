@@ -24,6 +24,10 @@ public static class Codecs
     public static Codec<T> WithAlternative<T>(Codec<T> first, Codec<T> second)
         => new AlternativeCodec<T>(first, second);
 
+    //Either 先按 first 解析 失败退回 second 对应原版 Codec.either
+    public static Codec<Alt<A, B>> Either<A, B>(Codec<A> first, Codec<B> second)
+        => new EitherCodec<A, B>(first, second);
+
     //DispatchedMap 键决定值编解码的映射对应原版Codec.dispatchedMap
     //keyCodec解出键valueCodecGetter按该键给出值codec
     public static Codec<Dictionary<K, V>> DispatchedMap<K, V>(Codec<K> keyCodec, Func<K, Codec<V>> valueCodecGetter)

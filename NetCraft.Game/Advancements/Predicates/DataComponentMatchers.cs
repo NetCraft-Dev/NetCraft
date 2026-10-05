@@ -19,6 +19,9 @@ public sealed record DataComponentMatchers(
             .ForGetter((DataComponentMatchers matchers) => matchers.Partial),
         (exact, partial) => new DataComponentMatchers(exact, partial));
 
+    //IsEmpty 精确期望与逐类谓词都为空 对应原版 isEmpty
+    public bool IsEmpty => Exact.IsEmpty && Partial.Count == 0;
+
     //Test 目标组件集是否同时满足精确期望与全部谓词
     public bool Test(DataComponentGetter components)
     {

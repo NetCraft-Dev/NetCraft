@@ -1,3 +1,5 @@
+using NetCraft.Codec;
+
 namespace NetCraft.Game.World.Level;
 
 //GameType 游戏模式对标原版 net.minecraft.world.level.GameType
@@ -16,6 +18,13 @@ public sealed class GameType
 
     //All 全部模式按 id 升序供遍历
     private static readonly GameType[] s_all = { Survival, Creative, Adventure, Spectator };
+
+    //Codec 按名称编解码 对应原版 GameType.CODEC
+    public static readonly Codec<GameType> Codec = Codecs.String.ComapFlatMap(
+        name => ByName(name) is { } type
+            ? DataResult<GameType>.Success(type)
+            : DataResult<GameType>.Error(() => $"未知的游戏模式: {name}"),
+        type => type.Name);
 
     //Id 数字 id 与协议一致
     public int Id { get; }
