@@ -18,6 +18,7 @@ using NetCraft.Server.Diagnostics;
 using NetCraft.Server.Gui;
 using NetCraft.Server.ServerConsole;
 using NetCraft.Storage;
+using NetCraft.Util;
 using NetCraft.Util.Random;
 using BootstrapClass = NetCraft.Bootstrap.Bootstrap;
 using GameConfiguredWorldCarver = NetCraft.Game.World.Level.LevelGen.Carver.ConfiguredWorldCarver;
@@ -48,6 +49,8 @@ public static class ServerMain
         Log.Debug($"Run entry args={string.Join(",", args)}");
 
         Log.SetClassSource(typeof(ServerMain));
+        //崩溃报告文件名里的角色段 与内核共用的处理器靠它区分客户端与服务端
+        CrashHandler.Role = "server";
         Log.Info("NetCraft server starting");
 
         //GUI 默认启用 --nogui 与裸 nogui 都能关 对齐原版 Main 对两种写法的判定

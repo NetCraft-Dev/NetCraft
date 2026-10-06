@@ -10,7 +10,7 @@ namespace NetCraft.Game.World.Level.Block;
 //LiquidBlock 流体方块 对应原版 net.minecraft.world.level.block.LiquidBlock
 //方块状态的 level 0-15 与流体状态一一对应 0 是源 1-7 逐级递减 8 是下落 9-15 不会产生
 //流体刻的排入入口在这里 放置与邻接变化都要把刻排上 否则倒下去的水不会动
-public class LiquidBlock : BlockBehaviour
+public abstract class LiquidBlock : BlockBehaviour
 {
     //LevelProperty 方块状态的液面档 0-15 对应原版 LiquidBlock.LEVEL
     public static readonly IntegerProperty LevelProperty = new("level", 0, 15);
@@ -93,7 +93,9 @@ public class LiquidBlock : BlockBehaviour
             var fluidState = GetFluidState(state);
             var converted = BuiltInRegistries.BLOCK.GetValue(
                 Identifier.WithDefaultNamespace(fluidState.IsSource ? "obsidian" : "cobblestone"));
-            if (!converted.IsAir) level.SetBlock(pos, converted.DefaultBlockState, 3);
+            //方块表里没有黑曜石或圆石就只冒烟不转换 不能拿未注册的方块往世界里写
+            if (converted is not null && !converted.IsAir)
+                level.SetBlock(pos, converted.DefaultBlockState, 3);
             level.LevelEvent(1501, pos, 0);
             return false;
         }

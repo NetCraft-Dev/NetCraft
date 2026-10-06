@@ -13,6 +13,7 @@ using NetCraft.Logging;
 using NetCraft.Registry;
 using NetCraft.Registry.Environment;
 using NetCraft.Resources;
+using NetCraft.Util;
 using BootstrapClass = NetCraft.Bootstrap.Bootstrap;
 using GameConfiguredWorldCarver = NetCraft.Game.World.Level.LevelGen.Carver.ConfiguredWorldCarver;
 //注册表与关卡定义各有一个 DimensionType 前者是标记接口 这里固定指 Game 层的真实类型
@@ -42,6 +43,8 @@ public static class ClientMain
         Log.Debug($"Run entry args={string.Join(",", args)}");
 
         Log.SetClassSource(typeof(ClientMain));
+        //崩溃报告文件名里的角色段 与内核共用的处理器靠它区分客户端与服务端
+        CrashHandler.Role = "client";
         Log.Info("NetCraft client starting");
 
         //1. 创建 GameOptions 订阅内核未识别参数事件

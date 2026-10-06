@@ -167,13 +167,18 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
     //CanPassThroughWall 两面之间能不能让流体穿过 两个整块的遮挡形状互相挡死 对应原版 canPassThroughWall
     private static bool CanPassThroughWall(Direction direction, BlockState sourceState, BlockState targetState)
     {
-        var targetShape = targetState.Owner.GetOcclusionShape(targetState);
+        var targetShape = OcclusionOf(targetState);
         if (ReferenceEquals(targetShape, Shapes.Block())) return false;
-        var sourceShape = sourceState.Owner.GetOcclusionShape(sourceState);
+        var sourceShape = OcclusionOf(sourceState);
         if (ReferenceEquals(sourceShape, Shapes.Block())) return false;
         if (ReferenceEquals(sourceShape, Shapes.Empty()) && ReferenceEquals(targetShape, Shapes.Empty())) return true;
         return !Shapes.MergedFaceOccludes(sourceShape, targetShape, direction);
     }
+
+    //OcclusionOf 该状态的遮挡形状 不遮挡光线的方块按空算
+    //与 Block.SolidRender 同一套语义 水与岩浆 CanOcclude 为假 不按整块挡住流体自身
+    private static VoxelShape OcclusionOf(BlockState state)
+        => state.Owner.CanOcclude ? state.Owner.GetOcclusionShape(state) : Shapes.Empty();
 
     //SpreadTo 把流体写进目标格 对应原版 spreadTo
     protected virtual void SpreadTo(ServerLevel level, BlockPos pos, BlockState state, Direction direction, FluidState target)
@@ -283,8 +288,10 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
     private static bool CanHoldSpecificFluid(BlockState state, Fluid fluid) => true;
 
     //CanBeReplacedAt 问某格现有流体能不能被顶掉 对应原版 FluidState.canBeReplacedWith
+    //空流体总能被顶掉 原版走 EmptyFluid 的默认实现 本作 EmptyFluid 在注册表层挂不上行为接口 这里短路
     private static bool CanBeReplacedAt(FluidState state, ServerLevel level, BlockPos pos, Fluid other, Direction direction)
-        => state.Type is IFluidBehaviour behaviour && behaviour.CanBeReplacedWith(state, level, pos, other, direction);
+        => state.IsEmpty
+            || (state.Type is IFluidBehaviour behaviour && behaviour.CanBeReplacedWith(state, level, pos, other, direction));
 
     //IsSolid 该方块状态算不算固体 水源生成判定用它
     private static bool IsSolid(BlockState state)

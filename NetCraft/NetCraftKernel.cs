@@ -44,6 +44,10 @@ public static class NetCraftKernel
         //设置日志源为内核
         Log.SetClassSource(typeof(NetCraftKernel));
 
+        //全局托管异常兜底 崩溃报告落到程序根目录 crash-reports/ 下
+        //客户端与服务端共用这一份逻辑 报告名里的角色段由各自启动入口设置
+        CrashHandler.Install(AppPaths.BaseDirectory);
+
         //语言文件解压到根目录 lang/ 并按默认语言码先装一次表
         //放在这里是为了尽可能早 模组加载与内核启动期的日志才有词可取
         //真正的语言码由 ServerMain/ClientMain 读到配置后再重装一次

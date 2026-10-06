@@ -30,6 +30,9 @@ public static class AppPaths
     //LogsDir 日志根目录 logs/ 子目录对齐 Log.cs 现有 AppDomain.BaseDirectory/logs
     public static string LogsDir => Path.Combine(BaseDirectory, "logs");
 
+    //CrashReportsDir 崩溃报告根目录 crash-reports/ 子目录对齐原版
+    public static string CrashReportsDir => Path.Combine(BaseDirectory, "crash-reports");
+
     //OptionsPath 客户端配置文件路径 assets/options.txt
     public static string OptionsPath => Path.Combine(AssetsDir, "options.txt");
 
