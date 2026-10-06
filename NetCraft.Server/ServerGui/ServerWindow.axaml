@@ -60,7 +60,7 @@
     <StyleInclude Source="avares://NetCraft.Server/ServerGui/Theme.axaml" />
   </Window.Styles>
 
-  <!--三页标签 主页是原来的三张卡片 JIT 页放方法编译状态表 LOG 页是带过滤与搜索的日志-->
+  <!--标签页 主页是原来的三张卡片 LOG 页是带过滤与搜索的日志 CHUNK 页是区块图-->
   <TabControl x:Name="Tabs" Margin="8,4,8,8" Padding="0">
     <TabItem Header="MAIN">
       <Grid Margin="4" ColumnDefinitions="320,12,*">
@@ -70,12 +70,6 @@
         </Grid>
         <Border x:Name="LogCard" Grid.Column="2" Classes="card" />
       </Grid>
-    </TabItem>
-
-    <TabItem x:Name="JitTab" Header="JIT">
-      <Border Classes="card" Margin="4">
-        <ContentControl x:Name="JitHost" />
-      </Border>
     </TabItem>
 
     <TabItem Header="LOG">

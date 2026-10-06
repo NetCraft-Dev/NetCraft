@@ -75,6 +75,24 @@ public sealed class ServerSettings : Settings<ServerSettings>
     //是否启用 Query 协议默认 false
     public bool EnableQuery => GetBool("enable-query", false);
 
+    //RconPort RCON 监听端口对应原版 rcon.port 默认 25575
+    public int RconPort => GetInt("rcon.port", 25575);
+
+    //RconPassword RCON 密码 空字符串视为未配置 对应原版 rcon.password
+    public string RconPassword => GetOrDefault("rcon.password", string.Empty);
+
+    //BroadcastRconToOps RCON 执行结果是否广播给 op 对应原版 broadcast-rcon-to-ops
+    public bool BroadcastRconToOps => GetBool("broadcast-rcon-to-ops", true);
+
+    //QueryPort GS4 查询协议监听端口对应原版 query.port 默认 25565
+    public int QueryPort => GetInt("query.port", 25565);
+
+    //ServerIp 绑定地址 空字符串表示全部网卡 对应原版 server-ip
+    public string ServerIp => GetOrDefault("server-ip", string.Empty);
+
+    //FunctionPermissionLevel 函数编译权限等级 对应原版 function-permission-level 默认 2
+    public int FunctionPermissionLevel => GetInt("function-permission-level", 2);
+
     //是否上报服务端运行指标默认 false 对应原版 enable-jmx-monitoring
     public bool EnableJmxMonitoring => GetBool("enable-jmx-monitoring", false);
 
@@ -153,6 +171,12 @@ public sealed class ServerSettings : Settings<ServerSettings>
         yield return ("motd", Motd);
         yield return ("enable-rcon", EnableRcon ? "true" : "false");
         yield return ("enable-query", EnableQuery ? "true" : "false");
+        yield return ("rcon.port", RconPort.ToString());
+        yield return ("rcon.password", RconPassword);
+        yield return ("broadcast-rcon-to-ops", BroadcastRconToOps ? "true" : "false");
+        yield return ("query.port", QueryPort.ToString());
+        yield return ("server-ip", ServerIp);
+        yield return ("function-permission-level", FunctionPermissionLevel.ToString());
         yield return ("op-permission-level", OpPermissionLevel.ToString());
         yield return ("player-idle-timeout", PlayerIdleTimeout.ToString());
         yield return ("nc-debug-commands", NcDebugCommands ? "true" : "false");

@@ -2,7 +2,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
-//唉wchaoy，这个日志格式改了好几遍巨难看给我气笑了，最后改 - 了
 namespace NetCraft.Logging;
 
 public enum LogLevel

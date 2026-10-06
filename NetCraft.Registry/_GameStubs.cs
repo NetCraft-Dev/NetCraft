@@ -115,8 +115,6 @@ public interface NumberProvider { }
 public interface OutgoingRpcMethod<T1, T2> { }
 public interface PaintingVariant { }
 public interface ParticleType<T1> { }
-public interface Permission { }
-public interface PermissionCheck { }
 public interface PigSoundVariant { }
 public interface PigVariant { }
 public interface PlacedFeature { }

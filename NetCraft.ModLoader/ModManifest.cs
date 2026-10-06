@@ -171,6 +171,18 @@ public sealed class ModHookRule
     [JsonPropertyName("ordinal")]
     public int? Ordinal { get; set; }
 
+    //ArgumentIndex 改第几个实参 0 基 实例调用的 this 算第 0 个 只有 type=CallArg 用
+    [JsonPropertyName("argumentIndex")]
+    public int? ArgumentIndex { get; set; }
+
+    //SliceFrom/SliceTo 方法内区间限定 写成"类型全名::方法名"
+    //把匹配收窄到宿主方法里第一次调用 SliceFrom 到第一次调用 SliceTo 之间 任一端可省
+    [JsonPropertyName("sliceFrom")]
+    public string? SliceFrom { get; set; }
+
+    [JsonPropertyName("sliceTo")]
+    public string? SliceTo { get; set; }
+
     //EnvironmentValue 该规则适用的运行端 取 both/client/server 默认 both
     //同一份清单可以两端共用 但指向服务端类型的规则在客户端跑时目标程序集根本不在
     //不按端过滤的话这类规则会以"目标不在任何内核程序集里"报错 属于预期情况而非故障

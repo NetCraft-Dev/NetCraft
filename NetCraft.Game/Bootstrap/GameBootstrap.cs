@@ -97,6 +97,9 @@ public static class GameBootstrap
             WorldClocks.Bootstrap();
             Timelines.Bootstrap();
             DensityFunctionBootstrap.RegisterAll();
+            //权限与判定类型登记进各自的 MapCodec 注册表 分派编解码靠它们
+            PermissionTypes.Bootstrap(BuiltInRegistries.PERMISSION_TYPE);
+            PermissionCheckTypes.Bootstrap(BuiltInRegistries.PERMISSION_CHECK_TYPE);
             //Log.Debug("BootstrapBeforeDataLoad 出口");
         }
     }

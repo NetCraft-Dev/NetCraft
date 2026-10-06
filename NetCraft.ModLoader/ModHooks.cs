@@ -170,7 +170,8 @@ public sealed class ModHooks
         builder.AddRule(new HookRule(
             hook.Target, hook.Method,
             mod.AssemblyName, hook.ReplaceType, hook.ReplaceMethod,
-            hookType, patchMode, null, hook.Label, ordinal: hook.Ordinal));
+            hookType, patchMode, null, hook.Label, ordinal: hook.Ordinal,
+            argumentIndex: hook.ArgumentIndex, sliceFrom: hook.SliceFrom, sliceTo: hook.SliceTo));
 
         //两类落地方式分开记 静态那条走加载前改写 运行时那条等目标加载完再提交
         if (patchMode == PatchMode.RuntimeInject)

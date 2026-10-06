@@ -168,6 +168,15 @@ internal static class InjectScanner
                 case "Ordinal" when named.Value is int ordinal:
                     rule.Ordinal = ordinal;
                     break;
+                case "ArgumentIndex" when named.Value is int argumentIndex:
+                    rule.ArgumentIndex = argumentIndex;
+                    break;
+                case "SliceFrom":
+                    rule.SliceFrom = named.Value as string;
+                    break;
+                case "SliceTo":
+                    rule.SliceTo = named.Value as string;
+                    break;
                 case "Environment" when named.Value is string environment && !string.IsNullOrWhiteSpace(environment):
                     rule.EnvironmentValue = environment;
                     break;

@@ -1,7 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Threading;
 using NetCraft.Game.Server;
-using NetCraft.Logging;
 
 namespace NetCraft.Server.Gui;
 
@@ -10,8 +9,6 @@ namespace NetCraft.Server.Gui;
 public sealed partial class ServerWindow : Window
 {
     private const string ShutdownTitle = "Minecraft server - shutting down!";
-    //JitTabIndex JIT 页在标签栏里的序号
-    private const int JitTabIndex = 1;
     //原版统计与玩家列表都是 500ms 一拍
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(500);
 
@@ -23,8 +20,6 @@ public sealed partial class ServerWindow : Window
     private readonly ServerLogPanel _log;
     private readonly ServerLogPage _logPage;
     private readonly ServerChunkPage _chunkPage;
-    //JIT 页只在 --debug 下挂出来 常规模式没有这个面板
-    private readonly ServerJitPanel? _jit;
     private readonly DispatcherTimer _poll;
     //服务端跑起来过才算数 启动阶段 Running 还是假 不能据此关窗
     private bool _sawRunning;
@@ -46,16 +41,6 @@ public sealed partial class ServerWindow : Window
         LogCard.Child = _log;
         LogPageHost.Content = _logPage;
         ChunkPageHost.Content = _chunkPage;
-        //看编译层级属于排查手段 常规模式不挂这一页
-        if (Log.DebugEnabled)
-        {
-            _jit = new ServerJitPanel();
-            JitHost.Content = _jit;
-        }
-        else
-        {
-            Tabs.Items.Remove(JitTab);
-        }
 
         _poll = new DispatcherTimer { Interval = PollInterval };
         _poll.Tick += (_, _) => Poll();
@@ -86,12 +71,6 @@ public sealed partial class ServerWindow : Window
 
     private void RefreshNow()
     {
-        //当前页看不见就不刷它的重活 JIT 表要遍历几千个方法
-        if (_jit is not null && Tabs.SelectedIndex == JitTabIndex)
-        {
-            _jit.Refresh();
-            return;
-        }
         //区块页只遍历几百个持有器 开销小 不按当前页过滤
         //按 SelectedItem 比对一旦对不上就成了"明明在看却一直不刷"的哑火 不值得为这点开销冒险
         _chunkPage.Refresh();

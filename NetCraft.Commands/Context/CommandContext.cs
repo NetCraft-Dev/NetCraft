@@ -1,3 +1,4 @@
+using NetCraft.Commands.Execution;
 using NetCraft.Commands.Tree;
 
 namespace NetCraft.Commands.Context;
@@ -34,8 +35,9 @@ public sealed class CommandContext<S>
     private readonly CommandContext<S>? _child;
     private readonly RedirectModifier<S>? _modifier;
     private readonly bool _forks;
+    private readonly CustomCommandExecutor<S>? _customExecutor;
 
-    public CommandContext(S source, string input, Dictionary<string, ParsedArgument<S>> arguments, Command<S>? command, CommandNode<S> rootNode, List<ParsedCommandNode<S>> nodes, StringRange range, CommandContext<S>? child, RedirectModifier<S>? modifier, bool forks)
+    public CommandContext(S source, string input, Dictionary<string, ParsedArgument<S>> arguments, Command<S>? command, CommandNode<S> rootNode, List<ParsedCommandNode<S>> nodes, StringRange range, CommandContext<S>? child, RedirectModifier<S>? modifier, bool forks, CustomCommandExecutor<S>? customExecutor = null)
     {
         _source = source;
         _input = input;
@@ -47,6 +49,7 @@ public sealed class CommandContext<S>
         _child = child;
         _modifier = modifier;
         _forks = forks;
+        _customExecutor = customExecutor;
     }
 
     public CommandContext<S> CopyFor(S source)
@@ -55,7 +58,7 @@ public sealed class CommandContext<S>
         {
             return this;
         }
-        return new CommandContext<S>(source, _input, _arguments, _command, _rootNode, _nodes, _range, _child, _modifier, _forks);
+        return new CommandContext<S>(source, _input, _arguments, _command, _rootNode, _nodes, _range, _child, _modifier, _forks, _customExecutor);
     }
 
     public CommandContext<S>? GetChild() => _child;
@@ -71,6 +74,9 @@ public sealed class CommandContext<S>
     }
 
     public Command<S>? GetCommand() => _command;
+
+    //CustomExecutor 自定义执行器 BuildContexts 检测后不走普通命令委托路径
+    public CustomCommandExecutor<S>? CustomExecutor => _customExecutor;
 
     public S GetSource() => _source;
 

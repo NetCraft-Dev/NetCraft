@@ -6,6 +6,8 @@ using NetCraft.DataFixer;
 using NetCraft.Game.Commands;
 using NetCraft.Game.DFU;
 using NetCraft.Game.Network;
+using NetCraft.Game.Server.Rcon;
+using NetCraft.Game.Server.Rcon.Thread;
 using NetCraft.Game.Util.Monitoring.Jmx;
 using NetCraft.Network.Protocol.Configuration;
 using NetCraft.Network.Protocol.Common;
@@ -17,6 +19,7 @@ using NetCraft.Game.World.Entity;
 using NetCraft.Game.World.Level;
 using NetCraft.Game.World.Level.LevelGen;
 using NetCraft.Game.World.Level.LevelGen.Dimension;
+using NetCraft.Game.World.Level.Timers;
 using NetCraft.Game.World.Phys.Collision;
 using NetCraft.Logging;
 using NetCraft.Network;
@@ -98,6 +101,12 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
     private CommandStorage? _commandStorage;
     //_statistics 运行指标上报 仅 enable-jmx-monitoring 开启时非空
     private MinecraftServerStatistics? _statistics;
+    //_rconConsoleSource RCON 命令执行者与输出缓冲
+    private readonly RconConsoleSource _rconConsoleSource;
+    //_rconThread RCON 监听线程 仅 enable-rcon 且密码已配置时非空
+    private RconThread? _rconThread;
+    //_queryThreadGs4 GS4 查询线程 仅 enable-query 且端口有效时非空
+    private QueryThreadGs4? _queryThreadGs4;
 
     //RegistryAccessForConnection 惰性构建注册表访问集合
     //必须等 BootstrapClass.BootStrap 冻结注册表之后才可构建 服务端构造时已满足
@@ -326,6 +335,12 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         //_settings 必须先赋值 CommandManager 构造要读 nc-debug-commands 决定是否注册 /debug
         _settings = settings;
         Commands = new CommandManager(this);
+        //函数库与函数管理器对应原版 resources.managers.getFunctionLibrary 与 new ServerFunctionManager
+        //编译权限按 function-permission-level 对应原版 getFunctionCompilationPermissions
+        var functionLibrary = new ServerFunctionLibrary(
+            LevelBasedPermissionSet.ForLevel((NetCraft.Registry.PermissionLevel)Math.Clamp(_settings.FunctionPermissionLevel, 0, 4)),
+            Commands.Dispatcher);
+        Functions = new ServerFunctionManager(this, functionLibrary);
         _levelAccess = levelAccess;
         _dataFixer = dataFixer ?? GameDataFixers.BuildV1_21Fixer();
         _rsr = rsr;
@@ -381,6 +396,8 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         //世界生成设置与游戏规则从存档恢复新世界时固化种子
         _worldGenSettings = _dataStorage.ComputeIfAbsent(WorldGenSettingsData.Type);
         GameRules = _dataStorage.ComputeIfAbsent(GameRuleMapData.Type);
+        //计划事件队列存档对应原版 MinecraftServer 构造里的 computeIfAbsent(TimerQueue.TYPE)
+        ScheduledEvents = _dataStorage.ComputeIfAbsent(TimerQueueTypes.Instance);
         //世界边界存档挂主世界 data 目录 对应原版 ServerLevel.getWorldBorder 的 computeIfAbsent
         //装载后把存档参数灌进运行时字段 之后以运行时状态为准
         _overworld.WorldBorder = _dataStorage.ComputeIfAbsent(WorldBorder.Type);
@@ -412,6 +429,8 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         //主世界默认时钟 对应原版 overworld 维度类型的 default_clock
         _overworld.DefaultClock = WorldClocks.OverworldHolder;
         _serverStatus = BuildServerStatus();
+        //RCON 命令源与输出缓冲 对应原版 DedicatedServer 构造里的 rconConsoleSource
+        _rconConsoleSource = new RconConsoleSource(this);
         //gamemode 由 server.properties 每次启动覆盖并写回存档对齐原版 setGameType 语义
         //difficulty 相反以存档为准对应原版 forceDifficulty 空实现
         _defaultGameType = GameType.ByName(settings.Gamemode) ?? GameType.Survival;
@@ -442,6 +461,19 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         Log.Info($"Network listening on port {_settings.ServerPort}");
     }
 
+    //RunRconCommand 执行一条 RCON 命令并返回输出对应原版 DedicatedServer.runCommand
+    //先清缓冲 再投到主循环同步执行 最后取缓冲内容发回客户端
+    public string RunRconCommand(string command)
+    {
+        _rconConsoleSource.PrepareForCommand();
+        ExecuteBlocking(_rconConsoleSource.CreateCommandSourceStack(), command);
+        return _rconConsoleSource.GetCommandResponse();
+    }
+
+    //ShouldRconBroadcast RCON 执行结果是否广播给 op 对应原版 shouldRconBroadcast
+    //NC 命令层还没有 informAdmins 通道 先挂配置项供命令层后续接入
+    public bool ShouldRconBroadcast => _settings.BroadcastRconToOps;
+
     //InitServer 启动阶段初始化对应原版 DedicatedServer.initServer 收尾
     //新世界先按原版 setInitialSpawn 搜出生点 再把出生点周边区块加载完才宣告就绪
     //对应原版 prepareLevels 的 LOAD_INITIAL_CHUNKS 阶段: 先加载后 Done
@@ -449,11 +481,26 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
     {
         if (!_levelData.Initialized) SearchInitialSpawn();
         StartNetwork();
+        //函数库按数据包装载对应原版 reloadableServerResources.loadResources 里的函数库重载段
+        //挂进资源监听列表之后 /reload 也会带着函数库一起重载
+        _rsr?.AttachFunctionLibrary(Functions.Library);
         //指标上报默认关闭 与原版 enable-jmx-monitoring 一致
         if (_settings.EnableJmxMonitoring)
         {
             _statistics = MinecraftServerStatistics.Register(this);
             Log.Info("JMX monitoring enabled");
+        }
+        //GS4 查询监听顺序与原版 initServer 一致 query 在前 rcon 在后
+        //创建失败(端口未配置或被占用)只告警不阻断开服 对应原版返回 null 的分支
+        if (_settings.EnableQuery)
+        {
+            Log.Info("Starting GS4 status listener");
+            _queryThreadGs4 = QueryThreadGs4.Create(this);
+        }
+        if (_settings.EnableRcon)
+        {
+            Log.Info("Starting remote control listener");
+            _rconThread = RconThread.Create(this);
         }
         //启动即固化 level.dat 与 saveddata 对应原版 initServer 末尾 saveEverything
         //新世界种子立刻落盘防止窗口期内崩溃重启换种子
@@ -756,6 +803,13 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
     //5. 周期刷盘
     protected override void Tick()
     {
+        //tickChildren 的 commandFunctions 段 tick/load 标签函数 管理器内部按 runsNormally 过滤
+        Functions.Tick();
+        //计划事件按主世界游戏时间触发 对应原版 scheduled_events 语义
+        //到点的回调自己往队列里排函数或新事件
+        var scheduledStart = TickStageProfiler.Now();
+        if (TickRate.RunsNormally) ScheduledEvents.Tick(this, _overworld.GameTime);
+        TickStageProfiler.Record(TickStage.Console, scheduledStart);
         var stageStart = TickStageProfiler.Now();
         List<Connection> snapshot;
         lock (_connections) snapshot = _connections.ToList();
@@ -984,6 +1038,10 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
     public override void Stop()
     {
         _acceptor?.Stop();
+        //先停 RCON 与查询线程对应原版 stopServer 开头的两个 stop
+        //线程可能阻塞在同步命令等待上 Stop 里的 join+打断负责把它们放出来
+        _rconThread?.Stop();
+        _queryThreadGs4?.Stop();
         //先落盘玩家数据再踢人 断连后连接清理会把玩家移出列表
         //文案对齐原版 multiplayer.disconnect.server_shutdown 客户端显示 Server closed
         SaveAllPlayerData();

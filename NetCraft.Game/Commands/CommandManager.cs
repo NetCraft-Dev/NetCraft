@@ -3,6 +3,7 @@ using NetCraft.Commands.Arguments;
 using NetCraft.Commands.Builder;
 using NetCraft.Commands.Context;
 using NetCraft.Commands.Exceptions;
+using NetCraft.Commands.Execution;
 using NetCraft.Commands.Suggestion;
 using NetCraft.Commands.Tree;
 using NetCraft.Game.Commands.Arguments;
@@ -14,6 +15,7 @@ using NetCraft.Game.World.Level;
 using NetCraft.Network.Component;
 using NetCraft.Primitives;
 using NetCraft.Registry;
+using NetCraft.Util.Profiling;
 
 namespace NetCraft.Game.Commands;
 
@@ -145,6 +147,35 @@ public sealed class CommandManager
         {
             source.SendFailure(e.Message);
             return 0;
+        }
+    }
+
+    //_currentExecutionContext 线程内正在跑的执行上下文 对应原版 CURRENT_EXECUTION_CONTEXT
+    private static readonly ThreadLocal<ExecutionContext<CommandSourceStack>?> _currentExecutionContext = new();
+
+    //ExecuteInContext 在执行上下文里排命令并消费队列对应原版 Commands.executeCommandInContext
+    //函数执行嵌套命令时复用线程上已有的上下文 队列只由最外层消费
+    public void ExecuteInContext(CommandSourceStack source, Action<ExecutionContext<CommandSourceStack>> configure)
+    {
+        var current = _currentExecutionContext.Value;
+        if (current is not null)
+        {
+            configure(current);
+            return;
+        }
+        //链长与分叉上限取游戏规则 对应原版 MAX_COMMAND_SEQUENCE_LENGTH 与 MAX_COMMAND_FORKS
+        var chainLimit = Math.Max(1, _server.GameRules.GetInt(NetCraft.Game.World.Level.GameRules.MaxCommandSequenceLength));
+        var forkLimit = Math.Max(1, _server.GameRules.GetInt(NetCraft.Game.World.Level.GameRules.MaxCommandForks));
+        using var context = new ExecutionContext<CommandSourceStack>(chainLimit, forkLimit, Profiler.Get());
+        _currentExecutionContext.Value = context;
+        try
+        {
+            configure(context);
+            context.RunCommandQueue();
+        }
+        finally
+        {
+            _currentExecutionContext.Value = null;
         }
     }
 

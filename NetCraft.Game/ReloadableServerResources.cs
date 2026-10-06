@@ -1,4 +1,5 @@
 using NetCraft.Bootstrap;
+using NetCraft.Game.Server;
 using NetCraft.Game.World.Crafting;
 using NetCraft.Game.World.Level.Block;
 using NetCraft.Logging;
@@ -63,5 +64,13 @@ public sealed class ReloadableServerResources
         //燃料表按物品标签展开 必须等标签绑完再建 标签重载后也要跟着重建
         FuelValues.Active = FuelValues.VanillaBurnTimes();
         Log.Debug($"ReloadableServerResources.Reload exit fuel item count={FuelValues.Active.FuelItemCount}");
+    }
+
+    //AttachFunctionLibrary 挂函数库并按当前资源立即重载对应原版 loadResources 里的函数库重载段
+    //挂进 listener 列表之后 /reload 也会带着函数库一起重载
+    public void AttachFunctionLibrary(ServerFunctionLibrary library)
+    {
+        _listeners.Add(library);
+        library.Reload(ResourceManager, new ReloadContext("functions", _listeners.Count - 1, _listeners.Count));
     }
 }

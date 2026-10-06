@@ -1,3 +1,4 @@
+using NetCraft.Commands.Execution;
 using NetCraft.Commands.Tree;
 
 namespace NetCraft.Commands.Context;
@@ -12,6 +13,7 @@ public sealed class CommandContextBuilder<S>
     private readonly CommandDispatcher<S> _dispatcher;
     private S _source;
     private Command<S>? _command;
+    private CustomCommandExecutor<S>? _customExecutor;
     private CommandContextBuilder<S>? _child;
     private StringRange _range;
     private RedirectModifier<S>? _modifier;
@@ -49,6 +51,17 @@ public sealed class CommandContextBuilder<S>
         return this;
     }
 
+    //WithCustomExecutor 登记自定义执行器对应原版命令节点上 CommandAdapter 的双重身份
+    //委托不可实现接口 命令槽放一个占位委托 自定义执行器单独存
+    public CommandContextBuilder<S> WithCustomExecutor(CustomCommandExecutor<S> executor)
+    {
+        _command = CustomCommandExecutor<S>.NotExecutable;
+        _customExecutor = executor;
+        return this;
+    }
+
+    public CustomCommandExecutor<S>? GetCustomExecutor() => _customExecutor;
+
     public CommandContextBuilder<S> WithNode(CommandNode<S> node, StringRange range)
     {
         _nodes.Add(new ParsedCommandNode<S>(node, range));
@@ -62,6 +75,7 @@ public sealed class CommandContextBuilder<S>
     {
         var copy = new CommandContextBuilder<S>(_dispatcher, _source, _rootNode, _range.Start);
         copy._command = _command;
+        copy._customExecutor = _customExecutor;
         foreach (var (k, v) in _arguments)
         {
             copy._arguments[k] = v;
@@ -97,7 +111,7 @@ public sealed class CommandContextBuilder<S>
 
     public CommandContext<S> Build(string input)
     {
-        return new CommandContext<S>(_source, input, _arguments, _command, _rootNode, _nodes, _range, _child?.Build(input), _modifier, _forks);
+        return new CommandContext<S>(_source, input, _arguments, _command, _rootNode, _nodes, _range, _child?.Build(input), _modifier, _forks, _customExecutor);
     }
 
     public CommandDispatcher<S> GetDispatcher() => _dispatcher;

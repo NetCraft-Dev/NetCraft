@@ -16,7 +16,7 @@ The public surface is split into three namespaces:
 | `NetCraft.ModApi.Extension` | `[Inject]` / `[Mixin]` annotations | Extension points; rules bind to kernel class and method names |
 | `NetCraft.ModApi.Internal` | Injection probes | Do not reference directly |
 
-The root namespace `NetCraft.ModApi` contains only the entry class `ModApiEntry`. `Wrapper` and `Extension` are two parallel routes; for how to choose, see [modding-guide.md 2.9](modding-guide.md#29-two-routes-wrapper-layer-and-extension-points).
+The root namespace `NetCraft.ModApi` contains only the entry class `ModApiEntry`. `Wrapper` and `Extension` are two parallel routes; for how to choose, see [modding-guide.md 2.10](modding-guide.md#210-two-routes-wrapper-layer-and-extension-points).
 
 ***
 

@@ -7,6 +7,7 @@ using NetCraft.Commands;
 using NetCraft.Game.Commands;
 using NetCraft.Game.World.Clock;
 using NetCraft.Game.World.Level;
+using NetCraft.Game.World.Level.Timers;
 using NetCraft.Logging;
 using NetCraft.Network;
 using NetCraft.Primitives;
@@ -43,7 +44,8 @@ public abstract class MinecraftServer
     //_consoleCommands 控制台投递进来的命令 只入队 由主循环取出执行
     //对应原版 DedicatedServer 的 serverCommandQueue 与 handleConsoleInputs
     //命令行线程直接把命令跑掉的话 世界状态会与主循环交叉 主循环持门时命令也拿不到一致快照
-    private readonly ConcurrentQueue<(CommandSourceStack Source, string Command)> _consoleCommands = new();
+    //Done 给要同步回包的调用方(RCON)用 主循环执行完放行阻塞者 普通投递为 null
+    private readonly ConcurrentQueue<(CommandSourceStack Source, string Command, TaskCompletionSource<object?>? Done)> _consoleCommands = new();
     //SleepBudgetMillis 单 tick sleep 预算小于 1 时不 sleep 避免 CPU 100%
     private int _sleepBudgetMillis = TargetTickMillis;
     //_tickClock 主循环时间线 单调递增用于 nextTickTime 落后量计算
@@ -69,6 +71,14 @@ public abstract class MinecraftServer
 
     //TickRate 刻速率管理对应原版 tickRateManager 由 /debug tick 操作
     public ServerTickRateManager TickRate { get; } = new();
+
+    //Functions 函数管理器对应原版 MinecraftServer.functionManager
+    //由具体实现启动时装配 函数加载与 tick/load 标签都经它
+    public ServerFunctionManager Functions { get; protected set; } = null!;
+
+    //ScheduledEvents 计划事件队列对应原版 MinecraftServer.scheduledEvents
+    //存 data/minecraft/scheduled_events.dat /schedule 的读写来源
+    public TimerQueue<MinecraftServer> ScheduledEvents { get; protected set; } = null!;
 
     //以下为服务端共享状态契约 由具体实现(DedicatedServer 或将来内置的 IntegratedServer)提供
     //原版这些成员本就定义在 MinecraftServer 基类上 命令层与共享业务只依赖基类
@@ -306,7 +316,17 @@ public abstract class MinecraftServer
     //EnqueueConsoleCommand 投递一条控制台命令 由下一次主循环取出执行
     //控制台线程与 GUI 线程都走这条 对应原版 handleConsoleInput 只入队
     public void EnqueueConsoleCommand(CommandSourceStack source, string command)
-        => _consoleCommands.Enqueue((source, command));
+        => _consoleCommands.Enqueue((source, command, null));
+
+    //ExecuteBlocking 在主循环线程执行一条命令并阻塞到执行完 对应原版 executeBlocking
+    //RCON 这类要同步回包的调用方走它 命令与控制台命令同一条队列看到同一拍边界上的世界状态
+    //主循环已退出时永远等不到结果 调用方线程靠 GenericThread.Stop 的打断脱身
+    public void ExecuteBlocking(CommandSourceStack source, string command)
+    {
+        var done = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _consoleCommands.Enqueue((source, command, done));
+        done.Task.Wait();
+    }
 
     //DrainConsoleCommands 取出并执行控制台投递的命令
     //命令体自己抛的异常不该带走主循环 与控制台线程上的兜底一致
@@ -321,6 +341,10 @@ public abstract class MinecraftServer
             catch (Exception e)
             {
                 Log.Error($"Console command failed {entry.Command}: {e}");
+            }
+            finally
+            {
+                entry.Done?.TrySetResult(null);
             }
         }
     }

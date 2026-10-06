@@ -83,7 +83,7 @@ Note the order: **declarations are scanned, rewritten bytes are loaded, and entr
 | Language / runtime | Java / JVM | C# / .NET 10 (CoreCLR) |
 | Mod carrier | jar containing `fabric.mod.json` | dll embedding `ncmod.json` |
 | Declaration reading | read a file inside the jar | `MetadataReader` statically reads embedded resources without loading assemblies |
-| Code injection | Mixin (annotations in source; members are mixed into the target class at class load) | `Lead.Hook` (rules declared in a manifest or annotations; bytes are rewritten in place during assembly resolution) |
+| Code injection | Mixin (annotations in source; members are mixed into the target class at class load) | `Lead.Hook` (rules declared in a manifest or annotations; bytes are rewritten in place during assembly resolution, and mixins move members into the target type) |
 | Injection granularity | any line in a method body, including locals and intermediate expression values | thirteen forms (call site, field read/write, constructor, type check, boxing, local variable, constant, whole-method-body replacement, probes, etc.), with insert-before or insert-after |
 | Loading model | Fabric Loader + Knot class loader | single default ALC + `AssemblyLoadContext.Resolving` |
 | Official API scope | Fabric API has a great many modules | NetCraft-ModApi currently has only event and command extension points |
@@ -144,7 +144,7 @@ The differences from Fabric remain:
 
 This determines what annotations can express: what you can write depends entirely on which fields `InjectAttribute` has. Currently there are seven — target type, method name, `HookType`, `Label`, `Environment`, `PatchMode`, `Ordinal` — and `InType`/`InMethod`/`Placement` from [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) and `LocalIndex`/`ConstantValue` from [2.5](#25-in-method-body-anchors-local-variables-and-constants) **cannot be written in annotations**; use the C# API or wait for the manifest to catch up. The manifest side is missing these too — the only thing it accepts beyond annotations is `ordinal`.
 
-For the thirteen injection forms see the [modding-guide appendix](#appendix-hooktype-overview) and [mod-api.md](mod-api.md).
+For the fourteen injection forms see the [modding-guide appendix](#appendix-hooktype-overview) and [mod-api.md](mod-api.md).
 
 ### 2.2 An important constraint: probe classes must not carry kernel types in signatures
 
@@ -195,6 +195,7 @@ An instruction-level rule's default scope is **the entire assembly** — every p
 | `InType` / `InMethod` | match anchors only inside the specified host method body; both empty means unrestricted |
 | `Placement` | `Replace` replaces the anchor (default); `Before` / `After` keep the anchor and insert one call before or after it |
 | `Ordinal` | when the same anchor matches multiple places in the host method, pick which one, 0-based. Omitted means every place is modified |
+| `SliceFrom` / `SliceTo` | fence the matches to the stretch between the first call to one method and the first call to another, each written `"Full.Type::Method"`. Either end may be omitted |
 
 ```csharp
 //example: instrument only when LevelChunk reads block state; PalettedContainer::Get elsewhere is untouched
@@ -215,6 +216,7 @@ A few boundaries:
 - Multiple rules may hook the same anchor, each scoped to a different host; **the first host match wins**.
 - `Placement` only applies to instruction-level forms (`CallSite`, `NewObj`, field read/write, `TypeCheck`, `Box`, `FunctionPointer`, and the three kinds in [2.5](#25-in-method-body-anchors-local-variables-and-constants)); `MethodBody` always replaces the whole thing.
 - `Ordinal` counts the **order of matches**, regardless of whether that site is ultimately modified; if the rule does not occur enough times in the host method, the rule does not land. Same idea as Mixin's `@At(ordinal)`.
+- `SliceFrom` / `SliceTo` fence the search instead of counting it, corresponding to Mixin's `@Slice`. Occurrences outside the fence are not even counted, so `Ordinal` numbers from inside the slice. Prefer a fence when the host calls the same anchor several times: a count shifts as soon as someone edits the method above the anchor, a fence does not. An end whose anchor is missing anywhere in the method makes the rule land nowhere — it fails silently rather than widening back to the whole body.
 - `InType` / `InMethod` / `Placement` / `LocalIndex` / `ConstantValue` are currently available only on the C# API; neither `ncmod.json` nor `[Inject]` supports them (the manifest accepts `ordinal`), so manifest-based mods cannot use the first few.
 
 ### 2.5 In-method-body anchors: local variables and constants
@@ -308,8 +310,8 @@ NC's model is different, and the surface where conflicts can happen is much smal
 
 | | Mixin | NetCraft |
 | --- | --- | --- |
-| Landing method | mix members into the target class + rewrite bytecode | rewrite IL instructions only; no type synthesis, no members added |
-| Structural conflicts (same-named members, inheritance conflicts) | yes | none |
+| Landing method | mix members into the target class + rewrite bytecode | rewrite bytecode in place, and move members in through [2.8](#28-mixins-adding-members-to-a-target-type) |
+| Structural conflicts (same-named members, inheritance conflicts) | yes | only a mixin can run into a same-named member, and there it is skipped with a warning instead of throwing; instruction rules have no structural conflict at all |
 | When rules are validated | at class load | at assembly time, statically reading metadata |
 | Two rules hitting the same place | throws | first come, first served; the latter silently fails |
 | One mod fails | may drag down the whole load | affects only itself |
@@ -334,7 +336,7 @@ The detection key is "target type + method + injection form + patch mode". **Hos
 
 ### 2.8 Mixins: adding members to a target type
 
-The previous sections all modify instructions in existing code and cannot create anything new. To **add fields, methods, or interfaces** to a target type, use a mixin.
+The instruction rewriting in the previous sections cannot create anything new. To **add fields, methods, or interfaces** to a target type, use a mixin.
 
 The relationship to Mixin's syntax is as follows:
 
@@ -383,7 +385,35 @@ A few landing rules:
 
 The source type must be in **the mod's own assembly**, so neither the manifest nor the annotation writes an assembly name.
 
-### 2.9 Two routes: wrapper layer and extension points
+### 2.9 Modifying a single call argument
+
+`CallArg` rewrites **one argument** of a call and leaves the call itself in place — corresponding to Mixin's `@ModifyArg`. Reach for it when you want to change what a kernel method is called with, without taking the call over.
+
+```csharp
+//example: H calls Sum(value, 5, 7); hand it 50 instead of 5
+new HookRule("TargetLib.Host", "Sum", typeof(MyProbe), nameof(MyProbe.OnBump),
+    HookType.CallArg, PatchMode.ILRewrite,
+    inType: "TargetLib.Host", inMethod: "H", argumentIndex: 1)
+
+//the callback receives the host's parameters, then the argument's original value
+public static int OnBump(object self, int value, int original) => original * 10;
+```
+
+| Parameter | Meaning |
+| --- | --- |
+| `OriginalType` / `OriginalMethod` | the **called** method, same as `CallSite` |
+| `InType` / `InMethod` / `Ordinal` / `SliceFrom` / `SliceTo` | which call site, same as [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) |
+| `ArgumentIndex` | which argument to rewrite, 0-based in stack order; `this` is argument 0 for instance calls |
+
+Boundaries:
+
+- **The call is always kept.** `Placement` does not apply — unlike `CallSite` in replace mode, you never have to restore the original call yourself.
+- **The callback signature is host parameters plus the original argument value**, and its return value becomes the new argument. Whether the original call runs is untouched; only what it is handed changes.
+- **Multi-instruction arguments work.** The argument is located by walking the IL stack backwards, so `Sum(a * 2 + 1, ...)` is taken as one unit and handed over whole. An out-of-range `ArgumentIndex` is skipped.
+- **Skipped, not guessed.** If a branch or an exception-handler boundary lands right after the argument, the rule is skipped: a jump into that point would bypass the callback and run with the wrong stack.
+- **The returned value must match the parameter type**, since it is stored through a temporary local of that type; a mismatch produces invalid IL rather than a silent conversion.
+
+### 2.10 Two routes: wrapper layer and extension points
 
 `NetCraft.ModApi`'s public surface is split into two namespaces, corresponding to two usages:
 
@@ -414,6 +444,8 @@ One more boundary to call out: **the wrapper layer does not shield injection**. 
 | `@Inject` / `@Redirect` | the `[Inject]` annotation, or rules like `Mark` / `Probe` / `CallSite` in `hooks` |
 | `@ModifyVariable` | `LocalRead` / `LocalWrite`, see [2.5](#25-in-method-body-anchors-local-variables-and-constants); not writable as an annotation |
 | `@ModifyConstant` | `Constant`, see [2.5](#25-in-method-body-anchors-local-variables-and-constants); not writable as an annotation |
+| `@ModifyArg` | `CallArg`, see [2.9](#29-modifying-a-single-call-argument); `@ModifyArgs` (all arguments in one callback) has no equivalent |
+| `@Slice` | `SliceFrom` / `SliceTo`, see [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) |
 | `@Accessor` | no equivalent yet (`private` members need no visibility widening; just write a rule) |
 | `Registry.register(...)` | the kernel registry (`BuiltInRegistries`) |
 | `ServerLifecycleEvents.SERVER_STARTED` | `ServerEvents.Started` |
@@ -481,7 +513,7 @@ Manifest (`ncmod.json`, as an embedded resource):
 }
 ```
 
-Note: even an empty `hooks` works here — events like `ServerEvents.Started` are provided by `NetCraft-ModApi`'s own probes, and your mod only needs to subscribe (`ServerEvents` is under `NetCraft.ModApi.Wrapper`, see [2.9](#29-two-routes-wrapper-layer-and-extension-points)). You only need to write your own hook rules when you want to hook a place in the kernel where ModApi does not yet provide an event.
+Note: even an empty `hooks` works here — events like `ServerEvents.Started` are provided by `NetCraft-ModApi`'s own probes, and your mod only needs to subscribe (`ServerEvents` is under `NetCraft.ModApi.Wrapper`, see [2.10](#210-two-routes-wrapper-layer-and-extension-points)). You only need to write your own hook rules when you want to hook a place in the kernel where ModApi does not yet provide an event.
 
 ---
 
@@ -728,6 +760,7 @@ Mods that failed to load or were skipped are also in the list, marked in the sta
 - **Mismatched `environment` means the whole mod is not loaded**, not "some rules fail".
 - **Runtime injection requires the native library**: rules using `RuntimeInject` require `lead_hook_native` to be attached at process start, and the loader restarts itself to do so; if the library is not found or the restart fails, this batch of rules is downgraded to a warning and startup is not blocked. For capability boundaries and cost see [2.6](#26-runtime-injection-modifying-already-running-code).
 - **Annotations have fewer fields than the C# API**: `InType` / `InMethod` / `Placement` / `LocalIndex` / `ConstantValue` cannot be written in `[Inject]` (`PatchMode` and `Ordinal` are supported), see [2.1](#21-injection-styles-annotations-or-manifest-pick-one).
+- **A slice whose end anchor is missing makes the rule land nowhere**, silently. `SliceFrom` / `SliceTo` never widen back to the whole method when an end cannot be resolved, see [2.4](#24-narrowing-to-one-site-host-scoping-and-placement).
 - **Mixins apply only to load-time rewriting**, and members in the source class are moved rather than copied; nested types and generic methods in the source class are outside coverage, and methods mixed in with an interface are marked virtual. See [2.8](#28-mixins-adding-members-to-a-target-type).
 - When testing and debugging, if language tables or model resources are used, an `assets` directory (extracted from the vanilla jar) is required, otherwise the related features degrade to translation keys or placeholder textures.
 
@@ -846,11 +879,12 @@ Both rules enter the rule table — no cross-mod deduplication is done. When rew
 | `LocalRead` | instrument local variable reads | zero parameters, returns the variable's value |
 | `LocalWrite` | instrument local variable writes | one parameter, receives the written value |
 | `Constant` | instrument constant loads | zero parameters, returns the constant's value |
+| `CallArg` | rewrite one argument of a call, keeping the call itself, see [2.9](#29-modifying-a-single-call-argument) | the host method's parameters, then the argument's original value; returns the new value |
 | `Probe` | keep the original method body, instrumenting the entry and every exit; with `LabelArgumentIndex`, one argument can be folded into the label | `Begin()` returns long, `End(string, long)` |
 | `Mark` | report once at method entry only, without timing | `void method(string label)` |
 
 `Probe` and `Mark` pass only the label text (`Probe` can also include one argument's `ToString()`); they cannot obtain object references. To get actual arguments, use `CallSite`.
 
-`InType`/`InMethod`, `Placement`, and `Ordinal` (see [2.4](#24-narrowing-to-one-site-host-scoping-and-placement)) are meaningful only for instruction-level forms: the ten entries in the table above other than `MethodBody`, `Probe`, and `Mark` can choose replace or insert-before/after, and can use `Ordinal` to pick a single occurrence; `MethodBody` always replaces the whole thing, and `Probe`/`Mark` ignore these parameters.
+`InType`/`InMethod`, `Placement`, `Ordinal` and `SliceFrom`/`SliceTo` (see [2.4](#24-narrowing-to-one-site-host-scoping-and-placement)) are meaningful only for instruction-level forms: the ten entries in the table above other than `MethodBody`, `Probe`, `Mark` and `CallArg` can choose replace or insert-before/after, and can use `Ordinal` to pick a single occurrence; `MethodBody` always replaces the whole thing, `Probe`/`Mark` ignore these parameters, and `CallArg` always keeps the call — `ArgumentIndex` picks the argument instead.
 
 For the three kinds `LocalRead` / `LocalWrite` / `Constant`, the host method is written in `target` rather than a referenced entity, and `localIndex` or `constantValue` is additionally required; see [2.5](#25-in-method-body-anchors-local-variables-and-constants).
