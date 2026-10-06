@@ -84,6 +84,7 @@ public enum TickStage
     Connections,
     Clock,
     BlockTicks,
+    FluidTicks,
     LevelTick,
     FlushBlocks,
     RandomTick,

@@ -879,6 +879,11 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
             stageStart = TickStageProfiler.Now();
             if (runsNormally) level.TickBlockTicks();
             TickStageProfiler.Record(TickStage.BlockTicks, stageStart);
+            //流体调度刻紧挨着方块刻 对应原版 tickPending 里 BlockTicks 与 FluidTicks 两连调
+            //水流与岩浆的扩散全靠这一拍 漏了就只会在被放置的那一瞬间动一下
+            stageStart = TickStageProfiler.Now();
+            if (runsNormally) level.TickFluidTicks();
+            TickStageProfiler.Record(TickStage.FluidTicks, stageStart);
             //关卡 tick 每拍都跑 冻结由实体管理器逐实体过滤 区块调度与实体管理不受冻结影响
             stageStart = TickStageProfiler.Now();
             level.Tick(runsNormally);

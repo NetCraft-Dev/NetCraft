@@ -1,5 +1,4 @@
 using NetCraft.Game.World.Level.Block;
-using NetCraft.Game.World.Phys.Collision;
 using NetCraft.Primitives;
 using NetCraft.Primitives.Phys;
 using NetCraft.Registry;
@@ -11,7 +10,8 @@ namespace NetCraft.Game.World.Level.Material;
 
 //FlowingFluid 会流动的流体基类 对应原版 net.minecraft.world.level.material.FlowingFluid
 //扩散 液面降档 逆流搜索 水源生成与阻塞判定都在这里 水与岩浆只给各自的档位与延迟参数
-//原版用 BlockGetter 参数让同一套算法复用到生成期 本作当前只有服务端关卡这一种调用方 一律走 ServerLevel
+//原版用 BlockGetter 参数让同一套算法复用到生成期 本作一律走 ServerLevel
+//阻塞判定用方块自身遮挡形状 不查按位置变化的碰撞形状 实心方块两者一致 台阶栅栏一类会有偏差
 public abstract class FlowingFluid : Fluid, IFluidBehaviour
 {
     //四个水平方向 顺序照原版 Direction.Plane.HORIZONTAL
@@ -32,14 +32,6 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
     //GetSlopeFindDistance 逆流搜索的最大层数 水 4 岩浆 2 对应原版 getSlopeFindDistance
     public abstract int GetSlopeFindDistance(ServerLevel level);
 
-    //CanConvertToSource 两格以上相邻源时能否原地生成新源 对应原版 canConvertToSource
-    protected abstract bool CanConvertToSource(ServerLevel level);
-
-    //BeforeDestroyingBlock 流体淹没一个方块前对它做的事 对应原版 beforeDestroyingBlock
-    protected virtual void BeforeDestroyingBlock(ServerLevel level, BlockPos pos, BlockState state) { }
-
-    public virtual bool IsRandomlyTicking => false;
-
     //GetTickDelay 两次流动之间隔多少刻 水 5 岩浆 30 对应原版 getTickDelay
     public abstract int GetTickDelay(ServerLevel level);
 
@@ -51,6 +43,14 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
 
     //CanBeReplacedWith 该格流体能不能被另一种流体顶掉 对应原版 canBeReplacedWith
     public abstract bool CanBeReplacedWith(FluidState state, ServerLevel level, BlockPos pos, Fluid other, Direction direction);
+
+    //CanConvertToSource 两格以上相邻源时能否原地生成新源 对应原版 canConvertToSource
+    protected abstract bool CanConvertToSource(ServerLevel level);
+
+    //BeforeDestroyingBlock 流体淹没一个方块前对它做的事 对应原版 beforeDestroyingBlock
+    protected virtual void BeforeDestroyingBlock(ServerLevel level, BlockPos pos, BlockState state) { }
+
+    public virtual bool IsRandomlyTicking => false;
 
     public virtual void RandomTick(ServerLevel level, BlockPos pos, FluidState fluidState, RandomSource random) { }
 
@@ -65,7 +65,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
         => GetTickDelay(level);
 
     //GetLegacyLevel 流体状态反推方块状态的 level 0-15 对应原版 getLegacyLevel
-    //0 是源 1-7 是逐级降低的流动水 8 是下落水 9-15 不会产生
+    //0 是源 1-7 是逐级降低的流动水 8 是下落水
     protected static int GetLegacyLevel(FluidState state)
         => state.IsSource ? 0 : 8 - Math.Min(state.Amount, 8) + (state.Falling ? 8 : 0);
 
@@ -101,12 +101,12 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
         var belowState = StateAt(level, belowPos);
         var belowFluid = level.GetFluidState(belowPos);
         var newBelow = GetNewLiquid(level, belowPos, belowState);
-        if (CanMaybePassThrough(level, pos, state, Direction.Down, belowPos, belowState, belowFluid)
+        if (CanMaybePassThrough(state, Direction.Down, belowState, belowFluid)
             && CanBeReplacedAt(belowFluid, level, belowPos, newBelow.Type, Direction.Down)
             && CanHoldSpecificFluid(belowState, newBelow.Type))
         {
             SpreadTo(level, belowPos, belowState, Direction.Down, newBelow);
-            //上方三面都是源的地漏不需要再向四周流 水会整柱灌下去 对应原版 sourceNeighborCount >= 3
+            //上方三面都是源的地漏不必再向四周流 水会整柱灌下去 对应原版 sourceNeighborCount >= 3
             if (SourceNeighborCount(level, pos) >= 3) SpreadToSides(level, pos, fluidState, state);
             return;
         }
@@ -139,7 +139,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
             var relativeState = StateAt(level, relativePos);
             var relativeFluid = level.GetFluidState(relativePos);
             if (!relativeFluid.Type.IsSame(this)) continue;
-            if (!CanPassThroughWall(direction, level, pos, state, relativePos, relativeState)) continue;
+            if (!CanPassThroughWall(direction, state, relativeState)) continue;
             if (relativeFluid.IsSource) sources++;
             highest = Math.Max(highest, relativeFluid.Amount);
         }
@@ -157,20 +157,19 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
         var aboveState = StateAt(level, abovePos);
         var aboveFluid = level.GetFluidState(abovePos);
         if (!aboveFluid.IsEmpty && aboveFluid.Type.IsSame(this)
-            && CanPassThroughWall(Direction.Up, level, pos, state, abovePos, aboveState))
+            && CanPassThroughWall(Direction.Up, state, aboveState))
             return GetFlowingState(8, true);
 
         var amount = highest - GetDropOff(level);
         return amount <= 0 ? FluidState.Empty : GetFlowingState(amount, false);
     }
 
-    //CanPassThroughWall 两面之间能不能让流体穿过 两个满碰撞方块或合并面完全遮挡时不行 对应原版 canPassThroughWall
-    private static bool CanPassThroughWall(Direction direction, ServerLevel level, BlockPos sourcePos,
-        BlockState sourceState, BlockPos targetPos, BlockState targetState)
+    //CanPassThroughWall 两面之间能不能让流体穿过 两个整块的遮挡形状互相挡死 对应原版 canPassThroughWall
+    private static bool CanPassThroughWall(Direction direction, BlockState sourceState, BlockState targetState)
     {
-        var targetShape = targetState.GetCollisionShape(level, targetPos);
+        var targetShape = targetState.Owner.GetOcclusionShape(targetState);
         if (ReferenceEquals(targetShape, Shapes.Block())) return false;
-        var sourceShape = sourceState.GetCollisionShape(level, sourcePos);
+        var sourceShape = sourceState.Owner.GetOcclusionShape(sourceState);
         if (ReferenceEquals(sourceShape, Shapes.Block())) return false;
         if (ReferenceEquals(sourceShape, Shapes.Empty()) && ReferenceEquals(targetShape, Shapes.Empty())) return true;
         return !Shapes.MergedFaceOccludes(sourceShape, targetShape, direction);
@@ -193,7 +192,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
             var testPos = pos.Offset(direction);
             var testState = StateAt(level, testPos);
             var testFluid = level.GetFluidState(testPos);
-            if (!CanPassThrough(level, FlowingType, pos, state, direction, testPos, testState, testFluid)) continue;
+            if (!CanPassThrough(FlowingType, state, direction, testState, testFluid)) continue;
             if (IsHole(level, testPos)) return pass;
             if (pass >= GetSlopeFindDistance(level)) continue;
             var found = GetSlopeDistance(level, testPos, pass + 1, direction.Opposite, testState);
@@ -205,7 +204,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
     //IsWaterHole 该格底下是不是能直接漏下去 对应原版 isWaterHole
     private bool IsWaterHole(ServerLevel level, BlockPos topPos, BlockState topState, BlockPos bottomPos, BlockState bottomState)
     {
-        if (!CanPassThroughWall(Direction.Down, level, topPos, topState, bottomPos, bottomState)) return false;
+        if (!CanPassThroughWall(Direction.Down, topState, bottomState)) return false;
         if (bottomState.FluidState.Type.IsSame(this)) return true;
         return CanHoldFluid(bottomState, FlowingType);
     }
@@ -214,22 +213,19 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
     private bool IsHole(ServerLevel level, BlockPos pos)
     {
         var state = StateAt(level, pos);
-        var belowPos = pos.Offset(Direction.Down);
-        return IsWaterHole(level, pos, state, belowPos, StateAt(level, belowPos));
+        return IsWaterHole(level, pos, state, pos.Offset(Direction.Down), StateAt(level, pos.Offset(Direction.Down)));
     }
 
     //CanPassThrough 这格能不能被该流体穿过去 对应原版 canPassThrough
-    private bool CanPassThrough(ServerLevel level, Fluid fluid, BlockPos sourcePos, BlockState sourceState,
-        Direction direction, BlockPos testPos, BlockState testState, FluidState testFluidState)
-        => CanMaybePassThrough(level, sourcePos, sourceState, direction, testPos, testState, testFluidState)
+    private bool CanPassThrough(Fluid fluid, BlockState sourceState, Direction direction, BlockState testState, FluidState testFluidState)
+        => CanMaybePassThrough(sourceState, direction, testState, testFluidState)
             && CanHoldSpecificFluid(testState, fluid);
 
     //CanMaybePassThrough 排除掉同族源格与容纳不了的形状 对应原版 canMaybePassThrough
-    private bool CanMaybePassThrough(ServerLevel level, BlockPos sourcePos, BlockState sourceState,
-        Direction direction, BlockPos testPos, BlockState testState, FluidState testFluidState)
+    private bool CanMaybePassThrough(BlockState sourceState, Direction direction, BlockState testState, FluidState testFluidState)
         => !IsSourceBlockOfThisType(testFluidState)
             && CanHoldAnyFluid(testState)
-            && CanPassThroughWall(direction, level, sourcePos, sourceState, testPos, testState);
+            && CanPassThroughWall(direction, sourceState, testState);
 
     //IsSourceBlockOfThisType 该状态是不是本流体的源 对应原版 isSourceBlockOfThisType
     private bool IsSourceBlockOfThisType(FluidState state)
@@ -244,7 +240,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
         return count;
     }
 
-    //GetSpread 算出四周各自该被填成什么状态 越近的落点优先 对应原版 getSpread
+    //GetSpread 算出四周各自该被填成什么状态 落点越近的优先 对应原版 getSpread
     protected Dictionary<Direction, FluidState> GetSpread(ServerLevel level, BlockPos pos, BlockState state)
     {
         var lowest = 1000;
@@ -254,7 +250,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
             var testPos = pos.Offset(direction);
             var testState = StateAt(level, testPos);
             var testFluid = level.GetFluidState(testPos);
-            if (!CanMaybePassThrough(level, pos, state, direction, testPos, testState, testFluid)) continue;
+            if (!CanMaybePassThrough(state, direction, testState, testFluid)) continue;
             var newFluid = GetNewLiquid(level, testPos, testState);
             if (!CanHoldSpecificFluid(testState, newFluid.Type)) continue;
             var distance = IsHole(level, testPos) ? 0 : GetSlopeDistance(level, testPos, 1, direction.Opposite, testState);

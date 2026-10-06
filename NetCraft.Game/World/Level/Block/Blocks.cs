@@ -55,42 +55,31 @@ public static partial class Blocks
     }
 
     //WaterBlock 水方块 level 0-15 共 16 个状态 0 为源
-    public sealed class WaterBlock : BlockBehaviour
+    //level 与流体状态的双向映射在 LiquidBlock 里 这里只留水自身的方块属性
+    public sealed class WaterBlock : LiquidBlock
     {
+        public WaterBlock() : base(Material.Fluids.Water) { }
+
         public override Identifier Id => Identifier.WithDefaultNamespace("water");
         //水不遮挡光线 遮挡形状按空处理 天光又透不过去 衰减落在每格 1
         public override bool CanOcclude => false;
-        //原版流体硬度 100 几乎挖不动
-        public override float DestroySpeed => 100f;
         //水可被方块放置替换 原版流体 canBeReplaced 语义
         public override bool CanBeReplaced => true;
         //流体不参与碰撞 走进水里不改速度靠的是流体阻力
         public override bool HasCollision => false;
-        //水是流体 地表规则靠它记录 waterHeight
-        public override bool HasFluidState => true;
-        //水是流体 雕刻挖到水下要按水回填
-        public override FluidState GetFluidState(BlockState state) => WaterFluidState;
-        public override IDictionary<string, PropertyBase> Properties
-            => new Dictionary<string, PropertyBase> { ["level"] = new IntegerProperty("level", 0, 15) };
     }
 
     //LavaBlock 岩浆 level 0-15 共 16 个状态 0 为源
-    public sealed class LavaBlock : BlockBehaviour
+    public sealed class LavaBlock : LiquidBlock
     {
+        public LavaBlock() : base(Material.Fluids.Lava) { }
+
         public override Identifier Id => Identifier.WithDefaultNamespace("lava");
         public override int LightEmission => 15;
         //岩浆不遮挡光线 同水按每格 1 衰减
         public override bool CanOcclude => false;
-        //原版流体硬度 100 几乎挖不动
-        public override float DestroySpeed => 100f;
-        //岩浆是流体 地表规则靠它记录 waterHeight
-        public override bool HasFluidState => true;
         //流体不参与碰撞
         public override bool HasCollision => false;
-        //岩浆是流体 雕刻挖到岩浆层以下要按岩浆回填
-        public override FluidState GetFluidState(BlockState state) => LavaFluidState;
-        public override IDictionary<string, PropertyBase> Properties
-            => new Dictionary<string, PropertyBase> { ["level"] = new IntegerProperty("level", 0, 15) };
     }
 
     //BedrockBlock 基岩硬度 -1 不可破坏 对应原版 destroyTime(-1)
