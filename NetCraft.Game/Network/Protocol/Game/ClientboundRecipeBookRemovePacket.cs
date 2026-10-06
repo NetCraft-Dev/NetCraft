@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundRecipeBookRemovePacket 配方书移除包对应原版 ClientboundRecipeBookRemovePacket
-//字段 Recipes(List<RecipeDisplayId>)
+//ClientboundRecipeBookRemovePacket recipe book remove packet, maps to vanilla ClientboundRecipeBookRemovePacket
+//Field: Recipes(List<RecipeDisplayId>)
 public sealed record ClientboundRecipeBookRemovePacket(object Recipes) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundRecipeBookRemovePacket> StreamCodec { get; } = new RecipeBookRemoveCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundRecipeBookRemovePacket(object Recipes) : Packet<
     private sealed class RecipeBookRemoveCodec : StreamCodec<FriendlyByteBuf, ClientboundRecipeBookRemovePacket>
     {
         public ClientboundRecipeBookRemovePacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundRecipeBookRemovePacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

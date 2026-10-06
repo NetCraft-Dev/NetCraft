@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Profiling;
 
-//profiler结果接口对应原版net.minecraft.util.profiling.ProfileResults
-//提供路径耗时查询与结果持久化
+//Profiler results interface, maps to vanilla net.minecraft.util.profiling.ProfileResults
+//Provides path timing queries and result persistence
 public interface ProfileResults
 {
     public const char PathSeparator = '\x1e';
@@ -20,12 +20,12 @@ public interface ProfileResults
 
     string GetProfilerResults();
 
-    //总纳秒耗时对应原版getNanoDuration
+    //Total nanosecond duration, maps to vanilla getNanoDuration
     public long NanoDuration => EndTimeNano - StartTimeNano;
 
-    //总tick跨度对应原版getTickDuration
+    //Total tick span, maps to vanilla getTickDuration
     public int TickDuration => EndTimeTicks - StartTimeTicks;
 
-    //路径美化对应原版demanglePath把分隔符替换为点
+    //Path prettifying, maps to vanilla demanglePath replacing separators with dots
     public static string DemanglePath(string path) => path.Replace('\x1e', '.');
 }

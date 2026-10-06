@@ -2,13 +2,13 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Registry;
 
-//Fluid 流体抽象 对应原版 net.minecraft.world.level.material.Fluid
-//只保留服务端判定需要的那部分 原版挂在 Fluid 上的流动与扩散需要关卡 那部分拆到 Storage 的 IFluidBehaviour
-//实体交互 粒子 拾取音效等依赖业务子系统的成员暂不声明 等对应子系统就绪再补
+//Fluid fluid abstraction, maps to vanilla net.minecraft.world.level.material.Fluid
+//Only the part needed for server-side checks is kept; vanilla's flow and spread on Fluid need a level, so that part is split into Storage's IFluidBehaviour
+//Members depending on business subsystems, such as entity interaction, particles and pickup sounds, are not declared yet and will be added once those subsystems are ready
 public abstract class Fluid
 {
-    //Empty 空流体单例 对应原版 Fluids.EMPTY
-    //Game 层注册表用它登记 empty 这一项 使 FluidState.Empty.Type 与注册表默认项是同一个实例
+    //Empty empty fluid singleton, maps to vanilla Fluids.EMPTY
+    //The Game layer registry uses it to register the empty entry, so FluidState.Empty.Type is the same instance as the registry default
     public static readonly Fluid Empty = new EmptyFluid();
 
     protected Fluid()
@@ -16,11 +16,11 @@ public abstract class Fluid
         DefaultFluidState = GetStateOf(GetDefaultAmount(), false);
     }
 
-    //_stateCache 该流体各液面高度与下落标记下的状态实例表
-    //原版靠状态表单例保证引用比较等价于值比较 扩散时判断"状态变没变"靠的就是这个
+    //_stateCache state instance table for each fluid level and falling flag
+    //Vanilla relies on state table singletons so reference comparison equals value comparison; that is what spread uses to tell whether the state changed
     private readonly FluidState[,] _stateCache = new FluidState[9, 2];
 
-    //GetStateOf 取指定液面高度与下落标记下的状态 同参数返回同一实例
+    //GetStateOf gets the state for the given fluid level and falling flag; identical arguments return the same instance
     public FluidState GetStateOf(int amount, bool falling)
     {
         var cached = _stateCache[amount, falling ? 1 : 0];
@@ -30,33 +30,33 @@ public abstract class Fluid
         return state;
     }
 
-    //Id 流体的注册名 子类必须实现
+    //Id the fluid's registry name, must be implemented by subclasses
     public abstract Identifier Id { get; }
 
-    //DefaultFluidState 该流体的默认状态 对应原版 defaultFluidState
+    //DefaultFluidState the fluid's default state, maps to vanilla defaultFluidState
     public FluidState DefaultFluidState { get; }
 
-    //GetDefaultAmount 默认状态的液面高度 源与空流体分别为 8 与 0 流动流体取最低档 1
+    //GetDefaultAmount the default state's fluid level; sources and empty fluid are 8 and 0 and flowing fluid takes the lowest level 1
     protected virtual int GetDefaultAmount() => 8;
 
-    //IsEmpty 是不是空流体 对应原版 isEmpty
+    //IsEmpty whether it is empty fluid, maps to vanilla isEmpty
     public virtual bool IsEmpty => false;
 
-    //IsSame 与另一种流体是否同族 对应原版 isSame 水与流动水算同族
+    //IsSame whether it is the same kind as another fluid, maps to vanilla isSame; water and flowing water count as the same kind
     public virtual bool IsSame(Fluid other) => ReferenceEquals(other, this);
 
-    //IsSource 该状态是不是无限源 对应原版 isSource
+    //IsSource whether the state is an infinite source, maps to vanilla isSource
     public abstract bool IsSource(FluidState state);
 
-    //GetAmount 该状态的液面高度 1-8 对应原版 getAmount
+    //GetAmount the state's fluid level 1-8, maps to vanilla getAmount
     public abstract int GetAmount(FluidState state);
 
-    //GetOwnHeight 该状态自身的液面高度比例 对应原版 getOwnHeight
+    //GetOwnHeight the ratio of the state's own fluid surface, maps to vanilla getOwnHeight
     public virtual float GetOwnHeight(FluidState state) => GetAmount(state) / 9f;
 
-    //CreateLegacyBlock 退回成方块时的状态 对应原版 createLegacyBlock
+    //CreateLegacyBlock the state when falling back to a block, maps to vanilla createLegacyBlock
     public abstract BlockState CreateLegacyBlock(FluidState state);
 
-    //ExplosionResistance 流体自身的爆炸抗性 对应原版 getExplosionResistance
+    //ExplosionResistance the fluid's own explosion resistance, maps to vanilla getExplosionResistance
     public abstract float ExplosionResistance { get; }
 }

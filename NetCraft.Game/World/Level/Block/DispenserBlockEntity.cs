@@ -8,27 +8,27 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//DispenserBlockEntity 发射器方块实体 对应原版 net.minecraft.world.level.block.entity.DispenserBlockEntity
-//九格容器 发射时从随机一个非空槽取一件 内容物随区块落盘 右击由 DispenserMenu 打开
+//DispenserBlockEntity dispenser block entity, maps to vanilla net.minecraft.world.level.block.entity.DispenserBlockEntity
+//Nine-slot container; dispensing takes one item from a random non-empty slot, contents persist with the chunk, opened by DispenserMenu on right-click
 public class DispenserBlockEntity : BlockEntity, Container, MenuProvider
 {
-    //ContainerSize 发射器槽位数 九格
+    //ContainerSize dispenser slot count, nine
     public const int ContainerSize = 9;
 
-    //ContainerDistanceSqr 菜单失效距离平方 原版 8 格
+    //ContainerDistanceSqr squared menu invalidation distance, vanilla 8 blocks
     private const double ContainerDistanceSqr = 64.0;
 
     private readonly SimpleContainer _items = new(ContainerSize);
 
     public DispenserBlockEntity(BlockPos pos) : base(BlockEntityTypes.DISPENSER, pos) { }
 
-    //供投掷器复用 类型与标题不同行为一致 对应原版 DropperBlockEntity 继承 DispenserBlockEntity
+    //Reused by droppers; same behavior, different type and title, maps to vanilla DropperBlockEntity extending DispenserBlockEntity
     protected DispenserBlockEntity(BlockEntityType type, BlockPos pos) : base(type, pos) { }
 
-    //DisplayName 界面标题 对应原版 getDefaultName
+    //DisplayName screen title, maps to vanilla getDefaultName
     public virtual Component DisplayName => Component.Translatable("container.dispenser");
 
-    //CreateMenu 构造九格菜单 对应原版 createMenu
+    //CreateMenu builds the nine-slot menu, maps to vanilla createMenu
     public virtual AbstractContainerMenu CreateMenu(int containerId, PlayerInventory inventory, ServerPlayer player)
         => DispenserMenu.Create(containerId, inventory, this);
 
@@ -50,8 +50,8 @@ public class DispenserBlockEntity : BlockEntity, Container, MenuProvider
 
     public bool CanPlaceItem(int slot, ItemStack stack) => true;
 
-    //GetRandomSlot 随机挑一个非空槽 每个槽被选中的机会与它前面的空槽数成反比
-    //等价于在所有非空槽里等概率取一个 对应原版 getRandomSlot
+    //GetRandomSlot picks a random non-empty slot; each slot's chance of being chosen is inversely proportional to the number of empty slots before it
+    //Equivalent to picking uniformly among all non-empty slots, maps to vanilla getRandomSlot
     public int GetRandomSlot(Random random)
     {
         var slot = -1;
@@ -64,11 +64,11 @@ public class DispenserBlockEntity : BlockEntity, Container, MenuProvider
         return slot;
     }
 
-    //InsertItem 往自己容器里塞物品 返回没塞下的剩余 对应原版 insertItem
-    //发射行为丢出的剩余物会先试着放回发射器
+    //InsertItem inserts items into its own container, returns the remainder that did not fit, maps to vanilla insertItem
+    //Leftovers dropped by a dispense behavior are first tried back into the dispenser
     public ItemStack InsertItem(ItemStack stack) => ContainerHelper.AddItem(this, stack);
 
-    //StillValid 方块还在原位且玩家在 8 格内才有效 对应原版 Container.stillValidBlockEntity
+    //StillValid valid only when the block is still in place and the player is within 8 blocks, maps to vanilla Container.stillValidBlockEntity
     public bool StillValid(ServerPlayer player)
     {
         if (Level is not ServerLevel level) return false;
@@ -108,14 +108,14 @@ public class DispenserBlockEntity : BlockEntity, Container, MenuProvider
         }
     }
 
-    //OnRemoved 被移出世界前把内容物丢在原地 对应原版 preRemoveSideEffects
+    //OnRemoved drops the contents in place before removal, maps to vanilla preRemoveSideEffects
     public override void OnRemoved()
     {
         if (Level is PersistentServerLevel level) Containers.DropContents(level, Pos, this);
     }
 }
 
-//DropperBlockEntity 投掷器方块实体 行为与发射器一致只是类型与标题不同 对应原版 DropperBlockEntity
+//DropperBlockEntity dropper block entity, behavior identical to a dispenser with different type and title, maps to vanilla DropperBlockEntity
 public sealed class DropperBlockEntity : DispenserBlockEntity
 {
     public DropperBlockEntity(BlockPos pos) : base(BlockEntityTypes.DROPPER, pos) { }

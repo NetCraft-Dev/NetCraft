@@ -1,11 +1,11 @@
 namespace NetCraft.Util;
 
-//通用工具集合对应原版net.minecraft.util.Util
-//仅内联Memoize纯函数其他方法（WriteAndReadTypedOrThrow等依赖DFU类型放到DataFixUtils中按依赖方向）
-//其余方法（getRandomMillis/getMillis等）按需在ProfilingUtil中实现
+//General utility helpers, maps to vanilla net.minecraft.util.Util
+//Only Memoize is inlined, pure functions; other methods (WriteAndReadTypedOrThrow etc. that depend on DFU types are placed in DataFixUtils per dependency direction)
+//Other methods (getRandomMillis/getMillis, etc.) are implemented as needed in ProfilingUtil
 public static class Util
 {
-    //线程安全记忆化缓存对应原版Util.memoize
+    //Thread-safe memoization cache, maps to vanilla Util.memoize
     public static Func<T, R> Memoize<T, R>(Func<T, R> fn) where T : notnull
     {
         var cache = new System.Collections.Concurrent.ConcurrentDictionary<T, R>();

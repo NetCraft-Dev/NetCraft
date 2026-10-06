@@ -1,13 +1,13 @@
 namespace NetCraft.Commands.Functions;
 
-//CommandFunctions 函数包的非泛型静态工具对应原版 CommandFunction 的静态方法
-//C# 泛型接口的静态成员要带类型参数 StringTemplate 这类非泛型类型够不着 故拆到这里
+//CommandFunctions non-generic static helpers of the function package, maps to the static methods of vanilla CommandFunction
+//Static members of a C# generic interface carry type parameters that non-generic types like StringTemplate cannot reach, so they are split out here
 public static class CommandFunctions
 {
-    //MaxCommandLineLength 单行命令上限
+    //MaxCommandLineLength maximum length of a single command line
     public const int MaxCommandLineLength = 2_000_000;
 
-    //CheckCommandLineLength 行长熔断 200 万字符对应原版 checkCommandLineLength
+    //CheckCommandLineLength line-length circuit breaker at 2 million characters; maps to vanilla checkCommandLineLength
     public static void CheckCommandLineLength(System.Text.StringBuilder line)
     {
         if (line.Length > MaxCommandLineLength)

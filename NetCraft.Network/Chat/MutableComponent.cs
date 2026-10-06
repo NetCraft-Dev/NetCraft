@@ -4,10 +4,10 @@ using System.Text;
 using NetCraft.Codec;
 using NetCraft.Network.Chat.Contents;
 
-//可变组件实现对应原版net.minecraft.network.chat.MutableComponent
-//承载组件内容和兄弟列表和样式支持链式修改
-//C#接口默认实现不能通过实现类实例直接调用故显式重写转发到Component引用
-//但GetString/Visit链有递归风险 GetString直接实现避免转发循环
+//Mutable component implementation, maps to vanilla net.minecraft.network.chat.MutableComponent
+//Carries the component content, sibling list, and style, supporting chained modification
+//C# interface default implementations cannot be called directly on an implementing instance, so they are explicitly overridden and forwarded to the Component reference
+//But the GetString/Visit chain risks recursion, so GetString is implemented directly to avoid a forwarding loop
 public sealed class MutableComponent : Component
 {
     private readonly ComponentContents _contents;
@@ -21,15 +21,15 @@ public sealed class MutableComponent : Component
         _style = style;
     }
 
-    //从内容创建对应原版MutableComponent.create
+    //Creates from content, maps to vanilla MutableComponent.create
     public static MutableComponent Create(ComponentContents contents) => new(contents, new(), Style.Empty);
 
     public ComponentContents Contents => _contents;
     public IReadOnlyList<Component> Siblings => _siblings;
     public Style Style => _style;
 
-    //GetString直接实现避免转发到接口默认实现引发递归
-    //Component.GetString默认实现里Visit调用会虚分派回MutableComponent
+    //GetString is implemented directly to avoid forwarding to the interface default implementation and causing recursion
+    //In the Component.GetString default implementation the Visit call virtually dispatches back to MutableComponent
     public string GetString()
     {
         var builder = new StringBuilder();
@@ -41,7 +41,7 @@ public sealed class MutableComponent : Component
         return builder.ToString();
     }
 
-    //带长度限制的字符串拼接直接实现
+    //Length-limited string concatenation is implemented directly
     public string GetString(int limit)
     {
         var builder = new StringBuilder();
@@ -55,7 +55,7 @@ public sealed class MutableComponent : Component
         return builder.ToString();
     }
 
-    //尝试折叠为纯字符串直接实现
+    //Attempts to collapse to a plain string are implemented directly
     public string? TryCollapseToString()
     {
         if (_contents is not PlainTextContents text) return null;
@@ -63,7 +63,7 @@ public sealed class MutableComponent : Component
         return text.Text;
     }
 
-    //展平为组件列表直接实现避免转发递归
+    //Flattening into a component list is implemented directly to avoid forwarding recursion
     public List<Component> ToFlatList() => ToFlatList(Style.Empty);
 
     public List<Component> ToFlatList(Style rootStyle)
@@ -80,7 +80,7 @@ public sealed class MutableComponent : Component
         return result;
     }
 
-    //判断是否包含另一组件直接实现
+    //The contains-another-component check is implemented directly
     public bool Contains(Component other)
     {
         if (Equals(other)) return true;
@@ -99,146 +99,146 @@ public sealed class MutableComponent : Component
         return false;
     }
 
-    //浅拷贝直接实现返回新MutableComponent
+    //The shallow copy is implemented directly, returning a new MutableComponent
     public MutableComponent PlainCopy() => MutableComponent.Create(_contents);
 
-    //深拷贝直接实现返回新MutableComponent
+    //The deep copy is implemented directly, returning a new MutableComponent
     public MutableComponent Copy() => new MutableComponent(_contents, new List<Component>(_siblings), _style);
 
-    //设置样式对应原版setStyle
+    //Sets the style, maps to vanilla setStyle
     public MutableComponent SetStyle(Style style)
     {
         _style = style;
         return this;
     }
 
-    //追加文本对应原版append(String)
+    //Appends text, maps to vanilla append(String)
     public MutableComponent Append(string text)
     {
         if (text.Length == 0) return this;
         return Append(Component.Literal(text));
     }
 
-    //追加组件对应原版append(Component)
+    //Appends a component, maps to vanilla append(Component)
     public MutableComponent Append(Component component)
     {
         _siblings.Add(component);
         return this;
     }
 
-    //用updater修改样式对应原版withStyle(UnaryOperator)
+    //Modifies the style with updater, maps to vanilla withStyle(UnaryOperator)
     public MutableComponent WithStyle(Func<Style, Style> updater)
     {
         SetStyle(updater(_style));
         return this;
     }
 
-    //合并样式补丁对应原版withStyle(Style)
+    //Merges a style patch, maps to vanilla withStyle(Style)
     public MutableComponent WithStyle(Style patch)
     {
         SetStyle(patch.ApplyTo(_style));
         return this;
     }
 
-    //应用多个ChatFormatting对应原版withStyle(ChatFormatting...)
+    //Applies multiple ChatFormatting, maps to vanilla withStyle(ChatFormatting...)
     public MutableComponent WithStyle(params ChatFormatting[] formats)
     {
         SetStyle(_style.ApplyFormats(formats));
         return this;
     }
 
-    //应用单个ChatFormatting对应原版withStyle(ChatFormatting)
+    //Applies a single ChatFormatting, maps to vanilla withStyle(ChatFormatting)
     public MutableComponent WithStyle(ChatFormatting format)
     {
         SetStyle(_style.ApplyFormat(format));
         return this;
     }
 
-    //应用RGB颜色对应原版withColor(int)
+    //Applies an RGB color, maps to vanilla withColor(int)
     public MutableComponent WithColor(int color)
     {
         SetStyle(_style.WithColor(color));
         return this;
     }
 
-    //应用TextColor对应原版withColor(TextColor)
+    //Applies a TextColor, maps to vanilla withColor(TextColor)
     public MutableComponent WithColor(TextColor? color)
     {
         SetStyle(_style.WithColor(color));
         return this;
     }
 
-    //应用ChatFormatting颜色对应原版withColor(ChatFormatting)
+    //Applies a ChatFormatting color, maps to vanilla withColor(ChatFormatting)
     public MutableComponent WithColor(ChatFormatting formatting)
     {
         SetStyle(_style.WithColor(formatting));
         return this;
     }
 
-    //应用加粗对应原版withBold
+    //Applies bold, maps to vanilla withBold
     public MutableComponent WithBold(bool? bold)
     {
         SetStyle(_style.WithBold(bold));
         return this;
     }
 
-    //应用斜体对应原版withItalic
+    //Applies italic, maps to vanilla withItalic
     public MutableComponent WithItalic(bool? italic)
     {
         SetStyle(_style.WithItalic(italic));
         return this;
     }
 
-    //应用下划线对应原版withUnderlined
+    //Applies underline, maps to vanilla withUnderlined
     public MutableComponent WithUnderlined(bool? underlined)
     {
         SetStyle(_style.WithUnderlined(underlined));
         return this;
     }
 
-    //应用删除线对应原版withStrikethrough
+    //Applies strikethrough, maps to vanilla withStrikethrough
     public MutableComponent WithStrikethrough(bool? strikethrough)
     {
         SetStyle(_style.WithStrikethrough(strikethrough));
         return this;
     }
 
-    //应用混淆对应原版withObfuscated
+    //Applies obfuscated, maps to vanilla withObfuscated
     public MutableComponent WithObfuscated(bool? obfuscated)
     {
         SetStyle(_style.WithObfuscated(obfuscated));
         return this;
     }
 
-    //应用点击事件对应原版withClickEvent
+    //Applies a click event, maps to vanilla withClickEvent
     public MutableComponent WithClickEvent(ClickEvent? clickEvent)
     {
         SetStyle(_style.WithClickEvent(clickEvent));
         return this;
     }
 
-    //应用悬停事件对应原版withHoverEvent
+    //Applies a hover event, maps to vanilla withHoverEvent
     public MutableComponent WithHoverEvent(HoverEvent? hoverEvent)
     {
         SetStyle(_style.WithHoverEvent(hoverEvent));
         return this;
     }
 
-    //应用插入文本对应原版withInsertion
+    //Applies insertion text, maps to vanilla withInsertion
     public MutableComponent WithInsertion(string? insertion)
     {
         SetStyle(_style.WithInsertion(insertion));
         return this;
     }
 
-    //应用字体对应原版withFont
+    //Applies a font, maps to vanilla withFont
     public MutableComponent WithFont(FontDescription? font)
     {
         SetStyle(_style.WithFont(font));
         return this;
     }
 
-    //移除阴影对应原版withoutShadow
+    //Removes the shadow, maps to vanilla withoutShadow
     public MutableComponent WithoutShadow()
     {
         SetStyle(_style.WithoutShadow());

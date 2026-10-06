@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Util.DebugChart;
 
-//AbstractSampleLogger 采样缓冲基类 对应原版 net.minecraft.util.debugchart.AbstractSampleLogger
-//子类实现 UseSample 决定样本写向哪里 每帧消费完按默认值复位
+//AbstractSampleLogger sample buffer base class, maps to vanilla net.minecraft.util.debugchart.AbstractSampleLogger
+//Subclasses implement UseSample to decide where samples go; reset to defaults after each frame is consumed
 public abstract class AbstractSampleLogger : SampleLogger
 {
     protected readonly long[] Defaults;
@@ -40,9 +40,9 @@ public abstract class AbstractSampleLogger : SampleLogger
         Sample[dimension] = sample;
     }
 
-    //UseSample 把当前样本写入目标存储 由子类决定去处
+    //UseSample writes the current sample to the target storage; subclasses decide the destination
     protected abstract void UseSample();
 
-    //ResetSample 还原默认值等待下一帧
+    //ResetSample restores defaults and waits for the next frame
     protected void ResetSample() => Array.Copy(Defaults, 0, Sample, 0, Defaults.Length);
 }

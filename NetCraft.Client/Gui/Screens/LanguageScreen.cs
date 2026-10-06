@@ -5,36 +5,36 @@ using NetCraft.Logging;
 
 namespace NetCraft.Game.Gui.Screens;
 
-//LanguageScreen 语言选择对应原版 net.minecraft.client.gui.screens.LanguageSelectScreen
-//列出资源包声明的全部语言 点选即写入配置并重跑重载链让语言表立刻换掉
-//原版是可滚动列表 这里用固定行数加右侧滚动条 控件体系暂没有滚动列表
+//LanguageScreen language selection, maps to vanilla net.minecraft.client.gui.screens.LanguageSelectScreen
+//Lists all languages declared by resource packs; clicking one writes the config and reruns the reload chain so the language table changes immediately
+//Vanilla uses a scrollable list; here a fixed row count plus a right-side scrollbar is used since the control system has no scroll list yet
 public sealed class LanguageScreen : Screen
 {
     private const int RowHeight = 20;
     private const int RowGap = 2;
 
-    //_entries 语言码与显示名 按语言码排序
+    //_entries language code and display name, sorted by language code
     private readonly List<(string Code, string Name)> _entries = new();
-    //_rows 当前可见行控件 _visibleCodes 与之一一对应记录该行承载的语言码
+    //_rows current visible row controls; _visibleCodes maps one-to-one and records the language code each row carries
     private readonly List<GuiButton> _rows = new();
     private readonly List<string> _visibleCodes = new();
     private int _topIndex;
     private GuiSlider? _scroll;
 
-    public override string Title => "语言";
+    public override string Title => "Language";
 
     public override void Init()
     {
         var skin = RegisterButtonSprites();
         var cx = GuiWidth / 2;
         var listTop = 44;
-        //行数按窗口高度自适应 免得小窗口下按钮溢出到完成按钮上
+        //Row count adapts to the window height so buttons do not overflow onto the Done button in small windows
         var rowCount = Math.Clamp((GuiHeight - 100) / (RowHeight + RowGap), 4, 14);
         var listWidth = Math.Max(120, GuiWidth - 100);
 
         BuildEntries();
 
-        AddWidget(new GuiLabel("语言") { X = cx - 100, Y = 16, Width = 200, Height = 20 });
+        AddWidget(new GuiLabel("Language") { X = cx - 100, Y = 16, Width = 200, Height = 20 });
 
         for (int i = 0; i < rowCount; i++)
         {
@@ -65,10 +65,10 @@ public sealed class LanguageScreen : Screen
             _topIndex = (int)_scroll.Value;
             RefreshRows();
         };
-        //条目放不下一屏才需要滚动
+        //Scrolling is only needed when entries do not fit on one screen
         _scroll.Enabled = maxTop > 0;
 
-        var done = AddWidget(new GuiButton("完成")
+        var done = AddWidget(new GuiButton("Done")
         {
             X = cx - 100,
             Y = GuiHeight - 30,
@@ -81,7 +81,7 @@ public sealed class LanguageScreen : Screen
         RefreshRows();
     }
 
-    //BuildEntries 取资源包声明的可选语言 显示名缺省退回语言码
+    //BuildEntries fetches the languages declared by resource packs; the display name falls back to the language code when missing
     private void BuildEntries()
     {
         _entries.Clear();
@@ -97,7 +97,7 @@ public sealed class LanguageScreen : Screen
         _entries.Sort((a, b) => string.CompareOrdinal(a.Code, b.Code));
     }
 
-    //RefreshRows 把滚动窗口内的语言刷到按钮上 当前语言加标记
+    //RefreshRows refreshes the languages in the scroll window onto the buttons, marking the current language
     private void RefreshRows()
     {
         var current = Minecraft.Language?.LanguageCode ?? string.Empty;
@@ -118,7 +118,7 @@ public sealed class LanguageScreen : Screen
         }
     }
 
-    //SelectSlot 点选可见行 空行忽略 选中的是当前语言就直接退回
+    //SelectSlot clicks a visible row; empty rows are ignored, and selecting the current language just pops back
     private void SelectSlot(int slot)
     {
         if (slot < 0 || slot >= _visibleCodes.Count) return;
@@ -132,8 +132,8 @@ public sealed class LanguageScreen : Screen
         Apply(code);
     }
 
-    //Apply 写入语言码 存回 options.txt 并重跑重载链让语言表立刻生效
-    //重载链会连同 Tags 配方一起重跑 与原版切语言走 reloadResourcePacks 的行为一致
+    //Apply writes the language code, saves it back to options.txt and reruns the reload chain so the language table takes effect immediately
+    //The reload chain also reruns Tags and recipes, matching vanilla's behavior of switching language via reloadResourcePacks
     private void Apply(string code)
     {
         var language = Minecraft.Language;

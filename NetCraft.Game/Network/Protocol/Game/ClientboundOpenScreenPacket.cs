@@ -1,8 +1,8 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundOpenScreenPacket 打开界面包对应原版 ClientboundOpenScreenPacket
-//字段 ContainerId(int) Type(MenuType) Title(Component)
-//StreamCodec 用 ContainerId(VarInt) + MenuType.StreamCodec + ComponentSerialization.StreamCodec
+//ClientboundOpenScreenPacket open screen packet, maps to vanilla ClientboundOpenScreenPacket
+//Fields: ContainerId(int), Type(MenuType), Title(Component)
+//StreamCodec uses ContainerId(VarInt) + MenuType.StreamCodec + ComponentSerialization.StreamCodec
 public sealed record ClientboundOpenScreenPacket(int ContainerId, MenuType Kind, Component Title) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<RegistryFriendlyByteBuf, ClientboundOpenScreenPacket> StreamCodec { get; } = new OpenScreenCodec();

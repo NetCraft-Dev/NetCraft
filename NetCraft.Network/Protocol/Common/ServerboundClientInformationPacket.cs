@@ -1,10 +1,10 @@
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ServerboundClientInformationPacket 客户端信息包对应原版 net.minecraft.network.protocol.common.ServerboundClientInformationPacket
-//原版依赖 net.minecraft.server.level.ClientInformation 简化版直接内联字段
-//字段顺序严格对齐 26.2：语言/视距(单字节)/聊天可见性/聊天颜色/modelCustomisation(单字节掩码)
-//主手(枚举)/文本过滤/允许列表/粒子模式
+//ServerboundClientInformationPacket client information packet, maps to vanilla net.minecraft.network.protocol.common.ServerboundClientInformationPacket
+//Vanilla depends on net.minecraft.server.level.ClientInformation; the simplified form inlines the fields
+//Field order strictly aligns with 26.2: language/view distance(single byte)/chat visibility/chat colors/modelCustomisation(single byte mask)
+//main hand(enum)/text filtering/allow listing/particle status
 public sealed record ServerboundClientInformationPacket(
     string Language,
     int ViewDistance,
@@ -27,7 +27,7 @@ public sealed record ServerboundClientInformationPacket(
 
     private sealed class ClientInfoCodec : StreamCodec<FriendlyByteBuf, ServerboundClientInformationPacket>
     {
-        //原版 ClientInformation.write 顺序：
+        //Vanilla ClientInformation.write order:
         //writeUtf(language) writeByte(viewDistance) writeEnum(chatVisibility) writeBoolean(chatColors)
         //writeByte(modelCustomisation) writeEnum(mainHand) writeBoolean(textFiltering) writeBoolean(allowsListing) writeEnum(particleStatus)
         public ServerboundClientInformationPacket Decode(FriendlyByteBuf buf)
@@ -57,7 +57,7 @@ public sealed record ServerboundClientInformationPacket(
     }
 }
 
-//ChatVisibility 聊天可见性枚举对应原版 net.minecraft.world.entity.player.ChatVisiblity
+//ChatVisibility chat visibility enum, maps to vanilla net.minecraft.world.entity.player.ChatVisiblity
 public enum ChatVisibility
 {
     Full,
@@ -65,15 +65,15 @@ public enum ChatVisibility
     Hidden
 }
 
-//HumanoidArm 主手枚举对应原版 net.minecraft.world.entity.HumanoidArm
-//id 必须与枚举顺序一致 原版按 idMapper 写 VarInt id
+//HumanoidArm main hand enum, maps to vanilla net.minecraft.world.entity.HumanoidArm
+//id must match the enum order; vanilla writes the VarInt id via idMapper
 public enum HumanoidArm
 {
     Left,
     Right
 }
 
-//ParticleStatus 粒子状态枚举对应原版 net.minecraft.client.ParticleStatus
+//ParticleStatus particle status enum, maps to vanilla net.minecraft.client.ParticleStatus
 public enum ParticleStatus
 {
     All,

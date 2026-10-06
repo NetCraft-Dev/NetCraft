@@ -2,7 +2,7 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.Environment;
 
-//BackgroundMusic 背景音乐设置对应原版 BackgroundMusic
+//BackgroundMusic background music settings, maps to vanilla BackgroundMusic
 public sealed class BackgroundMusic
 {
     public static readonly BackgroundMusic Empty = new(
@@ -35,7 +35,7 @@ public sealed class BackgroundMusic
         => new(DefaultMusic, CreativeMusic, Optional<Music>.Of(underwaterMusic));
 }
 
-//Music 一段背景音乐对应原版 Music
+//Music a piece of background music, maps to vanilla Music
 public sealed class Music
 {
     public static readonly Codec<Music> Codec = RecordCodecBuilder.Of4(

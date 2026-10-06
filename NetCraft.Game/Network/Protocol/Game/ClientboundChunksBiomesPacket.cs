@@ -5,13 +5,13 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundChunksBiomesPacket 区块生物群系包对应原版 ClientboundChunksBiomesPacket
-//字段 Chunks 对应原版 chunkBiomeData 每项是一段连续的区段 biome 容器字节
-//客户端整块替换本地 biome 数据 fillbiome 命令执行后需要重发受影响的区块才会刷新配色
+//ClientboundChunksBiomesPacket chunk biomes packet, maps to vanilla ClientboundChunksBiomesPacket
+//Field: Chunks maps to vanilla chunkBiomeData; each entry is a contiguous run of section biome container bytes
+//The client replaces its local biome data wholesale; after a fillbiome command the affected chunks must be resent to refresh coloring
 public sealed record ClientboundChunksBiomesPacket(IReadOnlyList<ClientboundChunksBiomesPacket.ChunkBiomeData> Chunks)
     : Packet<ClientGamePacketListener>
 {
-    //MaxBufferSize 单项字节上限 对齐原版 readByteArray(0x200000)
+    //MaxBufferSize per-entry byte cap, aligns with vanilla readByteArray(0x200000)
     private const int MaxBufferSize = 0x200000;
 
     public static StreamCodec<FriendlyByteBuf, ClientboundChunksBiomesPacket> StreamCodec { get; } = new ChunksBiomesCodec();
@@ -20,7 +20,7 @@ public sealed record ClientboundChunksBiomesPacket(IReadOnlyList<ClientboundChun
 
     public void Handle(ClientGamePacketListener handler) => handler.HandleChunksBiomes(this);
 
-    //ForChunks 把若干区块的 biome 数据打包成一个包 对应原版 forChunks
+    //ForChunks packs the biome data of several chunks into one packet, maps to vanilla forChunks
     public static ClientboundChunksBiomesPacket ForChunks(IReadOnlyList<ChunkAccess> chunks)
     {
         var data = new List<ChunkBiomeData>(chunks.Count);
@@ -28,13 +28,13 @@ public sealed record ClientboundChunksBiomesPacket(IReadOnlyList<ClientboundChun
         return new ClientboundChunksBiomesPacket(data);
     }
 
-    //ChunkBiomeData 单区块 biome 数据 区块位置 + 各区段 biome 容器连续字节
+    //ChunkBiomeData biome data of a single chunk: chunk position + contiguous section biome container bytes
     public sealed record ChunkBiomeData(ChunkPos Pos, byte[] Buffer)
     {
         public ChunkBiomeData(ChunkAccess chunk) : this(chunk.Pos, Extract(chunk)) { }
 
-        //Extract 逐区段写 biome 容器 对应原版 extractChunkData
-        //缺失区段补一个 single value palette 占位 保证客户端按区段数顺序读到底
+        //Extract writes the biome container section by section, maps to vanilla extractChunkData
+        //A missing section gets a single value palette placeholder so the client can read through by section count in order
         private static byte[] Extract(ChunkAccess chunk)
         {
             var buf = new FriendlyByteBuf();
@@ -55,7 +55,7 @@ public sealed record ClientboundChunksBiomesPacket(IReadOnlyList<ClientboundChun
 
     private sealed class ChunksBiomesCodec : StreamCodec<FriendlyByteBuf, ClientboundChunksBiomesPacket>
     {
-        //原版顺序 varint 数量 + 每项(区块两 int + 长度前缀字节数组)
+        //Vanilla order: varint count + each entry (chunk two ints + length-prefixed byte array)
         public ClientboundChunksBiomesPacket Decode(FriendlyByteBuf buf)
         {
             var count = buf.ReadVarInt();

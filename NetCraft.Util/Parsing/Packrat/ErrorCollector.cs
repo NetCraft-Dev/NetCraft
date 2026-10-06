@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Parsing.Packrat;
 
-//错误收集器对应原版net.minecraft.util.parsing.packrat.ErrorCollector
-//store记录失败位置建议和原因finish标记解析结束位置
+//Error collector, maps to vanilla net.minecraft.util.parsing.packrat.ErrorCollector
+//store records the failure position, suggestions and reason, finish marks the parse end position
 public interface ErrorCollector<S>
 {
     void Store(int cursor, SuggestionSupplier<S>? suggestions, object? reason);
@@ -12,7 +12,7 @@ public interface ErrorCollector<S>
         => Store(cursor, SuggestionSuppliers.Empty<S>(), reason);
 }
 
-//Nop空实现丢弃所有错误
+//Nop empty implementation discarding all errors
 public sealed class NopErrorCollector<S> : ErrorCollector<S>
 {
     public static NopErrorCollector<S> Instance { get; } = new();
@@ -24,7 +24,7 @@ public sealed class NopErrorCollector<S> : ErrorCollector<S>
     public void Finish(int finalCursor) { }
 }
 
-//LongestOnly只保留最长解析位置的错误
+//LongestOnly keeps only errors at the furthest parse position
 public sealed class LongestOnlyErrorCollector<S> : ErrorCollector<S>
 {
     private int _nextErrorEntry;
@@ -88,7 +88,7 @@ public sealed class LongestOnlyErrorCollector<S> : ErrorCollector<S>
 
     public int Cursor() => _lastCursor;
 
-    //growByHalf对应原版Util.growByHalf按一半增长
+    //growByHalf maps to vanilla Util.growByHalf, grows by half
     private static int UtilGrowByHalf(int current, int needed)
         => Math.Max(current + (current >> 1), needed);
 

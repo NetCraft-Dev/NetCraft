@@ -6,15 +6,15 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Client.Render.Model;
 
-//BlockModelLoader 方块模型 JSON 加载器对标原版 ModelBakery 模型加载部分
-//从 ResourceManager 读 models/block/*.json 反序列化为 UnbakedModel
-//递归解析 parent 合并父模型的 elements 和 textures
-//纹理变量解析 #all → 实际纹理路径 minecraft:block/stone
-//属 Game 层依赖 ResourceManager 读 assets
+//BlockModelLoader block model JSON loader, maps to the model-loading part of vanilla ModelBakery
+//Reads models/block/*.json from ResourceManager and deserializes into UnbakedModel
+//Recursively resolves parent, merging the parent model's elements and textures
+//Texture variable resolution: #all → actual texture path minecraft:block/stone
+//Belongs to the Game layer; depends on ResourceManager to read assets
 public sealed class BlockModelLoader
 {
     private readonly ResourceManager _resourceManager;
-    //模型缓存按 modelId 缓存已解析的 UnbakedModel 避免重复加载
+    //Model cache keyed by modelId holding resolved UnbakedModels, to avoid re-loading
     private readonly Dictionary<string, UnbakedModel> _cache = new();
 
     public BlockModelLoader(ResourceManager resourceManager)
@@ -22,11 +22,11 @@ public sealed class BlockModelLoader
         _resourceManager = resourceManager;
     }
 
-    //Load 加载并解析模型
-    //modelId 格式 minecraft:block/stone 对应 assets/minecraft/models/block/stone.json
-    //递归解析 parent 合并 elements（子模型优先）和 textures（子模型覆盖父模型）
-    //elements 只取继承链中最具体的（子模型有 elements 就用子的不继承父的）
-    //textures 父子合并子覆盖父
+    //Load loads and resolves a model
+    //modelId format minecraft:block/stone, maps to assets/minecraft/models/block/stone.json
+    //Recursively resolve parent, merging elements (child takes priority) and textures (child overrides parent)
+    //elements takes only the most specific in the chain (if the child has elements use them, don't inherit the parent's)
+    //textures parent merged with child, child overrides parent
     public UnbakedModel Load(string modelId)
     {
         if (_cache.TryGetValue(modelId, out var cached))
@@ -37,19 +37,19 @@ public sealed class BlockModelLoader
         return model;
     }
 
-    //LoadRaw 从 ResourceManager 读 JSON 反序列化为 UnbakedModel（不解析 parent）
+    //LoadRaw reads JSON from ResourceManager and deserializes into UnbakedModel (without resolving parent)
     private UnbakedModel LoadRaw(string modelId)
     {
         var (ns, path) = ParseModelId(modelId);
         var location = Identifier.FromNamespaceAndPath(ns, $"models/{path}.json");
         var resource = _resourceManager.GetResource(PackType.ClientResources, location)
-            ?? throw new FileNotFoundException($"模型文件不存在 {location}");
+            ?? throw new FileNotFoundException($"Model file does not exist {location}");
         using var stream = resource.Open();
         var json = JsonDocument.Parse(stream);
         return ParseModel(json.RootElement);
     }
 
-    //ParseModel 从 JSON 元素解析 UnbakedModel
+    //ParseModel parses UnbakedModel from a JSON element
     private static UnbakedModel ParseModel(JsonElement element)
     {
         var model = new UnbakedModel();
@@ -68,7 +68,7 @@ public sealed class BlockModelLoader
         return model;
     }
 
-    //ParseElement 解析单个元素 from/to/faces
+    //ParseElement parses a single element from/to/faces
     private static ModelElement ParseElement(JsonElement element)
     {
         var from = ParseVec3(element.GetProperty("from"));
@@ -85,7 +85,7 @@ public sealed class BlockModelLoader
         return elem;
     }
 
-    //ParseFace 解析面 texture/cullface/uv/tintindex
+    //ParseFace parses a face's texture/cullface/uv/tintindex
     private static ModelFace ParseFace(Direction direction, JsonElement element)
     {
         var face = new ModelFace(direction);
@@ -103,10 +103,10 @@ public sealed class BlockModelLoader
         return face;
     }
 
-    //ResolveParent 递归解析 parent 合并 elements 和 textures
-    //elements 继承规则：子模型有 elements 用子的没有则继承父的
-    //textures 继承规则：父子合并子覆盖父（子模型 textures 优先）
-    //visited 防止 parent 循环引用
+    //ResolveParent recursively resolves parent, merging elements and textures
+    //elements inheritance rule: if the child has elements use them, otherwise inherit the parent's
+    //textures inheritance rule: parent merged with child, child overrides parent (child textures take priority)
+    //visited prevents parent circular references
     private void ResolveParent(UnbakedModel model, HashSet<string> visited)
     {
         if (model.IsResolved) return;
@@ -116,12 +116,12 @@ public sealed class BlockModelLoader
             return;
         }
         if (!visited.Add(model.Parent))
-            throw new InvalidOperationException($"模型 parent 循环引用 {model.Parent}");
+            throw new InvalidOperationException($"Model parent circular reference {model.Parent}");
         var parent = Load(model.Parent);
-        //子模型无 elements 继承父的
+        //Child has no elements, inherit the parent's
         if (model.Elements.Count == 0 && parent.Elements.Count > 0)
         {
-            //深拷贝父 elements 避免修改父模型
+            //Deep copy the parent's elements to avoid mutating the parent model
             foreach (var pe in parent.Elements)
             {
                 var copy = new ModelElement(pe.From, pe.To);
@@ -136,7 +136,7 @@ public sealed class BlockModelLoader
                 model.Elements.Add(copy);
             }
         }
-        //textures 父子合并子优先
+        //textures parent merged with child, child priority
         foreach (var (key, value) in parent.Textures)
         {
             if (!model.Textures.ContainsKey(key))
@@ -145,10 +145,10 @@ public sealed class BlockModelLoader
         model.IsResolved = true;
     }
 
-    //ResolveTexture 解析纹理变量引用得到最终纹理路径
-    //#all → 查 Textures["all"] → 若值又是 #xxx 则递归直到非 # 开头
-    //返回 sprite name 如 minecraft:block/stone
-    //找不到变量抛 KeyNotFoundException
+    //ResolveTexture resolves a texture variable reference to the final texture path
+    //#all → look up Textures["all"] → if the value is again #xxx, recurse until it no longer starts with #
+    //Returns a sprite name such as minecraft:block/stone
+    //Throws KeyNotFoundException when the variable is not found
     public static string ResolveTexture(UnbakedModel model, string textureRef)
     {
         var current = textureRef;
@@ -156,26 +156,26 @@ public sealed class BlockModelLoader
         while (current.StartsWith('#'))
         {
             if (!visited.Add(current))
-                throw new InvalidOperationException($"纹理变量循环引用 {current}");
+                throw new InvalidOperationException($"Texture variable circular reference {current}");
             var varName = current[1..];
             if (!model.Textures.TryGetValue(varName, out var resolved))
-                throw new KeyNotFoundException($"纹理变量 {varName} 未定义");
+                throw new KeyNotFoundException($"Texture variable {varName} is undefined");
             current = resolved;
         }
         return NormalizeTextureId(current);
     }
 
-    //NormalizeModelId 规范化模型 id 加 minecraft: 前缀
+    //NormalizeModelId normalizes a model id, adding the minecraft: prefix
     //block/cube_all → minecraft:block/cube_all
     private static string NormalizeModelId(string id)
         => id.Contains(':') ? id : $"minecraft:{id}";
 
-    //NormalizeTextureId 规范化纹理 id 加 minecraft: 前缀
+    //NormalizeTextureId normalizes a texture id, adding the minecraft: prefix
     //block/stone → minecraft:block/stone
     private static string NormalizeTextureId(string id)
         => id.Contains(':') ? id : $"minecraft:{id}";
 
-    //ParseModelId 拆分 modelId 为 namespace 和 path
+    //ParseModelId splits modelId into namespace and path
     //minecraft:block/stone → (minecraft, block/stone)
     private static (string ns, string path) ParseModelId(string modelId)
     {
@@ -199,6 +199,6 @@ public sealed class BlockModelLoader
             "south" => Direction.South,
             "west" => Direction.West,
             "east" => Direction.East,
-            _ => throw new ArgumentException($"未知方向 {name}")
+            _ => throw new ArgumentException($"Unknown direction {name}")
         };
 }

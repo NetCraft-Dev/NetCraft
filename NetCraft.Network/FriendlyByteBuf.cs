@@ -4,9 +4,9 @@ using System.Text;
 
 namespace NetCraft.Network;
 
-//FriendlyByteBuf 协议缓冲对应原版 net.minecraft.network.FriendlyByteBuf
-//包装 MemoryStream 大端序读写支持 VarInt/UTF-8 字符串
-//非 sealed 允许 RegistryFriendlyByteBuf 继承扩展 RegistryAccess
+//FriendlyByteBuf protocol buffer, maps to vanilla net.minecraft.network.FriendlyByteBuf
+//Wraps a MemoryStream for big-endian reads and writes, supporting VarInt and UTF-8 strings
+//Not sealed so RegistryFriendlyByteBuf can inherit and add RegistryAccess
 public class FriendlyByteBuf : IDisposable
 {
     private readonly MemoryStream _stream;
@@ -26,22 +26,22 @@ public class FriendlyByteBuf : IDisposable
         _ownsStream = ownsStream;
     }
 
-    //ReadableBytes 可读剩余字节数
+    //ReadableBytes is the number of readable bytes remaining
     public int ReadableBytes => (int)(_stream.Length - _stream.Position);
 
-    //Length 已写入的字节数
+    //Length is the number of bytes written
     public int Length => (int)_stream.Length;
 
-    //Reset 清空内容保留容量 供出站编码缓冲整连接复用
-    //每次发包新建 MemoryStream 与读写器是发包路径上最不值当的那部分分配
+    //Reset clears the content but keeps the capacity, so the outbound encode buffer can be reused per connection
+    //Creating a new MemoryStream and reader/writer per packet was the least worthwhile allocation on the send path
     public void Reset()
     {
         _stream.SetLength(0);
         _stream.Position = 0;
     }
 
-    //WriteTo 把缓冲内容原样写进目标流 不经过中间数组
-    //底层数组不可见时回退一次复制 用 byte[] 构造的缓冲就是这种
+    //WriteTo writes the buffer content into the target stream as-is, without an intermediate array
+    //Falls back to a single copy when the underlying array is not visible, as with a buffer built from a byte[]
     public void WriteTo(Stream destination)
     {
         if (!_stream.TryGetBuffer(out var segment))
@@ -53,22 +53,22 @@ public class FriendlyByteBuf : IDisposable
         destination.Write(segment.Array!, segment.Offset, (int)_stream.Length);
     }
 
-    //IsReadable 是否可读
+    //IsReadable indicates whether the buffer is readable
     public bool IsReadable => ReadableBytes > 0;
 
-    //ReadBoolean 读 1 字节布尔
+    //ReadBoolean reads a 1-byte boolean
     public bool ReadBoolean() => _reader.ReadBoolean();
 
-    //ReadByte 读 1 字节
+    //ReadByte reads 1 byte
     public byte ReadByte() => _reader.ReadByte();
 
-    //ReadShort 读 2 字节大端 short
+    //ReadShort reads a 2-byte big-endian short
     public short ReadShort() => BinaryPrimitives.ReadInt16BigEndian(_reader.ReadBytes(2));
 
-    //ReadInt 读 4 字节大端 int
+    //ReadInt reads a 4-byte big-endian int
     public int ReadInt() => BinaryPrimitives.ReadInt32BigEndian(_reader.ReadBytes(4));
 
-    //ReadVarInt 读可变长度 int 最多 5 字节
+    //ReadVarInt reads a variable-length int, at most 5 bytes
     public int ReadVarInt()
     {
         int result = 0;
@@ -83,9 +83,9 @@ public class FriendlyByteBuf : IDisposable
         return result;
     }
 
-    //PeekVarInt 从流开头预读包网络 ID 不影响当前读位置 用于异常日志定位
-    //解码失败时读位置已被codec消费到任意处 必须从0读才能拿到真实ID
-    //流耗尽或VarInt不完整时返回-1 诊断路径绝不能抛异常
+    //PeekVarInt pre-reads the packet network ID from the start of the stream without affecting the current read position, used to locate errors in logs
+    //On a decode failure the read position has been consumed to an arbitrary point by the codec, so reading from 0 is the only way to get the real ID
+    //Returns -1 when the stream is exhausted or the VarInt is incomplete; the diagnostic path must never throw
     public int PeekVarInt()
     {
         var position = _stream.Position;
@@ -104,10 +104,10 @@ public class FriendlyByteBuf : IDisposable
         }
     }
 
-    //ReadLong 读 8 字节大端 long
+    //ReadLong reads an 8-byte big-endian long
     public long ReadLong() => BinaryPrimitives.ReadInt64BigEndian(_reader.ReadBytes(8));
 
-    //ReadVarLong 读可变长度 long 最多 10 字节
+    //ReadVarLong reads a variable-length long, at most 10 bytes
     public long ReadVarLong()
     {
         long result = 0;
@@ -122,39 +122,39 @@ public class FriendlyByteBuf : IDisposable
         return result;
     }
 
-    //ReadFloat 读 4 字节大端 float
+    //ReadFloat reads a 4-byte big-endian float
     public float ReadFloat() => BinaryPrimitives.ReadSingleBigEndian(_reader.ReadBytes(4));
 
-    //ReadDouble 读 8 字节大端 double
+    //ReadDouble reads an 8-byte big-endian double
     public double ReadDouble() => BinaryPrimitives.ReadDoubleBigEndian(_reader.ReadBytes(8));
 
-    //ReadString 读 VarInt 长度前缀的 UTF-8 字符串
+    //ReadString reads a UTF-8 string with a VarInt length prefix
     public string ReadString(int maxLength = 32767)
     {
         var length = ReadVarInt();
-        if (length > maxLength * 4) throw new InvalidOperationException($"字符串字节长度超限 {length}");
+        if (length > maxLength * 4) throw new InvalidOperationException($"string byte length out of range {length}");
         var bytes = _reader.ReadBytes(length);
         var str = Encoding.UTF8.GetString(bytes);
-        if (str.Length > maxLength) throw new InvalidOperationException($"字符串长度超限 {str.Length}");
+        if (str.Length > maxLength) throw new InvalidOperationException($"string length out of range {str.Length}");
         return str;
     }
 
-    //ReadByteArray 读 VarInt 长度前缀的字节数组
+    //ReadByteArray reads a byte array with a VarInt length prefix
     public byte[] ReadByteArray(int maxLength = 32767)
     {
         var length = ReadVarInt();
-        if (length > maxLength) throw new InvalidOperationException($"字节数组长度超限 {length}");
+        if (length > maxLength) throw new InvalidOperationException($"byte array length out of range {length}");
         return _reader.ReadBytes(length);
     }
 
-    //ReadBytes 读固定长度字节数组
+    //ReadBytes reads a fixed-length byte array
     public byte[] ReadBytes(int length) => _reader.ReadBytes(length);
 
-    //ReadUuid 读 16 字节大端 Guid
+    //ReadUuid reads a 16-byte big-endian Guid
     public Guid ReadUuid()
     {
         var bytes = _reader.ReadBytes(16);
-        //Java UUID 大端序 .NET Guid 内部混合端字节序需手动构造
+        //Java UUID is big-endian while .NET Guid uses a mixed-endian internal byte order, so it is built manually
         return new Guid(
             (uint)(bytes[0] << 24 | bytes[1] << 16 | bytes[2] << 8 | bytes[3]),
             (ushort)(bytes[4] << 8 | bytes[5]),
@@ -162,12 +162,12 @@ public class FriendlyByteBuf : IDisposable
             bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]);
     }
 
-    //WriteUuid 写 16 字节大端 Guid
+    //WriteUuid writes a 16-byte big-endian Guid
     public FriendlyByteBuf WriteUuid(Guid value)
     {
         var bytes = value.ToByteArray();
-        //.NET Guid.ToByteArray 是混合端序需转为大端序
-        //反转前 3 段 4-2-2 字节
+        //.NET Guid.ToByteArray is mixed-endian and must be converted to big-endian
+        //Reverses the first 3 segments of 4-2-2 bytes
         Span<byte> buf = stackalloc byte[16];
         buf[0] = bytes[3]; buf[1] = bytes[2]; buf[2] = bytes[1]; buf[3] = bytes[0];
         buf[4] = bytes[5]; buf[5] = bytes[4];
@@ -177,34 +177,34 @@ public class FriendlyByteBuf : IDisposable
         return this;
     }
 
-    //ReadIdentifier 读 namespace:path 格式的 Identifier
+    //ReadIdentifier reads an Identifier in namespace:path format
     public NetCraft.Registry.Identifier ReadIdentifier()
     {
         var str = ReadString(32767);
         return NetCraft.Registry.Identifier.Parse(str);
     }
 
-    //WriteIdentifier 写 Identifier 为 namespace:path 字符串
+    //WriteIdentifier writes an Identifier as a namespace:path string
     public FriendlyByteBuf WriteIdentifier(NetCraft.Registry.Identifier identifier)
         => WriteString(identifier.ToString());
 
-    //ReadNbt 读无名NBT标签 type byte + payload 对应原版readNbt
-    //NBT自描述读完位置停在标签末尾后续字段可继续读 读到0返回EndTag表示无数据
+    //ReadNbt reads an unnamed NBT tag, type byte + payload, maps to vanilla readNbt
+    //NBT is self-describing, so the read position stops at the end of the tag and subsequent fields can continue; reading 0 returns EndTag meaning no data
     public NetCraft.Nbt.Tag ReadNbt(NetCraft.Nbt.NbtAccounter? accounter = null)
         => NetCraft.Nbt.NbtIo.ReadAnyTag(new NetCraft.Nbt.BinaryNbtReader(_reader), accounter ?? new NetCraft.Nbt.NbtAccounter());
 
-    //WriteNbt 写无名NBT标签 对应原版writeNbt null写单字节0
+    //WriteNbt writes an unnamed NBT tag, maps to vanilla writeNbt; null writes a single 0 byte
     public FriendlyByteBuf WriteNbt(NetCraft.Nbt.Tag? tag)
     {
         NetCraft.Nbt.NbtIo.WriteAnyTag(tag ?? NetCraft.Nbt.EndTag.Instance, new NetCraft.Nbt.BinaryNbtWriter(_writer));
         return this;
     }
 
-    //ReadNullable 读可选值 reader 处理非空情况
+    //ReadNullable reads an optional value; reader handles the non-null case
     public T? ReadNullable<T>(Func<FriendlyByteBuf, T> reader) where T : class
         => ReadBoolean() ? reader(this) : null;
 
-    //WriteNullable 写可选值 writer 处理非空情况
+    //WriteNullable writes an optional value; writer handles the non-null case
     public FriendlyByteBuf WriteNullable<T>(T? value, Action<FriendlyByteBuf, T> writer) where T : class
     {
         if (value == null)
@@ -217,20 +217,20 @@ public class FriendlyByteBuf : IDisposable
         return this;
     }
 
-    //SkipBytes 跳过指定字节数
+    //SkipBytes skips the given number of bytes
     public FriendlyByteBuf SkipBytes(int length)
     {
         _reader.ReadBytes(length);
         return this;
     }
 
-    //WriteBoolean 写 1 字节布尔
+    //WriteBoolean writes a 1-byte boolean
     public FriendlyByteBuf WriteBoolean(bool value) { _writer.Write(value); return this; }
 
-    //WriteByte 写 1 字节
+    //WriteByte writes 1 byte
     public FriendlyByteBuf WriteByte(byte value) { _writer.Write(value); return this; }
 
-    //WriteShort 写 2 字节大端 short
+    //WriteShort writes a 2-byte big-endian short
     public FriendlyByteBuf WriteShort(short value)
     {
         Span<byte> buf = stackalloc byte[2];
@@ -239,7 +239,7 @@ public class FriendlyByteBuf : IDisposable
         return this;
     }
 
-    //WriteInt 写 4 字节大端 int
+    //WriteInt writes a 4-byte big-endian int
     public FriendlyByteBuf WriteInt(int value)
     {
         Span<byte> buf = stackalloc byte[4];
@@ -248,8 +248,8 @@ public class FriendlyByteBuf : IDisposable
         return this;
     }
 
-    //WriteVarInt 写可变长度 int
-    //优化点2.7：用Span批量写入避免多次_writer.Write调用
+    //WriteVarInt writes a variable-length int
+    //Optimization 2.7: batch writes with Span to avoid multiple _writer.Write calls
     public FriendlyByteBuf WriteVarInt(int value)
     {
         Span<byte> buf = stackalloc byte[5];
@@ -265,7 +265,7 @@ public class FriendlyByteBuf : IDisposable
         return this;
     }
 
-    //WriteLong 写 8 字节大端 long
+    //WriteLong writes an 8-byte big-endian long
     public FriendlyByteBuf WriteLong(long value)
     {
         Span<byte> buf = stackalloc byte[8];
@@ -274,8 +274,8 @@ public class FriendlyByteBuf : IDisposable
         return this;
     }
 
-    //WriteVarLong 写可变长度 long
-    //优化点2.7：用Span批量写入避免多次_writer.Write调用
+    //WriteVarLong writes a variable-length long
+    //Optimization 2.7: batch writes with Span to avoid multiple _writer.Write calls
     public FriendlyByteBuf WriteVarLong(long value)
     {
         Span<byte> buf = stackalloc byte[10];
@@ -291,7 +291,7 @@ public class FriendlyByteBuf : IDisposable
         return this;
     }
 
-    //WriteFloat 写 4 字节大端 float
+    //WriteFloat writes a 4-byte big-endian float
     public FriendlyByteBuf WriteFloat(float value)
     {
         Span<byte> buf = stackalloc byte[4];
@@ -300,7 +300,7 @@ public class FriendlyByteBuf : IDisposable
         return this;
     }
 
-    //WriteDouble 写 8 字节大端 double
+    //WriteDouble writes an 8-byte big-endian double
     public FriendlyByteBuf WriteDouble(double value)
     {
         Span<byte> buf = stackalloc byte[8];
@@ -309,17 +309,17 @@ public class FriendlyByteBuf : IDisposable
         return this;
     }
 
-    //WriteString 写 VarInt 长度前缀的 UTF-8 字符串
+    //WriteString writes a UTF-8 string with a VarInt length prefix
     public FriendlyByteBuf WriteString(string value, int maxLength = 32767)
     {
-        if (value.Length > maxLength) throw new InvalidOperationException($"字符串长度超限 {value.Length}");
+        if (value.Length > maxLength) throw new InvalidOperationException($"string length out of range {value.Length}");
         var bytes = Encoding.UTF8.GetBytes(value);
         WriteVarInt(bytes.Length);
         _writer.Write(bytes);
         return this;
     }
 
-    //WriteByteArray 写 VarInt 长度前缀的字节数组
+    //WriteByteArray writes a byte array with a VarInt length prefix
     public FriendlyByteBuf WriteByteArray(byte[] value)
     {
         WriteVarInt(value.Length);
@@ -327,21 +327,21 @@ public class FriendlyByteBuf : IDisposable
         return this;
     }
 
-    //WriteByteArray 写 VarInt 长度前缀的字节数组并校验最大长度
+    //WriteByteArray writes a byte array with a VarInt length prefix and validates the maximum length
     public FriendlyByteBuf WriteByteArray(byte[] value, int maxLength)
     {
         if (value.Length > maxLength)
-            throw new ArgumentException($"字节数组长度 {value.Length} 超过最大 {maxLength}", nameof(value));
+            throw new ArgumentException($"byte array length {value.Length} exceeds maximum {maxLength}", nameof(value));
         return WriteByteArray(value);
     }
 
-    //WriteBytes 写固定长度字节数组
+    //WriteBytes writes a fixed-length byte array
     public FriendlyByteBuf WriteBytes(byte[] value) { _writer.Write(value); return this; }
 
-    //ToArray 返回底层流的所有字节
+    //ToArray returns all bytes of the underlying stream
     public byte[] ToArray() => _stream.ToArray();
 
-    //AsArray 返回底层流的可用范围字节
+    //AsArray returns the bytes in the underlying stream's usable range
     public byte[] AsArray() => _stream.GetBuffer()[..(int)_stream.Length];
 
     public void Dispose()

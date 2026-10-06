@@ -4,7 +4,7 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//PlayerInfoAction 玩家信息更新动作位掩码对应原版 ClientboundPlayerInfoUpdatePacket.Action
+//PlayerInfoAction player info update action bitmask, maps to vanilla ClientboundPlayerInfoUpdatePacket.Action
 public enum PlayerInfoAction : byte
 {
     AddPlayer = 0,
@@ -15,8 +15,8 @@ public enum PlayerInfoAction : byte
     UpdateDisplayName = 5
 }
 
-//PlayerInfoEntry 玩家信息条目对应原版 ClientboundPlayerInfoUpdatePacket.Entry
-//S2 支持 AddPlayer(无 properties)+UpdateGameMode/UpdateListed/UpdateLatency/UpdateDisplayName(null)
+//PlayerInfoEntry player info entry, maps to vanilla ClientboundPlayerInfoUpdatePacket.Entry
+//S2 supports AddPlayer (no properties) + UpdateGameMode/UpdateListed/UpdateLatency/UpdateDisplayName (null)
 public sealed record PlayerInfoEntry(
     Guid ProfileId,
     string Name,
@@ -27,18 +27,18 @@ public sealed record PlayerInfoEntry(
 {
     public static StreamCodec<FriendlyByteBuf, PlayerInfoEntry> StaticCodec { get; } = new EntryCodec();
 
-    //EncodeEntry 按 actions 位掩码顺序写条目数据
+    //EncodeEntry writes entry data in the order of the actions bitmask
     public static void EncodeEntry(FriendlyByteBuf buf, PlayerInfoEntry entry, int actions)
     {
         buf.WriteUuid(entry.ProfileId);
         if ((actions & (1 << (int)PlayerInfoAction.AddPlayer)) != 0)
         {
             buf.WriteString(entry.Name);
-            //properties 列表 0 个 S2 不实现签名属性
+            //properties list of 0; S2 does not implement signed properties
             buf.WriteVarInt(0);
         }
         if ((actions & (1 << (int)PlayerInfoAction.InitializeChat)) != 0)
-            throw new NotSupportedException("InitializeChat 未实现");
+            throw new NotSupportedException("InitializeChat is not implemented");
         if ((actions & (1 << (int)PlayerInfoAction.UpdateGameMode)) != 0)
             buf.WriteVarInt(entry.GameMode.Id);
         if ((actions & (1 << (int)PlayerInfoAction.UpdateListed)) != 0)
@@ -47,25 +47,25 @@ public sealed record PlayerInfoEntry(
             buf.WriteVarInt(entry.Latency);
         if ((actions & (1 << (int)PlayerInfoAction.UpdateDisplayName)) != 0)
         {
-            //S2 只支持 null displayName Component 反序列化留后续
+            //S2 only supports a null displayName; Component deserialization is left for later
             buf.WriteBoolean(entry.DisplayName is not null);
             if (entry.DisplayName is not null)
-                throw new NotSupportedException("DisplayName 序列化未实现");
+                throw new NotSupportedException("DisplayName serialization is not implemented");
         }
     }
 
     private sealed class EntryCodec : StreamCodec<FriendlyByteBuf, PlayerInfoEntry>
     {
         public PlayerInfoEntry Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("Entry 解码由 EncodeEntry 静态方法对称实现");
+            => throw new NotImplementedException("Entry decoding is implemented symmetrically by the EncodeEntry static method");
 
         public void Encode(FriendlyByteBuf buf, PlayerInfoEntry value)
-            => throw new NotImplementedException("Entry 编码由 EncodeEntry 静态方法对称实现");
+            => throw new NotImplementedException("Entry encoding is implemented symmetrically by the EncodeEntry static method");
     }
 }
 
-//ClientboundPlayerInfoUpdatePacket 玩家信息更新包对应原版 ClientboundPlayerInfoUpdatePacket
-//actions 位掩码标识哪些动作被更新 entries 同 action 集合的玩家列表
+//ClientboundPlayerInfoUpdatePacket player info update packet, maps to vanilla ClientboundPlayerInfoUpdatePacket
+//The actions bitmask marks which actions are being updated; entries is the player list for the same action set
 public sealed record ClientboundPlayerInfoUpdatePacket(int Actions, IReadOnlyList<PlayerInfoEntry> Entries) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundPlayerInfoUpdatePacket> StreamCodec { get; } = new PlayerInfoUpdateCodec();
@@ -101,7 +101,7 @@ public sealed record ClientboundPlayerInfoUpdatePacket(int Actions, IReadOnlyLis
                     }
                 }
                 if ((actions & (1 << (int)PlayerInfoAction.InitializeChat)) != 0)
-                    throw new NotSupportedException("InitializeChat 解码未实现");
+                    throw new NotSupportedException("InitializeChat decoding is not implemented");
                 if ((actions & (1 << (int)PlayerInfoAction.UpdateGameMode)) != 0)
                     gameMode = GameType.ById(buf.ReadVarInt()) ?? GameType.Survival;
                 if ((actions & (1 << (int)PlayerInfoAction.UpdateListed)) != 0)
@@ -111,7 +111,7 @@ public sealed record ClientboundPlayerInfoUpdatePacket(int Actions, IReadOnlyLis
                 if ((actions & (1 << (int)PlayerInfoAction.UpdateDisplayName)) != 0)
                 {
                     if (buf.ReadBoolean())
-                        throw new NotSupportedException("DisplayName 解码未实现");
+                        throw new NotSupportedException("DisplayName decoding is not implemented");
                 }
                 entries[i] = new PlayerInfoEntry(profileId, name ?? string.Empty, gameMode, listed, latency, displayName);
             }

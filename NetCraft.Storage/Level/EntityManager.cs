@@ -4,44 +4,44 @@ using NetCraftEntity = NetCraft.Registry.Entity;
 
 namespace NetCraft.Storage;
 
-//EntityManager 实体生命周期管理 对应原版 net.minecraft.world.level.entity.PersistentEntitySectionManager
-//实体按所在 chunk 归属 分两态:
-//可见(参与 tick 与网络追踪) / 待命(区块卸载后退出 tick 只留在索引里等下次加载)
-//加入即视为可见 对应原版 addNewEntity 无条件进 visibleEntityStorage 再由区块事件纠正
-//tick 期间增删走延迟队列 避免遍历过程中改动集合 对应原版 EntityTickList 的 active/pending
-//实体跨 chunk 移动后刷新区块归属与空间索引 否则落盘会写错文件 查询会查不到
+//EntityManager, entity lifecycle management, maps to vanilla net.minecraft.world.level.entity.PersistentEntitySectionManager
+//Entities belong to their chunk and have two states:
+//visible (ticks and is network-tracked) / standby (leaves ticking after chunk unload, stays in the index until the next load)
+//Being added counts as visible, maps to vanilla addNewEntity entering visibleEntityStorage unconditionally and being corrected later by chunk events
+//Add/remove during a tick goes through a deferred queue, avoiding collection changes mid-iteration, maps to active/pending in the vanilla EntityTickList
+//After an entity moves across chunks, refresh its chunk ownership and spatial index; otherwise writes go to the wrong file and queries miss it
 public sealed class EntityManager
 {
-    //可见实体空间索引 供 AABB 查询与追踪遍历
+    //Spatial index of visible entities, for AABB queries and tracking traversal
     private readonly EntityLookup _visible = new();
-    //chunkPacked → 该 chunk 下全部实体(含待命)
+    //chunkPacked -> all entities under that chunk (including standby)
     private readonly Dictionary<long, List<NetCraftEntity>> _byChunk = new();
-    //entity → 当前所属 chunk 反查便于移动后重分桶
+    //entity -> its current chunk, for re-bucketing after a move
     private readonly Dictionary<NetCraftEntity, long> _entityChunk = new(ReferenceEqualityComparer.Instance);
-    //entity → 当前所属 section 反查 空间索引按 section 分桶需同步刷新
+    //entity -> its current section; the spatial index is bucketed by section and must be refreshed together
     private readonly Dictionary<NetCraftEntity, long> _entitySection = new(ReferenceEqualityComparer.Instance);
-    //knownUuids 已纳入管理的实体 按 Uuid 去重对应原版 knownUuids
+    //knownUuids, managed entities deduplicated by Uuid, maps to vanilla knownUuids
     private readonly Dictionary<Guid, NetCraftEntity> _knownUuids = new();
-    //byEntityId 网络 id 到实体的索引 攻击/交互包只带 entityId 必须按它反查目标
+    //byEntityId, index from network id to entity; attack/interact packets carry only an entityId and must resolve the target through it
     private readonly Dictionary<int, NetCraftEntity> _byEntityId = new();
-    //ticking 本轮参与 tick 的实体
+    //ticking, entities taking part in ticking this round
     private readonly List<NetCraftEntity> _ticking = new();
     private readonly List<NetCraftEntity> _pendingAdd = new();
     private readonly List<NetCraftEntity> _pendingRemove = new();
     private bool _processing;
 
-    //Count 已纳入管理的实体总数(含待命)
+    //Count, total managed entities (including standby)
     public int Count => _knownUuids.Count;
 
-    //Visible 可见实体集合 供网络追踪遍历
+    //Visible, the set of visible entities, for network tracking traversal
     public IEnumerable<NetCraftEntity> Visible => _visible.GetAll();
 
-    //VisibleLookup 可见实体空间索引 供 AABB 范围查询
+    //VisibleLookup, the visible entity spatial index, for AABB range queries
     public EntityLookup VisibleLookup => _visible;
 
-    //AddEntity 纳入实体 对应原版 addNewEntity
-    //Uuid 重复直接拒绝 加入即开始 tick 与追踪 区块卸载后由 OnChunkUnloaded 转为待命
-    //没分配过 id 的实体在这里补分配 对应原版构造里的 level.getNextEntityId 分配后立刻登记才算占住
+    //AddEntity takes in an entity, maps to vanilla addNewEntity
+    //A duplicate Uuid is rejected outright; adding starts ticking and tracking, and OnChunkUnloaded turns it to standby after chunk unload
+    //Entities without an id get one here, maps to level.getNextEntityId in the vanilla constructor; registering immediately is what claims it
     public bool AddEntity(NetCraftEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
@@ -53,8 +53,8 @@ public sealed class EntityManager
         return true;
     }
 
-    //RemoveEntity 移除实体 对应原版 removeEntity
-    //tick 期间只入队 tick 结束再真正摘除
+    //RemoveEntity removes an entity, maps to vanilla removeEntity
+    //During a tick it is only enqueued, and actually detached after the tick ends
     public bool RemoveEntity(NetCraftEntity entity)
     {
         if (entity is null || !_knownUuids.ContainsKey(entity.Uuid)) return false;
@@ -66,7 +66,7 @@ public sealed class EntityManager
         return RemoveNow(entity);
     }
 
-    //OnChunkLoaded 区块加载完成 该 chunk 下待命实体转为可见可 tick
+    //OnChunkLoaded: on chunk load completion, standby entities under that chunk become visible and tickable
     public void OnChunkLoaded(ChunkPos pos)
     {
         if (!_byChunk.TryGetValue(pos.Pack(), out var list)) return;
@@ -74,7 +74,7 @@ public sealed class EntityManager
             StartTicking(list[i]);
     }
 
-    //OnChunkUnloaded 区块卸载 该 chunk 下实体退出 tick 与追踪 仍留在索引里等下次加载
+    //OnChunkUnloaded: on chunk unload, entities under that chunk leave ticking and tracking but stay in the index for the next load
     public void OnChunkUnloaded(ChunkPos pos)
     {
         if (!_byChunk.TryGetValue(pos.Pack(), out var list)) return;
@@ -82,12 +82,12 @@ public sealed class EntityManager
             StopTicking(list[i]);
     }
 
-    //Tick 推进全部可见实体 对应原版 EntityTickList.forEach
-    //顺序: tick 实体 → 收集自请求移除的 → 应用本轮增删 → 刷新移动实体的归属与空间索引
-    //frozen 为真时实体一律原地不动 对应原版 isEntityFrozen 命中(玩家不在本集合里 由 PlayerList 单独调度)
-    //遍历与索引刷新照跑 冻结后新加入的实体才能被追踪同步出去 掉出来看不见才是真的"没反应"
-    //entityTicking 为真时该区块的实体才推进 对应原版 ServerLevel.tick 里的 inEntityTickingRange 过滤
-    //模拟距离之外的区块实体只留在索引里待命 不传则全部推进
+    //Tick advances all visible entities, maps to vanilla EntityTickList.forEach
+    //Order: tick entities -> collect self-requested removals -> apply this round's add/remove -> refresh moved entities' ownership and spatial index
+    //When frozen is true entities stay put, matching the vanilla isEntityFrozen hit (players are not in this set and are scheduled separately by PlayerList)
+    //Traversal and index refresh still run so newly added entities can be tracked and synced; falling out of tracking unseen would really look like "no response"
+    //When entityTicking is true the chunk's entities advance, maps to the inEntityTickingRange filter in vanilla ServerLevel.tick
+    //Chunk entities beyond simulation distance stay standby in the index; when not supplied, all advance
     public void Tick(bool frozen = false, Func<long, bool>? entityTicking = null)
     {
         _processing = true;
@@ -99,7 +99,7 @@ public sealed class EntityManager
                 entity.Tick();
             }
         _processing = false;
-        //实体自己请求移除的(空栈/超时/拾取)并入延迟队列 遍历中不改动 _ticking
+        //Entities requesting their own removal (empty stack/timeout/pickup) join the deferred queue; _ticking is not modified during iteration
         for (var i = 0; i < _ticking.Count; i++)
         {
             var entity = _ticking[i];
@@ -110,12 +110,12 @@ public sealed class EntityManager
             UpdatePlacement(_ticking[i]);
     }
 
-    //GetEntitiesInChunk 取指定 chunk 下全部实体(含待命) 供实体落盘
+    //GetEntitiesInChunk gets all entities under the given chunk (including standby), for entity writes
     public IReadOnlyList<NetCraftEntity> GetEntitiesInChunk(ChunkPos pos)
         => _byChunk.TryGetValue(pos.Pack(), out var list) ? list : Array.Empty<NetCraftEntity>();
 
-    //LoadedChunks 当前挂有实体的 chunk 位置 供实体落盘遍历
-    //原先 Select+ToList 每次调用都materialize一份列表 落盘每轮都要用它 改成惰性产出
+    //LoadedChunks, chunk positions currently holding entities, for entity write traversal
+    //Previously Select+ToList materialized a list on every call; since writes use it every round, it is now lazy
     public IEnumerable<ChunkPos> LoadedChunks
     {
         get
@@ -124,20 +124,20 @@ public sealed class EntityManager
         }
     }
 
-    //GetByUuid 按 Uuid 查实体 对应原版 getEntity(uuid)
+    //GetByUuid looks up an entity by Uuid, maps to vanilla getEntity(uuid)
     public NetCraftEntity? GetByUuid(Guid uuid)
         => _knownUuids.TryGetValue(uuid, out var entity) ? entity : null;
 
-    //GetByEntityId 按网络 id 查实体 对应原版 getEntity(int id)
-    //攻击与交互包只带 entityId 命中不了就当作无效目标丢弃
+    //GetByEntityId looks up an entity by network id, maps to vanilla getEntity(int id)
+    //Attack and interact packets carry only an entityId; a miss is dropped as an invalid target
     public NetCraftEntity? GetByEntityId(int entityId)
         => _byEntityId.TryGetValue(entityId, out var entity) ? entity : null;
 
-    //HasEntityWithId 该网络 id 是否已被占用 对应原版 ChunkMap.hasEntityWithId
-    //实体 id 分配时查重用 已卸载但仍留在索引里的实体也算占用
+    //HasEntityWithId, whether the network id is taken, maps to vanilla ChunkMap.hasEntityWithId
+    //Used for id-allocation checks; an unloaded entity still in the index also counts as taken
     public bool HasEntityWithId(int entityId) => _byEntityId.ContainsKey(entityId);
 
-    //Clear 清空全部实体与索引
+    //Clear clears all entities and indexes
     public void Clear()
     {
         _visible.Clear();
@@ -151,7 +151,7 @@ public sealed class EntityManager
         _pendingRemove.Clear();
     }
 
-    //StartTicking 让实体进入可见可 tick 集合 tick 期间入队等本轮结束再生效
+    //StartTicking puts an entity into the visible, tickable set; during a tick it is enqueued and takes effect after the round
     private void StartTicking(NetCraftEntity entity)
     {
         if (_processing)
@@ -165,7 +165,7 @@ public sealed class EntityManager
         _entitySection[entity] = SectionKeyOf(entity.Pos);
     }
 
-    //StopTicking 把实体退出可见可 tick 集合
+    //StopTicking removes an entity from the visible, tickable set
     private void StopTicking(NetCraftEntity entity)
     {
         _ticking.Remove(entity);
@@ -174,7 +174,7 @@ public sealed class EntityManager
         _pendingAdd.Remove(entity);
     }
 
-    //RemoveNow 立即摘除实体与其全部索引
+    //RemoveNow detaches the entity and all its indexes immediately
     private bool RemoveNow(NetCraftEntity entity)
     {
         if (!_knownUuids.Remove(entity.Uuid)) return false;
@@ -185,12 +185,12 @@ public sealed class EntityManager
         return true;
     }
 
-    //ApplyPending 应用 tick 期间累积的增删
+    //ApplyPending applies add/remove accumulated during the tick
     private void ApplyPending()
     {
         if (_pendingRemove.Count > 0)
         {
-            //RemoveNow 会顺带清理该队列 先取快照再清空避免遍历中改动集合
+            //RemoveNow also cleans that queue; snapshot first and clear to avoid collection changes mid-iteration
             var removals = _pendingRemove.ToArray();
             _pendingRemove.Clear();
             foreach (var entity in removals) RemoveNow(entity);
@@ -198,13 +198,13 @@ public sealed class EntityManager
         for (var i = 0; i < _pendingAdd.Count; i++)
         {
             var entity = _pendingAdd[i];
-            //tick 期间被移除的实体不再进入可见集合
+            //Entities removed during the tick do not enter the visible set
             if (_knownUuids.ContainsKey(entity.Uuid)) StartTicking(entity);
         }
         _pendingAdd.Clear();
     }
 
-    //UpdatePlacement 同步实体移动后的区块归属与空间索引
+    //UpdatePlacement syncs chunk ownership and the spatial index after an entity moves
     private void UpdatePlacement(NetCraftEntity entity)
     {
         var chunk = ChunkOf(entity.Pos);

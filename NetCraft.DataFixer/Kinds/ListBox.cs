@@ -3,28 +3,28 @@ namespace NetCraft.DataFixer.Kinds;
 using System;
 using System.Collections.Generic;
 
-//ListBox容器存放Mu标记避免ListBox<T>类型参数上下文
+//ListBox container holding the Mu marker, avoiding the ListBox<T> type parameter context
 public static class ListBoxes
 {
-    //一元HKT标记
+    //unary HKT marker
     public sealed class Mu : K1 { }
 }
 
-//List盒对应原版com.mojang.datafixers.kinds.ListBox
+//List box maps to vanilla com.mojang.datafixers.kinds.ListBox
 public sealed class ListBox<T> : App<ListBoxes.Mu, T>
 {
     private readonly List<T> _value;
 
     private ListBox(List<T> value) => _value = value;
 
-    //还原类型应用为List<T>
+    //recover the type application as List<T>
     public static List<A> Unbox<A>(App<ListBoxes.Mu, A> box) => ((ListBox<A>)(object)box!)._value;
 
-    //构造ListBox
+    //build a ListBox
     public static ListBox<A> Create<A>(List<A> value) => new(value);
 }
 
-//ListBox作为Traversable的实例独立放置
+//ListBox as a Traversable instance, placed separately
 public sealed class ListBoxInstance : Traversable<ListBoxes.Mu, ListBoxInstance.Mu>
 {
     public sealed class Mu : ITraversableMu { }
@@ -58,11 +58,11 @@ public sealed class ListBoxInstance : Traversable<ListBoxes.Mu, ListBoxInstance.
         return applicative.Map(b => (App<ListBoxes.Mu, B>)ListBox<B>.Create(b), result);
     }
 
-    //静态遍历委托Instance返回App<F,List<B>>
+    //static traverse delegating to Instance, returning App<F,List<B>>
     public static App<F, List<B>> Traverse<F, TMu2, A, B>(Applicative<F, TMu2> applicative, Func<A, App<F, B>> function, List<A> input) where F : K1 where TMu2 : IApplicativeMu
         => applicative.Map(ListBox<B>.Unbox<B>, InstanceOf.Traverse<F, TMu2, A, B>(applicative, function, ListBox<A>.Create(input)));
 
-    //静态翻转委托静态Traverse对应接口Flip默认实现
+    //static flip delegating to static Traverse, matching the interface's default Flip implementation
     public static App<F, List<A>> Flip<F, TMu2, A>(Applicative<F, TMu2> applicative, List<App<F, A>> input) where F : K1 where TMu2 : IApplicativeMu
         => Traverse<F, TMu2, App<F, A>, A>(applicative, x => x, input);
 }

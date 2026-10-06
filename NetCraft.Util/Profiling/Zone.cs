@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Profiling;
 
-//profiler zone对应原版net.minecraft.util.profiling.Zone
-//AutoCloseable包装push/pop作用域可附加文本/值/颜色
+//Profiler zone, maps to vanilla net.minecraft.util.profiling.Zone
+//AutoCloseable wrapping a push/pop scope, can attach text/value/color
 public sealed class Zone : IDisposable
 {
     public static readonly Zone Inactive = new(null!);

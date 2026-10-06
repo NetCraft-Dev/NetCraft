@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Collection;
 
-//单键缓存对应原版net.minecraft.util.SingleKeyCache
-//缓存最近一次计算的键值对下次同key直接返回缓存值
+//Single-key cache, maps to vanilla net.minecraft.util.SingleKeyCache
+//Caches the most recent computed key-value pair, the next same key returns the cached value directly
 public sealed class SingleKeyCache<K, V>
     where K : class
 {
@@ -15,9 +15,9 @@ public sealed class SingleKeyCache<K, V>
         _computeValue = computeValue;
     }
 
-    //getValue按key取缓存未命中或key变化时重新计算对应原版getValue
-    //原版用cachedValue==null判断空值C#用_hasValue标志区分null与未计算
-    //key比较用EqualityComparer对齐原版Objects.equals值相等语义
+    //getValue reads the cache by key, recomputes on a miss or key change, maps to vanilla getValue
+    //Vanilla uses cachedValue==null to detect an empty value; C# uses a _hasValue flag to distinguish null from uncomputed
+    //Key comparison uses EqualityComparer, aligning with the value-equality semantics of vanilla Objects.equals
     public V GetValue(K cacheKey)
     {
         if (!_hasValue || !EqualityComparer<K>.Default.Equals(_cacheKey, cacheKey))

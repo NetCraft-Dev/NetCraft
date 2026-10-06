@@ -1,17 +1,17 @@
 namespace NetCraft.Registry;
 
-//PermissionSet 权限集合对应原版 net.minecraft.server.permissions.PermissionSet
-//判入是集合的事 Union 把两个集合并起来 扁平化交给 PermissionSetUnion
-//原版 NO_PERMISSIONS/ALL_PERMISSIONS 是两个 lambda 这里是私有子类
+//PermissionSet permission set, maps to vanilla net.minecraft.server.permissions.PermissionSet
+//Membership is the set's job and Union combines two sets, delegating flattening to PermissionSetUnion
+//Vanilla NO_PERMISSIONS/ALL_PERMISSIONS are two lambdas, here they are private subclasses
 public abstract class PermissionSet
 {
     public static readonly PermissionSet NoPermissions = new NoPermissionsSet();
     public static readonly PermissionSet AllPermissions = new AllPermissionsSet();
 
-    //HasPermission 是否持有一项权限
+    //HasPermission whether it holds a permission
     public abstract bool HasPermission(Permission permission);
 
-    //Union 取并集对端已是并集时转交它扁平化 对应原版 default union
+    //Union takes the union; if the other is already a union it delegates flattening to it, maps to vanilla default union
     public virtual PermissionSet Union(PermissionSet other)
         => other is PermissionSetUnion union ? union.Union(this) : new PermissionSetUnion(this, other);
 
@@ -28,7 +28,7 @@ public abstract class PermissionSet
     }
 }
 
-//PermissionSetSupplier 持有权限集合的东西对应原版 PermissionSetSupplier
+//PermissionSetSupplier something that holds a permission set, maps to vanilla PermissionSetSupplier
 public interface PermissionSetSupplier
 {
     PermissionSet Permissions { get; }

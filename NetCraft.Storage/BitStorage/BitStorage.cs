@@ -1,29 +1,29 @@
 namespace NetCraft.Storage;
 
-//位存储接口对应原版net.minecraft.util.BitStorage
-//紧凑存储int数组每元素占固定bit数
+//Bit storage interface, maps to vanilla net.minecraft.util.BitStorage
+//Densely packed int array, each element occupies a fixed number of bits
 public interface BitStorage
 {
-    //返回旧值并设置新值
+    //Return the old value and set the new value
     int GetAndSet(int index, int value);
 
     void Set(int index, int value);
 
     int Get(int index);
 
-    //原始long数组对应原版getRaw
+    //Raw long array, maps to vanilla getRaw
     long[] GetRaw();
 
-    //元素数量对应原版getSize
+    //Element count, maps to vanilla getSize
     int Size { get; }
 
-    //每元素bit数对应原版getBits
+    //Bits per element, maps to vanilla getBits
     int Bits { get; }
 
-    //遍历所有元素对应原版getAll
+    //Iterate all elements, maps to vanilla getAll
     void GetAll(Action<int> output);
 
-    //解包到int数组对应原版unpack
+    //Unpack into an int array, maps to vanilla unpack
     void Unpack(int[] output);
 
     BitStorage Copy();

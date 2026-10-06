@@ -2,19 +2,19 @@ using System.Text;
 
 namespace NetCraft.Game.Server.Rcon;
 
-//NetworkDataOutputStream RCON 与查询协议的组包缓冲对应原版 net.minecraft.server.rcon.NetworkDataOutputStream
-//原版在 Java 大端流上再反转字节 等价于线上小端 这里直接按小端写
-//字符串是 UTF-8 字节后跟一个 0 终止符
+//NetworkDataOutputStream, packet building buffer for RCON and the query protocol, maps to vanilla net.minecraft.server.rcon.NetworkDataOutputStream
+//Vanilla writes big-endian on a Java stream and then reverses the bytes, equivalent to little-endian on the wire, so this writes little-endian directly
+//A string is UTF-8 bytes followed by a 0 terminator
 public class NetworkDataOutputStream
 {
     private readonly MemoryStream _output;
 
     public NetworkDataOutputStream(int size) => _output = new MemoryStream(size);
 
-    //WriteBytes 追加原始字节
+    //WriteBytes appends raw bytes
     public void WriteBytes(byte[] data) => _output.Write(data, 0, data.Length);
 
-    //WriteString 追加 UTF-8 字符串与 0 终止符
+    //WriteString appends a UTF-8 string with a 0 terminator
     public void WriteString(string data)
     {
         var bytes = Encoding.UTF8.GetBytes(data);
@@ -22,17 +22,17 @@ public class NetworkDataOutputStream
         _output.WriteByte(0);
     }
 
-    //Write 写单个字节
+    //Write writes a single byte
     public void Write(int data) => _output.WriteByte((byte)data);
 
-    //WriteShort 写小端 short
+    //WriteShort writes a little-endian short
     public void WriteShort(short data)
     {
         _output.WriteByte((byte)data);
         _output.WriteByte((byte)(data >> 8));
     }
 
-    //WriteInt 写小端 int
+    //WriteInt writes a little-endian int
     public void WriteInt(int data)
     {
         _output.WriteByte((byte)data);
@@ -41,12 +41,12 @@ public class NetworkDataOutputStream
         _output.WriteByte((byte)(data >> 24));
     }
 
-    //WriteFloat 写小端 float 位型按 int 处理
+    //WriteFloat writes a little-endian float, its bit pattern handled as an int
     public void WriteFloat(float data) => WriteInt(BitConverter.SingleToInt32Bits(data));
 
-    //ToByteArray 取当前缓冲
+    //ToByteArray returns the current buffer
     public byte[] ToByteArray() => _output.ToArray();
 
-    //Reset 清空缓冲
+    //Reset clears the buffer
     public void Reset() => _output.SetLength(0);
 }

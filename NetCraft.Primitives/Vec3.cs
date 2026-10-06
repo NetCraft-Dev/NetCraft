@@ -1,7 +1,7 @@
 namespace NetCraft.Primitives;
 
-//3D浮点向量对应原版net.minecraft.world.phys.Vec3
-//readonly struct值语义仅实现坐标运算和距离计算不含Codec延后到Codec接通
+//3D floating point vector, maps to vanilla net.minecraft.world.phys.Vec3
+//readonly struct value semantics, only coordinate math and distance calculation, no Codec yet, deferred until Codec is wired up
 public readonly struct Vec3 : IEquatable<Vec3>
 {
     public static readonly Vec3 Zero = new(0, 0, 0);
@@ -24,8 +24,8 @@ public readonly struct Vec3 : IEquatable<Vec3>
 
     public Vec3 Multiply(double scale) => new(X * scale, Y * scale, Z * scale);
 
-    //WithAxis 把某轴分量换成新值 其余两轴保持 对应原版 Vec3.with(Axis)
-    //逐轴裁剪位移时用它把解出来的那一轴写回
+    //WithAxis replaces the component of one axis with a new value, the other two stay, maps to vanilla Vec3.with(Axis)
+    //Used to write back the solved axis when clipping movement axis by axis
     public Vec3 WithAxis(Direction.Axis axis, double value) => axis switch
     {
         Direction.Axis.X => new Vec3(value, Y, Z),
@@ -43,7 +43,7 @@ public readonly struct Vec3 : IEquatable<Vec3>
 
     public double LengthSqr() => X * X + Y * Y + Z * Z;
 
-    //distanceTo到目标距离
+    //distanceTo distance to the target
     public double DistanceTo(Vec3 other) => Subtract(other).Length();
 
     public double DistanceToSqr(Vec3 other)

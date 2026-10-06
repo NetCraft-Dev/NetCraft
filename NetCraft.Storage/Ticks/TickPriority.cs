@@ -1,7 +1,7 @@
 namespace NetCraft.Storage.Ticks;
 
-//TickPriority 调度刻优先级 对应原版 net.minecraft.world.tick.TickPriority
-//数值越小越先执行 同刻内先比优先级再比子序号
+//TickPriority, scheduled tick priority, maps to vanilla net.minecraft.world.tick.TickPriority
+//Lower values run first; within the same tick, priority is compared before sub-order
 public enum TickPriority
 {
     ExtremelyHigh = -3,
@@ -15,7 +15,7 @@ public enum TickPriority
 
 public static class TickPriorities
 {
-    //ByValue 按数值取优先级 越界钳到两端 对应原版 TickPriority.byValue
+    //ByValue returns the priority for a value, clamping out-of-range to the ends, maps to vanilla TickPriority.byValue
     public static TickPriority ByValue(int value)
         => value <= (int)TickPriority.ExtremelyHigh
             ? TickPriority.ExtremelyHigh

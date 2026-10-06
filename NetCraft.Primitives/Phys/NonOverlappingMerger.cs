@@ -1,8 +1,8 @@
 namespace NetCraft.Primitives.Phys;
 
-//NonOverlappingMerger 两段不重叠坐标的拼接归并 对应原版 NonOverlappingMerger
-//一侧切分点整体小于另一侧时直接首尾相接 不必逐点比较
-//swap 为真表示两侧在归并回调里的角色互换
+//NonOverlappingMerger concatenation merge of two non-overlapping coordinate ranges, maps to vanilla NonOverlappingMerger
+//When one side's split points are all below the other's, they join end to end, no point-by-point comparison needed
+//swap true means the two sides swap roles in the merge callback
 public sealed class NonOverlappingMerger : AbstractDoubleList, IIndexMerger
 {
     private readonly IReadOnlyList<double> _lower;

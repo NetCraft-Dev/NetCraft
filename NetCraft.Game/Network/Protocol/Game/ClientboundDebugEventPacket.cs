@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundDebugEventPacket 调试事件包对应原版 ClientboundDebugEventPacket
-//字段 Event(DebugSubscription.Event<?>)
+//ClientboundDebugEventPacket debug event packet, maps to vanilla ClientboundDebugEventPacket
+//Field: Event(DebugSubscription.Event<?>)
 public sealed record ClientboundDebugEventPacket(object Event) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundDebugEventPacket> StreamCodec { get; } = new DebugEventCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundDebugEventPacket(object Event) : Packet<ClientGa
     private sealed class DebugEventCodec : StreamCodec<FriendlyByteBuf, ClientboundDebugEventPacket>
     {
         public ClientboundDebugEventPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundDebugEventPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

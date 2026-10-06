@@ -5,8 +5,8 @@ using NetCraft.Logging;
 
 namespace NetCraft.Util.EventLog;
 
-//事件日志目录对应原版EventLogDirectory
-//文件名是 yyyyMMdd-N 加扩展名，旧文件可以压成gz或按保留天数清掉
+//Event log directory, maps to vanilla EventLogDirectory
+//Filename is yyyyMMdd-N plus extension; old files can be compressed to gz or cleaned by retention days
 public sealed class EventLogDirectory
 {
     private const int CompressBufferSize = 4096;
@@ -41,7 +41,7 @@ public sealed class EventLogDirectory
         return new FileList(files);
     }
 
-    //只认 yyyyMMdd-N 加本目录扩展名的文件，其余一律无视
+    //Only recognizes yyyyMMdd-N files with this directory's extension, everything else is ignored
     private IEventLogFile? ParseFile(string path)
     {
         var fileName = Path.GetFileName(path);
@@ -59,7 +59,7 @@ public sealed class EventLogDirectory
         return null;
     }
 
-    //当天序号接着往后排，挑一个还没被占的
+    //The day's sequence continues, picking one not yet taken
     public RawFile CreateNewFile(DateOnly date)
     {
         var index = 1;
@@ -75,7 +75,7 @@ public sealed class EventLogDirectory
         return file;
     }
 
-    //独占打开原文件压成gz再截断删除，别人拿着的时候直接放弃
+    //Opens the original exclusively, compresses to gz then truncates and deletes; gives up if someone else holds it
     private static void TryCompress(string raw, string compressed)
     {
         if (File.Exists(compressed))
@@ -88,7 +88,7 @@ public sealed class EventLogDirectory
         File.Delete(raw);
     }
 
-    //按块读原文件写进gz
+    //Reads the original in blocks and writes into the gz
     private static void WriteCompressed(Stream source, string target)
     {
         using var output = new GZipStream(File.Create(target), CompressionLevel.Optimal);
@@ -98,14 +98,14 @@ public sealed class EventLogDirectory
             output.Write(buffer, 0, read);
     }
 
-    //目录里的一份文件清单，可以整批压缩或清理
+    //A file listing of the directory, can bulk-compress or clean up
     public sealed class FileList : IEnumerable<IEventLogFile>
     {
         private readonly List<IEventLogFile> _files;
 
         internal FileList(List<IEventLogFile> files) => _files = new List<IEventLogFile>(files);
 
-        //日期加保留天数不晚于今天就删掉
+        //Deletes files whose date plus retention days is not later than today
         public FileList Prune(DateOnly date, int expiryDays)
         {
             _files.RemoveAll(file =>
@@ -126,7 +126,7 @@ public sealed class EventLogDirectory
             return this;
         }
 
-        //把还没压过的全压成gz
+        //Compresses all uncompressed files to gz
         public FileList CompressAll()
         {
             for (var index = 0; index < _files.Count; index++)
@@ -152,12 +152,12 @@ public sealed class EventLogDirectory
         public HashSet<FileId> Ids() => _files.Select(file => file.Id).ToHashSet();
     }
 
-    //文件名标识对应原版EventLogDirectory.FileId
+    //Filename identifier, maps to vanilla EventLogDirectory.FileId
     public sealed record FileId(DateOnly Date, int Index)
     {
         private const string DateFormat = "yyyyMMdd";
 
-        //认不出格式给null
+        //Returns null on an unrecognized format
         public static FileId? Parse(string name)
         {
             var separator = name.IndexOf('-');
@@ -177,24 +177,24 @@ public sealed class EventLogDirectory
         public string ToFileName(string extension) => ToString() + extension;
     }
 
-    //日志文件，未压缩或已压缩两种
+    //Log file, either uncompressed or compressed
     public interface IEventLogFile
     {
         string Path { get; }
 
         FileId Id { get; }
 
-        //按文本读，文件不在了给null
+        //Reads as text, returns null if the file is gone
         TextReader? OpenReader();
 
-        //压成gz，已经是gz的原样返回
+        //Compresses to gz, returns as-is if already gz
         CompressedFile Compress();
     }
 
-    //未压缩的日志文件
+    //Uncompressed log file
     public sealed record RawFile(string Path, FileId Id) : IEventLogFile
     {
-        //写入方拿它追加事件
+        //The writer uses it to append events
         public FileStream OpenChannel() => new(Path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
 
         public TextReader? OpenReader() => File.Exists(Path) ? new StreamReader(Path) : null;
@@ -207,7 +207,7 @@ public sealed class EventLogDirectory
         }
     }
 
-    //已压缩的日志文件
+    //Compressed log file
     public sealed record CompressedFile(string Path, FileId Id) : IEventLogFile
     {
         public TextReader? OpenReader()

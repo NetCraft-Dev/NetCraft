@@ -1,13 +1,13 @@
 namespace NetCraft.Game.World.Clock;
 
-//WorldClocks 内置世界时钟对应原版 net.minecraft.world.clock.WorldClocks
-//注册顺序按字典序与 SynchronizedRegistryData.WorldClock 一致保证网络 id 对齐
+//WorldClocks built-in world clocks, maps to vanilla net.minecraft.world.clock.WorldClocks
+//Registration order follows lexicographic order to match SynchronizedRegistryData.WorldClock and keep network ids aligned
 public static class WorldClocks
 {
     public static readonly ResourceKey<WorldClock> OVERWORLD = Key("overworld");
     public static readonly ResourceKey<WorldClock> THE_END = Key("the_end");
 
-    //OverworldHolder 主世界时钟注册表引用 Timelines 注册内置时间线时引用
+    //OverworldHolder overworld clock registry reference; referenced when Timelines registers built-in timelines
     public static Reference<WorldClock>? OverworldHolder { get; private set; }
 
     public static void Bootstrap()

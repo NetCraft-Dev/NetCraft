@@ -1,18 +1,18 @@
 namespace NetCraft.Codec;
 
-//map字段序列化接口对应原版com.mojang.serialization.MapCodec
-//用于record-like结构的字段级编码解码
+//Map field serialization interface, mirroring vanilla com.mojang.serialization.MapCodec
+//Used for field-level encoding and decoding of record-like structures
 public interface MapCodec<T>
 {
-    //从MapLike解码
+    //Decode from a MapLike
     DataResult<T> Decode<U>(DynamicOps<U> ops, MapLike<U> input);
 
-    //编码为ops下的元素通常返回CompoundTag或类似map结构
+    //Encode into an element under ops, usually a CompoundTag or a similar map structure
     DataResult<U> EncodeStart<U>(DynamicOps<U> ops, T value);
 
-    //把字段值累积到builder对应原版MapCodec.encode
+    //Accumulate field values into the builder, mirroring vanilla MapCodec.encode
     RecordBuilder<U> EncodeTo<U>(DynamicOps<U> ops, T value, RecordBuilder<U> builder);
 
-    //获取record builder用于逐字段构建
+    //Get the record builder used to build field by field
     RecordBuilder<U> Encoder<U>(DynamicOps<U> ops);
 }

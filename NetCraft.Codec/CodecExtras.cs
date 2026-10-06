@@ -1,7 +1,7 @@
 namespace NetCraft.Codec;
 
-//long[] codec对应原版Codec.LONG_STREAM
-//序列化为ListTag<LongTag>反序列化从stream取long
+//long[] codec, mirroring vanilla Codec.LONG_STREAM
+//Serializes into a ListTag<LongTag> and deserializes longs from the stream
 internal sealed class LongArrayCodec : ScalarCodec<long[]>
 {
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, long[] value)
@@ -17,25 +17,25 @@ internal sealed class LongArrayCodec : ScalarCodec<long[]>
     }
 }
 
-//Codec扩展方法对应原版Codec.mapResult/lenientOptionalFieldOf
+//Codec extension methods, mirroring vanilla Codec.mapResult/lenientOptionalFieldOf
 public static class CodecExtras
 {
-    //long[] codec实例对应原版Codec.LONG_STREAM
+    //long[] codec instance, mirroring vanilla Codec.LONG_STREAM
     public static readonly Codec<long[]> LongArray = new LongArrayCodec();
 
-    //对应原版ExtraCodecs.orElsePartial
-    //解析失败用默认值替代不抛错
+    //Mirrors vanilla ExtraCodecs.orElsePartial
+    //A failed parse is replaced by the default value instead of throwing
     public static Codec<T> MapResult<T>(this Codec<T> codec, T defaultValue)
         => new MapResultCodec<T>(codec, defaultValue);
 
-    //对应原版Codec.lenientOptionalFieldOf
-    //字段缺失返回Empty解析错误也返回Empty不报错
+    //Mirrors vanilla Codec.lenientOptionalFieldOf
+    //A missing field returns Empty and a parse error also returns Empty without reporting
     public static MapCodec<Optional<T>> LenientOptionalFieldOf<T>(this Codec<T> codec, string name)
         => new LenientOptionalFieldCodec<T>(name, codec);
 }
 
-//MapResult codec对应原版mapResult(orElsePartial)
-//parse失败用默认值替代encode透传
+//MapResult codec, mirroring vanilla mapResult(orElsePartial)
+//A failed parse falls back to the default value and encode passes through
 internal sealed class MapResultCodec<T> : ScalarCodec<T>
 {
     private readonly Codec<T> _delegate;
@@ -56,8 +56,8 @@ internal sealed class MapResultCodec<T> : ScalarCodec<T>
             : DataResult<T>.Success(_default!);
 }
 
-//lenient optional field codec对应原版lenientOptionalFieldOf
-//缺失或解析错误都返回Optional.Empty不抛
+//Lenient optional field codec, mirroring vanilla lenientOptionalFieldOf
+//Both a missing field and a parse error return Optional.Empty instead of throwing
 internal sealed class LenientOptionalFieldCodec<T> : AbstractMapCodec<Optional<T>>
 {
     private readonly string _name;

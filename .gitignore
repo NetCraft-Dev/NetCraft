@@ -66,3 +66,5 @@ NetCraft.Test3/
 NetCraft.TestMode/
 NetCraft.ClientHarness/
 NetCraft.Experimental/
+.pslocal/
+.psctx.json

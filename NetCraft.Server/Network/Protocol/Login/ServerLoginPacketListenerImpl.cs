@@ -3,9 +3,9 @@ using NetCraft.Network;
 
 namespace NetCraft.Network.Protocol.Login;
 
-//ServerLoginPacketListenerImpl 服务端 login 监听器实现
-//简化版跳过加密收到 Hello 直接发 LoginFinished 等客户端 LoginAcknowledged 切换到 Configuration
-//在线模式关闭时直接放行开启时暂不支持 Mojang 验证
+//ServerLoginPacketListenerImpl, the server login listener implementation
+//A simplified version that skips encryption, sends LoginFinished right after Hello, then waits for the client LoginAcknowledged to switch to Configuration
+//Passes through when online mode is off, Mojang authentication is not supported yet when it is on
 public sealed class ServerLoginPacketListenerImpl : ServerLoginPacketListener
 {
     private readonly Connection _connection;
@@ -18,7 +18,7 @@ public sealed class ServerLoginPacketListenerImpl : ServerLoginPacketListener
         _context = context;
     }
 
-    //HandleHello 收到客户端 hello 存 GameProfile 后直接发 LoginFinished 跳过加密
+    //HandleHello stores the GameProfile after the client hello and sends LoginFinished directly, skipping encryption
     public void HandleHello(ServerboundHelloPacket packet)
     {
         Log.Debug($"HandleHello entry name={packet.Name} profileId={packet.ProfileId}");
@@ -32,25 +32,25 @@ public sealed class ServerLoginPacketListenerImpl : ServerLoginPacketListener
             Log.Warning($"Failed to send LoginFinished {e.Message}");
             _connection.Disconnect("login failed");
         }
-        //Log.Debug("HandleHello 出口");
+        //Log.Debug("HandleHello exit");
     }
 
-    //HandleKey 加密包本轮跳过加密不会调用空实现
+    //HandleKey, the encryption packet is not called this round since encryption is skipped, left unimplemented
     public void HandleKey(ServerboundKeyPacket packet)
     {
         Log.Debug("HandleKey entry, encryption skipped");
     }
 
-    //HandleCustomQueryPacket 自定义查询包暂空实现
+    //HandleCustomQueryPacket, custom query packet, left unimplemented
     public void HandleCustomQueryPacket(ServerboundCustomQueryAnswerPacket packet)
     {
-        //Log.Debug("HandleCustomQueryPacket 入口");
+        //Log.Debug("HandleCustomQueryPacket entry");
     }
 
-    //HandleLoginAcknowledgement 客户端确认登录完成切换到 Configuration 阶段
+    //HandleLoginAcknowledgement switches to the Configuration phase after the client confirms login completion
     public void HandleLoginAcknowledgement(ServerboundLoginAcknowledgedPacket packet)
     {
-        //Log.Debug("HandleLoginAcknowledgement 入口");
+        //Log.Debug("HandleLoginAcknowledgement entry");
         if (_profile is null)
         {
             Log.Warning("LoginAcknowledged received before Hello, disconnecting");
@@ -58,7 +58,7 @@ public sealed class ServerLoginPacketListenerImpl : ServerLoginPacketListener
             return;
         }
         _context.TransitionToConfiguration(_connection, _profile);
-        //Log.Debug("HandleLoginAcknowledgement 出口");
+        //Log.Debug("HandleLoginAcknowledgement exit");
     }
 
     public void OnDisconnect(string reason)
@@ -67,10 +67,10 @@ public sealed class ServerLoginPacketListenerImpl : ServerLoginPacketListener
     }
 }
 
-//ServerLoginContext login 阶段上下文由 DedicatedServer 实现封装切到 Configuration 的逻辑
+//ServerLoginContext, login phase context, implemented by DedicatedServer and wrapping the switch to Configuration logic
 public interface ServerLoginContext
 {
-    //TransitionToConfiguration 切换连接到 Configuration 阶段挂 ServerConfigurationPacketListenerImpl
-    //profile 已通过 Hello 验证的玩家档案
+    //TransitionToConfiguration switches the connection to the Configuration phase and attaches ServerConfigurationPacketListenerImpl
+    //profile is the player profile already verified through Hello
     void TransitionToConfiguration(Connection connection, GameProfile profile);
 }

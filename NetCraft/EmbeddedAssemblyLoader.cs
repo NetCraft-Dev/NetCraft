@@ -3,39 +3,39 @@ using System.Runtime.Loader;
 
 namespace NetCraft;
 
-//内嵌程序集加载器（.NET 独家技术）。
-//通过 AssemblyLoadContext.Resolving 事件，在子库未被运行时找到时，
-//从主库内嵌资源（NetCraft.Embedded.*.dll）加载字节流。
-//对应 [C#内核重写计划.md] 第四节"通过内嵌资源加载子库"。
+//Embedded assembly loader (.NET-only technique).
+//Through the AssemblyLoadContext.Resolving event, when a sub-library is not found by the runtime,
+//load its byte stream from the main library's embedded resources (NetCraft.Embedded.*.dll).
+//Maps to section 4 "Load sub-libraries via embedded resources" of the C# kernel rewrite plan.
 public static class EmbeddedAssemblyLoader
 {
-    //主库程序集（包含内嵌资源）。
+    //Main library assembly (contains embedded resources).
     private static readonly Assembly MainAssembly = typeof(EmbeddedAssemblyLoader).Assembly;
 
-    //内嵌资源的命名前缀，与 csproj 中 LogicalName 一致。
+    //Naming prefix for embedded resources, matching the csproj's LogicalName.
     private const string ResourcePrefix = "NetCraft.Embedded.";
 
-    //KernelDirectoryName 内核程序集子目录名。
-    //内核上层程序集 Game/Server/Client/Gpu 反过来引用主库，无法内嵌进主库，
-    //约定由各可执行项目构建后统一挪进输出目录下的这个子目录，运行时按需解析。
+    //KernelDirectoryName kernel assembly subdirectory name.
+    //The kernel upper-layer assemblies Game/Server/Client/Gpu reference the main library in turn and cannot be embedded into it,
+    //so by convention each executable project moves them after build into this subdirectory under the output directory, resolved on demand at runtime.
     public const string KernelDirectoryName = "kernel";
 
-    //是否已初始化。
+    //Whether already initialized.
     private static int _initialized;
 
-    //程序集字节改写器：模组加载器用它做注入改写，未设置时按原样加载。
+    //Assembly byte rewriter: the mod loader uses it for injection rewrites; when unset, bytes load as-is.
     private static Func<string, byte[], byte[]>? _rewriter;
 
-    //设置字节改写器。入参是程序集名与原始字节，返回改写后的字节。
-    //必须在目标程序集首次解析之前设置，程序集是按需解析的，晚了就赶不上。
-    //只作用于本加载器经手的内嵌资源与 kernel 目录，主库自身走常规解析不经过这里，所以常规模组改不了主库。
+    //Set the byte rewriter. Takes the assembly name and original bytes, returns the rewritten bytes.
+    //Must be set before the target assembly is first resolved; assemblies are resolved on demand, so being late misses the window.
+    //Only affects embedded resources and the kernel directory handled by this loader; the main library itself goes through normal resolution and does not pass here, so ordinary mods cannot modify the main library.
     public static void SetRewriter(Func<string, byte[], byte[]>? rewriter)
     {
         _rewriter = rewriter;
     }
 
-    //注册内嵌资源解析回调。应在程序启动最早期调用一次。
-    //幂等：多次调用只生效一次。
+    //Register the embedded resource resolution callback. Should be called once at the earliest startup stage.
+    //Idempotent: multiple calls take effect only once.
     public static void Initialize()
     {
         if (Interlocked.Exchange(ref _initialized, 1) == 1)
@@ -47,9 +47,9 @@ public static class EmbeddedAssemblyLoader
         context.Resolving += OnResolvingAssembly;
     }
 
-    //解析失败时回调：从内嵌资源或 kernel 目录取字节加载。
-    //内核程序集已从输出根目录挪走，deps.json 里虽有登记但按路径找不到文件，
-    //默认解析失败后落到这里，字节才第一次经过改写器，模组注入就发生在这一刻。
+    //Callback on resolution failure: load bytes from embedded resources or the kernel directory.
+    //Kernel assemblies were moved out of the output root; deps.json still registers them but the file is not found by path,
+    //so after default resolution fails it lands here, the bytes pass through the rewriter for the first time, and mod injection happens at this moment.
     private static Assembly? OnResolvingAssembly(AssemblyLoadContext context, AssemblyName name)
     {
         if (string.IsNullOrEmpty(name.Name))
@@ -72,8 +72,8 @@ public static class EmbeddedAssemblyLoader
         return context.LoadFromStream(rewritten);
     }
 
-    //ReadAssemblyBytes 按程序集名取原始字节：内嵌资源优先，kernel 目录次之，运行目录兜底。
-    //取不到返回 null。预载改写版与解析回调都走这里，保证两条路拿到的是同一份来源。
+    //ReadAssemblyBytes fetches original bytes by assembly name: embedded resources first, the kernel directory next, the run directory as fallback.
+    //Returns null when not found. Both the preload-rewrite path and the resolution callback go through here, ensuring both paths get the same source.
     public static byte[]? ReadAssemblyBytes(string assemblyName)
     {
         var embedded = ReadEmbeddedAssembly(assemblyName);
@@ -88,13 +88,13 @@ public static class EmbeddedAssemblyLoader
             return File.ReadAllBytes(kernelPath);
         }
 
-        //运行目录兜底：测试这类没走内核分发流程的输出目录里，dll 还躺在根目录
+        //Run directory fallback: in output directories that skip the kernel distribution flow, such as tests, the dll still sits in the root
         var directPath = Path.Combine(AppPaths.BaseDirectory, assemblyName + ".dll");
         return File.Exists(directPath) ? File.ReadAllBytes(directPath) : null;
     }
 
-    //读取仅内嵌资源里那份字节，没有则返回 null。
-    //要取内核程序集（内嵌或 kernel 目录）的字节请用 ReadAssemblyBytes。
+    //Read only the bytes from embedded resources; returns null when absent.
+    //To fetch kernel assembly bytes (embedded or kernel directory), use ReadAssemblyBytes.
     public static byte[]? ReadEmbeddedAssembly(string assemblyName)
     {
         using var stream = MainAssembly.GetManifestResourceStream(ResourcePrefix + assemblyName + ".dll");
@@ -108,7 +108,7 @@ public static class EmbeddedAssemblyLoader
         return memory.ToArray();
     }
 
-    //列出所有可加载的内嵌子库（仅用于诊断/调试）。
+    //List all loadable embedded sub-libraries (diagnostics/debug only).
     public static IReadOnlyList<string> ListEmbeddedAssemblies()
     {
         var result = new List<string>();
@@ -123,4 +123,3 @@ public static class EmbeddedAssemblyLoader
         return result;
     }
 }
-

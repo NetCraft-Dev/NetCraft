@@ -1,9 +1,9 @@
 namespace NetCraft.Registry;
 
-//跨 Registry 的工厂方法，独立非泛型类避免 T 嵌套
+//Factory methods spanning Registry; a standalone non-generic class avoids nesting T
 public static class ResourceKeys
 {
-    //创建注册表自身的键registry等于root
+    //Creates the registry's own key; registry equals root
     public static ResourceKey<Registry<T>> CreateRegistryKey<T>(Identifier identifier) where T : class
         => ResourceKey<Registry<T>>.CreateInternal(ResourceKey<T>.RootRegistryName, identifier);
 }

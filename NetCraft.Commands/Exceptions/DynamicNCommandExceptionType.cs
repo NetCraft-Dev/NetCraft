@@ -2,8 +2,8 @@ using NetCraft.Commands;
 
 namespace NetCraft.Commands.Exceptions;
 
-//DynamicNCommandExceptionType 变参动态异常类型对应原版DynamicNCommandExceptionType
-//按任意数量参数通过Func生成Message创建CommandSyntaxException
+//DynamicNCommandExceptionType variadic dynamic exception type, maps to vanilla DynamicNCommandExceptionType
+//Produces a Message from any number of arguments via a Func and creates a CommandSyntaxException
 public sealed class DynamicNCommandExceptionType : ICommandExceptionType
 {
     private readonly Func<object[], IMessage> _function;

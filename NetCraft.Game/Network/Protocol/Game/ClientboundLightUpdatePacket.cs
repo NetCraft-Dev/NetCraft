@@ -4,9 +4,9 @@ using NetCraft.Storage.Light;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundLightUpdatePacket 光照更新包对应原版 ClientboundLightUpdatePacket
-//字段 X(int) Z(int) LightData(ClientboundLightUpdatePacketData)
-//x/z 走 VarInt 与区块包固定 Int 不同
+//ClientboundLightUpdatePacket light update packet, maps to vanilla ClientboundLightUpdatePacket
+//Fields: X(int), Z(int), LightData(ClientboundLightUpdatePacketData)
+//x/z use VarInt, unlike the fixed Int in the chunk packet
 public sealed record ClientboundLightUpdatePacket(int X, int Z, ClientboundLightUpdatePacketData LightData) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundLightUpdatePacket> StreamCodec { get; } = new LightUpdateCodec();
@@ -15,7 +15,7 @@ public sealed record ClientboundLightUpdatePacket(int X, int Z, ClientboundLight
 
     public void Handle(ClientGamePacketListener handler) => handler.HandleLightUpdatePacket(this);
 
-    //从光照引擎构造增量下发包对应原版构造函数
+    //Builds an incremental send packet from the light engine, maps to the vanilla constructor
     public ClientboundLightUpdatePacket(ChunkPos pos, LevelLightEngine lightEngine,
         byte[]? skyFilter = null, byte[]? blockFilter = null)
         : this(pos.X, pos.Z, new ClientboundLightUpdatePacketData(pos, lightEngine, skyFilter, blockFilter)) { }

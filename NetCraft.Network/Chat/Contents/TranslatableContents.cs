@@ -3,23 +3,23 @@ using NetCraft.Codec;
 
 namespace NetCraft.Network.Chat.Contents;
 
-//翻译内容对应原版net.minecraft.network.chat.contents.TranslatableContents
-//key + fallback + args 三元组翻译模板运行时按 Language 实例 decompose
+//Translatable contents, maps to vanilla net.minecraft.network.chat.contents.TranslatableContents
+//A key + fallback + args triple forming a translation template, decomposed at runtime by a Language instance
 public sealed class TranslatableContents : ComponentContents
 {
     public string Key { get; }
     public string? Fallback { get; }
     public object[] Args { get; }
 
-    //NO_ARGS 空参数数组对应原版 NO_ARGS
+    //NO_ARGS empty argument array, maps to vanilla NO_ARGS
     public static readonly object[] NoArgs = Array.Empty<object>();
 
-    //FORMAT_PATTERN 占位符模式对应原版 FORMAT_PATTERN
-    //两段分组依次是位置序号与格式字母 位置序号缺省时按出现顺序取参数
+    //FORMAT_PATTERN placeholder pattern, maps to vanilla FORMAT_PATTERN
+    //The two capture groups are the positional index and the format letter; when the positional index is omitted, arguments are taken in order of appearance
     private static readonly Regex FormatPattern =
         new(@"%(?:(\d+)\$)?([A-Za-z%]|$)", RegexOptions.Compiled);
 
-    //展开缓存的语言实例对应原版 decomposedWith 换语言才重新展开
+    //The language instance the expansion is cached against, maps to vanilla decomposedWith; it only re-expands when the language changes
     private Language? _decomposedWith;
     private List<FormattedText> _decomposedParts = new();
 
@@ -32,8 +32,8 @@ public sealed class TranslatableContents : ComponentContents
 
     public MapCodec<ComponentContents> Codec() => throw new NotImplementedException();
 
-    //Decompose 按当前语言把模板拆成文本段 对应原版 decompose
-    //模板缺翻译时取 key 本身 展开失败整段原样输出不至于丢字
+    //Decompose splits the template into text segments for the current language, maps to vanilla decompose
+    //When the template lacks a translation the key itself is used; a failed expansion outputs the segment as-is so no characters are lost
     private void Decompose()
     {
         var current = Language.Instance;
@@ -52,8 +52,8 @@ public sealed class TranslatableContents : ComponentContents
         }
     }
 
-    //DecomposeTemplate 逐段替换 %s 占位 对应原版 decomposeTemplate
-    //模板里出现裸 % 或 %d 这类不支持的格式按原版判为格式错误
+    //DecomposeTemplate replaces the %s placeholders segment by segment, maps to vanilla decomposeTemplate
+    //A bare % or unsupported formats like %d in the template are treated as format errors, as in vanilla
     private List<FormattedText> DecomposeTemplate(string template)
     {
         var parts = new List<FormattedText>();
@@ -96,8 +96,8 @@ public sealed class TranslatableContents : ComponentContents
         return parts;
     }
 
-    //GetArgument 取第 index 个参数 对应原版 getArgument
-    //组件参数保持组件身份让样式与嵌套翻译跟着走 其余转字符串
+    //GetArgument gets the argument at index, maps to vanilla getArgument
+    //Component arguments keep their component identity so style and nested translations carry through; the rest are converted to strings
     private FormattedText GetArgument(int index)
     {
         if (index < 0 || index >= Args.Length) throw new FormatException();
@@ -106,7 +106,7 @@ public sealed class TranslatableContents : ComponentContents
         return FormattedText.Of(arg?.ToString() ?? "null");
     }
 
-    //Visit 无样式消费者遍历展开后的文本段 对应原版 visit(ContentConsumer)
+    //Visit unstyled consumer traverses the expanded text segments, maps to vanilla visit(ContentConsumer)
     public Optional<T> Visit<T>(FormattedText.ContentConsumer<T> output)
     {
         Decompose();
@@ -118,7 +118,7 @@ public sealed class TranslatableContents : ComponentContents
         return Optional<T>.Empty();
     }
 
-    //Visit 带样式消费者遍历展开后的文本段 对应原版 visit(StyledContentConsumer,Style)
+    //Visit styled consumer traverses the expanded text segments, maps to vanilla visit(StyledContentConsumer,Style)
     public Optional<T> Visit<T>(FormattedText.StyledContentConsumer<T> output, Style currentStyle)
     {
         Decompose();

@@ -4,95 +4,95 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Registry;
 
-//Block 抽象基类对应原版 net.minecraft.world.level.block.Block
-//原版继承 BlockBehaviour 此处简化为抽象类持有 Id 与默认 BlockState
-//子类按需重写 Id 与 DefaultBlockState 提供具体方块定义
+//Block abstract base class, maps to vanilla net.minecraft.world.level.block.Block
+//Vanilla extends BlockBehaviour; simplified here to an abstract class holding Id and the default BlockState
+//Subclasses override Id and DefaultBlockState as needed to provide concrete block definitions
 public abstract class Block
 {
-    //Id 方块的注册名子类必须实现
+    //Id the block's registry name, must be implemented by subclasses
     public abstract Identifier Id { get; }
 
-    //DefaultBlockState 方块的默认状态子类必须实现
+    //DefaultBlockState the block's default state, must be implemented by subclasses
     public abstract BlockState DefaultBlockState { get; }
 
-    //AllStates 方块全部可能状态按注册顺序排列
-    //网络 palette 全局 id 需要全量状态默认仅默认状态由行为子类重写
+    //AllStates all possible states of the block in registration order
+    //The network palette global id needs every state; by default only the default state, overridden by behavior subclasses
     public virtual IReadOnlyList<BlockState> AllStates => new[] { DefaultBlockState };
 
-    //LightEmission 方块自身发光等级 0-15
+    //LightEmission the block's own light emission 0-15
     public virtual int LightEmission => 0;
 
-    //GetLightEmission 按状态算的发光等级 对应原版 lightLevel
-    //默认取不随状态变的 LightEmission 红石灯这类点亮才发光的方块覆写它
+    //GetLightEmission per-state light emission, maps to vanilla lightLevel
+    //Defaults to the state-independent LightEmission; blocks that only emit light when lit, like redstone lamps, override it
     public virtual int GetLightEmission(BlockState state) => LightEmission;
 
-    //CanOcclude 方块是否遮挡光线 对应原版 Properties.noOcclusion 设的 canOcclude
-    //玻璃 铁栏杆 栅栏 门 台阶这类都关掉 关掉后方块位置上的遮挡形状按空处理
+    //CanOcclude whether the block occludes light, maps to canOcclude set by vanilla Properties.noOcclusion
+    //Glass, iron bars, fences, doors and slabs turn it off; when off, the occlusion shape at the block position is treated as empty
     public virtual bool CanOcclude => true;
 
-    //UseShapeForLightOcclusion 遮挡形状是否跟着状态形状走 对应原版 useShapeForLightOcclusion
-    //只有显式声明的方块为真 与 IsEmptyShape 一起决定要不要做面级遮挡比较
+    //UseShapeForLightOcclusion whether the occlusion shape follows the state shape, maps to vanilla useShapeForLightOcclusion
+    //True only for explicitly declared blocks; together with IsEmptyShape it decides whether face-level occlusion comparison is done
     public virtual bool UseShapeForLightOcclusion => false;
 
-    //PushReaction 被活塞推动时的反应 对应原版 Properties.pushReaction 默认 normal
-    //值由内嵌方块表的 push= 段注入 表里没写的就是 normal
+    //PushReaction the reaction when pushed by a piston, maps to vanilla Properties.pushReaction, default normal
+    //The value is injected from the push= section of the embedded block table; anything not listed there is normal
     public virtual NetCraft.Registry.Enums.PushReaction PushReaction
         => NetCraft.Registry.Enums.PushReaction.normal;
 
-    //GetOcclusionShape 遮挡判定用的形状 对应原版 getOcclusionShape
-    //原版取 state.getShape(空世界视图) BlockBehaviour 会覆写成真实形状 这里的兜底只给不走它的实现
+    //GetOcclusionShape the shape used for occlusion checks, maps to vanilla getOcclusionShape
+    //Vanilla takes state.getShape(empty world view) and BlockBehaviour overrides it with the real shape; the fallback here only serves implementations that do not go through it
     public virtual VoxelShape GetOcclusionShape(BlockState state) => Shapes.Block();
 
-    //SolidRender 遮挡形状是否占满整格 对应原版 solidRender
+    //SolidRender whether the occlusion shape fills the whole block, maps to vanilla solidRender
     public bool SolidRender(BlockState state)
         => IsShapeFullBlock(CanOcclude ? GetOcclusionShape(state) : Shapes.Empty());
 
-    //GetLightDampening 该状态对光的衰减 对应原版 getLightDampening
-    //整格实心扣满 15 天光能垂直穿透的扣 0 其余扣 1
-    //原版不是按方块给常数而是按状态形状算 玻璃与台阶这类不完整形状的衰减靠它才对
+    //GetLightDampening the light attenuation of this state, maps to vanilla getLightDampening
+    //A full solid block attenuates 15, one that lets skylight pass straight down attenuates 0, and the rest attenuate 1
+    //Vanilla does not use a per-block constant but computes from the state shape; this is what makes attenuation correct for incomplete shapes like glass and slabs
     public virtual int GetLightDampening(BlockState state)
         => SolidRender(state) ? 15 : (PropagatesSkylightDown(state) ? 0 : 1);
 
-    //PropagatesSkylightDown 天光能否垂直穿过该状态 对应原版 propagatesSkylightDown
-    //原版默认看视觉形状是否占满整格并且该处没有流体
+    //PropagatesSkylightDown whether skylight can pass straight down through this state, maps to vanilla propagatesSkylightDown
+    //Vanilla by default checks whether the visual shape fills the whole block and there is no fluid there
     public virtual bool PropagatesSkylightDown(BlockState state)
         => !IsShapeFullBlock(GetOcclusionShape(state)) && state.FluidState.IsEmpty;
 
-    //IsAir 是否为空气方块 对应原版 BlockState.isAir 地表规则与放置判定靠它
+    //IsAir whether it is an air block, maps to vanilla BlockState.isAir; surface rules and placement checks rely on it
     public virtual bool IsAir => false;
 
-    //RandomTicks 是否参与随机刻 对应原版 Properties.randomTicks 默认关闭
-    //放在基类是因为区段计数在 Storage 层算 那一层只认得到 Block
+    //RandomTicks whether it takes part in random ticks, maps to vanilla Properties.randomTicks, off by default
+    //Placed on the base class because section counting is done in the Storage layer, which only knows about Block
     public virtual bool RandomTicks => false;
 
-    //Friction 方块表面摩擦系数 决定实体落在这格上时的水平阻力 对应原版 getFriction
-    //默认 0.6 冰一类的滑面重写为 0.98
+    //Friction the block surface friction, determining horizontal resistance when an entity lands on it, maps to vanilla getFriction
+    //Defaults to 0.6; slippery surfaces like ice override it to 0.98
     public virtual float Friction => 0.6f;
 
-    //GetFluidState 取该状态的流体状态 非流体方块返回空对应原版 getFluidState
+    //GetFluidState gets the fluid state of this state; non-fluid blocks return empty, maps to vanilla getFluidState
     public virtual FluidState GetFluidState(BlockState state) => FluidState.Empty;
 
-    //IsShapeFullBlock 形状是否占满整格 对应原版 isShapeFullBlock
-    //原版对结果带 512 容量弱键缓存 形状实例基本被方块持有且反复使用 这里直接算
+    //IsShapeFullBlock whether the shape fills the whole block, maps to vanilla isShapeFullBlock
+    //Vanilla caches the result with a 512-capacity weak-key cache; shape instances are basically held by blocks and reused repeatedly, so it is computed directly here
     public static bool IsShapeFullBlock(VoxelShape shape)
         => !Shapes.JoinIsNotEmpty(Shapes.Block(), shape, BooleanOps.NotSame);
 
-    //IsFaceFull 形状的某一面是否占满整格面 对应原版 isFaceFull
+    //IsFaceFull whether one face of the shape fills the whole block face, maps to vanilla isFaceFull
     public static bool IsFaceFull(VoxelShape shape, Direction direction)
         => IsShapeFullBlock(shape.GetFaceShape(direction));
 
-    //Box 按 1/16 像素坐标造盒 对应原版 Block.box
+    //Box builds a box from 1/16 pixel coordinates, maps to vanilla Block.box
     public static VoxelShape Box(double minX, double minY, double minZ, double maxX, double maxY, double maxZ)
         => Shapes.Box(minX / 16.0, minY / 16.0, minZ / 16.0, maxX / 16.0, maxY / 16.0, maxZ / 16.0);
 
-    //Column 居中柱体 四参版可分别给两个水平尺寸 对应原版 Block.column
+    //Column centered column; the four-argument version takes the two horizontal sizes separately, maps to vanilla Block.column
     public static VoxelShape Column(double sizeXZ, double minY, double maxY)
         => Column(sizeXZ, sizeXZ, minY, maxY);
 
     public static VoxelShape Column(double sizeX, double sizeZ, double minY, double maxY)
         => Box(8.0 - sizeX / 2.0, minY, 8.0 - sizeZ / 2.0, 8.0 + sizeX / 2.0, maxY, 8.0 + sizeZ / 2.0);
 
-    //Cube 三轴居中且等高的方块 对应原版 Block.cube
+    //Cube a cube centered on all three axes, maps to vanilla Block.cube
     public static VoxelShape Cube(double size) => Cube(size, size, size);
 
     public static VoxelShape Cube(double sizeX, double sizeY, double sizeZ)
@@ -101,7 +101,7 @@ public abstract class Block
         return Column(sizeX, sizeZ, 8.0 - halfY, 8.0 + halfY);
     }
 
-    //BoxZ 沿 Z 轴定两端 X 方向居中 对应原版 Block.boxZ
+    //BoxZ spans Z with X centered, maps to vanilla Block.boxZ
     public static VoxelShape BoxZ(double sizeXY, double minZ, double maxZ)
         => BoxZ(sizeXY, sizeXY, minZ, maxZ);
 
@@ -114,8 +114,8 @@ public abstract class Block
     public static VoxelShape BoxZ(double sizeX, double minY, double maxY, double minZ, double maxZ)
         => Box(8.0 - sizeX / 2.0, minY, minZ, 8.0 + sizeX / 2.0, maxY, maxZ);
 
-    //Boxes 按 0..endInclusive 的序号造一组形状 对应原版 Block.boxes
-    //雪花层 作物 蜡烛这类每级形状都不同又无规律 逐级算出来存表
+    //Boxes builds a set of shapes for indexes 0..endInclusive, maps to vanilla Block.boxes
+    //Snow layers, crops and candles each have a different, irregular shape per level, so they are computed level by level into a table
     public static VoxelShape[] Boxes(int endInclusive, Func<int, VoxelShape> factory)
     {
         var shapes = new VoxelShape[endInclusive + 1];

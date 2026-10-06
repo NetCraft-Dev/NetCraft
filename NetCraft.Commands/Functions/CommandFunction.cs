@@ -8,21 +8,21 @@ using NetCraft.Registry;
 
 namespace NetCraft.Commands.Functions;
 
-//CommandFunction 编译后的函数对应原版 net.minecraft.commands.functions.CommandFunction
-//从 .mcfunction 文本的行列表编译而来 支持行尾反斜杠续行 # 注释 与 $ 宏行
+//CommandFunction a compiled function, maps to vanilla net.minecraft.commands.functions.CommandFunction
+//Compiled from the line list of .mcfunction text; supports trailing-backslash line continuation, # comments and $ macro lines
 public interface CommandFunction<T>
 {
-    //Id 函数标识
+    //Id function identifier
     Identifier Id { get; }
 
-    //Instantiate 带宏参数实例化 普通函数返回自身
+    //Instantiate instantiates with macro arguments; an ordinary function returns itself
     InstantiatedFunction<T> Instantiate(CompoundTag? arguments, CommandDispatcher<T> dispatcher);
 
-    //ShouldConcatenateNextLine 行尾反斜杠表示续行
+    //ShouldConcatenateNextLine a trailing backslash means line continuation
     private static bool ShouldConcatenateNextLine(string line)
         => line.Length > 0 && line[^1] == '\\';
 
-    //FromLines 从行列表编译函数对应原版 fromLines
+    //FromLines compiles a function from a line list; maps to vanilla fromLines
     public static CommandFunction<T> FromLines(Identifier id, CommandDispatcher<T> dispatcher, T compilationContext, List<string> lines)
     {
         var functionBuilder = new FunctionBuilder<T>();
@@ -81,7 +81,7 @@ public interface CommandFunction<T>
         return functionBuilder.Build(id);
     }
 
-        //ParseCommand 把一行命令编译成未绑定动作对应原版 parseCommand
+        //ParseCommand compiles one command line into an unbound action; maps to vanilla parseCommand
     public static UnboundEntryAction<T> ParseCommand(CommandDispatcher<T> dispatcher, T compilationContext, StringReader input)
     {
         var parse = dispatcher.Parse(input, compilationContext);
@@ -95,10 +95,10 @@ public interface CommandFunction<T>
         return unbound.ToUnboundAction();
     }
 
-    //ValidateParseResults 解析有错就抛对应原版 Commands.validateParseResults 与 getParseException
+    //ValidateParseResults throws on parse errors; maps to vanilla Commands.validateParseResults and getParseException
     public static void ValidateParseResults(ParseResults<T> parse)
     {
-        //输入没读完必有错 对应原版 canRead 检查
+        //Unconsumed input always means an error; maps to the vanilla canRead check
         if (!parse.GetReader().CanRead())
         {
             return;

@@ -2,18 +2,18 @@ using NetCraft.Registry;
 
 namespace NetCraft.Resources;
 
-//RegistryDataLoader 注册表数据驱动加载器对应原版 RegistryDataLoader
-//按 data/<namespace>/<注册表路径>/<元素路径>.json 扫描资源包 用元素 codec 解码后写入目标注册表
-//单个元素出错只记进结果不中断整体加载 对应原版把每个元素异常汇总成 CrashReport
+//RegistryDataLoader, data-driven registry loader, maps to vanilla RegistryDataLoader
+//Scans resource packs at data/<namespace>/<registry path>/<element path>.json, decodes with the element codec and writes into the target registry
+//A single bad element is only recorded in the result and does not abort the whole load, vanilla aggregates per-element exceptions into a CrashReport
 public static class RegistryDataLoader
 {
-    //Load 加载一组注册表数据 必须在目标注册表 Freeze 之前调用
-    //context 提供解析元素内跨注册表引用的查表入口
+    //Load loads a set of registry data, must be called before the target registries are frozen
+    //context provides the lookup entry point for resolving cross-registry references inside elements
     public static LoadResult Load(ResourceManager resourceManager, RegistryAccess context,
         IReadOnlyList<RegistryData> data)
     {
-        //先把各注册表的元素扫成一份总待办 元素之间会互相引用 跨注册表也会(configured_feature 引用 placed_feature)
-        //原版把各注册表并行装载 交错之间引用能凑齐 这里改成整份待办反复重试来复现同样的效果
+        //First scan the elements of all registries into one combined queue, elements reference each other, including across registries (configured_feature references placed_feature)
+        //Vanilla loads registries in parallel so interleaved references resolve, here the whole queue is retried repeatedly to reproduce the same effect
         var pending = new List<PendingElement>();
         foreach (var entry in data) CollectPending(resourceManager, entry, pending);
 
@@ -31,25 +31,25 @@ public static class RegistryDataLoader
                 }
                 else
                 {
-                    //先留住本轮失败原因 若之后某轮成功这项就丢弃 最终仍未成功才记进错误
+                    //Keep this round's failure reason, drop it if the item succeeds in a later round, only record it as an error if it never succeeds
                     remaining.Add(item with { Error = error });
                 }
             }
-            //一整轮下来没有任何元素成功 说明剩下的都是真错误 再重试也不会变
+            //If a whole round makes no progress, the remaining items are real errors and will not change on retry
             if (progressed == 0) return new LoadResult(loaded, remaining.Select(item => item.Error).ToList());
             pending = remaining;
         }
         return new LoadResult(loaded, Array.Empty<string>());
     }
 
-    //CollectPending 扫描某个注册表目录下的全部元素文件 按目录顺序排进待办
+    //CollectPending scans all element files under a registry directory and queues them in directory order
     private static void CollectPending(ResourceManager resourceManager, RegistryData data,
         List<PendingElement> pending)
     {
         var folder = data.RegistryId.Path;
         var prefix = folder + "/";
 
-        //遍历所有命名空间 与标签加载走同一套资源包遍历方式
+        //Walk all namespaces, using the same pack traversal as tag loading
         foreach (var ns in resourceManager.GetNamespaces(PackType.ServerData))
         {
             foreach (var resource in resourceManager.ListResources(PackType.ServerData, ns, folder))
@@ -68,10 +68,10 @@ public static class RegistryDataLoader
     }
 }
 
-//PendingElement 一个待装载元素 携带本轮失败原因供重试与最终汇总
+//PendingElement, an element waiting to load, carries this round's failure reason for retry and final aggregation
 internal readonly record struct PendingElement(RegistryData Data, Resource Resource, Identifier Id, string Error);
 
-//LoadResult 加载结果 携带成功条数与逐元素错误
+//LoadResult, carries the success count and per-element errors
 public sealed class LoadResult
 {
     public LoadResult(int loadedCount, IReadOnlyList<string> errors)
@@ -80,10 +80,10 @@ public sealed class LoadResult
         Errors = errors;
     }
 
-    //LoadedCount 成功写入注册表的元素数
+    //LoadedCount is the number of elements successfully written to a registry
     public int LoadedCount { get; }
 
-    //Errors 逐元素失败原因 形如 minecraft:foo: 具体消息
+    //Errors are per-element failure reasons, shaped like minecraft:foo: message
     public IReadOnlyList<string> Errors { get; }
 
     public bool HasErrors => Errors.Count > 0;

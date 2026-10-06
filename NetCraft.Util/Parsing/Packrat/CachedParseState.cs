@@ -1,8 +1,8 @@
 namespace NetCraft.Util.Parsing.Packrat;
 
-//带缓存的ParseState基类对应原版net.minecraft.util.parsing.packrat.CachedParseState
-//按位置缓存NamedRule解析结果避免重复解析
-//具体子类提供mark/restore/input实现
+//Cached ParseState base class, maps to vanilla net.minecraft.util.parsing.packrat.CachedParseState
+//Caches NamedRule parse results by position to avoid re-parsing
+//Concrete subclasses provide mark/restore/input
 public abstract class CachedParseState<S> : ParseState<S>
 {
     private readonly ErrorCollector<S> _errorCollector;
@@ -22,7 +22,7 @@ public abstract class CachedParseState<S> : ParseState<S>
     public ErrorCollector<S> ErrorCollector => _errorCollector;
     public ParseState<S> Silent => _silent;
 
-    //子类必须实现mark/restore/input
+    //Subclasses must implement mark/restore/input
     public abstract S Input { get; }
     public abstract int Mark();
     public abstract void Restore(int mark);

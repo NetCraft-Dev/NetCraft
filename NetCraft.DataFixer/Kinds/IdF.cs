@@ -2,18 +2,18 @@ namespace NetCraft.DataFixer.Kinds;
 
 using System;
 
-//IdF容器存放Mu标记与工厂方法避免IdF<T>类型参数上下文
+//IdF container holding the Mu marker and factory methods, avoiding the IdF<T> type parameter context
 public static class IdFs
 {
-    //一元HKT标记
+    //unary HKT marker
     public sealed class Mu : K1 { }
 
-    //构造IdF<T>
+    //build IdF<T>
     public static IdF<T> Create<T>(T value) => new(value);
 
-    //还原类型应用取值
-    //box实际可能是IdF<FR>而非IdF<T> FR是T的具体子类型(T=object FR=Dynamic<object>)
-    //C#严格泛型不变性禁止(IdF<T>)(object)idf强转用Unsafe.As绕过对齐Java类型擦除语义
+    //recover the type application and take the value
+    //box may actually be IdF<FR> rather than IdF<T>; FR is a concrete subtype of T (T=object, FR=Dynamic<object>)
+    //C# strict generic invariance forbids the (IdF<T>)(object)idf cast; use Unsafe.As to bypass it and align with Java type erasure semantics
     public static T Get<T>(App<Mu, T> box)
     {
         var obj = (object)box!;
@@ -22,7 +22,7 @@ public static class IdFs
     }
 }
 
-//身份函子对应原版com.mojang.datafixers.kinds.IdF
+//identity functor maps to vanilla com.mojang.datafixers.kinds.IdF
 public sealed class IdF<T> : App<IdFs.Mu, T>
 {
     public T Value { get; }
@@ -30,7 +30,7 @@ public sealed class IdF<T> : App<IdFs.Mu, T>
     internal IdF(T value) => Value = value;
 }
 
-//IdF作为Functor+Applicative的实例独立放置避免IdF<T>类型参数上下文
+//IdF as a Functor+Applicative instance, placed separately to avoid the IdF<T> type parameter context
 public sealed class IdFInstance : Functor<IdFs.Mu, IdFInstance.Mu>, Applicative<IdFs.Mu, IdFInstance.Mu>
 {
     public sealed class Mu : IApplicativeMu { }

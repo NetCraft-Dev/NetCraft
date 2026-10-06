@@ -10,8 +10,8 @@ using NetCraft.Commands.Tree;
 
 namespace NetCraft.Commands;
 
-//CommandDispatcher 命令分发器对应原版com.mojang.brigadier.CommandDispatcher
-//持RootCommandNode命令树与ResultConsumer结果回调提供注册解析执行补全
+//CommandDispatcher command dispatcher, maps to vanilla com.mojang.brigadier.CommandDispatcher
+//Holds a RootCommandNode command tree and a ResultConsumer result callback, offering register/parse/execute/completion
 public sealed class CommandDispatcher<S>
 {
     public const string ARGUMENT_SEPARATOR = " ";
@@ -35,7 +35,7 @@ public sealed class CommandDispatcher<S>
     {
     }
 
-    //HasCommand 递归检查子树是否存在command非null的节点供getSmartUsage过滤
+    //HasCommand recursively checks the subtree for a node with a non-null command, used to filter getSmartUsage
     private bool HasCommand(CommandNode<S> input)
     {
         if (input == null) return false;
@@ -47,7 +47,7 @@ public sealed class CommandDispatcher<S>
         return false;
     }
 
-    //Register 注册字面量命令到根节点返回构建结果
+    //Register registers a literal command on the root node and returns the built node
     public LiteralCommandNode<S> Register(LiteralArgumentBuilder<S> command)
     {
         var build = command.Build();
@@ -71,7 +71,7 @@ public sealed class CommandDispatcher<S>
         return Execute(parse);
     }
 
-    //Execute 检查reader未消费部分根据exceptions或context.range抛异常再用ContextChain展平执行
+    //Execute checks the reader's unconsumed part, throws based on exceptions or context.range, then flattens via ContextChain and runs
     public int Execute(ParseResults<S> parse)
     {
         if (parse.GetReader().CanRead())
@@ -111,8 +111,8 @@ public sealed class CommandDispatcher<S>
         return ParseNodes(_root, command, context);
     }
 
-    //ParseNodes 递归解析命令树各子节点收集potential与error按canRead/exceptions排序选最优
-    //redirect路径递归parseNodes到目标节点其他路径继续递归到子节点
+    //ParseNodes recursively parses each child of the command tree, collecting potentials and errors and picking the best by canRead/exceptions
+    //A redirect path recurses parseNodes into the target node; other paths keep recursing into children
     private ParseResults<S> ParseNodes(CommandNode<S> node, StringReader originalReader, CommandContextBuilder<S> contextSoFar)
     {
         var source = contextSoFar.GetSource();
@@ -314,7 +314,7 @@ public sealed class CommandDispatcher<S>
         return self;
     }
 
-    //GetCompletionSuggestions 异步收集cursor位置节点所有子节点的建议并合并返回
+    //GetCompletionSuggestions asynchronously collects suggestions from every child of the node at the cursor and merges them
     public Task<Suggestions> GetCompletionSuggestions(ParseResults<S> parse)
     {
         return GetCompletionSuggestions(parse, parse.GetReader().TotalLength);
@@ -352,7 +352,7 @@ public sealed class CommandDispatcher<S>
 
     public RootCommandNode<S> GetRoot() => _root;
 
-    //GetPath 深度优先遍历查找目标节点收集路径节点名
+    //GetPath depth-first traversal to find the target node and collect the path's node names
     public IReadOnlyList<string> GetPath(CommandNode<S> target)
     {
         var nodes = new List<List<CommandNode<S>>>();

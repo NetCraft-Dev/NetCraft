@@ -5,7 +5,7 @@ using AmbientSoundSettings = NetCraft.Registry.Environment.AmbientSounds;
 
 namespace NetCraft.Registry.Environment;
 
-//EnvironmentAttributes 内置环境属性定义对应原版 EnvironmentAttributes
+//EnvironmentAttributes built-in environment attribute definitions, maps to vanilla EnvironmentAttributes
 public static class EnvironmentAttributes
 {
     private static readonly AttributeType<bool> BooleanType =
@@ -62,18 +62,18 @@ public static class EnvironmentAttributes
     public static readonly EnvironmentAttribute<bool> CanPillagerPatrolSpawn = EnvironmentAttribute<bool>.CreateBuilder(BooleanType)
         .DefaultValue(true).Build();
 
-    //SkyLightLevel 不参与位置采样，仅用于维度级同步
+    //SkyLightLevel does not participate in positional sampling, only dimension-level sync
     public static readonly EnvironmentAttribute<float> SkyLightLevel = EnvironmentAttribute<float>.CreateBuilder(FloatType)
         .DefaultValue(15.0f).ValueRange(AttributeRange<float>.OfFloat(0.0f, 15.0f)).NotPositional().Syncable().Build();
 
-    //Codec 按 id 在注册表中解析环境属性
+    //Codec resolves an environment attribute by id in the registry
     public static readonly Codec<IEnvironmentAttribute> Codec = new EnvironmentAttributeByIdCodec();
 
     private static bool _registered;
 
     static EnvironmentAttributes() { RegisterAll(); }
 
-    //RegisterAll 注册全部内置环境属性，重复调用幂等
+    //RegisterAll registers all built-in environment attributes, idempotent on repeat calls
     public static void RegisterAll()
     {
         if (_registered) return;
@@ -100,7 +100,7 @@ public static class EnvironmentAttributes
     }
 }
 
-//EnvironmentAttributeByIdCodec 按注册名解析环境属性
+//EnvironmentAttributeByIdCodec resolves an environment attribute by registry name
 internal sealed class EnvironmentAttributeByIdCodec : ScalarCodec<IEnvironmentAttribute>
 {
     public override DataResult<IEnvironmentAttribute> Parse<U>(DynamicOps<U> ops, U input)

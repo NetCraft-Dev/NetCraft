@@ -4,8 +4,8 @@ using NetCraft.Util;
 
 namespace NetCraft.Game.Advancements.Predicates;
 
-//DistancePredicate 距离谓词 判定两点在各轴向上是否落在给定区间
-//对应原版 net.minecraft.advancements.predicates.DistancePredicate
+//DistancePredicate distance predicate, checks whether two points fall in the given ranges on each axis
+//maps to vanilla net.minecraft.advancements.predicates.DistancePredicate
 public sealed record DistancePredicate(
     MinMaxBounds.Doubles X,
     MinMaxBounds.Doubles Y,
@@ -13,7 +13,7 @@ public sealed record DistancePredicate(
     MinMaxBounds.Doubles Horizontal,
     MinMaxBounds.Doubles Absolute)
 {
-    //Codec 持久化编解码 字段名 x y z horizontal absolute 对应原版 CODEC
+    //Codec persistence codec, field names x/y/z/horizontal/absolute, maps to vanilla CODEC
     public static readonly Codec<DistancePredicate> Codec = RecordCodecBuilder.Of5(
         MinMaxBounds.Doubles.CODEC.OptionalFieldOf("x", MinMaxBounds.Doubles.Any)
             .ForGetter((DistancePredicate predicate) => predicate.X),
@@ -27,22 +27,22 @@ public sealed record DistancePredicate(
             .ForGetter((DistancePredicate predicate) => predicate.Absolute),
         (x, y, z, horizontal, absolute) => new DistancePredicate(x, y, z, horizontal, absolute));
 
-    //HorizontalOnly 只约束水平距离 对应原版 horizontal
+    //HorizontalOnly constrains only the horizontal distance, maps to vanilla horizontal
     public static DistancePredicate HorizontalOnly(MinMaxBounds.Doubles horizontal)
         => new(MinMaxBounds.Doubles.Any, MinMaxBounds.Doubles.Any, MinMaxBounds.Doubles.Any,
             horizontal, MinMaxBounds.Doubles.Any);
 
-    //VerticalOnly 只约束纵向距离 对应原版 vertical
+    //VerticalOnly constrains only the vertical distance, maps to vanilla vertical
     public static DistancePredicate VerticalOnly(MinMaxBounds.Doubles y)
         => new(MinMaxBounds.Doubles.Any, y, MinMaxBounds.Doubles.Any,
             MinMaxBounds.Doubles.Any, MinMaxBounds.Doubles.Any);
 
-    //AbsoluteOnly 只约束直线距离 对应原版 absolute
+    //AbsoluteOnly constrains only the straight-line distance, maps to vanilla absolute
     public static DistancePredicate AbsoluteOnly(MinMaxBounds.Doubles absolute)
         => new(MinMaxBounds.Doubles.Any, MinMaxBounds.Doubles.Any, MinMaxBounds.Doubles.Any,
             MinMaxBounds.Doubles.Any, absolute);
 
-    //Matches 两点距离逐项判定 水平与直线按平方值比对 对应原版 matches
+    //Matches two-point distance checked item by item; horizontal and straight-line compare by squared value, maps to vanilla matches
     public bool Matches(double x0, double y0, double z0, double x1, double y1, double z1)
     {
         var xd = (float)(x0 - x1);

@@ -1,20 +1,20 @@
 namespace NetCraft.Registry;
 
-//ID与值双向映射，对应原版IdMap，继承IEnumerable
+//Two-way id/value mapping, maps to vanilla IdMap, implements IEnumerable
 public interface IdMap<T> : IEnumerable<T>
 {
-    //未找到的默认ID
+    //Default id for not found
     public const int Default = -1;
 
-    //查值的ID找不到返回-1
+    //Return the id of a value, or -1 if not found
     int GetId(T thing);
 
-    //按ID查值找不到返回default
+    //Look up a value by id, returning default if not found
     T? ById(int id);
 
     int Size { get; }
 
-    //按ID查值找不到抛异常
+    //Look up a value by id, throwing if not found
     T ByIdOrThrow(int id)
     {
         var result = ById(id);
@@ -22,7 +22,7 @@ public interface IdMap<T> : IEnumerable<T>
         return result;
     }
 
-    //查ID找不到抛异常
+    //Look up the id of a value, throwing if not found
     int GetIdOrThrow(T value)
     {
         var id = GetId(value);
@@ -31,7 +31,7 @@ public interface IdMap<T> : IEnumerable<T>
     }
 }
 
-//IdMap简单实现对应原版IdMapper，自动分配递增ID
+//Simple IdMap implementation, maps to vanilla IdMapper, auto-assigns incrementing ids
 public sealed class IdMapper<T> : IdMap<T>
 {
     private readonly List<T?> _values = new();
@@ -48,7 +48,7 @@ public sealed class IdMapper<T> : IdMap<T>
         _nextId = startId;
     }
 
-    //添加并分配新ID已存在返回已有ID
+    //Add and assign a new id; return the existing id if already present
     public int Add(T value)
     {
         if (_toId.TryGetValue(value, out var existing)) return existing;
@@ -58,7 +58,7 @@ public sealed class IdMapper<T> : IdMap<T>
         return id;
     }
 
-    //按指定ID添加
+    //Add with a specified id
     public void Add(T value, int id)
     {
         while (_values.Count <= id - _nextId)

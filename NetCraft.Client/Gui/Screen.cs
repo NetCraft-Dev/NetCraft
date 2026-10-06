@@ -6,25 +6,25 @@ using NetCraft.Gpu;
 
 namespace NetCraft.Game.Gui;
 
-//Screen 屏幕基类对应原版 net.minecraft.client.gui.screens.Screen
-//持 MinecraftClient 与 GuiWindow 引用子类在 Init 创建控件 Add 到 Window
-//生命周期 Init/Removed/OnClose/IsPauseScreen/Tick 由 ScreenManager 驱动
+//Screen screen base class, maps to vanilla net.minecraft.client.gui.screens.Screen
+//Holds references to MinecraftClient and GuiWindow; subclasses create controls in Init and Add them to Window
+//Lifecycle Init/Removed/OnClose/IsPauseScreen/Tick is driven by ScreenManager
 public abstract class Screen
 {
-    //Minecraft 客户端实例访问 Config/Connection/SetScreen 等
+    //Minecraft client instance; access Config/Connection/SetScreen, etc.
     public MinecraftClient Minecraft { get; private set; } = null!;
-    //Window 渲染窗口控件直接 Add 到此 Window
+    //Window render window; controls are Added directly to this Window
     public GuiWindow Window { get; private set; } = null!;
-    //Manager 屏幕管理器引用用于 OnClose 调 PopScreen 不绕道 MinecraftClient
+    //Manager screen manager reference, so OnClose can call PopScreen without going through MinecraftClient
     public ScreenManager Manager { get; private set; } = null!;
-    //Title 屏幕标题用于调试与日志
+    //Title screen title, used for debugging and logging
     public virtual string Title => GetType().Name;
-    //GuiWidth 窗口渲染宽度布局用 scaled 逻辑像素控件坐标以此为基准
+    //GuiWidth window render width; layout uses scaled logical pixels and control coordinates are based on it
     protected int GuiWidth => Window.ScaledWidth;
-    //GuiHeight 窗口渲染高度布局用 scaled 逻辑像素控件坐标以此为基准
+    //GuiHeight window render height; layout uses scaled logical pixels and control coordinates are based on it
     protected int GuiHeight => Window.ScaledHeight;
 
-    //Attach 由 ScreenManager 注入 MinecraftClient Window 与 Manager 自身
+    //Attach injected by ScreenManager with MinecraftClient, Window, and the Manager itself
     internal void Attach(MinecraftClient minecraft, GuiWindow window, ScreenManager manager)
     {
         Minecraft = minecraft;
@@ -32,72 +32,72 @@ public abstract class Screen
         Manager = manager;
     }
 
-    //Init 屏幕被切入时调用于创建控件布局
+    //Init called when the screen is entered, to create controls and layout
     public virtual void Init() { }
 
-    //Removed 屏幕被切走时调用于清理资源
+    //Removed called when the screen is left, to clean up resources
     public virtual void Removed() { }
 
-    //OnClose 屏幕被关闭时调如按 Esc 默认 PopScreen 回上一级
+    //OnClose called when the screen is closed, e.g. pressing Esc; by default PopScreen back to the previous level
     public virtual void OnClose()
     {
         Manager.PopScreen();
     }
 
-    //IsPauseScreen 是否暂停游戏逻辑主菜单/暂停菜单返回 true
+    //IsPauseScreen whether it pauses game logic; main menu/pause menu return true
     public virtual bool IsPauseScreen() => false;
 
-    //WantsBlur 是否需要 blur 后处理 PauseScreen 重写返回 true
-    //ScreenManager.SetScreen 读取此值注入 GuiWindow.WantsBlur 触发 RenderBlurPasses
+    //WantsBlur whether blur post-processing is needed; PauseScreen overrides it to return true
+    //ScreenManager.SetScreen reads this value and injects GuiWindow.WantsBlur to trigger RenderBlurPasses
     public virtual bool WantsBlur => false;
 
-    //Tick 每帧逻辑推进动画状态等由 ScreenManager.Tick 驱动
+    //Tick per-frame logic such as advancing animation state, driven by ScreenManager.Tick
     public virtual void Tick() { }
 
-    //RenderBackground 在 Window 背景 quad 之后控件之前绘制屏幕级背景
-    //默认空让 Window.BackgroundColor 显示子类重写画 dirt 纹理等
-    //由 ScreenManager.SetScreen 注入到 GuiWindow.RenderBackgroundHook
+    //RenderBackground draws the screen-level background after the Window background quad and before controls
+    //Empty by default so Window.BackgroundColor shows; subclasses override to draw dirt textures, etc.
+    //Injected into GuiWindow.RenderBackgroundHook by ScreenManager.SetScreen
     public virtual void RenderBackground(IGuiRenderContext context) { }
 
-    //RenderForeground 在控件之后绘制屏幕级前景不录 retained mode cache 每帧直接画
-    //用于 HUD 心等每帧动画元素由 ScreenManager.SetScreen 注入到 GuiWindow.RenderForegroundHook
+    //RenderForeground draws the screen-level foreground after controls; not recorded in the retained mode cache, drawn directly every frame
+    //Used for per-frame animated elements such as HUD hearts; injected into GuiWindow.RenderForegroundHook by ScreenManager.SetScreen
     public virtual void RenderForeground(IGuiRenderContext context) { }
 
-    //OnF3Pressed 按下 F3 时调默认空 GameScreen 重写切换 Debug HUD 显示
+    //OnF3Pressed called on F3 press; empty by default, GameScreen overrides it to toggle the Debug HUD
     public virtual void OnF3Pressed() { }
 
-    //OnHotbarSelect 按数字键 1-9 时调 slot 0-8 GameScreen 重写切换选中槽位
+    //OnHotbarSelect called on number keys 1-9 with slot 0-8; GameScreen overrides it to switch the selected slot
     public virtual void OnHotbarSelect(int slot) { }
 
-    //OnKeyPressed 未被 ScreenManager 识别的业务键下发 子类按 GameKeys 自行判断(Q 丢弃 E 背包等)
+    //OnKeyPressed business keys not recognized by ScreenManager are passed down; subclasses decide using GameKeys (Q drop, E inventory, etc.)
     public virtual void OnKeyPressed(int key) { }
 
-    //OnMouseDown 原始鼠标按下带窗口坐标 世界交互(挖方块)由 GameScreen 重写
+    //OnMouseDown raw mouse down with window coordinates; world interaction (block breaking) is overridden by GameScreen
     public virtual void OnMouseDown(GuiMouseButton button, int x, int y) { }
 
-    //OnMouseUp 原始鼠标抬起带窗口坐标
+    //OnMouseUp raw mouse up with window coordinates
     public virtual void OnMouseUp(GuiMouseButton button, int x, int y) { }
 
-    //AddWidget 把控件加到 Window 返回该控件用于链式调用
+    //AddWidget adds a control to Window and returns it for chaining
     protected T AddWidget<T>(T widget) where T : GuiControl
     {
         Window.Add(widget);
         return widget;
     }
 
-    //CollectWidgets 递归收集 ILayoutElement 树内的 GuiControl
-    //Layout 容器递归 VisitChildren 叶子 GuiControl 调 collector 注册到 Window
-    //Screen 用 Layout 体系时 Init 末尾调此方法把布局内控件注册到 Window
+    //CollectWidgets recursively collects GuiControls in an ILayoutElement tree
+    //Layout containers recurse via VisitChildren; leaf GuiControls call collector to register into Window
+    //When a Screen uses the Layout system, call this at the end of Init to register the layout's controls into Window
     protected static void CollectWidgets(ILayoutElement element, Action<GuiControl> collector)
     {
         if (element is GuiControl c) collector(c);
         else if (element is ILayout layout) layout.VisitChildren(child => CollectWidgets(child, collector));
     }
 
-    //RegisterButtonSprites 返回默认按钮三态 sprite identifier
-    //identifier 形如 minecraft:textures/gui/sprites/widget/button 由 GuiSpriteManager 懒加载 PNG+.mcmeta
-    //border 由 .mcmeta 的 gui.scaling.border 指定不在代码里硬编码 button.png border=3 button_disabled.png border=1
-    //P0 替代旧 RegisterButtonTextures 不再走 RegisterTexture 取 textureId 由 GuiSpriteManager 内部懒加载
+    //RegisterButtonSprites returns the default button's three-state sprite identifier
+    //The identifier looks like minecraft:textures/gui/sprites/widget/button; GuiSpriteManager lazily loads the PNG+.mcmeta
+    //The border is specified by .mcmeta's gui.scaling.border and not hardcoded in code: button.png border=3, button_disabled.png border=1
+    //P0 replaces the old RegisterButtonTextures; no longer goes through RegisterTexture to get a textureId, loaded lazily inside GuiSpriteManager
     protected static (string Normal, string Hover, string Disabled) RegisterButtonSprites()
     {
         return (
@@ -106,8 +106,8 @@ public abstract class Screen
             "minecraft:textures/gui/sprites/widget/button_disabled");
     }
 
-    //ApplyButtonSpriteSkin 把 RegisterButtonSprites 返回的 identifier 元组注入 GuiButton 三态 Sprite 属性
-    //调用方在 AddWidget 后调一次完成 sprite 绑定 Render 时由 DrawSprite 按 .mcmeta 分派
+    //ApplyButtonSpriteSkin injects the identifier tuple from RegisterButtonSprites into GuiButton's three-state Sprite properties
+    //The caller calls it once after AddWidget to finish sprite binding; at Render, DrawSprite dispatches by .mcmeta
     protected static void ApplyButtonSpriteSkin(GuiButton btn,
         (string Normal, string Hover, string Disabled) skin)
     {

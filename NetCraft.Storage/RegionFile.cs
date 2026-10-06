@@ -7,9 +7,9 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Storage;
 
-//MCA区域文件对应原版RegionFile
-//管理单个.mca文件的扇区分配与chunk读写，支持内部存储和外部.mcc大块
-//优化点2.8：读取路径走MemoryMappedFile避免FileStream多次拷贝（开关RegionFileMemoryMapped）
+//MCA region file, maps to vanilla RegionFile
+//Manages sector allocation and chunk read/write for a single .mca file, supporting internal storage and external .mcc blobs
+//Optimization 2.8: the read path uses a MemoryMappedFile to avoid repeated FileStream copies (RegionFileMemoryMapped switch)
 public sealed class RegionFile : IDisposable
 {
     private const int SectorBytes = 4096;
@@ -28,8 +28,8 @@ public sealed class RegionFile : IDisposable
     private readonly byte[] _header = new byte[HeaderSize];
     private readonly RegionBitmap _usedSectors = new();
     private readonly object _gate = new();
-    //MemoryMappedFile只读视图懒加载对应优化点2.8
-    //首次读取时创建避免空Region产生MMF开销
+    //Read-only MemoryMappedFile view, lazily loaded, optimization 2.8
+    //Created on first read so an empty region does not incur MMF overhead
     private MemoryMappedFile? _mmf;
     private bool _mmfInit;
 
@@ -88,7 +88,7 @@ public sealed class RegionFile : IDisposable
 
     public string Path => _path;
 
-    //读取chunk的解压流，chunk不存在或损坏返回null，调用方负责close返回的BinaryReader
+    //Read the chunk's decompressed stream; returns null when the chunk is absent or corrupt, the caller must close the returned BinaryReader
     public BinaryReader? GetChunkDataInputStream(ChunkPos pos)
     {
         lock (_gate)
@@ -134,9 +134,9 @@ public sealed class RegionFile : IDisposable
         }
     }
 
-    //用MemoryMappedFile读取chunk数据对应优化点2.8
-    //大文件场景避免FileStream多次拷贝直接映射sector读取
-    //外部.mcc大块仍走FileStream因MMF对临时小文件收益低
+    //Read chunk data with a MemoryMappedFile, optimization 2.8
+    //For large files, avoid repeated FileStream copies and map the sector directly
+    //External .mcc blobs still use FileStream since MMF yields little for temporary small files
     public BinaryReader? GetChunkDataInputStreamWithMemoryMapped(ChunkPos pos)
     {
         if (!OptimizationFlags.RegionFileMemoryMapped) return GetChunkDataInputStream(pos);
@@ -148,7 +148,7 @@ public sealed class RegionFile : IDisposable
             int numSectors = GetNumSectors(offset);
             int sectorsLength = numSectors * SectorBytes;
             var viewStream = GetOrCreateMemoryMappedView();
-            //MMF视图按需扩展避免越界访问
+            //The MMF view is extended on demand to avoid out-of-bounds access
             long fileLength = _file.Length;
             long sectorStart = (long)sectorNumber * SectorBytes;
             int readLength = (int)Math.Min(sectorsLength, fileLength - sectorStart);
@@ -190,8 +190,8 @@ public sealed class RegionFile : IDisposable
         }
     }
 
-    //懒加载MemoryMappedFile只读视图对应优化点2.8
-    //首次读取时按当前文件长度创建MMF避免空Region产生开销
+    //Lazily load the read-only MemoryMappedFile view, optimization 2.8
+    //Create the MMF at the current file length on first read so an empty region incurs no overhead
     private MemoryMappedFile GetOrCreateMemoryMappedView()
     {
         if (_mmf is not null) return _mmf;
@@ -200,12 +200,12 @@ public sealed class RegionFile : IDisposable
             long fileLength = _file.Length;
             if (fileLength < HeaderSize)
             {
-                //文件过小直接用FileStream读取路径
+                //File too small, use the FileStream read path directly
                 _mmfInit = true;
                 throw new InvalidOperationException("Region file too small for MMF");
             }
-            //leaveOpen必须为true MMF释放时不能关底下的FileStream
-            //写区块后InvalidateMemoryMappedView会Dispose MMF leaveOpen false会把_file连带关闭 后续写入全部ObjectDisposed
+            //leaveOpen must be true; releasing the MMF must not close the underlying FileStream
+            //After writing a chunk, InvalidateMemoryMappedView disposes the MMF; with leaveOpen false it would close _file too, making every later write ObjectDisposed
             _mmf = MemoryMappedFile.CreateFromFile(_file, null, fileLength, MemoryMappedFileAccess.Read, HandleInheritability.None, true);
             _mmfInit = true;
         }
@@ -213,8 +213,8 @@ public sealed class RegionFile : IDisposable
         return _mmf;
     }
 
-    //写入后使MMF失效避免文件扩展后视图越界对应优化点2.8
-    //下次读取时按最新文件长度重建MMF
+    //Invalidate the MMF after a write so the view does not go out of bounds as the file grows, optimization 2.8
+    //Rebuild the MMF at the latest file length on the next read
     private void InvalidateMemoryMappedView()
     {
         _mmf?.Dispose();
@@ -222,7 +222,7 @@ public sealed class RegionFile : IDisposable
         _mmfInit = false;
     }
 
-    //写入chunk的压缩流，close时把数据回写到region文件
+    //Write the chunk's compressed stream; on close the data is written back to the region file
     public BinaryWriter GetChunkDataOutputStream(ChunkPos pos)
     {
         var buffer = new ChunkDataBuffer(this, pos, _version);
@@ -238,7 +238,7 @@ public sealed class RegionFile : IDisposable
         }
     }
 
-    //清除chunk并释放扇区，同时删除对应的外部文件
+    //Clear the chunk and free its sectors, also deleting the matching external file
     public void Clear(ChunkPos pos)
     {
         lock (_gate)
@@ -256,7 +256,7 @@ public sealed class RegionFile : IDisposable
         }
     }
 
-    //探测chunk是否存在且头合法，不解析完整数据
+    //Probe whether the chunk exists with a valid header, without parsing the full data
     public bool DoesChunkExist(ChunkPos pos)
     {
         lock (_gate)
@@ -286,12 +286,12 @@ public sealed class RegionFile : IDisposable
 
     public bool HasChunk(ChunkPos pos) => GetOffset(GetOffsetIndex(pos)) != 0;
 
-    //写入chunk数据，自动分配扇区或重用旧扇区，超大chunk走外部.mcc文件
+    //Write chunk data, allocating sectors automatically or reusing old ones; oversized chunks go to an external .mcc file
     internal void WriteChunk(ChunkPos pos, ReadOnlySpan<byte> data)
     {
-        //文件已关闭时给出带路径的明确错误 替代FileStream的裸ObjectDisposedException
+        //Give a clear error with the path when the file is closed, replacing the bare ObjectDisposedException from FileStream
         if (!_file.CanWrite)
-            throw new ObjectDisposedException(nameof(RegionFile), $"region 文件已关闭 pos={pos} path={_path}");
+            throw new ObjectDisposedException(nameof(RegionFile), $"region file is closed pos={pos} path={_path}");
         lock (_gate)
         {
             int offsetIndex = GetOffsetIndex(pos);
@@ -329,7 +329,7 @@ public sealed class RegionFile : IDisposable
         }
     }
 
-    //外部chunk的stub头，length=1，versionId带128标志
+    //The stub header for an external chunk: length=1, versionId with the 128 flag
     private byte[] CreateExternalStub()
     {
         byte[] stub = new byte[ChunkHeaderSize];
@@ -338,7 +338,7 @@ public sealed class RegionFile : IDisposable
         return stub;
     }
 
-    //写大chunk到外部.mcc，先写临时文件再原子move，跳过5字节MCA头
+    //Write a big chunk to an external .mcc: write a temp file then atomically move, skipping the 5-byte MCA header
     private void WriteToExternalFile(string targetPath, ReadOnlySpan<byte> data)
     {
         string tmpPath = System.IO.Path.Combine(_externalFileDir, "tmp-" + Guid.NewGuid().ToString("N") + ExternalFileExtension);
@@ -384,7 +384,7 @@ public sealed class RegionFile : IDisposable
         _file.Write(_header, 0, HeaderSize);
     }
 
-    //文件尾部补齐到完整扇区
+    //Pad the file tail to a full sector
     private void PadToFullSector()
     {
         int fileSize = (int)_file.Length;
@@ -414,7 +414,7 @@ public sealed class RegionFile : IDisposable
     {
         lock (_gate)
         {
-            //记录关闭来源 若关闭后仍被写入会抛ObjectDisposed 该日志用于定位是谁关的文件
+            //Record the close source; a write after close throws ObjectDisposed and this log helps locate who closed the file
             Log.Debug($"Region file closed unexpectedly: {_path}{Environment.NewLine}{Environment.StackTrace}");
             PadToFullSector();
             _file.Flush(true);
@@ -428,8 +428,8 @@ public sealed class RegionFile : IDisposable
         Close();
     }
 
-    //chunk写入缓冲对应原版ChunkBuffer
-    //继承MemoryStream，前5字节为MCA头占位，Dispose时回填streamLength并写回region
+    //Chunk write buffer, maps to vanilla ChunkBuffer
+    //Extends MemoryStream; the first 5 bytes are an MCA header placeholder, Dispose fills in streamLength and writes back to the region
     private sealed class ChunkDataBuffer : MemoryStream
     {
         private readonly RegionFile _owner;

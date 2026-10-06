@@ -1,8 +1,8 @@
 namespace NetCraft.Primitives;
 
-//3D整型向量对应原版net.minecraft.core.Vec3i
-//原版为可变类这里改为readonly struct值语义对齐C#惯用
-//仅实现坐标运算和距离计算不含Codec与StreamCodec延后到Codec/Network接通
+//3D integer vector, maps to vanilla net.minecraft.core.Vec3i
+//Vanilla is a mutable class, here it is a readonly struct for value semantics in C# style
+//Only coordinate math and distance calculation, no Codec or StreamCodec yet, deferred until Codec/Network is wired up
 public readonly struct Vec3i : IEquatable<Vec3i>, IComparable<Vec3i>
 {
     public static readonly Vec3i Zero = new(0, 0, 0);
@@ -18,7 +18,7 @@ public readonly struct Vec3i : IEquatable<Vec3i>, IComparable<Vec3i>
         Z = z;
     }
 
-    //compareTo按Y优先Z次X末排序对应原版compareTo
+    //compareTo sorts by Y first, then Z, then X, maps to vanilla compareTo
     public int CompareTo(Vec3i other)
     {
         if (Y == other.Y)
@@ -29,7 +29,7 @@ public readonly struct Vec3i : IEquatable<Vec3i>, IComparable<Vec3i>
         return Y - other.Y;
     }
 
-    //offset按相对偏移返回新Vec3i零偏移返回自身
+    //offset returns a new Vec3i by the relative offset, returns itself for a zero offset
     public Vec3i Offset(int x, int y, int z)
         => (x == 0 && y == 0 && z == 0) ? this : new Vec3i(X + x, Y + y, Z + z);
 
@@ -37,7 +37,7 @@ public readonly struct Vec3i : IEquatable<Vec3i>, IComparable<Vec3i>
 
     public Vec3i Subtract(Vec3i vec) => Offset(-vec.X, -vec.Y, -vec.Z);
 
-    //multiply按统一比例缩放scale为1返回自身为0返回ZERO
+    //multiply scales by a single factor, returns itself for scale 1 and ZERO for 0
     public Vec3i Multiply(int scale)
     {
         if (scale == 1) return this;
@@ -63,14 +63,14 @@ public readonly struct Vec3i : IEquatable<Vec3i>, IComparable<Vec3i>
 
     public Vec3i Relative(Direction direction) => Relative(direction, 1);
 
-    //relative按方向与步数返回新偏移零步返回自身
+    //relative returns a new offset by direction and step count, returns itself for zero steps
     public Vec3i Relative(Direction direction, int steps)
     {
         if (steps == 0) return this;
         return new Vec3i(X + direction.StepX * steps, Y + direction.StepY * steps, Z + direction.StepZ * steps);
     }
 
-    //relative按轴步进非该轴方向不动
+    //relative steps along an axis, the other axes stay unchanged
     public Vec3i Relative(Direction.Axis axis, int steps)
     {
         if (steps == 0) return this;
@@ -80,14 +80,14 @@ public readonly struct Vec3i : IEquatable<Vec3i>, IComparable<Vec3i>
         return new Vec3i(X + xStep, Y + yStep, Z + zStep);
     }
 
-    //cross叉积
+    //cross product
     public Vec3i Cross(Vec3i other)
         => new(Y * other.Z - Z * other.Y, Z * other.X - X * other.Z, X * other.Y - Y * other.X);
 
-    //closerThan距离平方小于阈值
+    //closerThan whether the squared distance is below the threshold
     public bool CloserThan(Vec3i pos, double distance) => DistSqr(pos) < distance * distance;
 
-    //distSqr到目标点最低角距离平方
+    //distSqr squared distance to the minimum corner of the target
     public double DistSqr(Vec3i pos)
     {
         double dx = X - pos.X;
@@ -96,7 +96,7 @@ public readonly struct Vec3i : IEquatable<Vec3i>, IComparable<Vec3i>
         return dx * dx + dy * dy + dz * dz;
     }
 
-    //distToCenterSqr到目标点中心距离平方
+    //distToCenterSqr squared distance to the center of the target
     public double DistToCenterSqr(double x, double y, double z)
     {
         double dx = (X + 0.5) - x;

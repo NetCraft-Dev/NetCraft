@@ -5,11 +5,11 @@ using NetCraft.Codec;
 using NetCraft.DataFixer;
 using T = NetCraft.DataFixer.Types;
 
-//Functions函数工厂对应原版com.mojang.datafixers.functions.Functions
-//提供comp/fun/app/fold/in/out/id等PointFree构造入口
+//Functions function factory maps to vanilla com.mojang.datafixers.functions.Functions
+//provides PointFree construction entry points such as comp/fun/app/fold/in/out/id
 public abstract class Functions
 {
-    //comp复合两个PointFree若一侧为Id直接返回另一侧否则合并Comp数组
+    //comp composes two PointFree; if one side is Id return the other, otherwise merge the Comp arrays
     public static PointFree<Func<A, C>> Comp<A, B, C>(PointFree<Func<B, C>> f1, PointFree<Func<A, B>> f2)
     {
         if (IsIdUnchecked(f1))
@@ -20,7 +20,7 @@ public abstract class Functions
         {
             return AsPF<A, C>(f1);
         }
-        //Unsafe.As绕过泛型不变量对齐Java类型擦除Type<?>语义
+        //Unsafe.As bypasses generic invariance to align with the Java type-erasure Type<?> semantics
         object f1TypeObj = f1.Type();
         var f1FuncType = System.Runtime.CompilerServices.Unsafe.As<object, T.Func<B, C>>(ref f1TypeObj);
         object f2TypeObj = f2.Type();
@@ -53,14 +53,14 @@ public abstract class Functions
             type);
     }
 
-    //AsPF用Unsafe.As把任意PointFree<B>当PointFree<Func<A,C>>用对齐Java类型擦除
+    //AsPF uses Unsafe.As to treat any PointFree<B> as PointFree<Func<A,C>>, aligning with Java type erasure
     private static PointFree<Func<A, C>> AsPF<A, C>(object function)
     {
         var obj = function;
         return System.Runtime.CompilerServices.Unsafe.As<object, PointFree<Func<A, C>>>(ref obj);
     }
 
-    //AsFuncObject用Unsafe.As把任意PointFree<B>当PointFree<Func<object,object>>用对齐Java类型擦除
+    //AsFuncObject uses Unsafe.As to treat any PointFree<B> as PointFree<Func<object,object>>, aligning with Java type erasure
     private static PointFree<Func<object, object>> AsFuncObject(object function)
     {
         var obj = function;

@@ -1,4 +1,4 @@
 namespace NetCraft.DataFixer.Kinds;
 
-//一元高阶类型标记表示F<A>的F
+//unary higher-kinded type marker representing the F of F<A>
 public interface K1 { }

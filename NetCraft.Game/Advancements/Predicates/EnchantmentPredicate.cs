@@ -5,11 +5,11 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Advancements.Predicates;
 
-//EnchantmentPredicate 单条附魔谓词 判定附魔表里是否存在匹配的附魔与等级
-//对应原版 net.minecraft.advancements.predicates.EnchantmentPredicate
+//EnchantmentPredicate single enchantment predicate, checks whether a matching enchantment and level exist in the enchantment table
+//maps to vanilla net.minecraft.advancements.predicates.EnchantmentPredicate
 public sealed record EnchantmentPredicate(Optional<HolderSet<Enchantment>> Enchantments, MinMaxBounds.Ints Level)
 {
-    //Codec 持久化编解码 字段名 enchantments 与 levels 对应原版 CODEC
+    //Codec persistence codec, field names enchantments/levels, maps to vanilla CODEC
     public static readonly Codec<EnchantmentPredicate> Codec = RecordCodecBuilder.Of2(
         HolderSetCodecs.EnchantmentSet.OptionalFieldOf("enchantments")
             .ForGetter((EnchantmentPredicate predicate) => predicate.Enchantments),
@@ -17,7 +17,7 @@ public sealed record EnchantmentPredicate(Optional<HolderSet<Enchantment>> Encha
             .ForGetter((EnchantmentPredicate predicate) => predicate.Level),
         (enchantments, level) => new EnchantmentPredicate(enchantments, level));
 
-    //ContainedIn 附魔表里是否存在匹配项 对应原版 containedIn
+    //ContainedIn whether a matching entry exists in the enchantment table, maps to vanilla containedIn
     public bool ContainedIn(ItemEnchantments itemEnchantments)
     {
         if (Enchantments.IsPresent)
@@ -35,7 +35,7 @@ public sealed record EnchantmentPredicate(Optional<HolderSet<Enchantment>> Encha
         return !itemEnchantments.IsEmpty;
     }
 
-    //MatchesEnchantment 指定附魔等级存在且落在区间
+    //MatchesEnchantment the given enchantment level exists and falls in the range
     private bool MatchesEnchantment(ItemEnchantments itemEnchantments, Holder<Enchantment> enchantment)
     {
         var level = itemEnchantments.GetLevel(enchantment);

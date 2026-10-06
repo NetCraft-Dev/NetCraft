@@ -2,9 +2,9 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundTeleportEntityPacket 实体传送包对应原版 ClientboundTeleportEntityPacket
-//字段 id VarInt change 位置/速度/朝向 relatives 相对标志位掩码 int onGround Boolean
-//大跨度位移用该包 原版阈值 8 格 小跨度走 ClientboundMoveEntityPacket
+//ClientboundTeleportEntityPacket teleport entity packet, maps to vanilla ClientboundTeleportEntityPacket
+//Fields: id VarInt, change position/velocity/rotation, relatives relative-flag bitmask int, onGround Boolean
+//A large displacement uses this packet (vanilla threshold 8 blocks); a small displacement uses ClientboundMoveEntityPacket
 public sealed record ClientboundTeleportEntityPacket(int Id, Vec3 Position, Vec3 DeltaMovement,
     float YRot, float XRot, int Relatives, bool OnGround) : Packet<ClientGamePacketListener>
 {

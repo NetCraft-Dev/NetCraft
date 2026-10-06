@@ -1,8 +1,8 @@
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientboundPingPacket 客户端 ping 包对应原版 net.minecraft.network.protocol.common.ClientboundPingPacket
-//服务端发送 int id 客户端回 pong 用于网络延迟测量
+//ClientboundPingPacket client ping packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundPingPacket
+//The server sends an int id and the client replies with pong, used for network latency measurement
 public sealed record ClientboundPingPacket(int Id) : Packet<ClientCommonPacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundPingPacket> StreamCodec { get; } = new PingCodec();

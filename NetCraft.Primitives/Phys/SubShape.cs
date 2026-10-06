@@ -1,8 +1,8 @@
 namespace NetCraft.Primitives.Phys;
 
-//SubShape 子区域视图 对应原版 SubShape
-//不复制位图 只记父形状里的一块矩形区域 读写都转发给父形状
-//切面与裁剪形状靠它避免整表拷贝
+//SubShape sub-region view, maps to vanilla SubShape
+//Does not copy the bitmap, only records a rectangular region of the parent shape, reads and writes are forwarded to the parent
+//Slice and clipped shapes use it to avoid copying the whole table
 public sealed class SubShape : DiscreteVoxelShape
 {
     private readonly DiscreteVoxelShape _parent;
@@ -33,7 +33,7 @@ public sealed class SubShape : DiscreteVoxelShape
 
     public override int LastFull(Direction.Axis axis) => ClampToShape(axis, _parent.LastFull(axis));
 
-    //父形状的结果可能落在这块区域外 夹到区域内再换算成子坐标 对应原版 clampToShape
+    //The parent's result may fall outside this region, clamp it into the region then convert to sub-coordinates, maps to vanilla clampToShape
     private int ClampToShape(Direction.Axis axis, int parentResult)
     {
         var start = axis.Choose(_startX, _startY, _startZ);

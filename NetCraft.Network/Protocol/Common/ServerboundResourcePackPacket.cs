@@ -1,8 +1,8 @@
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ServerboundResourcePackPacket 资源包应答包对应原版 net.minecraft.network.protocol.common.ServerboundResourcePackPacket
-//含 UUID id + Action 枚举客户端告知服务端资源包处理状态
+//ServerboundResourcePackPacket resource pack response packet, maps to vanilla net.minecraft.network.protocol.common.ServerboundResourcePackPacket
+//Contains UUID id + the Action enum; the client tells the server the resource pack processing status
 public sealed record ServerboundResourcePackPacket(Guid Id, ResourcePackAction Action) : Packet<ServerCommonPacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundResourcePackPacket> StreamCodec { get; } = new ResourcePackCodec();
@@ -24,9 +24,9 @@ public sealed record ServerboundResourcePackPacket(Guid Id, ResourcePackAction A
     }
 }
 
-//ResourcePackAction 资源包处理状态枚举对应原版 ServerboundResourcePackPacket.Action
+//ResourcePackAction resource pack processing status enum, maps to vanilla ServerboundResourcePackPacket.Action
 //SuccessfullLoaded/Declined/FailedDownload/Accepted/Downloaded/InvalidUrl/FailedReload/Discarded
-//Accepted 和 Downloaded 是中间状态其他都是终态
+//Accepted and Downloaded are intermediate states, the rest are terminal
 public enum ResourcePackAction
 {
     SuccessfullyLoaded,
@@ -39,10 +39,10 @@ public enum ResourcePackAction
     Discarded
 }
 
-//ResourcePackActionExtensions 资源包状态扩展方法
+//ResourcePackActionExtensions extension methods for resource pack status
 public static class ResourcePackActionExtensions
 {
-    //IsTerminal 是否终态 ACCEPTED 和 DOWNLOADED 是中间状态其他都是终态
+    //IsTerminal whether it is terminal; ACCEPTED and DOWNLOADED are intermediate states, the rest are terminal
     public static bool IsTerminal(this ResourcePackAction action)
         => action != ResourcePackAction.Accepted && action != ResourcePackAction.Downloaded;
 }

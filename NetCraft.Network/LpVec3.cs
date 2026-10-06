@@ -2,13 +2,13 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Network;
 
-//LpVec3 低精度向量对应原版 net.minecraft.network.LpVec3
-//三轴各 15 位量化加 2 位指数打包进 6 字节 实体交互的命中位置用它省带宽
+//LpVec3 low-precision vector, maps to vanilla net.minecraft.network.LpVec3
+//Three axes each quantized to 15 bits plus a 2-bit exponent packed into 6 bytes; used for entity interaction hit positions to save bandwidth
 public static class LpVec3
 {
-    //AbsMaxValue 单轴绝对值上限对应原版 ABS_MAX_VALUE
+    //AbsMaxValue is the per-axis absolute value cap, maps to vanilla ABS_MAX_VALUE
     public const double AbsMaxValue = 1.7179869183E10;
-    //AbsMinValue 棋盘长度低于它按零向量写对应原版 ABS_MIN_VALUE
+    //AbsMinValue: a chebyshev length below it is written as a zero vector, maps to vanilla ABS_MIN_VALUE
     public const double AbsMinValue = 3.051944088384301E-5;
 
     private const int DataBitsMask = 32767;
@@ -16,7 +16,7 @@ public static class LpVec3
     private const int ScaleBitsMask = 3;
     private const int ContinuationFlag = 4;
 
-    //Read 读低精度向量 首字节为 0 即零向量
+    //Read reads a low-precision vector; a first byte of 0 means a zero vector
     public static Vec3 Read(FriendlyByteBuf buf)
     {
         var lowest = buf.ReadByte();
@@ -25,7 +25,7 @@ public static class LpVec3
         var highest = (uint)buf.ReadInt();
         var buffer = ((long)highest << 16) | ((long)middle << 8) | lowest;
         long scale = lowest & ScaleBitsMask;
-        //有 continuation 位说明指数放不下 2 位 后面还跟一个 VarInt 表示 scale >> 2
+        //A continuation bit means the exponent does not fit in 2 bits, followed by a VarInt holding scale >> 2
         if ((lowest & ContinuationFlag) != 0)
             scale |= (long)(uint)buf.ReadVarInt() << 2;
         return new Vec3(
@@ -34,7 +34,7 @@ public static class LpVec3
             Unpack(buffer >> 33) * scale);
     }
 
-    //Write 写低精度向量 与 Read 对称
+    //Write writes a low-precision vector, symmetric with Read
     public static void Write(FriendlyByteBuf buf, Vec3 value)
     {
         var x = Sanitize(value.X);
@@ -47,7 +47,7 @@ public static class LpVec3
             return;
         }
         var scale = (long)Math.Ceiling(chessboardLength);
-        //指数超出 2 位时低两位存 markers 高位另发 VarInt
+        //When the exponent exceeds 2 bits, the low 2 bits store markers and the high bits are sent as a separate VarInt
         var isPartial = (scale & ScaleBitsMask) != scale;
         var markers = isPartial ? (scale & ScaleBitsMask) | ContinuationFlag : scale;
         var buffer = markers
@@ -60,15 +60,15 @@ public static class LpVec3
         if (isPartial) buf.WriteVarInt((int)(scale >> 2));
     }
 
-    //Sanitize NaN 归零并夹到上下限
+    //Sanitize zeroes out NaN and clamps to the min and max bounds
     private static double Sanitize(double value)
         => double.IsNaN(value) ? 0.0 : Math.Clamp(value, -AbsMaxValue, AbsMaxValue);
 
-    //Pack 归一化值量化到 15 位 原版 Math.round 是 floor(x+0.5) 不能用 C# 默认的银行家舍入
+    //Pack quantizes the normalized value to 15 bits; vanilla Math.round is floor(x+0.5), so C#'s default banker's rounding must not be used
     private static long Pack(double value)
         => (long)Math.Floor((value * 0.5 + 0.5) * MaxQuantizedValue + 0.5);
 
-    //Unpack 15 位量化值还原为 -1..1
+    //Unpack restores a 15-bit quantized value to -1..1
     private static double Unpack(long value)
         => (Math.Min((double)(value & DataBitsMask), MaxQuantizedValue) * 2.0 / MaxQuantizedValue) - 1.0;
 }

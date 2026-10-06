@@ -1,49 +1,49 @@
 namespace NetCraft.Network;
 
-//PacketListener 包监听器接口对应原版 net.minecraft.network.PacketListener
-//所有协议处理器实现此接口接收对应协议包
-//THandler 自引用约束子类必须是自己避免误用
+//PacketListener packet listener interface, maps to vanilla net.minecraft.network.PacketListener
+//All protocol handlers implement this interface to receive their protocol's packets
+//THandler is a self-referential constraint so subclasses must be themselves, preventing misuse
 public interface PacketListener
 {
-    //Flow 包方向 SERVERBOUND 或 CLIENTBOUND
+    //Flow is the packet direction, SERVERBOUND or CLIENTBOUND
     FlowDirection Flow { get; }
 
-    //Protocol 当前协议状态
+    //Protocol is the current protocol state
     ConnectionProtocol Protocol { get; }
 
-    //OnDisconnect 断开连接时调用
+    //OnDisconnect is called when the connection disconnects
     void OnDisconnect(string reason);
 
-    //IsAcceptingMessages 是否接收新包默认 true
+    //IsAcceptingMessages indicates whether new packets are accepted, true by default
     bool IsAcceptingMessages => true;
 
-    //ShouldHandleMessage 是否处理该包默认按 IsAcceptingMessages
+    //ShouldHandleMessage indicates whether to handle the packet, defaults to IsAcceptingMessages
     bool ShouldHandleMessage<THandler>(Packet<THandler> packet) where THandler : class
         => IsAcceptingMessages;
 }
 
-//ServerboundPacketListener 服务端收包监听器对应原版 net.minecraft.network.ServerboundPacketListener
-//Flow 固定 SERVERBOUND
+//ServerboundPacketListener server-side inbound listener, maps to vanilla net.minecraft.network.ServerboundPacketListener
+//Flow is fixed to SERVERBOUND
 public interface ServerboundPacketListener : PacketListener
 {
     FlowDirection PacketListener.Flow => FlowDirection.Serverbound;
 }
 
-//ClientboundPacketListener 客户端收包监听器对应原版 net.minecraft.network.ClientboundPacketListener
-//Flow 固定 CLIENTBOUND
+//ClientboundPacketListener client-side inbound listener, maps to vanilla net.minecraft.network.ClientboundPacketListener
+//Flow is fixed to CLIENTBOUND
 public interface ClientboundPacketListener : PacketListener
 {
     FlowDirection PacketListener.Flow => FlowDirection.Clientbound;
 }
 
-//DisconnectionDetails 断开连接详情对应原版 net.minecraft.network.DisconnectionDetails
-//简化版只含 reason 字符串
+//DisconnectionDetails disconnection details, maps to vanilla net.minecraft.network.DisconnectionDetails
+//The simplified form only contains the reason string
 public sealed record DisconnectionDetails(string Reason);
 
-//TickablePacketListener 可 tick 监听器对应原版 net.minecraft.network.TickablePacketListener
-//Connection.Tick 每 tick 调用一次供监听器轮询异步任务
+//TickablePacketListener tickable listener, maps to vanilla net.minecraft.network.TickablePacketListener
+//Connection.Tick calls it once per tick so the listener can poll asynchronous tasks
 public interface TickablePacketListener : PacketListener
 {
-    //TickListener 每 tick 调用 对应原版 tick()
+    //TickListener is called every tick, maps to vanilla tick()
     void TickListener();
 }

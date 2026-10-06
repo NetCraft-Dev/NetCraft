@@ -1,8 +1,8 @@
 namespace NetCraft.Registry;
 
-//LevelBasedPermissionSet 按等级判定的权限集合对应原版 net.minecraft.server.permissions.LevelBasedPermissionSet
-//原版是带五个单例的接口 这里是密封类 命令等级门槛直接比数字
-//非等级权限只认 entity_selectors 一个 其余 Atom 一律不通过 与原版一致
+//LevelBasedPermissionSet level-based permission set, maps to vanilla net.minecraft.server.permissions.LevelBasedPermissionSet
+//Vanilla is an interface with five singletons; here it is a sealed class and the command level threshold compares numbers directly
+//Non-level permissions accept only entity_selectors and reject all other Atom permissions, matching vanilla
 public class LevelBasedPermissionSet : PermissionSet
 {
     public static readonly LevelBasedPermissionSet All = Create(PermissionLevel.All);
@@ -26,13 +26,13 @@ public class LevelBasedPermissionSet : PermissionSet
 
     public override PermissionSet Union(PermissionSet other)
     {
-        //并集保留等级较高的一方 CFR 反编译把条件翻转了 按语义归位
+        //The union keeps the higher level; the CFR decompile had the condition flipped and it is restored here by semantics
         if (other is LevelBasedPermissionSet otherSet)
             return Level.IsEqualOrHigherThan(otherSet.Level) ? this : otherSet;
         return base.Union(other);
     }
 
-    //ForLevel 按等级取单例对应原版 forLevel
+    //ForLevel gets the singleton by level, maps to vanilla forLevel
     public static LevelBasedPermissionSet ForLevel(PermissionLevel level) => level switch
     {
         PermissionLevel.All => All,

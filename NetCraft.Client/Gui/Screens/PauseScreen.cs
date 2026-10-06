@@ -5,28 +5,28 @@ using NetCraft.Gpu;
 
 namespace NetCraft.Game.Gui.Screens;
 
-//PauseScreen 暂停菜单对应原版 PauseScreen
-//游戏中按 Esc 弹出提供继续/选项/回主菜单按钮
-//背景用 dirt 纹理平铺对应原版 options_background 深色 darken
+//PauseScreen pause menu, maps to vanilla PauseScreen
+//Pops up on Esc during play, providing Resume/Options/Back to Main Menu buttons
+//Background tiles the dirt texture, maps to vanilla options_background darken
 public sealed class PauseScreen : Screen
 {
     private GuiButton? _backToGameBtn;
     private GuiButton? _optionsBtn;
     private GuiButton? _quitToTitleBtn;
-    //_dirtBg 不 Add 到 Window 由 RenderBackground 直接绘制避免与控件树重复
+    //_dirtBg is not Added to Window; RenderBackground draws it directly to avoid duplication with the control tree
     private GuiImage? _dirtBg;
 
-    public override string Title => "游戏菜单";
+    public override string Title => "Game Menu";
 
-    //WantsBlur 暂停菜单模糊 dirt 背景对应原版 PauseScreen 的 blur 效果
-    //BeforeBlur 段画 dirt 模糊后 AfterBlur 段叠加清晰按钮
+    //WantsBlur the pause menu blurs the dirt background, maps to vanilla PauseScreen's blur effect
+    //The BeforeBlur pass draws dirt; after blurring, the AfterBlur pass layers sharp buttons on top
     public override bool WantsBlur => true;
 
     public override void Init()
     {
         var cx = GuiWidth / 2;
         var cy = GuiHeight / 2;
-        //dirt 背景平铺加载失败 textureId=0 走灰色占位不阻塞菜单
+        //If the dirt background tile texture fails to load, textureId=0 falls back to a gray placeholder without blocking the menu
         var dirtPath = Path.Combine(AppPaths.AssetsDir, "minecraft", "textures", "block", "dirt.png");
         var dirtId = Minecraft.GpuApp?.RegisterTexture(dirtPath) ?? 0;
         _dirtBg = new GuiImage
@@ -41,23 +41,23 @@ public sealed class PauseScreen : Screen
             Width = GuiWidth,
             Height = GuiHeight
         };
-        //标题居中按钮上方
-        AddWidget(new GuiLabel("游戏菜单") { X = cx - 100, Y = cy - 55, Width = 200, Height = 20 });
+        //Title centered above the buttons
+        AddWidget(new GuiLabel("Game Menu") { X = cx - 100, Y = cy - 55, Width = 200, Height = 20 });
         var skin = RegisterButtonSprites();
-        _backToGameBtn = AddWidget(new GuiButton("回到游戏") { X = cx - 100, Y = cy - 30, Width = 200, Height = 20 });
+        _backToGameBtn = AddWidget(new GuiButton("Back to Game") { X = cx - 100, Y = cy - 30, Width = 200, Height = 20 });
         ApplyButtonSpriteSkin(_backToGameBtn, skin);
         _backToGameBtn.Click += (_, _) => Manager.PopScreen();
-        _optionsBtn = AddWidget(new GuiButton("选项") { X = cx - 100, Y = cy, Width = 200, Height = 20 });
+        _optionsBtn = AddWidget(new GuiButton("Options") { X = cx - 100, Y = cy, Width = 200, Height = 20 });
         ApplyButtonSpriteSkin(_optionsBtn, skin);
         _optionsBtn.Click += (_, _) => Manager.PushScreen(new OptionsScreen());
-        _quitToTitleBtn = AddWidget(new GuiButton("保存并退出到主菜单") { X = cx - 100, Y = cy + 30, Width = 200, Height = 20 });
+        _quitToTitleBtn = AddWidget(new GuiButton("Save and Quit to Title") { X = cx - 100, Y = cy + 30, Width = 200, Height = 20 });
         ApplyButtonSpriteSkin(_quitToTitleBtn, skin);
         _quitToTitleBtn.Click += (_, _) => Manager.SetScreen(new TitleScreen());
     }
 
-    //RenderBackground 画 dirt 平铺背景覆盖 Window 纯色背景
-    //每次重画前更新 Width/Height 适配 resize 后的 ScaledWidth/Height
-    //末尾调 BlurBeforeThisStratum 让 dirt 进 BeforeBlur 段后续控件进 AfterBlur 段
+    //RenderBackground draws the tiled dirt background over the Window's solid color background
+    //Before each redraw update Width/Height to match the ScaledWidth/Height after resize
+    //At the end call BlurBeforeThisStratum so dirt goes into the BeforeBlur pass and subsequent controls into the AfterBlur pass
     public override void RenderBackground(IGuiRenderContext context)
     {
         if (_dirtBg is null) return;

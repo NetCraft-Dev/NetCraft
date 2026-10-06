@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetTitleTextPacket 标题文本包对应原版 ClientboundSetTitleTextPacket
-//字段 Text(Component)
+//ClientboundSetTitleTextPacket title text packet, maps to vanilla ClientboundSetTitleTextPacket
+//Field: Text(Component)
 public sealed record ClientboundSetTitleTextPacket(Component Text) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetTitleTextPacket> StreamCodec { get; } = new SetTitleTextCodec();

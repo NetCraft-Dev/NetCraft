@@ -4,8 +4,8 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry;
 
-//RegistryOps 注册表感知的 DynamicOps 装饰器对应原版 net.minecraft.resources.RegistryOps
-//包装底层 DynamicOps<T> 持有 RegistryAccess 提供 Codec 解析时的注册表查询入口
+//RegistryOps registry-aware DynamicOps decorator, maps to vanilla net.minecraft.resources.RegistryOps
+//Wraps an underlying DynamicOps<T> and holds a RegistryAccess to provide the registry lookup entry point during Codec resolution
 public sealed class RegistryOps<T> : DynamicOps<T>
 {
     private readonly DynamicOps<T> _delegate;
@@ -17,13 +17,13 @@ public sealed class RegistryOps<T> : DynamicOps<T>
         RegistryAccess = registryAccess;
     }
 
-    //GetRegistry 按注册表 key 查注册表返回 null 未找到对应原版 RegistryOps.owner/getter
-    //简化点不实现 HolderOwner/HolderGetter 中间层直接返回 Registry<E>
+    //GetRegistry looks up a registry by registry key, returning null if not found, maps to vanilla RegistryOps.owner/getter
+    //Simplified to skip the HolderOwner/HolderGetter middle layer and return Registry<E> directly
     public Registry<E>? GetRegistry<E>(ResourceKey<Registry<E>> registryKey) where E : class
         => RegistryAccess.Lookup(registryKey);
 
-    //DecodeHolder 按字段名解析 Identifier 后从注册表查 Holder 对应原版 retrieveElement
-    //简化点用 IdentifierCodec 解析后查注册表返回 Reference Holder
+    //DecodeHolder parses an Identifier then looks up a Holder from the registry, maps to vanilla retrieveElement
+    //Simplified to parse with IdentifierCodec and then look up the registry to return a Reference Holder
     public DataResult<Holder<E>> DecodeHolder<E>(ResourceKey<Registry<E>> registryKey, T input) where E : class
     {
         var registry = GetRegistry(registryKey);
@@ -39,8 +39,8 @@ public sealed class RegistryOps<T> : DynamicOps<T>
         return DataResult<Holder<E>>.Success(value);
     }
 
-    //EncodeId 把 Holder 编码为 Identifier 字符串对应原版 HOLDER_ID_CODEC 编码路径
-    //Reference 用 Key.Identifier Direct 抛异常 Direct 无注册表键
+    //EncodeId encodes a Holder as an Identifier string, the encoding path of vanilla HOLDER_ID_CODEC
+    //Reference uses Key.Identifier while Direct throws, since Direct has no registry key
     public DataResult<T> EncodeId<E>(Holder<E> holder) where E : class
     {
         var key = holder.UnwrapKey();

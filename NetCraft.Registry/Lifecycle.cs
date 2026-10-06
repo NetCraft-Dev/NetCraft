@@ -1,7 +1,7 @@
 namespace NetCraft.Registry;
 
-//TODO DFU阶段补全Lifecycle来自DataFixer Upper库原版是抽象类此处简化为枚举
-//注册项稳定性标记
+//TODO fill in Lifecycle during the DFU stage; vanilla has it as an abstract class from the DataFixer Upper library and it is simplified to an enum here
+//Registry entry stability marker
 public enum Lifecycle
 {
     Stable = 0,
@@ -10,7 +10,7 @@ public enum Lifecycle
 
 public static class LifecycleExtensions
 {
-    //合并取更不稳定的
+    //Merge by keeping the less stable value
     public static Lifecycle Add(this Lifecycle a, Lifecycle b)
         => (Lifecycle)Math.Max((int)a, (int)b);
 }

@@ -5,10 +5,10 @@ using NetCraft.Registry;
 
 namespace NetCraft.Commands;
 
-//CommandSourceStack 命令源上下文对应原版 net.minecraft.commands.CommandSourceStack
-//描述命令执行者位置/权限/输出接收者
-//允许派生以支持不同命令源类型（玩家/控制台/命令方块）
-//实现 ExecutionCommandSource 接入函数执行引擎 权限集合桥到注册表侧的 PermissionLevel
+//CommandSourceStack command source context, maps to vanilla net.minecraft.commands.CommandSourceStack
+//Describes the command executor's position/permission/output receiver
+//Derived types are allowed to support different command source kinds (player/console/command block)
+//Implements ExecutionCommandSource to plug into the function execution engine; the permission set bridges to PermissionLevel on the registry side
 public class CommandSourceStack : ExecutionCommandSource<CommandSourceStack>
 {
     public string SenderName { get; }
@@ -26,45 +26,45 @@ public class CommandSourceStack : ExecutionCommandSource<CommandSourceStack>
         AcceptsFailure = acceptsFailure;
     }
 
-    //SendSuccess 发送成功消息 派生类可改为走网络回执
+    //SendSuccess sends a success message; derived classes may route it over the network instead
     public virtual void SendSuccess(string message)
     {
         if (AcceptsSuccess) Output?.WriteLine(message);
     }
 
-    //SendFailure 发送失败消息 派生类可改为走网络回执
+    //SendFailure sends a failure message; derived classes may route it over the network instead
     public virtual void SendFailure(string message)
     {
         if (AcceptsFailure) Output?.WriteLine(message);
     }
 
-    //HasPermission 是否有指定权限等级
+    //HasPermission whether the source has the given permission level
     public bool HasPermission(int level) => PermissionLevel >= level;
 
-    //--- ExecutionCommandSource 实现 ---
+    //--- ExecutionCommandSource implementation ---
 
-    //Permissions 权限集合按等级映射到 LevelBasedPermissionSet 对应原版 hasPermission 的集合化版本
+    //Permissions maps the permission set by level to LevelBasedPermissionSet, a set-based version of vanilla hasPermission
     public PermissionSet Permissions
         => LevelBasedPermissionSet.ForLevel((NetCraft.Registry.PermissionLevel)PermissionLevel);
 
-    //Callback 结果回调默认空
-    public CommandResultCallback Callback { get; private set; }
+    //Callback result callback defaults to empty; maps to vanilla CommandSourceStack's callback defaulting to EMPTY
+    public CommandResultCallback Callback { get; private set; } = CommandResultCallback.Empty;
 
-    //WithCallback 换回调返回浅拷贝 派生类重写保留自己的字段
+    //WithCallback swaps the callback and returns a shallow copy; derived classes override to keep their own fields
     public virtual CommandSourceStack WithCallback(CommandResultCallback callback)
         => new(SenderName, PermissionLevel, Output, AcceptsSuccess, AcceptsFailure) { Callback = callback };
 
-    //Dispatcher 该源所属分发器 基类不知道分发器由派生类接真实服务端
+    //Dispatcher the dispatcher this source belongs to; the base class does not know it, derived classes wire it to the real server
     public virtual CommandDispatcher<CommandSourceStack> Dispatcher()
         => throw new NotSupportedException("This command source has no dispatcher");
 
-    //HandleError 执行错误上报 写到输出与原版打到源反馈一致
+    //HandleError reports an execution error to the output, matching how vanilla sends it to the source's feedback
     public void HandleError(ICommandExceptionType type, IMessage message, bool forked, TraceCallbacks? tracer)
     {
         tracer?.OnError(message.GetString());
         SendFailure(message.GetString());
     }
 
-    //IsSilent 静默源默认否
+    //IsSilent silent source, false by default
     public bool IsSilent => false;
 }

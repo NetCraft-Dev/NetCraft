@@ -2,14 +2,14 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Storage;
 
-//SimulationChunkTracker 模拟等级传播对应原版 net.minecraft.server.level.SimulationChunkTracker
-//源是"参与模拟"的票等级 结果自己存一张表 不写回持有器
+//SimulationChunkTracker, simulation level propagation, maps to vanilla net.minecraft.server.level.SimulationChunkTracker
+//The source is the "simulation" ticket level; the result is kept in its own table and not written back to holders
 public sealed class SimulationChunkTracker : ChunkTracker
 {
-    //MaxLevel 不参与模拟的等级 对应原版 MAX_LEVEL
+    //MaxLevel, the level at which simulation does not apply, maps to vanilla MAX_LEVEL
     public const int MaxLevel = ChunkLevel.FullChunkLevel;
 
-    //_chunks 区块到模拟等级的映射 表里没有即不参与模拟
+    //_chunks, map from chunk to simulation level; absent from the table means no simulation
     private readonly Dictionary<long, int> _chunks = new();
     private readonly TicketStorage _ticketStorage;
 
@@ -31,13 +31,13 @@ public sealed class SimulationChunkTracker : ChunkTracker
         else _chunks[packedPos] = level;
     }
 
-    //GetLevel 按区块坐标取模拟等级 对应原版 getLevel(ChunkPos)
+    //GetLevel gets the simulation level by chunk pos, maps to vanilla getLevel(ChunkPos)
     public int GetLevel(ChunkPos pos) => GetLevel(pos.Pack());
 
-    //GetLevelAt 按打包坐标取模拟等级 对应原版 getLevel(long)
-    //表里没有的区块返回 MaxLevel 即"不参与模拟" 调用方据此判实体与方块能不能 tick
+    //GetLevelAt gets the simulation level by packed pos, maps to vanilla getLevel(long)
+    //Chunks absent from the table return MaxLevel, i.e. "no simulation"; the caller uses that to decide whether entities and blocks can tick
     public int GetLevelAt(long packedPos) => GetLevel(packedPos);
 
-    //RunAllUpdates 一直推进到收敛 对应原版 runAllUpdates
+    //RunAllUpdates keeps advancing to convergence, maps to vanilla runAllUpdates
     public void RunAllUpdates() => RunUpdates(int.MaxValue);
 }

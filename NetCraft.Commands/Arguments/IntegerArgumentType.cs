@@ -3,8 +3,8 @@ using NetCraft.Commands.Exceptions;
 
 namespace NetCraft.Commands.Arguments;
 
-//IntegerArgumentType 整数参数类型对应原版com.mojang.brigadier.arguments.IntegerArgumentType
-//限定min/max范围并解析int值越界抛IntegerTooLow/High
+//IntegerArgumentType integer argument type, maps to vanilla com.mojang.brigadier.arguments.IntegerArgumentType
+//Constrains the value to min/max, parsing an int and throwing IntegerTooLow/High when out of range
 public sealed class IntegerArgumentType : ArgumentType<int>
 {
     private static readonly IReadOnlyList<string> _examples = new[] { "0", "123", "-123" };

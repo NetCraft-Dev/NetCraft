@@ -3,8 +3,8 @@ using NetCraft.Commands.Suggestion;
 
 namespace NetCraft.Commands.Arguments;
 
-//BoolArgumentType 布尔参数类型对应原版com.mojang.brigadier.arguments.BoolArgumentType
-//解析true或false并提供补全
+//BoolArgumentType boolean argument type, maps to vanilla com.mojang.brigadier.arguments.BoolArgumentType
+//Parses true or false and provides completions
 public sealed class BoolArgumentType : ArgumentType<bool>
 {
     private static readonly IReadOnlyList<string> _examples = new[] { "true", "false" };

@@ -9,13 +9,13 @@ using NetCraft.Util;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//CampfireBlockEntity 营火方块实体 对应原版 net.minecraft.world.level.block.entity.CampfireBlockEntity
-//四格各自独立烹饪 每格自己记进度 烤好直接把成品掉在地上 没有界面也没有燃料槽
+//CampfireBlockEntity campfire block entity, maps to vanilla net.minecraft.world.level.block.entity.CampfireBlockEntity
+//Four slots cook independently, each tracking its own progress; when done the result drops on the ground; no screen and no fuel slot
 public sealed class CampfireBlockEntity : BlockEntity
 {
     public const int SlotCount = 4;
 
-    //BurnCoolSpeed 熄灭后烹饪进度每刻回退量 对应原版 BURN_COOL_SPEED
+    //BurnCoolSpeed amount cooking progress rolls back per tick after being extinguished, maps to vanilla BURN_COOL_SPEED
     private const int BurnCoolSpeed = 2;
 
     private readonly ItemStack[] _items = new ItemStack[SlotCount];
@@ -27,19 +27,19 @@ public sealed class CampfireBlockEntity : BlockEntity
         for (var i = 0; i < SlotCount; i++) _items[i] = ItemStack.Empty;
     }
 
-    //Items 四格内容 供渲染同步与诊断读取
+    //Items the four slot contents, read for render sync and diagnostics
     public IReadOnlyList<ItemStack> Items => _items;
 
     public ItemStack GetItem(int slot) => (uint)slot < SlotCount ? _items[slot] : ItemStack.Empty;
 
-    //GetCookingProgress 某格当前烹饪进度
+    //GetCookingProgress current cooking progress of a slot
     public int GetCookingProgress(int slot) => (uint)slot < SlotCount ? _cookingProgress[slot] : 0;
 
-    //GetCookingTotalTime 某格所需烹饪刻数
+    //GetCookingTotalTime cooking ticks required for a slot
     public int GetCookingTotalTime(int slot) => (uint)slot < SlotCount ? _cookingTime[slot] : 0;
 
-    //PlaceFood 往第一个空格放一份食物 对应原版 placeFood
-    //该物品没有营火配方就放不进去 放成功返回 true
+    //PlaceFood places one food into the first empty slot, maps to vanilla placeFood
+    //Cannot be placed if the item has no campfire recipe; returns true on success
     public bool PlaceFood(ItemStack stack)
     {
         for (var slot = 0; slot < SlotCount; slot++)
@@ -56,7 +56,7 @@ public sealed class CampfireBlockEntity : BlockEntity
         return false;
     }
 
-    //Tick 点燃时推进 熄灭时回退 对应原版 CampfireBlockEntity.tick 的两个分支
+    //Tick advances while lit and rolls back while out, maps to the two branches of vanilla CampfireBlockEntity.tick
     public override void Tick()
     {
         if (Level is not PersistentServerLevel level) return;
@@ -66,7 +66,7 @@ public sealed class CampfireBlockEntity : BlockEntity
         else CooldownTick();
     }
 
-    //CookTick 每格进度加一 到点把成品掉在方块位置并清空该格 对应原版 cookTick
+    //CookTick bumps each slot's progress by one; when due, drops the result at the block and clears the slot, maps to vanilla cookTick
     private void CookTick(PersistentServerLevel level)
     {
         for (var slot = 0; slot < SlotCount; slot++)
@@ -79,12 +79,12 @@ public sealed class CampfireBlockEntity : BlockEntity
             var result = recipe is null ? stack : recipe.Assemble(new SingleRecipeInput(stack));
             ServerBlockUpdates.SpawnDrop(level, Pos, result);
             _items[slot] = ItemStack.Empty;
-            //内容变了才通知客户端 进度本身不发包 免得每刻刷一次方块实体数据
+            //Notify the client only when contents change; progress itself is not sent, avoiding a block entity data refresh every tick
             level.BlockEntityChanged(Pos);
         }
     }
 
-    //CooldownTick 熄灭后进度按 BURN_COOL_SPEED 回退 对应原版 cooldownTick
+    //CooldownTick rolls progress back by BURN_COOL_SPEED after being extinguished, maps to vanilla cooldownTick
     private void CooldownTick()
     {
         for (var slot = 0; slot < SlotCount; slot++)
@@ -94,7 +94,7 @@ public sealed class CampfireBlockEntity : BlockEntity
         }
     }
 
-    //SaveAdditional 落盘字段名与原版一致 槽位按 Slot/item 结构写
+    //SaveAdditional disk field names match vanilla; slots written as Slot/item entries
     public override void SaveAdditional(CompoundTag tag)
     {
         base.SaveAdditional(tag);

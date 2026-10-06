@@ -1,8 +1,8 @@
 namespace NetCraft.Registry.State;
 
-//BlockState readonly struct 对应原版 net.minecraft.world.level.block.state.BlockState
-//struct 化优化对应原版优化点2.5对齐 FerriteCore FastMap
-//内部只持 int Id 数据查 BlockStateRegistry 避免 10000+ 实例每实例持数组
+//BlockState readonly struct, maps to vanilla net.minecraft.world.level.block.state.BlockState
+//The struct optimization corresponds to vanilla optimization 2.5, aligning with FerriteCore FastMap
+//Holds only an int Id and looks up data in BlockStateRegistry, avoiding a 10000+ instances each holding arrays
 public readonly struct BlockState : IEquatable<BlockState>
 {
     public int Id { get; }
@@ -37,14 +37,14 @@ public readonly struct BlockState : IEquatable<BlockState>
 
     public IEnumerable<PropertyValue> GetValues() => BlockStateRegistry.GetValues(Id);
 
-    //GetLightEmission 方块自身发光等级供光照引擎读取 按状态算是为了红石灯这类点亮才发光的方块
+    //GetLightEmission the block's own light emission for the lighting engine; it is per-state for blocks like redstone lamps that only emit light when lit
     public int GetLightEmission() => Owner.GetLightEmission(this);
 
-    //GetLightDampening 该状态对光的衰减 按状态算而不是按方块算
-    //原版遮挡形状随状态变化 台阶下半砖与整块双层砖的衰减不同
+    //GetLightDampening the light attenuation of this state, computed per state rather than per block
+    //Vanilla occlusion shapes change with state, so the lower slab and the full double slab attenuate differently
     public int GetLightDampening() => Owner.GetLightDampening(this);
 
-    //FluidState 该状态对应的流体状态 非流体方块返回空对应原版 getFluidState
+    //FluidState the fluid state for this state; non-fluid blocks return empty, maps to vanilla getFluidState
     public FluidState FluidState => Owner.GetFluidState(this);
 
     public bool Equals(BlockState other) => Id == other.Id;

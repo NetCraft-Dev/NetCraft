@@ -1,0 +1,32 @@
+{
+  "id": "netcraft-testcrash",
+  "version": "0.1.0",
+  "name": "NetCraft.TestCrash",
+  "description": "Rewrite this line; it shows up on the mods page",
+  "authors": [
+    "XSY_xiaoqi"
+  ],
+  "contributors": [],
+  "license": "",
+  "contact": {
+    "homepage": "",
+    "sources": "",
+    "issues": ""
+  },
+  "environment": "both",
+  "entry": "NetCraft.TestCrash.ModEntry",
+  "depends": {},
+  "hooks": [
+    {
+      "target": "NetCraft.Game.Server.MinecraftServer",
+      "method": "Stop",
+      "type": "CallSite",
+      "placement": "Before",
+      "inType": "NetCraft.Game.Server.MinecraftServer",
+      "inMethod": "Run",
+      "replaceType": "NetCraft.TestCrash.CrashProbe",
+      "replaceMethod": "OnBeforeCrashStop"
+    }
+  ],
+  "icon": "icon.png"
+}

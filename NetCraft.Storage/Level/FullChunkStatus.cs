@@ -1,7 +1,7 @@
 namespace NetCraft.Storage;
 
-//FullChunkStatus 区块加载档位对应原版 net.minecraft.server.level.FullChunkStatus
-//声明顺序即强弱 Inaccessible 最弱 EntityTicking 最强 比较时直接用序号
+//FullChunkStatus, chunk load tier, maps to vanilla net.minecraft.server.level.FullChunkStatus
+//Declaration order is strength order: Inaccessible weakest, EntityTicking strongest; comparisons use the ordinal
 public enum FullChunkStatus
 {
     Inaccessible,
@@ -10,9 +10,9 @@ public enum FullChunkStatus
     EntityTicking,
 }
 
-//FullChunkStatusExtensions 加载档位比较
+//FullChunkStatusExtensions, load tier comparison
 public static class FullChunkStatusExtensions
 {
-    //IsOrAfter 是否达到至少 other 这一档 对应原版 isOrAfter
+    //IsOrAfter, whether at least the other tier is reached, maps to vanilla isOrAfter
     public static bool IsOrAfter(this FullChunkStatus status, FullChunkStatus other) => status >= other;
 }

@@ -4,8 +4,8 @@ using System;
 using NetCraft.Codec;
 using T = NetCraft.DataFixer.Types;
 
-//Id单位函数对应原版com.mojang.datafixers.functions.Id
-//PointFree<Func<A,A>>求值返回identity
+//Id identity function maps to vanilla com.mojang.datafixers.functions.Id
+//PointFree<Func<A,A>> evaluates to identity
 public sealed class Id<A> : PointFree<Func<A, A>>
 {
     private readonly T.Type<Func<A, A>>? _type;

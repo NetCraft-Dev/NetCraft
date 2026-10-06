@@ -7,26 +7,26 @@ using NetCraft.Primitives.Phys;
 using NetCraft.Registry;
 using NetCraft.Registry.State;
 using NetCraft.Storage;
-//属性枚举里的 Direction 与 Primitives.Direction 同名 只取需要的箱子形态
+//Direction in the property enums clashes with Primitives.Direction, so only the needed chest type is imported
 using ChestType = NetCraft.Registry.Enums.ChestType;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//V-8 容器类方块 打开界面走 MenuProvider 服务端下发 open_screen 客户端按菜单类型开屏
+//V-8 container blocks; opening a screen goes through MenuProvider, the server sends open_screen and the client opens the screen by menu type
 public static partial class Blocks
 {
     public static readonly ChestBlock CHEST = new("chest");
     public static readonly BarrelBlock BARREL = new("barrel");
 
-    //RegisterContainers 容器类方块登记进真实方块表
+    //RegisterContainers registers container blocks into the real block table
     private static void RegisterContainers(Dictionary<string, BlockBehaviour> real)
     {
         BlockBehaviour[] blocks = { CHEST, BARREL };
         foreach (var block in blocks) real[block.Id.Path] = block;
     }
 
-    //ChestBlock 箱子对应原版 net.minecraft.world.level.block.ChestBlock
-    //同朝向的两格箱子自动连成双箱 目标容器由两半合成 菜单六个行
+    //ChestBlock chest, maps to vanilla net.minecraft.world.level.block.ChestBlock
+    //Two chests with the same facing automatically form a double chest; the target container is combined from both halves, and the menu has six rows
     public sealed class ChestBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(14.0, 0.0, 14.0);
@@ -36,13 +36,13 @@ public static partial class Blocks
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context)
             => Shape;
 
-        //CreateBlockEntity 箱子内容存在方块实体里 对应原版 newBlockEntity
+        //CreateBlockEntity chest contents live in the block entity, maps to vanilla newBlockEntity
         public override BlockEntity? CreateBlockEntity(BlockPos pos, BlockState state) => new ChestBlockEntity(pos);
 
-        //HasBlockEntity 箱子带方块实体 活塞推不动
+        //HasBlockEntity chest has a block entity, pistons cannot push it
         public override bool HasBlockEntity => true;
 
-        //GetStateForPlacement 落地时与同朝向的邻箱自动连成双箱 对应原版 ChestBlock.getStateForPlacement
+        //GetStateForPlacement pairs with a same-facing neighbor chest into a double chest on landing, maps to vanilla ChestBlock.getStateForPlacement
         public override BlockState? GetStateForPlacement(ServerLevel level, BlockPos pos, Direction face,
             Direction horizontalFacing, Direction lookingDirection)
         {
@@ -52,7 +52,7 @@ public static partial class Blocks
                 .SetValue(BlockStateProperties.ChestTypeProperty, GetChestType(level, pos, facing));
         }
 
-        //GetChestType 顺时针邻居同朝向则自己是左半 逆时针则是右半 对应原版同名方法
+        //GetChestType the clockwise neighbor with the same facing makes this the left half, counterclockwise makes it the right half, maps to the vanilla method of the same name
         private static ChestType GetChestType(ServerLevel? level, BlockPos pos, Direction facing)
         {
             if (facing == CandidatePartnerFacing(level, pos, facing.ClockWise)) return ChestType.left;
@@ -60,8 +60,8 @@ public static partial class Blocks
             return ChestType.single;
         }
 
-        //CandidatePartnerFacing 只有单箱邻居才可能合作 返回它的朝向 不合作返回 null
-        //没有关卡上下文就没有邻居可看 放置状态退回单人
+        //CandidatePartnerFacing only a single-chest neighbor can pair; returns its facing, or null when it cannot pair
+        //Without a level context there are no neighbors to inspect, so the placement state falls back to single
         private static Direction? CandidatePartnerFacing(ServerLevel? level, BlockPos pos, Direction neighbourDirection)
         {
             if (level is null) return null;
@@ -71,7 +71,7 @@ public static partial class Blocks
             return state.Value.GetValue(BlockStateProperties.HorizontalFacing).ToPrimitive();
         }
 
-        //GetConnectedDirection 另一半所在方向 左半在顺时针 右半在逆时针 对应原版同名方法
+        //GetConnectedDirection direction of the other half: left half is clockwise, right half is counterclockwise, maps to the vanilla method of the same name
         public static Direction GetConnectedDirection(BlockState state)
         {
             var facing = state.GetValue(BlockStateProperties.HorizontalFacing).ToPrimitive();
@@ -80,8 +80,8 @@ public static partial class Blocks
                 : facing.CounterClockWise;
         }
 
-        //UpdateShape 邻箱出现或消失时跟随形态 对应原版 ChestBlock.updateShape
-        //方向参数是从本方块指向发起变化的那一格 原版语义同上
+        //UpdateShape follows the form when the neighbor chest appears or disappears, maps to vanilla ChestBlock.updateShape
+        //The direction parameter points from this block toward the cell that changed, same vanilla semantics as above
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
         {
@@ -102,11 +102,11 @@ public static partial class Blocks
             return state;
         }
 
-        //Opposite 双箱的另一半形态 对应原版 ChestType.getOpposite
+        //Opposite the other half of a double chest, maps to vanilla ChestType.getOpposite
         private static ChestType Opposite(ChestType type)
             => type == ChestType.left ? ChestType.right : ChestType.left;
 
-        //UseOn 右击打开容器 双箱把两半合成一个六行菜单 对应原版 useWithoutItem 与 getMenuProvider
+        //UseOn right-click opens the container; a double chest combines both halves into one six-row menu, maps to vanilla useWithoutItem and getMenuProvider
         public override bool UseOn(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state, Direction face)
         {
             if (TryGetDouble(level, pos, state) is { } pair)
@@ -119,8 +119,8 @@ public static partial class Blocks
             return true;
         }
 
-        //TryGetDouble 取双箱两半 两半形态必须互补 对应原版 DoubleBlockCombiner 的成对判定
-        //原版 BlockType 把右半当第一半 左半当第二半 槽号顺序随之确定
+        //TryGetDouble gets both halves of a double chest; the two halves must be complementary, maps to the pairing check of vanilla DoubleBlockCombiner
+        //Vanilla BlockType treats the right half as the first half and the left half as the second, which fixes the slot order
         private static (ChestBlockEntity First, ChestBlockEntity Second)? TryGetDouble(
             ServerLevel level, BlockPos pos, BlockState state)
         {
@@ -136,7 +136,7 @@ public static partial class Blocks
             return type == ChestType.right ? (self, partner) : (partner, self);
         }
 
-        //DoubleChestMenuProvider 双箱菜单 标题用原版 container.chestDouble
+        //DoubleChestMenuProvider double chest menu, title uses vanilla container.chestDouble
         private sealed class DoubleChestMenuProvider(ChestBlockEntity first, ChestBlockEntity second) : MenuProvider
         {
             public Component DisplayName => Component.Translatable("container.chestDouble");
@@ -146,7 +146,7 @@ public static partial class Blocks
         }
     }
 
-    //BarrelBlock 木桶 行为与箱子一致只是方块实体类型不同 对应原版 BarrelBlock
+    //BarrelBlock barrel, behavior identical to a chest with a different block entity type, maps to vanilla BarrelBlock
     public sealed class BarrelBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(14.0, 0.0, 14.0);
@@ -158,7 +158,7 @@ public static partial class Blocks
 
         public override BlockEntity? CreateBlockEntity(BlockPos pos, BlockState state) => new BarrelBlockEntity(pos);
 
-        //HasBlockEntity 木桶带方块实体 活塞推不动
+        //HasBlockEntity barrel has a block entity, pistons cannot push it
         public override bool HasBlockEntity => true;
 
         public override bool UseOn(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state, Direction face)

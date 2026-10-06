@@ -5,148 +5,148 @@ using NetCraft.Primitives;
 using NetCraft.Primitives.Phys;
 using NetCraft.Util;
 using NetCraft.Util.Random;
-//实体属性自带命名空间 与环境属性(NetCraft.Registry.Environment)里同名类型分开
-//Attribute 与 System.Attribute 撞名 这里只取需要的三个名字并给它换个别名
+//Entity attributes carry their own namespace, kept separate from same-named types in environment attributes (NetCraft.Registry.Environment)
+//Attribute clashes with System.Attribute, so only the three needed names are taken and aliased here
 using AttributeMap = NetCraft.Registry.EntityAttribute.AttributeMap;
 using AttributeSupplier = NetCraft.Registry.EntityAttribute.AttributeSupplier;
 using AttributeDef = NetCraft.Registry.EntityAttribute.Attribute;
 
 namespace NetCraft.Registry;
 
-//ITrackedEntity 实体追踪层需要的实体视图
-//服务端实体与管理实体数据的玩家对象都实现它 追踪器只依赖这组读写能力
+//ITrackedEntity the entity view needed by the entity tracking layer
+//Both server entities and the player object managing entity data implement it; the tracker depends only on this set of read/write capabilities
 public interface ITrackedEntity
 {
-    //EntityId 实体网络 id
+    //EntityId entity network id
     int EntityId { get; }
 
-    //Type 实体类型 null 表示不支持追踪
+    //Type entity type; null means tracking is not supported
     EntityType<object>? Type { get; }
 
-    //Uuid 实体唯一标识
+    //Uuid entity unique identifier
     Guid Uuid { get; }
 
-    //Pos 实体位置
+    //Pos entity position
     Vec3 Pos { get; }
 
-    //Velocity 实体速度
+    //Velocity entity velocity
     Vec3 Velocity { get; }
 
-    //YRot 偏航角
+    //YRot yaw
     float YRot { get; }
 
-    //XRot 俯仰角
+    //XRot pitch
     float XRot { get; }
 
-    //OnGround 是否接触地面
+    //OnGround whether it is touching the ground
     bool OnGround { get; }
 
-    //Attributes 实体属性表 没有属性体系的实体返回 null 追踪层据此跳过属性同步
+    //Attributes entity attribute map; entities without an attribute system return null and the tracking layer skips attribute sync
     AttributeMap? Attributes { get; }
 }
 
-//Entity 抽象基类对应原版 net.minecraft.world.entity.Entity
-//持有 EntityId/Pos/Uuid/Velocity/YRot/XRot 核心字段Level 用 object 占位待 Level 子系统就绪后替换
-//原版持有 CompoundTag 持久化字段此处简化子类按需扩展
+//Entity abstract base class, maps to vanilla net.minecraft.world.entity.Entity
+//Holds core fields EntityId/Pos/Uuid/Velocity/YRot/XRot; Level uses object as a placeholder until the Level subsystem is ready
+//Vanilla holds a CompoundTag persistence field, simplified here so subclasses extend as needed
 public abstract class Entity : ITrackedEntity, ISyncedEntity
 {
-    //_entityCounter 全局实体 id 计数器 对应原版 ServerLevel.ENTITY_COUNTER
-    //放在这里而不是关卡上 让实体与玩家共用同一个 id 空间 两套计数器会撞号
+    //_entityCounter global entity id counter, maps to vanilla ServerLevel.ENTITY_COUNTER
+    //Placed here rather than on the level so entities and players share one id space; two counters would collide
     private static int _entityCounter;
 
-    //SharedFlagsIndex 共享标志位索引 对应原版 Entity.DATA_SHARED_FLAGS_ID
+    //SharedFlagsIndex shared flags index, maps to vanilla Entity.DATA_SHARED_FLAGS_ID
     public const byte SharedFlagsIndex = 0;
 
-    //PoseIndex 姿态索引 对应原版 Entity.DATA_POSE
+    //PoseIndex pose index, maps to vanilla Entity.DATA_POSE
     public const byte PoseIndex = 6;
 
-    //SyncedData 实体元数据容器 子类构造时 Define 声明自己拥有的条目
+    //SyncedData entity metadata container; subclasses Define the entries they own at construction
     public SynchedEntityData SyncedData { get; } = new();
 
-    //_deathHandled 死亡钩子是否已触发 保证只走一次死亡流程
+    //_deathHandled whether the death hook already fired, ensuring the death flow runs only once
     private bool _deathHandled;
 
-    //Gravity 重力加速度 对应原版 0.08
+    //Gravity gravitational acceleration, maps to vanilla 0.08
     public const double Gravity = 0.08;
 
-    //VerticalDrag 垂直阻力 对应原版 0.98
+    //VerticalDrag vertical drag, maps to vanilla 0.98
     public const double VerticalDrag = 0.98;
 
-    //HorizontalDrag 水平阻力 对应原版 0.91
+    //HorizontalDrag horizontal drag, maps to vanilla 0.91
     public const double HorizontalDrag = 0.91;
 
-    //DefaultGravity 默认重力加速度 对应原版 getDefaultGravity 掉落物重写为 0.04
+    //DefaultGravity default gravitational acceleration, maps to vanilla getDefaultGravity; dropped items override it to 0.04
     public virtual double DefaultGravity => Gravity;
 
-    //SafeFallDistance 起算坠落伤害的距离 对应原版属性 SAFE_FALL_DISTANCE 默认 3
+    //SafeFallDistance the distance at which fall damage starts counting, maps to vanilla attribute SAFE_FALL_DISTANCE, default 3
     public virtual double SafeFallDistance => 3.0;
 
-    //FallDamageMultiplier 坠落伤害系数 对应原版属性 FALL_DAMAGE_MULTIPLIER 默认 1
+    //FallDamageMultiplier fall damage multiplier, maps to vanilla attribute FALL_DAMAGE_MULTIPLIER, default 1
     public virtual double FallDamageMultiplier => 1.0;
 
-    //KnockbackResistance 击退抗性 0 到 1 之间 1 表示完全免疫击退 对应原版属性 KNOCKBACK_RESISTANCE
+    //KnockbackResistance knockback resistance between 0 and 1, where 1 means full immunity, maps to vanilla attribute KNOCKBACK_RESISTANCE
     public virtual double KnockbackResistance => 0.0;
 
-    //TakesFallDamage 是否受坠落伤害 对应原版 Entity 基类不受而 LivingEntity 受
-    //本作没有 LivingEntity 这一层 由活体子类打开
+    //TakesFallDamage whether it takes fall damage; in vanilla the Entity base does not and LivingEntity does
+    //There is no LivingEntity layer here, so living subclasses turn it on
     public virtual bool TakesFallDamage => false;
 
-    //IsInWater 是否浸在水中 本作没有流体判定恒否 对应原版 wasTouchingWater
-    //在流体判定接入前它让所有下落都累积距离 与原版陆上行为一致
+    //IsInWater whether it is submerged; there is no fluid check here so it is always false, maps to vanilla wasTouchingWater
+    //Until the fluid check is wired up this lets all falls accumulate distance, matching vanilla on-land behavior
     public virtual bool IsInWater => false;
 
-    //KnockbackDirectionEpsilon 击退方向的最小长度平方 对应原版 9.999999747378752E-6
-    //方向分量短于这个量级时随机化 免得纯竖直击退把实体原地钉住
+    //KnockbackDirectionEpsilon minimum squared length of the knockback direction, maps to vanilla 9.999999747378752E-6
+    //When the direction component is shorter than this it is randomized, so a purely vertical knockback does not pin the entity in place
     private const double KnockbackDirectionEpsilon = 9.999999747378752E-6;
 
-    //_random 实体自己的随机源 对应原版 Entity.random 用于击退方向随机化等
+    //_random the entity's own random source, maps to vanilla Entity.random, used for knockback direction randomization and the like
     private readonly RandomSource _random = RandomSource.Create();
 
-    //FallDistance 本刻之前已累积的下落距离 对应原版 fallDistance 落地或触及重置面时清零
+    //FallDistance fall distance accumulated before this tick, maps to vanilla fallDistance; cleared on landing or touching a reset surface
     public double FallDistance { get; private set; }
 
-    //AirDrag 空气阻力 对应原版 getAirDrag 默认 0.98
+    //AirDrag air drag, maps to vanilla getAirDrag, default 0.98
     public virtual double AirDrag => VerticalDrag;
 
-    //SavesHealth 基类是否代写 Health 字段
-    //掉落物的 Health 是与生物同名但类型为 short 的独立字段 重写为 false 由子类自己写
+    //SavesHealth whether the base class writes the Health field
+    //A dropped item's Health is a separate short field with the same name as a mob's; it overrides this to false and writes it itself
     protected virtual bool SavesHealth => true;
 
-    //TagsTag 实体标签在存档里的键名 对应原版 "Tags"
+    //TagsTag key name for entity tags in saves, maps to vanilla "Tags"
     private const string TagsTag = "Tags";
 
-    //MaxTagCount 单个实体的标签数量上限 对应原版 1024 加满再加直接失败
+    //MaxTagCount maximum tag count per entity, maps to vanilla 1024; adding beyond a full set fails
     private const int MaxTagCount = 1024;
 
-    //_tags 实体自定义字符串标签集合 对应原版 Entity.tags
+    //_tags custom string tag set of the entity, maps to vanilla Entity.tags
     private readonly HashSet<string> _tags = new();
 
-    //GetTags 取全部标签 对应原版 entityTags
+    //GetTags gets all tags, maps to vanilla entityTags
     public IReadOnlyCollection<string> GetTags() => _tags;
 
-    //AddTag 加标签 已存在或已达上限返回 false 对应原版 addTag
+    //AddTag adds a tag, returning false if it exists or the limit is reached, maps to vanilla addTag
     public bool AddTag(string tag)
     {
         if (_tags.Count >= MaxTagCount) return false;
         return _tags.Add(tag);
     }
 
-    //RemoveTag 移除标签 不存在返回 false 对应原版 removeTag
+    //RemoveTag removes a tag, returning false if absent, maps to vanilla removeTag
     public bool RemoveTag(string tag) => _tags.Remove(tag);
 
-    //HasTag 实体是否有该标签 供选择器一类的判定使用
+    //HasTag whether the entity has the tag, used by selector-style checks
     public bool HasTag(string tag) => _tags.Contains(tag);
 
-    //EntityId 实体网络 id 加入关卡时由关卡分配 未加入前是 0
-    //对应原版构造里先置 0 再 level.getNextEntityId() 本作关卡引用构造后才注入所以分配一并延后
+    //EntityId entity network id, assigned by the level when joining; 0 before joining
+    //Vanilla sets 0 in the constructor then calls level.getNextEntityId(); here the level reference is injected after construction so assignment is deferred too
     public int EntityId { get; private set; }
 
-    //SetId 直接指定实体 id 对应原版 Entity.setId
+    //SetId directly sets the entity id, maps to vanilla Entity.setId
     public void SetId(int id) => EntityId = id;
 
-    //NextEntityId 取下一个可用实体 id 对应原版 ServerLevel.getNextEntityId
-    //从 0 起试 0 与已被占用的 id 都跳过 isTaken 由关卡回答某个 id 是否已被占用
-    //分配出的 id 要由调用方立刻登记进占用集合 否则下一次分配会拿到同一个值
+    //NextEntityId gets the next available entity id, maps to vanilla ServerLevel.getNextEntityId
+    //Starts at 0 and skips both 0 and taken ids; isTaken answers whether an id is already used
+    //The caller must immediately register the assigned id in the taken set, otherwise the next assignment returns the same value
     public static int NextEntityId(Func<int, bool> isTaken)
     {
         var candidate = 0;
@@ -157,154 +157,154 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         }
     }
 
-    //Id 实体的注册名子类必须实现
+    //Id the entity's registry name, must be implemented by subclasses
     public abstract Identifier Id { get; }
 
-    //Type 实体类型 子类按需重写 未重写时追踪层跳过该实体
+    //Type entity type; subclasses override as needed and the tracking layer skips the entity when not overridden
     public virtual EntityType<object>? Type => null;
 
-    //Level 实体所在世界引用占位待 Level 子系统就绪后替换为强类型
+    //Level placeholder reference to the entity's world, to be replaced with a strong type once the Level subsystem is ready
     public object? Level { get; set; }
 
-    //CollisionShapes 测试区内的碰撞形状查询 由关卡注入 未注入时不做碰撞只做位置推进
-    //原版这一层是 level 上的实体碰撞加世界边界加方块碰撞三样 这里由关卡一并给全
+    //CollisionShapes collision shape query within the test area, injected by the level; when not injected there is no collision and only position advances
+    //Vanilla has three pieces here: entity collision, world border and block collision on the level; the level supplies all of them at once
     public Func<AABB, IReadOnlyList<VoxelShape>>? CollisionShapes { get; set; }
 
-    //NoPhysics 是否忽略碰撞直接推进 对应原版 noPhysics
+    //NoPhysics whether to ignore collision and advance directly, maps to vanilla noPhysics
     public bool NoPhysics { get; set; }
 
-    //HorizontalCollision 本刻水平两轴是否有任一受阻 对应原版 horizontalCollision
+    //HorizontalCollision whether either horizontal axis was blocked this tick, maps to vanilla horizontalCollision
     public bool HorizontalCollision { get; private set; }
 
-    //VerticalCollision 本刻竖直方向是否受阻 对应原版 verticalCollision
+    //VerticalCollision whether the vertical direction was blocked this tick, maps to vanilla verticalCollision
     public bool VerticalCollision { get; private set; }
 
-    //VerticalCollisionBelow 本刻向下受阻 站地与否看它而不是看竖直受阻 对应原版 verticalCollisionBelow
+    //VerticalCollisionBelow whether downward movement was blocked this tick; standing is judged by this rather than vertical collision, maps to vanilla verticalCollisionBelow
     public bool VerticalCollisionBelow { get; private set; }
 
-    //Attributes 实体属性表 基类默认空表 活体子类在构造里换成自己类型的默认表
-    //对应原版 LivingEntity 持有的 AttributeMap
+    //Attributes entity attribute map; the base defaults to an empty table and living subclasses swap in their type's default table in the constructor
+    //Maps to the AttributeMap held by vanilla LivingEntity
     public AttributeMap Attributes { get; protected set; } = new(AttributeSupplier.Empty);
 
-    //GetAttributeValue 取属性最终值 对应原版 getAttributeValue
+    //GetAttributeValue gets the attribute's final value, maps to vanilla getAttributeValue
     public double GetAttributeValue(AttributeDef attribute) => Attributes.GetValue(attribute);
 
-    //MaxUpStep 能自动跨上的最大台阶高度 基类为 0 生物按跨步高度属性覆盖 对应原版 maxUpStep
+    //MaxUpStep the maximum step height that can be climbed automatically; the base is 0 and mobs override it from the step height attribute, maps to vanilla maxUpStep
     public virtual double MaxUpStep => 0.0;
 
-    //Pos 实体在世界中的位置默认原点
+    //Pos entity position in the world, defaulting to the origin
     public Vec3 Pos { get; set; } = Vec3.Zero;
 
-    //Velocity 实体速度向量默认零
+    //Velocity entity velocity vector, defaulting to zero
     public Vec3 Velocity { get; set; } = Vec3.Zero;
 
-    //Uuid 实体唯一标识默认随机生成
+    //Uuid entity unique identifier, randomly generated by default
     public Guid Uuid { get; set; } = Guid.NewGuid();
 
-    //YRot/Yaw 偏航角默认 0
+    //YRot/Yaw yaw, default 0
     public float YRot { get; set; }
 
-    //XRot/Pitch 俯仰角默认 0
+    //XRot/Pitch pitch, default 0
     public float XRot { get; set; }
 
-    //OnGround 是否接触地面默认 false
+    //OnGround whether it is touching the ground, default false
     public bool OnGround { get; set; }
 
-    //IsOnFire 是否正在燃烧 对应原版 isOnFire
+    //IsOnFire whether it is on fire, maps to vanilla isOnFire
     public bool IsOnFire { get; set; }
 
-    //IsCrouching 是否潜行 对应原版 isCrouching
+    //IsCrouching whether it is sneaking, maps to vanilla isCrouching
     public bool IsCrouching { get; set; }
 
-    //IsSprinting 是否疾跑 对应原版 isSprinting
+    //IsSprinting whether it is sprinting, maps to vanilla isSprinting
     public bool IsSprinting { get; set; }
 
-    //IsSwimming 是否处于游泳姿态 对应原版 isSwimming
+    //IsSwimming whether it is in the swimming pose, maps to vanilla isSwimming
     public bool IsSwimming { get; set; }
 
-    //IsBaby 是否幼年 对应原版 LivingEntity.isBaby
+    //IsBaby whether it is a baby, maps to vanilla LivingEntity.isBaby
     public bool IsBaby { get; set; }
 
-    //IsFallFlying 是否鞘翅滑翔 对应原版 LivingEntity.isFallFlying
+    //IsFallFlying whether it is elytra gliding, maps to vanilla LivingEntity.isFallFlying
     public bool IsFallFlying { get; set; }
 
-    //IsFlying 是否处于飞行 对应原版玩家能力 flying 本作所有实体通用
+    //IsFlying whether it is flying, maps to vanilla player ability flying and applies to all entities here
     public bool IsFlying { get; set; }
 
-    //IsDescending 是否处于下落姿态 对应原版 isDescending
-    //碰撞上下文按它放宽脚手架一类方块的侧向判定 基类实体一律否
+    //IsDescending whether it is in a descending pose, maps to vanilla isDescending
+    //The collision context uses it to relax the lateral check for blocks like scaffolding; base entities always return false
     public virtual bool IsDescending() => false;
 
-    //TickCount 实体已存活刻数 对应原版 tickCount 掉落物按它决定合并频率与消失
+    //TickCount ticks the entity has lived, maps to vanilla tickCount; dropped items use it to decide merge frequency and despawn
     public int TickCount { get; private set; }
 
-    //PreviousPos 进入本刻前的位置 对应原版 xo/yo/zo 用于判断本刻是否跨了方块格
+    //PreviousPos position before this tick, maps to vanilla xo/yo/zo, used to tell whether a block cell was crossed this tick
     public Vec3 PreviousPos { get; private set; } = Vec3.Zero;
 
-    //MovementEpsilon 位移阈值 小于它认为没动 对应原版 1.0E-7
+    //MovementEpsilon displacement threshold; below it the entity is considered still, maps to vanilla 1.0E-7
     private const double MovementEpsilon = 1e-7;
 
-    //Width 碰撞盒宽度取实体类型声明的尺寸 未绑定类型时按玩家尺寸
+    //Width hitbox width from the entity type's declared size, defaulting to the player size when no type is bound
     public double Width => Type?.Width ?? 0.6f;
 
-    //Height 碰撞盒高度取实体类型声明的尺寸 未绑定类型时按玩家尺寸
+    //Height hitbox height from the entity type's declared size, defaulting to the player size when no type is bound
     public double Height => Type?.Height ?? 1.8f;
 
-    //BoundingBox 当前包围盒 对应原版 getBoundingBox
+    //BoundingBox current bounding box, maps to vanilla getBoundingBox
     public AABB BoundingBox => MakeBoundingBox(Pos);
 
-    //MakeBoundingBox 按脚部位置生成包围盒 以脚部为中心向两侧各半宽 对应原版 makeBoundingBox
+    //MakeBoundingBox builds the bounding box from the foot position, half the width to each side around the feet, maps to vanilla makeBoundingBox
     public AABB MakeBoundingBox(Vec3 pos)
     {
         var half = Width / 2.0;
         return new AABB(pos.X - half, pos.Y, pos.Z - half, pos.X + half, pos.Y + Height, pos.Z + half);
     }
 
-    //GetOnPos 脚下支撑方块位置 对应原版 getOnPos 默认偏移 0.2
+    //GetOnPos supporting block position below the feet, maps to vanilla getOnPos, default offset 0.2
     public BlockPos GetOnPos() => GetOnPos(0.2f);
 
-    //GetOnPos 按给定位移向下取格 对应原版 getOnPos(float)
+    //GetOnPos takes the cell below by the given offset, maps to vanilla getOnPos(float)
     public BlockPos GetOnPos(float yOffset)
         => new(Mth.Floor(Pos.X), Mth.Floor(Pos.Y - yOffset), Mth.Floor(Pos.Z));
 
-    //GetBlockPosBelowThatAffectsMyMovement 影响移动的脚下方块位置 对应原版同名方法
-    //原版就是拿 0.500001 的偏移
+    //GetBlockPosBelowThatAffectsMyMovement the block below the feet that affects movement, maps to vanilla method of the same name
+    //Vanilla uses an offset of 0.500001
     public BlockPos GetBlockPosBelowThatAffectsMyMovement() => GetOnPos(0.500001f);
 
-    //Health 当前血量 默认 20 对齐原版 MAX_HEALTH 默认值
+    //Health current health, default 20 matching the vanilla MAX_HEALTH default
     public float Health { get; private set; } = 20f;
 
-    //MaxHealth 血量上限 子类按需覆盖
+    //MaxHealth maximum health, overridden by subclasses as needed
     public float MaxHealth { get; protected set; } = 20f;
 
-    //InvulnerableTime 受伤无敌帧剩余刻数 对应原版 invulnerableTime
+    //InvulnerableTime remaining invulnerability ticks after being hurt, maps to vanilla invulnerableTime
     public int InvulnerableTime { get; private set; }
 
-    //IsDeadOrDying 血量归零 对应原版 isDeadOrDying
+    //IsDeadOrDying whether health dropped to zero, maps to vanilla isDeadOrDying
     public bool IsDeadOrDying => Health <= 0f;
 
-    //Hurt 造成伤害 对应原版 hurtServer 的最小集
-    //无敌帧内不重复受伤 未做伤害减免/伤害来源类型/死亡动画期
-    //给了伤害来源位置就顺带施加击退 方向由来源指向自身
+    //Hurt applies damage, a minimal subset of vanilla hurtServer
+    //No repeated damage during invulnerability; damage reduction, damage source types and the death animation phase are not implemented
+    //When a knockback source position is given it also applies knockback, with the direction pointing from the source to itself
     public virtual bool Hurt(float amount, Vec3? knockbackSource = null)
     {
         if (IsDeadOrDying || InvulnerableTime > 0) return false;
         Health = Math.Max(0f, Health - amount);
-        //无敌帧 10 刻 原版是 20 刻其中 10 刻给受伤动画
+        //Invulnerability for 10 ticks; vanilla is 20 ticks with 10 for the hurt animation
         InvulnerableTime = 10;
-        //受伤击退 力度 0.4 对应原版 LivingEntity.dealDefaultKnockback
-        //方向按原版算"来源减自身" 击退内部再取负 净效果是把目标推离来源
+        //Hurt knockback with strength 0.4, maps to vanilla LivingEntity.dealDefaultKnockback
+        //The direction is "source minus self" as in vanilla and knockback negates it internally; the net effect pushes the target away from the source
         if (knockbackSource is { } source)
             ApplyKnockback(0.4, source.X - Pos.X, source.Z - Pos.Z);
         if (Health <= 0f) TriggerDeath();
         return true;
     }
 
-    //SetHealth 直接设置血量并钳制到 0..MaxHealth 对应原版 setHealth
+    //SetHealth directly sets health clamped to 0..MaxHealth, maps to vanilla setHealth
     public void SetHealth(float value)
     {
         Health = Math.Clamp(value, 0f, MaxHealth);
-        //血量回到正值视为复活 重新允许触发死亡流程
+        //Health returning to a positive value counts as revival and re-allows the death flow
         if (Health > 0f)
         {
             _deathHandled = false;
@@ -313,13 +313,13 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         TriggerDeath();
     }
 
-    //Die 血量归零钩子 对应原版 LivingEntity.die 子类做掉落与死亡表现
+    //Die hook when health reaches zero, maps to vanilla LivingEntity.die; subclasses do drops and death effects
     protected virtual void Die() { }
 
-    //Died 死亡事件 由关卡在实体加入时挂接 供服务端广播死亡表现并移除实体
+    //Died death event, hooked up by the level when the entity joins, for the server to broadcast the death effect and remove the entity
     public event Action<Entity>? Died;
 
-    //TriggerDeath 只触发一次死亡钩子 避免 Hurt 与 SetHealth 重复走死亡流程
+    //TriggerDeath fires the death hook only once, avoiding Hurt and SetHealth running the death flow twice
     private void TriggerDeath()
     {
         if (_deathHandled) return;
@@ -328,15 +328,15 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         Died?.Invoke(this);
     }
 
-    //Save 写出完整实体存档含类型 id 对应原版 Entity.save
+    //Save writes the full entity save including the type id, maps to vanilla Entity.save
     public void Save(CompoundTag tag)
     {
         tag.PutString("id", (Type?.Id ?? Id).ToString());
         SaveWithoutId(tag);
     }
 
-    //SaveWithoutId 写出实体状态不含类型 id 对应原版 Entity.saveWithoutId
-    //子类扩展持久化字段应重写 AddAdditionalSaveData
+    //SaveWithoutId writes entity state without the type id, maps to vanilla Entity.saveWithoutId
+    //Subclasses extending persistence fields should override AddAdditionalSaveData
     public virtual void SaveWithoutId(CompoundTag tag)
     {
         tag.Put("Pos", DoubleList(Pos.X, Pos.Y, Pos.Z));
@@ -345,15 +345,15 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         tag.PutIntArray("UUID", UuidToIntArray(Uuid));
         tag.PutBoolean("OnGround", OnGround);
         if (SavesHealth) tag.PutFloat("Health", Health);
-        //标签是基类行为 非空才写 对应原版 saveWithoutId 里 Tags 的处理
+        //Tags are base behavior and are written only when non-empty, matching vanilla saveWithoutId's handling of Tags
         if (_tags.Count > 0) tag.Put(TagsTag, StringList(_tags));
-        //属性只在活体上存 本作由 TakesFallDamage 代原版 LivingEntity 这一层
+        //Attributes are saved only on living entities; TakesFallDamage stands in for the vanilla LivingEntity layer here
         if (TakesFallDamage) Attributes.WriteTo(tag);
         AddAdditionalSaveData(tag);
     }
 
-    //Load 从存档读回实体状态对应原版 Entity.load
-    //字段缺失或类型不符时保留当前值 不因单个字段异常丢弃整个实体
+    //Load reads entity state back from a save, maps to vanilla Entity.load
+    //Missing fields or type mismatches keep the current value so a single bad field does not discard the whole entity
     public virtual void Load(CompoundTag tag)
     {
         if (ReadDoubleList(tag.GetList("Pos"), 3) is { } pos) Pos = new Vec3(pos[0], pos[1], pos[2]);
@@ -363,11 +363,11 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
             YRot = rotation[0];
             XRot = rotation[1];
         }
-        //UUID 为 4 个 int 的数组 长度不符时视为无效保留原值
+        //UUID is an array of 4 ints; an incorrect length is treated as invalid and the original value is kept
         if (tag.GetIntArray("UUID") is { } uuid && IntArrayToUuid(uuid.Value) is { } parsed) Uuid = parsed;
         OnGround = tag.GetBooleanOr("OnGround", false);
         if (SavesHealth && tag.GetFloat("Health") is { } health) SetHealth(health.Value);
-        //标签先清空再读 对应原版 load 里 tags.clear 后再 addAll
+        //Tags are cleared before reading, matching vanilla load's tags.clear followed by addAll
         _tags.Clear();
         if (tag.GetList(TagsTag) is { } tagList)
             for (var i = 0; i < tagList.Count; i++)
@@ -376,21 +376,21 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         ReadAdditionalSaveData(tag);
     }
 
-    //AddAdditionalSaveData 子类追加持久化字段的钩子 对应原版同名方法
+    //AddAdditionalSaveData hook for subclasses to add persistence fields, maps to the vanilla method of the same name
     protected virtual void AddAdditionalSaveData(CompoundTag tag) { }
 
-    //ReadAdditionalSaveData 子类读回扩展字段的钩子 对应原版同名方法
+    //ReadAdditionalSaveData hook for subclasses to read extended fields back, maps to the vanilla method of the same name
     protected virtual void ReadAdditionalSaveData(CompoundTag tag) { }
 
-    //DoubleList 构造 double 列表 对应原版 ListTag of DoubleTag
+    //DoubleList builds a double list, maps to vanilla ListTag of DoubleTag
     private static ListTag DoubleList(double x, double y, double z)
         => new(new Tag[] { new DoubleTag(x), new DoubleTag(y), new DoubleTag(z) });
 
-    //FloatList 构造 float 列表 对应原版 ListTag of FloatTag
+    //FloatList builds a float list, maps to vanilla ListTag of FloatTag
     private static ListTag FloatList(float a, float b)
         => new(new Tag[] { new FloatTag(a), new FloatTag(b) });
 
-    //StringList 构造字符串列表 对应原版 ListTag of StringTag
+    //StringList builds a string list, maps to vanilla ListTag of StringTag
     private static ListTag StringList(IReadOnlyCollection<string> values)
     {
         var list = new ListTag();
@@ -398,7 +398,7 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         return list;
     }
 
-    //ReadDoubleList 读定长 double 列表 长度不符返回 null
+    //ReadDoubleList reads a fixed-length double list, returning null on a length mismatch
     private static double[]? ReadDoubleList(ListTag? list, int size)
     {
         if (list is null || list.Count != size) return null;
@@ -412,7 +412,7 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         return values;
     }
 
-    //ReadFloatList 读定长 float 列表 长度不符返回 null
+    //ReadFloatList reads a fixed-length float list, returning null on a length mismatch
     private static float[]? ReadFloatList(ListTag? list, int size)
     {
         if (list is null || list.Count != size) return null;
@@ -426,8 +426,8 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         return values;
     }
 
-    //UuidToIntArray 把 Uuid 按原版格式写成 4 个 int 大端序列
-    //子类存 Owner/Thrower 一类 UUID 字段也走这个 与原版 UUIDUtil.CODEC 的写法一致
+    //UuidToIntArray writes a Uuid as a 4-int big-endian sequence in the vanilla format
+    //Subclasses storing Owner/Thrower style UUID fields use this too, matching vanilla UUIDUtil.CODEC
     protected static int[] UuidToIntArray(Guid uuid)
     {
         Span<byte> bytes = stackalloc byte[16];
@@ -438,7 +438,7 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         return result;
     }
 
-    //IntArrayToUuid 还原原版格式的 Uuid 长度不符返回 null
+    //IntArrayToUuid restores a Uuid from the vanilla format, returning null on a length mismatch
     protected static Guid? IntArrayToUuid(int[] value)
     {
         if (value.Length != 4) return null;
@@ -448,18 +448,18 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         return new Guid(bytes, bigEndian: true);
     }
 
-    //IsRemoved 实体是否已被标记移除 对应原版 Entity.isRemoved
+    //IsRemoved whether the entity has been marked removed, maps to vanilla Entity.isRemoved
     public bool IsRemoved { get; private set; }
 
-    //BlocksBuilding 实体是否阻挡方块放置 对应原版 Entity.blocksBuilding
-    //原版默认关 活体在构造里打开 掉落物一类不挡放置
+    //BlocksBuilding whether the entity blocks block placement, maps to vanilla Entity.blocksBuilding
+    //Off by default in vanilla, turned on by living entities in the constructor; dropped items and the like do not block placement
     public virtual bool BlocksBuilding => false;
 
-    //Discard 标记实体移除 对应原版 Entity.discard
-    //只打标记不立即摘除 避免在实体 tick 遍历中改动集合 摘除由 EntityManager 在 tick 末尾统一做
+    //Discard marks the entity for removal, maps to vanilla Entity.discard
+    //It only sets a flag instead of removing immediately, to avoid mutating collections during entity tick iteration; EntityManager removes them at the end of the tick
     public void Discard() => IsRemoved = true;
 
-    //SetPos 同时设置 Pos 与角度对齐原版 moveTo/moveTo
+    //SetPos sets Pos and angles together, aligning with vanilla moveTo/moveTo
     public void SetPos(Vec3 pos, float yRot, float xRot)
     {
         Pos = pos;
@@ -467,25 +467,25 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         XRot = xRot;
     }
 
-    //Tick 每帧调用 基础物理为重力加速度与按速度推进位置
-    //子类重写时应先调用 base.Tick 保留重力与移动 再叠加自身行为
+    //Tick called every frame; base physics is gravity and advancing position by velocity
+    //Subclasses overriding should call base.Tick first to keep gravity and movement, then layer their own behavior
     public virtual void Tick()
     {
         TickBase();
         ApplyDefaultPhysics();
     }
 
-    //TickBase 推进存活刻数与无敌帧 对应原版 Entity.baseTick 的最小集
-    //自带物理的子类改调它 避免与基类默认物理叠加成双重移动
+    //TickBase advances the life tick count and invulnerability ticks, a minimal subset of vanilla Entity.baseTick
+    //Subclasses with their own physics call this instead, avoiding double movement with the base default physics
     protected void TickBase()
     {
         TickCount++;
         PreviousPos = Pos;
-        //无敌帧每刻递减 对应原版 LivingEntity.tick 里的 invulnerableTime--
+        //Invulnerability ticks decrement each tick, matching vanilla LivingEntity.tick's invulnerableTime--
         if (InvulnerableTime > 0) InvulnerableTime--;
     }
 
-    //ApplyDefaultPhysics 默认物理: 重力扣减竖直速度 水平按阻力衰减 再按速度推进
+    //ApplyDefaultPhysics default physics: gravity reduces vertical speed, horizontal speed decays by drag, then position advances by velocity
     protected void ApplyDefaultPhysics()
     {
         Velocity = new Vec3(
@@ -495,9 +495,9 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         Move(Velocity);
     }
 
-    //ApplyKnockback 施加击退 对应原版 LivingEntity.knockback
-    //水平速度减半再加反向推力 站在地面时竖直速度取 min(0.4, 原速一半+力度) 空中不改竖直速度
-    //方向分量过小时随机化 对应原版避免纯竖直击退
+    //ApplyKnockback applies knockback, maps to vanilla LivingEntity.knockback
+    //Horizontal velocity is halved then a reversed push is added; on the ground vertical velocity becomes min(0.4, half the original + power) and in the air it is unchanged
+    //Too-small direction components are randomized, matching vanilla's avoidance of purely vertical knockback
     public void ApplyKnockback(double power, double xd, double zd)
     {
         var effective = power * (1.0 - KnockbackResistance);
@@ -514,9 +514,9 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
             Velocity.Z / 2.0 - push.Z);
     }
 
-    //CheckFallDamage 累积下落距离并在落地时结算 对应原版 Entity.checkFallDamage
-    //水中下落不累积 落地时交给落地钩子处理再清零
-    //参数是裁剪后的竖直位移而不是原始位移 贴着地面下滑时不该被算成下落
+    //CheckFallDamage accumulates fall distance and settles it on landing, maps to vanilla Entity.checkFallDamage
+    //Falling in water does not accumulate; on landing the landing hook handles it and then it resets to zero
+    //The parameter is the clipped vertical displacement rather than the raw one, so sliding along the ground is not counted as falling
     private void CheckFallDamage(double ya)
     {
         if (!IsInWater && ya < 0.0) FallDistance -= ya;
@@ -525,15 +525,15 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         ResetFallDistance();
     }
 
-    //OnLandedOnGround 落地钩子 对应原版 Block.fallOn 的默认实现
-    //本作没有方块行为层 直接按坠落距离结算伤害 特殊方块(干草块/床/史莱姆)的差别待方块行为就绪
+    //OnLandedOnGround landing hook, the default implementation of vanilla Block.fallOn
+    //There is no block behavior layer here, so damage is settled directly from the fall distance; the differences for special blocks (hay, beds, slime) await block behavior
     protected virtual void OnLandedOnGround(double fallDistance) => CauseFallDamage(fallDistance, 1.0f);
 
-    //ResetFallDistance 清零下落距离 对应原版 resetFallDistance
+    //ResetFallDistance resets the fall distance, maps to vanilla resetFallDistance
     public void ResetFallDistance() => FallDistance = 0.0;
 
-    //CauseFallDamage 结算坠落伤害 对应原版 Entity.causeFallDamage 与 LivingEntity.causeFallDamage
-    //基类不受伤 活体子类打开 TakesFallDamage 后按距离扣血
+    //CauseFallDamage settles fall damage, maps to vanilla Entity.causeFallDamage and LivingEntity.causeFallDamage
+    //The base takes no damage; living subclasses enable TakesFallDamage and lose health by distance
     public virtual bool CauseFallDamage(double fallDistance, float damageModifier)
     {
         if (!TakesFallDamage) return false;
@@ -541,14 +541,14 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         return damage > 0 && Hurt(damage);
     }
 
-    //CalculateFallDamage 按坠落距离算伤害 对应原版 LivingEntity.calculateFallDamage
-    //超过安全距离的部分乘系数后向下取整 安全距离之内算出 0 或负数也就是不受伤
+    //CalculateFallDamage computes damage from fall distance, maps to vanilla LivingEntity.calculateFallDamage
+    //The part beyond the safe distance is multiplied by the modifier and floored; within the safe distance it yields 0 or negative, meaning no damage
     protected int CalculateFallDamage(double fallDistance, float damageModifier)
         => Mth.Floor(((fallDistance + 1.0E-6) - SafeFallDistance) * damageModifier * FallDamageMultiplier);
 
-    //Move 按增量推进位置 对应原版 Entity.move
-    //碰撞按原版 collideBoundingBox 的路子取移动全程扫过的区域内的碰撞形状 再逐轴裁剪
-    //受阻轴速度清零其余保持 向下受阻才置站地 对应原版 restituteMovementAfterCollisions 默认弹性为 0
+    //Move advances position by the delta, maps to vanilla Entity.move
+    //Collision follows vanilla collideBoundingBox, taking collision shapes in the swept region of the whole movement then clipping axis by axis
+    //Blocked axes get their velocity zeroed while the others keep theirs; standing is set only when blocked downward, matching vanilla restituteMovementAfterCollisions with default restitution 0
     public void Move(Vec3 delta)
     {
         if (NoPhysics)
@@ -560,7 +560,7 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
             return;
         }
         var movement = Collide(delta);
-        //位移太小时不推进位置 避免贴面时反复抖动 对应原版那两个阈值的与
+        //Position does not advance when displacement is too small, avoiding jitter while touching a surface, matching the AND of vanilla's two thresholds
         if (movement.LengthSqr() > MovementEpsilon
             || delta.LengthSqr() - movement.LengthSqr() < MovementEpsilon)
             Pos = Pos.Add(movement);
@@ -569,15 +569,15 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         var zCollision = !Mth.Equal(delta.Z, movement.Z);
         HorizontalCollision = xCollision || zCollision;
         var movedVertically = Math.Abs(delta.Y) > 0.0;
-        //竖直位移为 0 时不判站地 否则水平贴墙会被误判成落地 原版同此
+        //Standing is not judged when vertical displacement is 0, otherwise sliding along a wall would be misread as landing; vanilla does the same
         if (movedVertically)
         {
             VerticalCollision = delta.Y != movement.Y;
             VerticalCollisionBelow = VerticalCollision && delta.Y < 0.0;
             OnGround = VerticalCollisionBelow;
         }
-        //水平受阻或竖直受阻才动速度 原版 restituteMovementAfterCollisions 默认弹性为 0
-        //受阻轴清零 没受阻的轴保持原速度 用裁剪后的位移当速度会让实体一直顶着墙
+        //Velocity only changes when blocked horizontally or vertically, vanilla restituteMovementAfterCollisions with default restitution 0
+        //Blocked axes are zeroed and unblocked axes keep their velocity; using the clipped displacement as velocity would keep the entity pressed against the wall
         var verticalBlocked = movedVertically && VerticalCollision;
         if (HorizontalCollision || verticalBlocked)
         {
@@ -586,23 +586,23 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
                 verticalBlocked ? 0.0 : Velocity.Y,
                 zCollision ? 0.0 : Velocity.Z);
         }
-        //坠落距离按裁剪后的位移累积 落地时结算伤害 对应原版 move 尾部的 checkFallDamage
+        //Fall distance accumulates from the clipped displacement and damage is settled on landing, matching checkFallDamage at the end of vanilla move
         CheckFallDamage(movement.Y);
     }
 
-    //Collide 把位移裁剪到不撞上任何碰撞形状 对应原版 Entity.collide
-    //世界边界体系与台阶自动跨越未接入 世界边界恒不挡路 台阶要等实体带跨步高度再来
+    //Collide clips the displacement so it hits no collision shape, maps to vanilla Entity.collide
+    //The world border system and automatic stepping are not wired up; the world border never blocks and stepping awaits entities with a step height
     private Vec3 Collide(Vec3 movement)
     {
         if (CollisionShapes is not { } query) return movement;
         var box = BoundingBox;
-        //形状查询是惰性的 逐轴裁剪会反复遍历 这里先落实成表
+        //The shape query is lazy and axis-by-axis clipping iterates repeatedly, so it is materialized into a list first
         var colliders = query(box.ExpandTowards(movement));
         return colliders.Count == 0 ? movement : CollideWithShapes(movement, box, colliders);
     }
 
-    //CollideWithShapes 逐轴裁剪位移 对应原版 Entity.collideWithShapes
-    //解完一轴把盒体挪过去再解下一轴 轴序由位移决定见 Direction.AxisStepOrder
+    //CollideWithShapes clips displacement axis by axis, maps to vanilla Entity.collideWithShapes
+    //After resolving one axis the box is moved before the next; the axis order is decided by the displacement, see Direction.AxisStepOrder
     private static Vec3 CollideWithShapes(Vec3 movement, AABB box, IReadOnlyList<VoxelShape> shapes)
     {
         var resolved = Vec3.Zero;

@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundDebugSamplePacket 调试采样包对应原版 ClientboundDebugSamplePacket
-//字段 DebugSampleType(RemoteDebugSampleType)
+//ClientboundDebugSamplePacket debug sample packet, maps to vanilla ClientboundDebugSamplePacket
+//Field: DebugSampleType(RemoteDebugSampleType)
 public sealed record ClientboundDebugSamplePacket(object DebugSampleType) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundDebugSamplePacket> StreamCodec { get; } = new DebugSampleCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundDebugSamplePacket(object DebugSampleType) : Pack
     private sealed class DebugSampleCodec : StreamCodec<FriendlyByteBuf, ClientboundDebugSamplePacket>
     {
         public ClientboundDebugSamplePacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundDebugSamplePacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

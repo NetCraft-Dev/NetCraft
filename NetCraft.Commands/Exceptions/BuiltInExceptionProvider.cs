@@ -1,8 +1,8 @@
 namespace NetCraft.Commands.Exceptions;
 
-//IBuiltInExceptionProvider 内建异常工厂接口对应原版BuiltInExceptionProvider
-//定义解析与调度过程中所有标准异常类型的获取方法
-//CommandSyntaxException.BuiltInExceptions字段持有此接口的默认BuiltInExceptions实例
+//IBuiltInExceptionProvider built-in exception factory interface, maps to vanilla BuiltInExceptionProvider
+//Defines accessors for every standard exception type used during parsing and dispatch
+//The CommandSyntaxException.BuiltInExceptions field holds a default BuiltInExceptions instance of this interface
 public interface IBuiltInExceptionProvider
 {
     Dynamic2CommandExceptionType DoubleTooLow();

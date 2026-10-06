@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetBorderWarningDistancePacket 边界警告距离包对应原版 ClientboundSetBorderWarningDistancePacket
-//字段 WarningBlocks(int)
+//ClientboundSetBorderWarningDistancePacket border warning distance packet, maps to vanilla ClientboundSetBorderWarningDistancePacket
+//Field: WarningBlocks(int)
 public sealed record ClientboundSetBorderWarningDistancePacket(int WarningBlocks) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetBorderWarningDistancePacket> StreamCodec { get; } = new SetBorderWarningDistanceCodec();

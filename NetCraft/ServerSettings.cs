@@ -2,137 +2,137 @@ using NetCraft.Logging;
 
 namespace NetCraft;
 
-//ServerSettings 服务端 server.properties 配置
-//对应原版 net.minecraft.server.dedicated.Settings 简化版
-//继承 Settings<ServerSettings> 用泛型自引用对齐原版 self type 模式
-//仅保留核心字段端口/世界名/难度/max-players 等
+//ServerSettings server server.properties config
+//Simplified version of vanilla net.minecraft.server.dedicated.Settings
+//Inherits Settings<ServerSettings> and aligns with vanilla's self type pattern via a generic self-reference
+//Keeps only core fields: port/world name/difficulty/max-players, etc.
 public sealed class ServerSettings : Settings<ServerSettings>
 {
-    //服务器监听端口默认 25565
+    //Server listen port, default 25565
     public int ServerPort => GetInt("server-port", 25565);
 
-    //最大玩家数默认 20
+    //Max players, default 20
     public int MaxPlayers => GetInt("max-players", 20);
 
-    //世界名称默认 world
+    //Level name, default world
     public string LevelName => GetOrDefault("level-name", "world");
 
-    //游戏模式 survival/creative/adventure/spectator
+    //Game mode survival/creative/adventure/spectator
     public string Gamemode => GetOrDefault("gamemode", "survival");
 
-    //难度 peaceful/easy/normal/hard
+    //Difficulty peaceful/easy/normal/hard
     public string Difficulty => GetOrDefault("difficulty", "easy");
 
-    //是否开启正版验证默认 true
+    //Whether online-mode authentication is enabled, default true
     public bool OnlineMode => GetBool("online-mode", true);
 
-    //是否允许 PVP 默认 true
+    //Whether PVP is allowed, default true
     public bool AllowPvp => GetBool("pvp", true);
 
-    //视野距离单位 chunk 默认 10
+    //View distance in chunks, default 10
     public int ViewDistance => GetInt("view-distance", 10);
 
-    //模拟距离单位 chunk 默认 10 对应原版 simulation-distance
-    //决定"真正参与 tick 的范围" 视距比它大的时候 中间那一圈就是只加载不 tick 的弱加载
+    //Simulation distance in chunks, default 10; maps to vanilla simulation-distance
+    //Determines the range that actually participates in ticks; when view distance is larger, the ring in between is only loaded, not ticked (weak loading)
     public int SimulationDistance => GetInt("simulation-distance", 10);
 
-    //是否允许飞行默认 false
+    //Whether flight is allowed, default false
     public bool AllowFlight => GetBool("allow-flight", false);
 
-    //是否生成动物默认 true
+    //Whether to spawn animals, default true
     public bool SpawnAnimals => GetBool("spawn-animals", true);
 
-    //是否生成怪物默认 true
+    //Whether to spawn monsters, default true
     public bool SpawnMonsters => GetBool("spawn-monsters", true);
 
-    //是否生成 NPC 默认 true
+    //Whether to spawn NPCs, default true
     public bool SpawnNpcs => GetBool("spawn-npcs", true);
 
-    //是否启用白名单默认 false
+    //Whether the whitelist is enabled, default false
     public bool WhiteList => GetBool("white-list", false);
 
-    //是否生成结构默认 true
+    //Whether to generate structures, default true
     public bool GenerateStructures => GetBool("generate-structures", true);
 
-    //是否允许下界默认 true
+    //Whether the Nether is allowed, default true
     public bool AllowNether => GetBool("allow-nether", true);
 
-    //世界种子空字符串表示随机生成
+    //Level seed; an empty string means random generation
     public string LevelSeed => GetOrDefault("level-seed", string.Empty);
 
     //level-type default/flat/large_biomes/amplified
     public string LevelType => GetOrDefault("level-type", "default");
 
-    //最大世界大小单位 chunk 默认 29999984
+    //Max world size in chunks, default 29999984
     public int MaxWorldSize => GetInt("max-world-size", 29999984);
 
-    //服务器描述 motd 默认 A Minecraft Server
+    //Server description (motd), default A Minecraft Server
     public string Motd => GetOrDefault("motd", "A Minecraft Server");
 
-    //是否启用 RCON 远程管理默认 false
+    //Whether RCON remote management is enabled, default false
     public bool EnableRcon => GetBool("enable-rcon", false);
 
-    //是否启用 Query 协议默认 false
+    //Whether the Query protocol is enabled, default false
     public bool EnableQuery => GetBool("enable-query", false);
 
-    //RconPort RCON 监听端口对应原版 rcon.port 默认 25575
+    //RconPort RCON listen port, maps to vanilla rcon.port, default 25575
     public int RconPort => GetInt("rcon.port", 25575);
 
-    //RconPassword RCON 密码 空字符串视为未配置 对应原版 rcon.password
+    //RconPassword RCON password; an empty string means unconfigured, maps to vanilla rcon.password
     public string RconPassword => GetOrDefault("rcon.password", string.Empty);
 
-    //BroadcastRconToOps RCON 执行结果是否广播给 op 对应原版 broadcast-rcon-to-ops
+    //BroadcastRconToOps whether RCON results are broadcast to ops, maps to vanilla broadcast-rcon-to-ops
     public bool BroadcastRconToOps => GetBool("broadcast-rcon-to-ops", true);
 
-    //QueryPort GS4 查询协议监听端口对应原版 query.port 默认 25565
+    //QueryPort GS4 query protocol listen port, maps to vanilla query.port, default 25565
     public int QueryPort => GetInt("query.port", 25565);
 
-    //ServerIp 绑定地址 空字符串表示全部网卡 对应原版 server-ip
+    //ServerIp bind address; an empty string means all interfaces, maps to vanilla server-ip
     public string ServerIp => GetOrDefault("server-ip", string.Empty);
 
-    //FunctionPermissionLevel 函数编译权限等级 对应原版 function-permission-level 默认 2
+    //FunctionPermissionLevel function compile permission level, maps to vanilla function-permission-level, default 2
     public int FunctionPermissionLevel => GetInt("function-permission-level", 2);
 
-    //是否上报服务端运行指标默认 false 对应原版 enable-jmx-monitoring
+    //Whether to report server runtime metrics, default false, maps to vanilla enable-jmx-monitoring
     public bool EnableJmxMonitoring => GetBool("enable-jmx-monitoring", false);
 
-    //op-permission-level 执行 /op 时默认授予的权限等级 默认 4
+    //op-permission-level permission level granted by default when running /op, default 4
     public int OpPermissionLevel => GetInt("op-permission-level", 4);
 
-    //PlayerIdleTimeout 玩家挂机踢出分钟数 0 表示不踢 对应原版 player-idle-timeout
+    //PlayerIdleTimeout minutes before an idle player is kicked; 0 means never, maps to vanilla player-idle-timeout
     public int PlayerIdleTimeout => GetInt("player-idle-timeout", 0);
 
-    //NcDebugCommands 是否注册 /debug 命令树 nc 专属开关 默认禁用 对应 nc-debug-commands
-    //debug 能直接改世界方块与造实体 生产环境不该默认可用
+    //NcDebugCommands whether to register the /debug command tree; an NC-specific switch, disabled by default, maps to nc-debug-commands
+    //debug can directly change world blocks and spawn entities, so it should not be available by default in production
     public bool NcDebugCommands => GetBool("nc-debug-commands", false);
 
-    //NcLanguage 服务端面板与日志的语言码 对应 nc-language
-    //原版服务端不做本地化 这一项是 nc 专属 与 nc-debug-commands 同级 不与原版配置混名
+    //NcLanguage language code for the server panel and logs, maps to nc-language
+    //The vanilla server is not localized; this is NC-specific, at the same level as nc-debug-commands, not mixed with vanilla config names
     public string NcLanguage => GetOrDefault("nc-language", "en_us");
 
-    //SetGamemode 改写默认游戏模式并落盘 defaultgamemode 命令用
+    //SetGamemode rewrites the default game mode and writes it to disk; used by the defaultgamemode command
     public void SetGamemode(string name) => Set("gamemode", name);
 
-    //SetDifficulty 改写难度并落盘 difficulty 命令用
+    //SetDifficulty rewrites the difficulty and writes it to disk; used by the difficulty command
     public void SetDifficulty(string name) => Set("difficulty", name);
 
-    //SetPlayerIdleTimeout 改写挂机踢出分钟数并落盘 setidletimeout 命令用
+    //SetPlayerIdleTimeout rewrites the idle kick minutes and writes it to disk; used by the setidletimeout command
     public void SetPlayerIdleTimeout(int minutes) => SetInt("player-idle-timeout", minutes);
 
-    //SetWhiteList 改写白名单开关并落盘 whitelist 命令用
+    //SetWhiteList rewrites the whitelist switch and writes it to disk; used by the whitelist command
     public void SetWhiteList(bool enabled) => SetBool("white-list", enabled);
 
-    //SaveCurrent 把当前配置立刻写回 server.properties
+    //SaveCurrent immediately writes the current config back to server.properties
     public void SaveCurrent() => Save(AppPaths.ServerPropertiesPath);
 
-    //加载并应用默认值若文件不存在生成默认 server.properties
+    //Load and apply defaults; if the file does not exist, generate a default server.properties
     public static ServerSettings LoadOrGenerate(string path)
     {
         var settings = new ServerSettings();
         if (File.Exists(path))
         {
             settings.Load(path);
-            //补齐老文件缺的键 否则后加入的配置项在已有存档上永远不会出现
+            //Fill in keys missing from old files; otherwise config options added later would never appear on existing saves
             Log.Info(settings.EnsureDefaults(path)
                 ? $"Loaded server settings {path} and filled in missing defaults"
                 : $"Loaded server settings {path}");
@@ -145,8 +145,8 @@ public sealed class ServerSettings : Settings<ServerSettings>
         return settings;
     }
 
-    //DefaultEntries 受支持的配置项与各自默认值
-    //生成默认文件与补齐老文件共用这一份 免得两处清单各写各的又漏键
+    //DefaultEntries supported config options and their default values
+    //Shared between generating the default file and filling old files, so the two lists do not diverge and miss keys
     private IEnumerable<(string Key, string Value)> DefaultEntries()
     {
         yield return ("server-port", ServerPort.ToString());
@@ -183,15 +183,15 @@ public sealed class ServerSettings : Settings<ServerSettings>
         yield return ("nc-language", NcLanguage);
     }
 
-    //生成默认 server.properties 写入路径
+    //Generate a default server.properties at the given path
     public void SaveDefault(string path)
     {
         foreach (var (key, value) in DefaultEntries()) Set(key, value);
         Save(path);
     }
 
-    //EnsureDefaults 把文件里缺失的配置项按默认值补上并落盘
-    //只补不覆盖 用户已经写过的值原样保留 返回是否真的补过 没补就不用重写文件
+    //EnsureDefaults fills missing config options in the file with defaults and writes to disk
+    //Only adds, never overwrites; values the user already wrote are preserved as is. Returns whether anything was added; if nothing was, the file is not rewritten
     public bool EnsureDefaults(string path)
     {
         var added = false;

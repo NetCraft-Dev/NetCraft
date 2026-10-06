@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetChunkCacheRadiusPacket 区块缓存半径包对应原版 ClientboundSetChunkCacheRadiusPacket
-//字段 Radius(int)
+//ClientboundSetChunkCacheRadiusPacket chunk cache radius packet, maps to vanilla ClientboundSetChunkCacheRadiusPacket
+//Field: Radius(int)
 public sealed record ClientboundSetChunkCacheRadiusPacket(int Radius) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetChunkCacheRadiusPacket> StreamCodec { get; } = new SetChunkCacheRadiusCodec();

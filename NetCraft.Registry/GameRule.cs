@@ -1,15 +1,15 @@
 namespace NetCraft.Registry;
 
-//GameRuleType 规则值类型对应原版 GameRuleType
+//GameRuleType rule value type, maps to vanilla GameRuleType
 public enum GameRuleType
 {
     Int,
     Bool,
 }
 
-//GameRule 游戏规则定义对应原版 net.minecraft.world.level.gamerules.GameRule
-//值按名字存在 GameRuleMapData 本类只承载命令与运行时需要的元数据
-//T 固定取 object 让全部规则共用 BuiltInRegistries.GAME_RULE 一张表
+//GameRule game rule definition, maps to vanilla net.minecraft.world.level.gamerules.GameRule
+//Values are stored by name in GameRuleMapData; this class only carries the metadata needed by commands and runtime
+//T is fixed to object so all rules share the single BuiltInRegistries.GAME_RULE table
 public sealed class GameRule<T>
 {
     public GameRule(Identifier id, GameRuleType type, T defaultValue, int min = 0, int max = int.MaxValue)
@@ -21,15 +21,15 @@ public sealed class GameRule<T>
         Max = max;
     }
 
-    //Id 规则标识符 短名形式 minecraft:max_block_modifications
+    //Id rule identifier, in short-name form minecraft:max_block_modifications
     public Identifier Id { get; }
 
     public GameRuleType Type { get; }
 
-    //DefaultValue 未设置时的取值 布尔规则装箱为 bool 整数规则装箱为 int
+    //DefaultValue taken when unset; boolean rules box a bool and integer rules box an int
     public T DefaultValue { get; }
 
-    //Min/Max 只对整数规则生效 对应原版 IntegerArgumentType.integer(min, max)
+    //Min/Max apply only to integer rules; maps to vanilla IntegerArgumentType.integer(min, max)
     public int Min { get; }
 
     public int Max { get; }

@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundClearTitlesPacket 清除标题包对应原版 ClientboundClearTitlesPacket
-//字段 ResetTimes(boolean)
+//ClientboundClearTitlesPacket clear titles packet, maps to vanilla ClientboundClearTitlesPacket
+//Field: ResetTimes(boolean)
 public sealed record ClientboundClearTitlesPacket(bool ResetTimes) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundClearTitlesPacket> StreamCodec { get; } = new ClearTitlesCodec();

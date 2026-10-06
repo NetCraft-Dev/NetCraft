@@ -2,19 +2,19 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientboundCustomPayloadPacket 自定义载荷包对应原版 net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket
-//原版依赖 CustomPayload 辅助类型按 id 分发不同 payload 类型
-//简化版用 Identifier id + byte[] payload 透传原始字节
-//CONFIG_STREAM_CODEC 和 STREAM_CODEC 同义共享简化编解码
+//ClientboundCustomPayloadPacket custom payload packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket
+//Vanilla depends on the CustomPayload helper to dispatch different payload types by id
+//The simplified form uses Identifier id + byte[] payload to pass raw bytes through
+//CONFIG_STREAM_CODEC and STREAM_CODEC are synonymous and share the simplified codec
 public sealed record ClientboundCustomPayloadPacket(Identifier Id, byte[] Payload) : Packet<ClientCommonPacketListener>
 {
-    //MaxPayloadLength payload 最大长度 1048576 对齐原版 MAX_PAYLOAD_SIZE
+    //MaxPayloadLength maximum payload length 1048576, aligns with vanilla MAX_PAYLOAD_SIZE
     public const int MaxPayloadLength = 1048576;
 
-    //StreamCodec 包编解码器通用版本
+    //StreamCodec general-purpose packet codec
     public static StreamCodec<FriendlyByteBuf, ClientboundCustomPayloadPacket> StreamCodec { get; } = new CustomPayloadCodec();
 
-    //ConfigStreamCodec 配置阶段版本对齐原版 CONFIG_STREAM_CODEC
+    //ConfigStreamCodec configuration phase version, aligns with vanilla CONFIG_STREAM_CODEC
     public static StreamCodec<FriendlyByteBuf, ClientboundCustomPayloadPacket> ConfigStreamCodec => StreamCodec;
 
     public PacketType<ClientCommonPacketListener> Type => CommonPacketTypes.ClientboundCustomPayload;

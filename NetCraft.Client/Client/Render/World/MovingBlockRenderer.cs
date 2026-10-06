@@ -4,10 +4,10 @@ using NetCraft.Gpu.Pipeline;
 
 namespace NetCraft.Game.Client.Render.World;
 
-//MovingBlockRenderer 客户端移动方块的渲染通道 对应原版客户端对 PistonMovingBlockEntity 的渲染
-//区块网格是静态烘焙的 活塞每刻推进半格这种位移烘不进去 这里单开一条每帧重建的通道
-//每帧把被推方块的模型按当前进度平移到世界坐标再烘一份顶点 上传后按层绘制
-//顶点 bake 的是世界坐标与区块网格同一套 shader 的 ViewProj 只含相机
+//MovingBlockRenderer client rendering pass for moving blocks, maps to the vanilla client's rendering of PistonMovingBlockEntity
+//The chunk mesh is baked statically; a displacement like a piston advancing half a block each tick cannot be baked in, so this opens a dedicated per-frame rebuilt pass
+//Each frame it translates the pushed block's model to world coordinates by current progress and bakes a vertex set, uploaded then drawn per layer
+//Vertices bake world coordinates; same shader set as the chunk mesh, whose ViewProj only contains the camera
 public sealed class MovingBlockRenderer : IDisposable
 {
     private const int LayerCount = 3;
@@ -28,14 +28,14 @@ public sealed class MovingBlockRenderer : IDisposable
         _bufferPool = bufferPool;
     }
 
-    //MovingBlockCount 最近一帧参与渲染的移动方块数供调试
+    //MovingBlockCount last frame's number of rendered moving blocks, for debugging
     public int MovingBlockCount { get; private set; }
 
-    //LastDrawCallCount 最近一帧实际提交的批次数 每层一次最多 3
+    //LastDrawCallCount batches actually submitted last frame, one per layer, at most 3
     public int LastDrawCallCount { get; private set; }
 
-    //Prepare 按当前刻把每格移动方块烘到世界坐标
-    //进度由收到状态包后走过的刻数推 每刻半格两刻走完 与原版 PistonMovingBlockEntity.tick 一致
+    //Prepare bakes each moving block to world coordinates for the current tick
+    //Progress is derived from ticks elapsed since receiving the state packet: half a block per tick, done in two ticks, consistent with vanilla PistonMovingBlockEntity.tick
     public void Prepare()
     {
         MovingBlockCount = 0;
@@ -44,7 +44,7 @@ public sealed class MovingBlockRenderer : IDisposable
         foreach (var moving in _level.MovingBlocks)
         {
             var progress = moving.Progress;
-            //与原版 getXOff/getYOff/getZOff 同一换算: 伸出时从 -1 走到 0 收回时从 0 走到 1
+            //Same conversion as vanilla getXOff/getYOff/getZOff: extending goes from -1 to 0, retracting from 0 to 1
             var extended = moving.Extending ? progress - 1f : 1f - progress;
             pose.PushPose();
             pose.Scale(1f / 16f, 1f / 16f, 1f / 16f);
@@ -58,7 +58,7 @@ public sealed class MovingBlockRenderer : IDisposable
         }
     }
 
-    //Upload 把本帧烘好的顶点索引按层上传 上一层没内容的层不借 buffer 免得空 DrawCall
+    //Upload uploads this frame's baked vertices/indices per layer; empty layers do not borrow buffers to avoid an empty DrawCall
     public void Upload(GpuDevice device)
     {
         var mesh = _meshData.TotalVertexCount == 0 ? null : SectionMesh.FromChunkMeshData(_meshData);
@@ -80,7 +80,7 @@ public sealed class MovingBlockRenderer : IDisposable
         }
     }
 
-    //Draw 按 Solid→Cutout→Translucent 顺序提交 无内容的层跳过
+    //Draw submits in Solid→Cutout→Translucent order, skipping empty layers
     public void Draw(IRenderPass pass,
         Func<RenderPipeline, CompiledRenderPipeline> pipelineResolver,
         Action<IRenderPass> descBinder)
@@ -107,7 +107,7 @@ public sealed class MovingBlockRenderer : IDisposable
         }
     }
 
-    //ReturnLayer 归还该层的 GPU buffer 并清零索引计数
+    //ReturnLayer returns the layer's GPU buffers and zeroes the index count
     private void ReturnLayer(int layer)
     {
         _indexCounts[layer] = 0;

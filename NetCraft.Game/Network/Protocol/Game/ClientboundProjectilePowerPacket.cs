@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundProjectilePowerPacket 抛射物力量包对应原版 ClientboundProjectilePowerPacket
-//字段 Id(int) AccelerationPower(double)
+//ClientboundProjectilePowerPacket projectile power packet, maps to vanilla ClientboundProjectilePowerPacket
+//Fields: Id(int), AccelerationPower(double)
 public sealed record ClientboundProjectilePowerPacket(int Id, double AccelerationPower) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundProjectilePowerPacket> StreamCodec { get; } = new ProjectilePowerCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundProjectilePowerPacket(int Id, double Acceleratio
     private sealed class ProjectilePowerCodec : StreamCodec<FriendlyByteBuf, ClientboundProjectilePowerPacket>
     {
         public ClientboundProjectilePowerPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundProjectilePowerPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

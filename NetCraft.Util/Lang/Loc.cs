@@ -3,17 +3,17 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft;
 
-//Loc 取词入口
-//文案键与 lang/<语言码>.json 里的名字一一对应 找不到就退回键本身
-//占位符是 %s 与 TranslatableContents 同一套 按出现顺序取参数 不是 C# 的 {0} 风格
-//放在 Util 项目是因为日志层也要用
+//Loc text lookup entry point
+//Text keys correspond one-to-one with names in lang/<language code>.json, falling back to the key itself when not found
+//Placeholders are %s, the same set as TranslatableContents, filled in order of appearance, not the C# {0} style
+//Placed in the Util project because the log layer also needs it
 public static class Loc
 {
-    //Get 取一条文案 没有占位符时用它
+    //Get fetches a text with no placeholders
     public static string Get(string key) => Language.Instance.GetOrDefault(key);
 
-    //Format 取一条带 %s 占位符的文案并按顺序填入参数
-    //%% 输出一个裸百分号 参数多出占位符的部分忽略 少的部分留空不抛
+    //Format fetches a text with %s placeholders and fills in arguments in order
+    //%% outputs a literal percent sign; extra arguments are ignored, missing ones are left blank without throwing
     public static string Format(string key, params object?[] args)
     {
         var format = Language.Instance.GetOrDefault(key);

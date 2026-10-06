@@ -6,24 +6,24 @@ using NetCraft.Util;
 
 namespace NetCraft.Storage;
 
-//WorldBorder 世界边界存档对应原版 net.minecraft.world.level.border.WorldBorder
-//尺寸/中心/伤害与警告参数随存档持久化到 data/minecraft/world_border.dat
-//尺寸变化分静态与插值两种形态 形态切换由 extent 字段承载
+//WorldBorder, world border save data, maps to vanilla net.minecraft.world.level.border.WorldBorder
+//Size/center/damage and warning params persist with the save to data/minecraft/world_border.dat
+//Size changes come in static and interpolated forms; the form switch is carried by the extent field
 public sealed class WorldBorder : SavedData
 {
-    //MaxSize 边界最大边长对应原版 MAX_SIZE
+    //MaxSize, the maximum border side length, maps to vanilla MAX_SIZE
     public const double MaxSize = 5.9999968E7;
 
-    //MaxCenterCoordinate 中心坐标绝对值上限对应原版 MAX_CENTER_COORDINATE
+    //MaxCenterCoordinate, the center coordinate absolute limit, maps to vanilla MAX_CENTER_COORDINATE
     public const double MaxCenterCoordinate = 2.9999984E7;
 
-    //DefaultAbsoluteMaxSize 绝对最大尺寸对应原版 MinecraftServer.ABSOLUTE_MAX_WORLD_SIZE
+    //DefaultAbsoluteMaxSize, the absolute max size, maps to vanilla MinecraftServer.ABSOLUTE_MAX_WORLD_SIZE
     public const int DefaultAbsoluteMaxSize = 29999984;
 
-    //TypeId 存档标识对应原版 SavedDataType 的 minecraft:world_border
+    //TypeId, the save identifier, maps to the minecraft:world_border of the vanilla SavedDataType
     private const string TypeId = "minecraft:world_border";
 
-    //Type SavedDataType 工厂 空标签建成默认边界 已存标签按字段还原
+    //Type, the SavedDataType factory; an empty tag builds a default border, a stored tag restores by field
     public static readonly SavedDataType<WorldBorder> Type = new WorldBorderType();
 
     private readonly Settings _settings;
@@ -33,25 +33,25 @@ public sealed class WorldBorder : SavedData
 
     public override string Id => TypeId;
 
-    //DamagePerBlock 每格越界伤害
+    //DamagePerBlock, out-of-bounds damage per block
     public double DamagePerBlock { get; private set; } = 0.2;
 
-    //SafeZone 越界免伤缓冲格数
+    //SafeZone, out-of-bounds safe zone in blocks
     public double SafeZone { get; private set; } = 5.0;
 
-    //WarningTime 越界预警提前刻数
+    //WarningTime, out-of-bounds warning lead in ticks
     public int WarningTime { get; private set; } = 15;
 
-    //WarningBlocks 越界预警距离
+    //WarningBlocks, out-of-bounds warning distance
     public int WarningBlocks { get; private set; } = 5;
 
-    //CenterX 边界中心 X
+    //CenterX, the border center X
     public double CenterX { get; private set; }
 
-    //CenterZ 边界中心 Z
+    //CenterZ, the border center Z
     public double CenterZ { get; private set; }
 
-    //AbsoluteMaxSize 边界绝对尺寸上限
+    //AbsoluteMaxSize, the border's absolute size limit
     public int AbsoluteMaxSize { get; private set; } = DefaultAbsoluteMaxSize;
 
     public WorldBorder() : this(Settings.Default) { }
@@ -59,85 +59,85 @@ public sealed class WorldBorder : SavedData
     public WorldBorder(Settings settings)
     {
         _settings = settings;
-        //初始形态是最大尺寸的静态边界 中心在原点 对应原版构造里的 extent 初始化
+        //The initial form is a static border at maximum size centered at the origin, maps to the extent initialization in the vanilla constructor
         _extent = new StaticBorderExtent(this, MaxSize);
     }
 
-    //GetSize 当前边界边长
+    //GetSize, the current border side length
     public double GetSize() => _extent.Size;
 
-    //GetLerpTime 插值剩余刻数 静态形态为 0
+    //GetLerpTime, remaining interpolation ticks; 0 in the static form
     public long GetLerpTime() => _extent.LerpTime;
 
-    //GetLerpTarget 插值目标尺寸 静态形态为自身尺寸
+    //GetLerpTarget, the interpolation target size; the own size in the static form
     public double GetLerpTarget() => _extent.LerpTarget;
 
-    //GetLerpSpeed 每刻尺寸变化速度
+    //GetLerpSpeed, size change rate per tick
     public double GetLerpSpeed() => _extent.LerpSpeed;
 
-    //GetStatus 边界当前状态
+    //GetStatus, the border's current status
     public BorderStatus GetStatus() => _extent.Status;
 
-    //GetMinX 边界最小 X 插值形态按部分刻插值
+    //GetMinX, the border minimum X; the interpolated form interpolates by partial tick
     public double GetMinX(float deltaPartialTick = 0f) => _extent.GetMinX(deltaPartialTick);
 
-    //GetMaxX 边界最大 X
+    //GetMaxX, the border maximum X
     public double GetMaxX(float deltaPartialTick = 0f) => _extent.GetMaxX(deltaPartialTick);
 
-    //GetMinZ 边界最小 Z
+    //GetMinZ, the border minimum Z
     public double GetMinZ(float deltaPartialTick = 0f) => _extent.GetMinZ(deltaPartialTick);
 
-    //GetMaxZ 边界最大 Z
+    //GetMaxZ, the border maximum Z
     public double GetMaxZ(float deltaPartialTick = 0f) => _extent.GetMaxZ(deltaPartialTick);
 
-    //GetCollisionShape 边界外的碰撞形状 边界内为空气
+    //GetCollisionShape, the collision shape outside the border; inside is air
     public VoxelShape GetCollisionShape() => _extent.CollisionShape;
 
-    //IsWithinBounds 坐标是否在边界内 单侧闭一开与原版一致
+    //IsWithinBounds, whether the coords are inside the border; half-open per side as in vanilla
     public bool IsWithinBounds(double x, double z) => IsWithinBounds(x, z, 0.0);
 
     public bool IsWithinBounds(double x, double z, double margin)
         => x >= GetMinX() - margin && x < GetMaxX() + margin
             && z >= GetMinZ() - margin && z < GetMaxZ() + margin;
 
-    //IsWithinBounds 方块位置是否在边界内
+    //IsWithinBounds, whether the block pos is inside the border
     public bool IsWithinBounds(BlockPos pos) => IsWithinBounds(pos.X, pos.Z);
 
-    //IsWithinBounds 坐标是否在边界内
+    //IsWithinBounds, whether the coords are inside the border
     public bool IsWithinBounds(Vec3 pos) => IsWithinBounds(pos.X, pos.Z);
 
-    //IsWithinBounds 区块是否完整落在边界内
+    //IsWithinBounds, whether the chunk lies fully inside the border
     public bool IsWithinBounds(ChunkPos pos)
         => IsWithinBounds(pos.MinBlockX, pos.MinBlockZ) && IsWithinBounds(pos.MaxBlockX, pos.MaxBlockZ);
 
-    //IsWithinBounds 包围盒是否在边界内 上界收半个方块避免贴边判定
+    //IsWithinBounds, whether the AABB is inside the border; the upper bound is pulled in half a block to avoid edge-fitting
     public bool IsWithinBounds(AABB aabb)
         => IsWithinBounds(aabb.Min.X, aabb.Min.Z, aabb.Max.X - 9.999999747378752E-6, aabb.Max.Z - 9.999999747378752E-6);
 
     private bool IsWithinBounds(double minX, double minZ, double maxX, double maxZ)
         => IsWithinBounds(minX, minZ) && IsWithinBounds(maxX, maxZ);
 
-    //ClampToBounds 把坐标夹进边界内 上界收半个方块
+    //ClampToBounds clamps coords into the border; the upper bound is pulled in half a block
     public BlockPos ClampToBounds(double x, double y, double z)
         => new(Mth.Floor(ClampX(x)), Mth.Floor(y), Mth.Floor(ClampZ(z)));
 
-    //ClampToBounds 把坐标夹进边界内
+    //ClampToBounds clamps coords into the border
     public BlockPos ClampToBounds(BlockPos pos) => ClampToBounds(pos.X, pos.Y, pos.Z);
 
-    //ClampToBounds 把坐标夹进边界内
+    //ClampToBounds clamps coords into the border
     public BlockPos ClampToBounds(Vec3 pos) => ClampToBounds(pos.X, pos.Y, pos.Z);
 
-    //ClampVec3ToBound 把坐标夹进边界内保留小数
+    //ClampVec3ToBound clamps coords into the border, keeping the fraction
     public Vec3 ClampVec3ToBound(double x, double y, double z) => new(ClampX(x), y, ClampZ(z));
 
-    //ClampVec3ToBound 把坐标夹进边界内
+    //ClampVec3ToBound clamps coords into the border
     public Vec3 ClampVec3ToBound(Vec3 pos) => ClampVec3ToBound(pos.X, pos.Y, pos.Z);
 
     private double ClampX(double x) => Mth.Clamp(x, GetMinX(), GetMaxX() - 9.999999747378752E-6);
 
     private double ClampZ(double z) => Mth.Clamp(z, GetMinZ(), GetMaxZ() - 9.999999747378752E-6);
 
-    //GetDistanceToBorder 到最近边界边的距离 边界外为负
+    //GetDistanceToBorder, the distance to the nearest border edge; negative outside
     public double GetDistanceToBorder(double x, double z)
     {
         var fromNorth = z - GetMinZ();
@@ -147,7 +147,7 @@ public sealed class WorldBorder : SavedData
         return Math.Min(Math.Min(fromWest, fromEast), Math.Min(fromNorth, fromSouth));
     }
 
-    //SetCenter 设置边界中心
+    //SetCenter sets the border center
     public void SetCenter(double x, double z)
     {
         CenterX = x;
@@ -158,7 +158,7 @@ public sealed class WorldBorder : SavedData
             listener.OnSetCenter(this, x, z);
     }
 
-    //SetSize 直接设置边界尺寸 形态切回静态
+    //SetSize sets the border size directly and switches the form back to static
     public void SetSize(double size)
     {
         _extent = new StaticBorderExtent(this, size);
@@ -167,7 +167,7 @@ public sealed class WorldBorder : SavedData
             listener.OnSetSize(this, size);
     }
 
-    //LerpSizeBetween 在 ticks 刻内把尺寸从 from 插值到 to 对应原版 lerpSizeBetween
+    //LerpSizeBetween interpolates the size from from to to over ticks, maps to vanilla lerpSizeBetween
     public void LerpSizeBetween(double from, double to, long ticks, long gameTime)
     {
         _extent = from == to
@@ -178,14 +178,14 @@ public sealed class WorldBorder : SavedData
             listener.OnLerpSize(this, from, to, ticks, gameTime);
     }
 
-    //SetAbsoluteMaxSize 设置绝对尺寸上限
+    //SetAbsoluteMaxSize sets the absolute size limit
     public void SetAbsoluteMaxSize(int absoluteMaxSize)
     {
         AbsoluteMaxSize = absoluteMaxSize;
         _extent.OnAbsoluteMaxSizeChange();
     }
 
-    //SetSafeZone 设置越界免伤缓冲
+    //SetSafeZone sets the out-of-bounds safe zone
     public void SetSafeZone(double safeZone)
     {
         SafeZone = safeZone;
@@ -194,7 +194,7 @@ public sealed class WorldBorder : SavedData
             listener.OnSetSafeZone(this, safeZone);
     }
 
-    //SetDamagePerBlock 设置每格越界伤害
+    //SetDamagePerBlock sets the out-of-bounds damage per block
     public void SetDamagePerBlock(double damagePerBlock)
     {
         DamagePerBlock = damagePerBlock;
@@ -203,7 +203,7 @@ public sealed class WorldBorder : SavedData
             listener.OnSetDamagePerBlock(this, damagePerBlock);
     }
 
-    //SetWarningTime 设置越界预警提前刻数
+    //SetWarningTime sets the out-of-bounds warning lead in ticks
     public void SetWarningTime(int warningTime)
     {
         WarningTime = warningTime;
@@ -212,7 +212,7 @@ public sealed class WorldBorder : SavedData
             listener.OnSetWarningTime(this, warningTime);
     }
 
-    //SetWarningBlocks 设置越界预警距离
+    //SetWarningBlocks sets the out-of-bounds warning distance
     public void SetWarningBlocks(int warningBlocks)
     {
         WarningBlocks = warningBlocks;
@@ -221,17 +221,17 @@ public sealed class WorldBorder : SavedData
             listener.OnSetWarningBlocks(this, warningBlocks);
     }
 
-    //AddListener 挂边界变化监听
+    //AddListener attaches a border change listener
     public void AddListener(IBorderChangeListener listener) => _listeners.Add(listener);
 
-    //RemoveListener 摘边界变化监听
+    //RemoveListener detaches a border change listener
     public void RemoveListener(IBorderChangeListener listener) => _listeners.Remove(listener);
 
-    //Tick 推进边界形态 插值形态每刻走一格
+    //Tick advances the border form; the interpolated form steps once per tick
     public void Tick() => _extent = _extent.Update();
 
-    //ApplyInitialSettings 首次访问时把存档参数灌进运行时字段 对应原版 applyInitialSettings
-    //只做一次 之后以运行时字段为准
+    //ApplyInitialSettings pours saved params into runtime fields on first access, maps to vanilla applyInitialSettings
+    //Done only once; afterwards runtime fields take precedence
     public void ApplyInitialSettings(long gameTime)
     {
         if (_initialized) return;
@@ -247,7 +247,7 @@ public sealed class WorldBorder : SavedData
         _initialized = true;
     }
 
-    //Save 把当前边界参数写进标签 字段名对齐原版 Settings 的 codec
+    //Save writes the current border params into the tag; field names align with the vanilla Settings codec
     public override CompoundTag Save(CompoundTag tag)
     {
         var settings = Settings.From(this);
@@ -263,7 +263,7 @@ public sealed class WorldBorder : SavedData
         return tag;
     }
 
-    //BorderExtent 边界形态接口对应原版 BorderExtent 静态与插值两种实现
+    //BorderExtent, border form interface, maps to vanilla BorderExtent with static and interpolated implementations
     private interface BorderExtent
     {
         double GetMinX(float deltaPartialTick);
@@ -281,7 +281,7 @@ public sealed class WorldBorder : SavedData
         VoxelShape CollisionShape { get; }
     }
 
-    //StaticBorderExtent 静态边界形态 尺寸固定 边界盒在中心或上限变化时重算
+    //StaticBorderExtent, static border form; the size is fixed and the border box is recomputed when the center or limit changes
     private sealed class StaticBorderExtent : BorderExtent
     {
         private readonly WorldBorder _owner;
@@ -339,7 +339,7 @@ public sealed class WorldBorder : SavedData
         public BorderExtent Update() => this;
     }
 
-    //MovingBorderExtent 插值边界形态 每刻推进一格进度插值形态结束后切回静态
+    //MovingBorderExtent, interpolated border form; progress advances one step per tick and it switches back to static when done
     private sealed class MovingBorderExtent : BorderExtent
     {
         private readonly WorldBorder _owner;
@@ -416,7 +416,7 @@ public sealed class WorldBorder : SavedData
         }
     }
 
-    //Settings 边界持久化参数对应原版 WorldBorder.Settings
+    //Settings, border persistence params, maps to vanilla WorldBorder.Settings
     public sealed record Settings(
         double CenterX,
         double CenterZ,
@@ -428,17 +428,17 @@ public sealed class WorldBorder : SavedData
         long LerpTime,
         double LerpTarget)
     {
-        //Default 默认边界参数对应原版 Settings.DEFAULT
+        //Default, default border params, maps to vanilla Settings.DEFAULT
         public static readonly Settings Default = new(0.0, 0.0, 0.2, 5.0, 5, 300, MaxSize, 0, 0.0);
 
-        //From 取当前边界快照 对应原版 Settings(WorldBorder)
+        //From takes a snapshot of the current border, maps to vanilla Settings(WorldBorder)
         public static Settings From(WorldBorder border)
             => new(border.CenterX, border.CenterZ, border.DamagePerBlock, border.SafeZone,
                 border.WarningBlocks, border.WarningTime, border.GetSize(),
                 border.GetLerpTime(), border.GetLerpTarget());
     }
 
-    //WorldBorderType SavedDataType 实现 空标签建默认边界 已存标签逐字段还原
+    //WorldBorderType SavedDataType implementation; an empty tag builds a default border, a stored tag restores field by field
     private sealed class WorldBorderType : SavedDataType<WorldBorder>
     {
         public string Id => TypeId;

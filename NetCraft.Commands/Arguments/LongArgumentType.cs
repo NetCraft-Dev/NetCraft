@@ -3,8 +3,8 @@ using NetCraft.Commands.Exceptions;
 
 namespace NetCraft.Commands.Arguments;
 
-//LongArgumentType 长整型参数类型对应原版com.mojang.brigadier.arguments.LongArgumentType
-//限定min/max范围并解析long值越界抛LongTooLow/High
+//LongArgumentType long argument type, maps to vanilla com.mojang.brigadier.arguments.LongArgumentType
+//Constrains the value to min/max, parsing a long and throwing LongTooLow/High when out of range
 public sealed class LongArgumentType : ArgumentType<long>
 {
     private static readonly IReadOnlyList<string> _examples = new[] { "0", "123", "-123" };

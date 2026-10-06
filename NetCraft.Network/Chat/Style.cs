@@ -2,8 +2,8 @@ namespace NetCraft.Network.Chat;
 
 using System.Text;
 
-//文本样式对应原版net.minecraft.network.chat.Style
-//承载颜色/加粗/斜体/下划线/删除线/混淆/点击事件/悬停事件/插入文本/字体描述
+//Text style, maps to vanilla net.minecraft.network.chat.Style
+//Carries color/bold/italic/underline/strikethrough/obfuscated/click event/hover event/insertion text/font description
 public sealed class Style
 {
     public static readonly Style Empty = new(null, null, null, null, null, null, null, null, null, null, null);
@@ -59,18 +59,18 @@ public sealed class Style
     public string? Insertion => _insertion;
     public FontDescription Font => _font ?? FontDescription.Default;
 
-    //应用颜色返回新样式对应原版withColor(TextColor)
+    //Applies a color and returns a new style, maps to vanilla withColor(TextColor)
     public Style WithColor(TextColor? color)
     {
         if (_color == color) return this;
         return CheckEmptyAfterChange(new(color, _shadowColor, _bold, _italic, _underlined, _strikethrough, _obfuscated, _clickEvent, _hoverEvent, _insertion, _font), _color, color);
     }
 
-    //应用ChatFormatting颜色对应原版withColor(ChatFormatting)
+    //Applies a ChatFormatting color, maps to vanilla withColor(ChatFormatting)
     public Style WithColor(ChatFormatting? color)
         => WithColor(color is null ? null : TextColor.FromLegacyFormat(color));
 
-    //应用RGB颜色对应原版withColor(int)
+    //Applies an RGB color, maps to vanilla withColor(int)
     public Style WithColor(int color)
         => WithColor(TextColor.FromRgb(color));
 
@@ -136,7 +136,7 @@ public sealed class Style
         return CheckEmptyAfterChange(new(_color, _shadowColor, _bold, _italic, _underlined, _strikethrough, _obfuscated, _clickEvent, _hoverEvent, _insertion, font), _font, font);
     }
 
-    //应用单个ChatFormatting对应原版applyFormat
+    //Applies a single ChatFormatting, maps to vanilla applyFormat
     public Style ApplyFormat(ChatFormatting format)
     {
         if (format == ChatFormatting.Reset) return Empty;
@@ -149,7 +149,7 @@ public sealed class Style
         return new(color, _shadowColor, _bold, _italic, _underlined, _strikethrough, _obfuscated, _clickEvent, _hoverEvent, _insertion, _font);
     }
 
-    //应用旧式ChatFormatting重置格式标志对应原版applyLegacyFormat
+    //Applies legacy ChatFormatting and resets format flags, maps to vanilla applyLegacyFormat
     public Style ApplyLegacyFormat(ChatFormatting format)
     {
         if (format == ChatFormatting.Reset) return Empty;
@@ -162,7 +162,7 @@ public sealed class Style
         return new(color, _shadowColor, false, false, false, false, false, _clickEvent, _hoverEvent, _insertion, _font);
     }
 
-    //批量应用ChatFormatting对应原版applyFormats
+    //Applies ChatFormatting in bulk, maps to vanilla applyFormats
     public Style ApplyFormats(params ChatFormatting[] formats)
     {
         var color = _color;
@@ -184,7 +184,7 @@ public sealed class Style
         return new(color, _shadowColor, bold, italic, underlined, strikethrough, obfuscated, _clickEvent, _hoverEvent, _insertion, _font);
     }
 
-    //合并样式到other对应原版applyTo非空字段覆盖other
+    //Merges the style into other, maps to vanilla applyTo, non-null fields override other
     public Style ApplyTo(Style other)
     {
         if (this == Empty) return other;

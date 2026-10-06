@@ -3,20 +3,20 @@ namespace NetCraft.Network.Chat;
 using NetCraft.Codec;
 using NetCraft.DataFixer.Util;
 
-//组件内容接口对应原版net.minecraft.network.chat.ComponentContents
-//承载Component的实际内容(纯文本/翻译/按键绑定/计分板/选择器/NBT/对象)
+//Component contents interface, maps to vanilla net.minecraft.network.chat.ComponentContents
+//Carries the actual content of a Component (plain text/translation/keybind/scoreboard/selector/NBT/object)
 public interface ComponentContents
 {
-    //返回此内容类型的MapCodec用于序列化对应原版codec()
+    //Returns the MapCodec for this content type for serialization, maps to vanilla codec()
     MapCodec<ComponentContents> Codec();
 
-    //带样式消费者遍历对应原版visit(StyledContentConsumer,Style)
-    //默认返回空Optional表示此内容不产生文本
+    //Styled consumer traversal, maps to vanilla visit(StyledContentConsumer,Style)
+    //Returns empty Optional by default, meaning this content produces no text
     Optional<T> Visit<T>(FormattedText.StyledContentConsumer<T> output, Style currentStyle)
         => Optional<T>.Empty();
 
-    //无样式消费者遍历对应原版visit(ContentConsumer)
-    //默认返回空Optional表示此内容不产生文本
+    //Unstyled consumer traversal, maps to vanilla visit(ContentConsumer)
+    //Returns empty Optional by default, meaning this content produces no text
     Optional<T> Visit<T>(FormattedText.ContentConsumer<T> output)
         => Optional<T>.Empty();
 }

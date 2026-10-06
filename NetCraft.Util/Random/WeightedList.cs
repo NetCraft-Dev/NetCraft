@@ -1,24 +1,24 @@
 namespace NetCraft.Util.Random;
 
-//权重列表对应原版net.minecraft.util.random.WeightedList
-//总权重小于64用Flat数组直接索引否则用Compact累加查找
+//Weighted list, maps to vanilla net.minecraft.util.random.WeightedList
+//When total weight is below 64 use Flat array direct indexing, otherwise Compact cumulative search
 public sealed class WeightedList<E>
 {
-    //FLAT_THRESHOLD小于此值用Flat策略对应原版FLAT_THRESHOLD
+    //FLAT_THRESHOLD below this uses the Flat strategy, maps to vanilla FLAT_THRESHOLD
     private const int FlatThreshold = 64;
 
     private readonly int _totalWeight;
     private readonly IReadOnlyList<Weighted<E>> _items;
     private readonly Selector<E>? _selector;
 
-    //Selector选择策略接口对应原版WeightedList.Selector
+    //Selector selection strategy interface, maps to vanilla WeightedList.Selector
     private interface Selector<out T>
     {
         T Get(int selection);
     }
 
-    //WeightedList构造对应原版WeightedList(List)
-    //总权重零selector为null小于阈值用Flat否则用Compact
+    //WeightedList constructor, maps to vanilla WeightedList(List)
+    //Total weight zero makes selector null; below the threshold uses Flat, otherwise Compact
     public WeightedList(IEnumerable<Weighted<E>> items)
     {
         _items = items.ToList();
@@ -31,13 +31,13 @@ public sealed class WeightedList<E>
             _selector = new CompactSelector<E>(_items);
     }
 
-    //Empty空列表对应原版of
+    //Empty empty list, maps to vanilla of
     public static WeightedList<E> Of() => new(Array.Empty<Weighted<E>>());
 
-    //Of单值权重1对应原版of(E)
+    //Of single value with weight 1, maps to vanilla of(E)
     public static WeightedList<E> Of(E value) => new(new[] { new Weighted<E>(value, 1) });
 
-    //Of可变参数对应原版of(E...)
+    //Of varargs, maps to vanilla of(E...)
     public static WeightedList<E> Of(params E[] items)
     {
         var builder = Builder();
@@ -46,25 +46,25 @@ public sealed class WeightedList<E>
         return builder.Build();
     }
 
-    //Of可变Weighted参数对应原版of(Weighted...)
+    //Of varargs Weighted, maps to vanilla of(Weighted...)
     public static WeightedList<E> Of(params Weighted<E>[] items) => new(items);
 
-    //Of按List构造对应原版of(List)
+    //Of constructs from a List, maps to vanilla of(List)
     public static WeightedList<E> Of(IReadOnlyList<Weighted<E>> items)
         => new(items);
 
-    //Builder构造器入口对应原版builder
-    //嵌套类名用BuilderImpl避免与Builder()方法重名CS0102
+    //Builder builder entry, maps to vanilla builder
+    //Nested class named BuilderImpl to avoid clashing with the Builder() method, CS0102
     public static BuilderImpl<E> Builder() => new();
 
-    //IsEmpty总权重为零即空对应原版isEmpty
+    //IsEmpty empty when total weight is zero, maps to vanilla isEmpty
     public bool IsEmpty() => _selector is null;
 
-    //Map转换值类型保持权重对应原版map
+    //map transforms the value type keeping the weight, maps to vanilla map
     public WeightedList<T> Map<T>(Func<E, T> mapper)
         => new(_items.Select(e => e.Map(mapper)));
 
-    //GetRandom按随机数选取对应原版getRandom返回Optional
+    //GetRandom picks at random, maps to vanilla getRandom, returns Optional
     public Option<E> GetRandom(RandomSource random)
     {
         if (_selector is null)
@@ -73,7 +73,7 @@ public sealed class WeightedList<E>
         return Option<E>.Some(_selector.Get(selection));
     }
 
-    //GetRandomOrThrow按随机数选取对应原版getRandomOrThrow空列表抛异常
+    //GetRandomOrThrow picks at random, maps to vanilla getRandomOrThrow, throws on an empty list
     public E GetRandomOrThrow(RandomSource random)
     {
         if (_selector is null)
@@ -82,10 +82,10 @@ public sealed class WeightedList<E>
         return _selector.Get(selection);
     }
 
-    //Unwrap返回内部items对应原版unwrap
+    //Unwrap returns the internal items, maps to vanilla unwrap
     public IReadOnlyList<Weighted<E>> Unwrap() => _items;
 
-    //Contains值是否存在对应原版contains
+    //Contains whether a value exists, maps to vanilla contains
     public bool Contains(E value)
     {
         foreach (var item in _items)
@@ -109,8 +109,8 @@ public sealed class WeightedList<E>
         return hash;
     }
 
-    //FlatSelector低总权重策略对应原版WeightedList.Flat
-    //按weight重复填值到Object[]直接索引O(1)
+    //FlatSelector low-total-weight strategy, maps to vanilla WeightedList.Flat
+    //Repeats values into an Object[] by weight for direct O(1) indexing
     private sealed class FlatSelector<T> : Selector<T>
     {
         private readonly object[] _entries;
@@ -130,8 +130,8 @@ public sealed class WeightedList<E>
         public T Get(int i) => (T)_entries[i];
     }
 
-    //CompactSelector高总权重策略对应原版WeightedList.Compact
-    //按weight累加查找空间换时间O(n)
+    //CompactSelector high-total-weight strategy, maps to vanilla WeightedList.Compact
+    //Cumulative search by weight, trading space for time, O(n)
     private sealed class CompactSelector<T> : Selector<T>
     {
         private readonly Weighted<T>[] _entries;
@@ -151,29 +151,29 @@ public sealed class WeightedList<E>
         }
     }
 
-    //Builder权重列表构造器对应原版WeightedList.Builder
-    //类名用BuilderImpl避免与外层Builder()方法重名CS0102
+    //Builder weight list builder, maps to vanilla WeightedList.Builder
+    //Class named BuilderImpl to avoid clashing with the outer Builder() method, CS0102
     public sealed class BuilderImpl<E2>
     {
         private readonly List<Weighted<E2>> _result = new();
 
-        //Add默认权重1对应原版add(E)
+        //Add default weight 1, maps to vanilla add(E)
         public BuilderImpl<E2> Add(E2 item) => Add(item, 1);
 
-        //Add指定权重对应原版add(E,int)
+        //Add with a given weight, maps to vanilla add(E,int)
         public BuilderImpl<E2> Add(E2 item, int weight)
         {
             _result.Add(new Weighted<E2>(item, weight));
             return this;
         }
 
-        //Build构造WeightedList对应原版build
+        //Build constructs the WeightedList, maps to vanilla build
         public WeightedList<E2> Build() => new(_result);
     }
 }
 
-//Option轻量Optional对应原版java.util.Optional
-//random子领域内自用避免引入System.Linq 公共类型
+//Option lightweight Optional, maps to vanilla java.util.Optional
+//random subdomain local use, avoids pulling in the public System.Linq types
 public readonly struct Option<T>
 {
     private readonly T? _value;

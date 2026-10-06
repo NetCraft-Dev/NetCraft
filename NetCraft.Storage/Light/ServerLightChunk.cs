@@ -3,8 +3,8 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Storage.Light;
 
-//ServerLightChunk 服务端光照视图 对应原版 LevelChunk 同时充当 LightChunk 的角色
-//把 ChunkAccess 按光照引擎需要的方式暴露 天光光源列高度图按区块内容惰性构建
+//ServerLightChunk, server-side light view, plays the role of both vanilla LevelChunk and LightChunk
+//Exposes ChunkAccess the way the light engine needs; the sky light source column heightmap is built lazily from chunk content
 public sealed class ServerLightChunk : LightChunk
 {
     private readonly ChunkAccess _chunk;
@@ -12,7 +12,7 @@ public sealed class ServerLightChunk : LightChunk
 
     public ServerLightChunk(ChunkAccess chunk) => _chunk = chunk;
 
-    //高度范围直接转发给底层区块
+    //Height range is forwarded directly to the underlying chunk
     public int MinSectionY => _chunk.MinSectionY;
     public int MaxSectionY => _chunk.MaxSectionY;
     public int SectionsCount => _chunk.SectionsCount;
@@ -23,10 +23,10 @@ public sealed class ServerLightChunk : LightChunk
         return section?.GetBlockState(x & 15, y & 15, z & 15) ?? default;
     }
 
-    //getSkyLightSources 首次访问时按区块内容建立天光光源列
+    //getSkyLightSources builds the sky light source column from chunk content on first access
     public ChunkSkyLightSources GetSkyLightSources() => _skySources ??= BuildSkySources();
 
-    //UpdateSkyLightSources 方块变化后刷新该列的光源高度 高度图尚未构建时无需处理
+    //UpdateSkyLightSources refreshes the source height of that column after a block change; nothing to do before the heightmap is built
     public void UpdateSkyLightSources(int x, int y, int z) => _skySources?.Update(this, x, y, z);
 
     private ChunkSkyLightSources BuildSkySources()
@@ -36,7 +36,7 @@ public sealed class ServerLightChunk : LightChunk
         return sources;
     }
 
-    //findBlockLightSources 遍历区块所有区段挑出发光方块
+    //findBlockLightSources walks all sections of the chunk and picks out light-emitting blocks
     public void FindBlockLightSources(Action<BlockPos, BlockState> consumer)
     {
         var minX = _chunk.Pos.X * 16;

@@ -2,8 +2,8 @@ using NetCraft.Commands.Context;
 
 namespace NetCraft.Commands.Suggestion;
 
-//IntegerSuggestion 整数建议项对应原版com.mojang.brigadier.suggestion.IntegerSuggestion
-//包装整数值并继承Suggestion用于数值补全
+//IntegerSuggestion integer suggestion, maps to vanilla com.mojang.brigadier.suggestion.IntegerSuggestion
+//Wraps an integer value and extends Suggestion for numeric completion
 public sealed class IntegerSuggestion : Suggestion, IEquatable<IntegerSuggestion>
 {
     private readonly int _value;
@@ -43,7 +43,7 @@ public sealed class IntegerSuggestion : Suggestion, IEquatable<IntegerSuggestion
         }
     }
 
-    //CompareTo 同为IntegerSuggestion按数值比较否则按文本
+    //CompareTo compares by value when both are IntegerSuggestion, otherwise by text
     public override int CompareTo(Suggestion? o)
     {
         if (o is IntegerSuggestion integerSuggestion)

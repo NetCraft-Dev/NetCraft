@@ -1,7 +1,7 @@
 namespace NetCraft.Network.Chat;
 
-//MessageSignature 消息签名对应原版 net.minecraft.network.chat.MessageSignature
-//固定 256 字节数组用 Read/write 静态方法编解码
+//MessageSignature message signature, maps to vanilla net.minecraft.network.chat.MessageSignature
+//A fixed 256-byte array, coded by the Read/write static methods
 public sealed class MessageSignature
 {
     public const int Size = 256;
@@ -15,18 +15,18 @@ public sealed class MessageSignature
         Bytes = bytes;
     }
 
-    //Read 从 buf 读 256 字节构造 MessageSignature 对齐原版 read
+    //Read reads 256 bytes from buf to build a MessageSignature, aligns with vanilla read
     public static MessageSignature Read(FriendlyByteBuf input)
     {
         var bytes = input.ReadBytes(Size);
         return new MessageSignature(bytes);
     }
 
-    //Write 把 256 字节写入 buf 对齐原版 write
+    //Write writes the 256 bytes into buf, aligns with vanilla write
     public static void Write(FriendlyByteBuf output, MessageSignature signature)
         => output.WriteBytes(signature.Bytes);
 
-    //Describe 返回签名描述 null 返回 no signature 对齐原版 describe
+    //Describe returns the signature description, or "no signature" when null, aligns with vanilla describe
     public static string Describe(MessageSignature? signature)
         => signature is null ? "<no signature>" : Convert.ToBase64String(signature.Bytes);
 
@@ -42,8 +42,8 @@ public sealed class MessageSignature
 
     public override string ToString() => Convert.ToBase64String(Bytes);
 
-    //Packed 紧凑形式 id==-1 表示 full signature 否则用 cache id 对齐原版 MessageSignature.Packed
-    //FULL_SIGNATURE = -1 编解码 VarInt id + 1 若 id==-1 后跟完整 256 字节签名
+    //Packed compact form: id==-1 means full signature, otherwise a cache id is used, aligns with vanilla MessageSignature.Packed
+    //FULL_SIGNATURE = -1; codes a VarInt id + 1, and when id==-1 a full 256-byte signature follows
     public sealed class Packed
     {
         public const int FullSignatureId = -1;
@@ -61,7 +61,7 @@ public sealed class MessageSignature
 
         public Packed(int id) : this(id, null) { }
 
-        //Read 从 buf 读 Packed VarInt id+1 若 id==-1 后跟完整签名
+        //Read reads Packed from buf: VarInt id+1, and when id==-1 a full signature follows
         public static Packed Read(FriendlyByteBuf input)
         {
             int id = input.ReadVarInt() - 1;
@@ -70,7 +70,7 @@ public sealed class MessageSignature
             return new Packed(id);
         }
 
-        //Write 把 Packed 写入 buf VarInt id+1 若有完整签名后跟 256 字节
+        //Write writes Packed into buf: VarInt id+1, and when a full signature exists 256 bytes follow
         public static void Write(FriendlyByteBuf output, Packed packed)
         {
             output.WriteVarInt(packed.Id + 1);

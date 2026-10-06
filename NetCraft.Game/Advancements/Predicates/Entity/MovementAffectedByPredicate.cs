@@ -4,16 +4,16 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Advancements.Predicates.Entity;
 
-//MovementAffectedByPredicate 移动受何影响谓词 判定影响实体移动的那个方块所在位置
-//对应原版 net.minecraft.advancements.predicates.entity.MovementAffectedByPredicate
+//MovementAffectedByPredicate movement affected by predicate, checks the position of the block affecting the entity's movement
+//maps to vanilla net.minecraft.advancements.predicates.entity.MovementAffectedByPredicate
 public sealed record MovementAffectedByPredicate(LocationPredicate Location) : EntitySubPredicate
 {
-    //Codec 持久化编解码 对应原版 CODEC
+    //Codec persistence codec, maps to vanilla CODEC
     public static readonly Codec<MovementAffectedByPredicate> Codec = LocationPredicate.Codec.ComapFlatMap(
         location => DataResult<MovementAffectedByPredicate>.Success(new MovementAffectedByPredicate(location)),
         predicate => predicate.Location);
 
-    //Matches 取影响移动的脚下方块中心坐标交给位置谓词 缺关卡时判否 对应原版 matches
+    //Matches takes the center coordinate of the block underfoot that affects movement and hands it to the location predicate; fails when there is no level, maps to vanilla matches
     public bool Matches(NetCraft.Registry.Entity entity, ILevelReader? level, Vec3? position)
     {
         if (level is null) return false;

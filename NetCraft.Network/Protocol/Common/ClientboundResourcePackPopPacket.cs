@@ -1,8 +1,8 @@
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientboundResourcePackPopPacket 资源包弹出包对应原版 net.minecraft.network.protocol.common.ClientboundResourcePackPopPacket
-//含可空 UUID id 表示弹出指定资源包或全部
+//ClientboundResourcePackPopPacket resource pack pop packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundResourcePackPopPacket
+//Contains a nullable UUID id, meaning pop the given resource pack or all of them
 public sealed record ClientboundResourcePackPopPacket(Guid? Id) : Packet<ClientCommonPacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundResourcePackPopPacket> StreamCodec { get; } = new ResourcePackPopCodec();
@@ -13,7 +13,7 @@ public sealed record ClientboundResourcePackPopPacket(Guid? Id) : Packet<ClientC
 
     private sealed class ResourcePackPopCodec : StreamCodec<FriendlyByteBuf, ClientboundResourcePackPopPacket>
     {
-        //Guid 是 struct 不能用 ReadNullable/WriteNullable 手动 boolean 标志位处理
+        //Guid is a struct and cannot use ReadNullable/WriteNullable, so a boolean flag is handled manually
         public ClientboundResourcePackPopPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadBoolean() ? buf.ReadUuid() : (Guid?)null);
 

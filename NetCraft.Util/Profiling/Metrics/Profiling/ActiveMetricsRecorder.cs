@@ -3,9 +3,9 @@ using NetCraft.Util.Profiling.Metrics.Storage;
 
 namespace NetCraft.Util.Profiling.Metrics.Profiling;
 
-//活跃指标记录器对应原版net.minecraft.util.profiling.metrics.profiling.ActiveMetricsRecorder
-//按tick调度MetricSampler超阈值时记录偏差到RecordedDeviation
-//达到截止时间或killSwitch触发后持久化结果
+//Active metrics recorder, maps to vanilla net.minecraft.util.profiling.metrics.profiling.ActiveMetricsRecorder
+//Schedules MetricSampler per tick, records deviations to RecordedDeviation when over threshold
+//Persists results after the deadline is reached or killSwitch triggers
 public sealed class ActiveMetricsRecorder : MetricsRecorder
 {
     public const int ProfilingMaxDurationSeconds = 10;

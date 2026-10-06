@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Profiling;
 
-//空profiler结果对应原版net.minecraft.util.profiling.EmptyProfileResults
-//所有方法返回空/零
+//Empty profiler results, maps to vanilla net.minecraft.util.profiling.EmptyProfileResults
+//All methods return empty/zero
 public sealed class EmptyProfileResults : ProfileResults
 {
     public static readonly EmptyProfileResults Empty = new();

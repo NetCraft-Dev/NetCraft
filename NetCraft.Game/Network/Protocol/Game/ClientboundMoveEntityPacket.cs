@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundMoveEntityPacket 实体移动包对应原版 ClientboundMoveEntityPacket
-//抽象基类含 Pos/PosRot/Rot 三个嵌套子类共享 entityId/xa/ya/za/yRot/xRot/onGround/hasRot/hasPos 字段
+//ClientboundMoveEntityPacket move entity packet, maps to vanilla ClientboundMoveEntityPacket
+//Abstract base with three nested subclasses Pos/PosRot/Rot sharing entityId/xa/ya/za/yRot/xRot/onGround/hasRot/hasPos fields
 public abstract class ClientboundMoveEntityPacket : Packet<ClientGamePacketListener>
 {
     public int EntityId { get; }
@@ -31,7 +31,7 @@ public abstract class ClientboundMoveEntityPacket : Packet<ClientGamePacketListe
 
     public void Handle(ClientGamePacketListener handler) => handler.HandleMoveEntity(this);
 
-    //Pos 仅位置变化子类对应原版 ClientboundMoveEntityPacket Pos
+    //Pos position-only subclass, maps to vanilla ClientboundMoveEntityPacket Pos
     public sealed class Pos : ClientboundMoveEntityPacket
     {
         public static StreamCodec<FriendlyByteBuf, Pos> StreamCodec { get; } = new PosCodec();
@@ -57,7 +57,7 @@ public abstract class ClientboundMoveEntityPacket : Packet<ClientGamePacketListe
         }
     }
 
-    //PosRot 位置加旋转子类对应原版 ClientboundMoveEntityPacket PosRot
+    //PosRot position-plus-rotation subclass, maps to vanilla ClientboundMoveEntityPacket PosRot
     public sealed class PosRot : ClientboundMoveEntityPacket
     {
         public static StreamCodec<FriendlyByteBuf, PosRot> StreamCodec { get; } = new PosRotCodec();
@@ -85,7 +85,7 @@ public abstract class ClientboundMoveEntityPacket : Packet<ClientGamePacketListe
         }
     }
 
-    //Rot 仅旋转变化子类对应原版 ClientboundMoveEntityPacket Rot
+    //Rot rotation-only subclass, maps to vanilla ClientboundMoveEntityPacket Rot
     public sealed class Rot : ClientboundMoveEntityPacket
     {
         public static StreamCodec<FriendlyByteBuf, Rot> StreamCodec { get; } = new RotCodec();

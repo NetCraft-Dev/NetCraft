@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Protocol.Cookie;
 
-//ClientboundCookieRequestPacket 服务端 cookie 请求包对应原版 net.minecraft.network.protocol.cookie.ClientboundCookieRequestPacket
-//含 Identifier key 服务端请求客户端存储的 cookie
+//ClientboundCookieRequestPacket server cookie request packet, maps to vanilla net.minecraft.network.protocol.cookie.ClientboundCookieRequestPacket
+//Contains Identifier key; the server requests the cookie the client stored
 public sealed record ClientboundCookieRequestPacket(Identifier Key) : Packet<ClientCookiePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundCookieRequestPacket> StreamCodec { get; } = new CookieRequestCodec();

@@ -4,9 +4,9 @@ using NetCraft.Commands.Tree;
 
 namespace NetCraft.Commands;
 
-//ParseResults 解析结果对应原版com.mojang.brigadier.ParseResults
-//持CommandContextBuilder与未消费reader与各子节点解析异常表
-//解析永不失败调用方根据reader.CanRead与exceptions判断有效性
+//ParseResults maps to vanilla com.mojang.brigadier.ParseResults
+//Holds a CommandContextBuilder, the unconsumed reader and the parse exception table of each child node
+//Parsing never fails; callers judge validity from reader.CanRead and the exceptions
 public sealed class ParseResults<S>
 {
     private readonly CommandContextBuilder<S> _context;

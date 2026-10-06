@@ -6,11 +6,11 @@ using NetCraft.Registry.Environment;
 
 namespace NetCraft.Registry;
 
-//所有内置注册表实例，对应原版 net.minecraft.core.registries.BuiltInRegistries
-//stub 类型，bootstrap 回调暂不实现，每个注册表为空
+//All built-in registry instances, maps to vanilla net.minecraft.core.registries.BuiltInRegistries
+//Stub type; bootstrap callbacks are not implemented for now and every registry is empty
 public static class BuiltInRegistries
 {
-    //所有注册表通过根 WritableRegistry 统一管理，此处简化不维护容器
+    //All registries are managed through a root WritableRegistry; simplified here without a container
     public static readonly DefaultedRegistry<GameEvent> GAME_EVENT = RegisterDefaulted<GameEvent>(Registries.GAME_EVENT, "step");
     public static readonly Registry<SoundEvent> SOUND_EVENT = RegisterSimple<SoundEvent>(Registries.SOUND_EVENT);
     public static readonly DefaultedRegistry<Fluid> FLUID = RegisterDefaulted<Fluid>(Registries.FLUID, "empty");
@@ -21,12 +21,12 @@ public static class BuiltInRegistries
     public static readonly DefaultedRegistry<EntityType<object>> ENTITY_TYPE = RegisterDefaulted<EntityType<object>>(Registries.ENTITY_TYPE, "pig");
     public static readonly DefaultedRegistry<Item> ITEM = RegisterDefaulted<Item>(Registries.ITEM, "air");
     public static readonly Registry<Potion> POTION = RegisterSimple<Potion>(Registries.POTION);
-    //PARTICLE_TYPE 无默认值 声明成可写注册表便于启动期按原版顺序一次性登记内置粒子类型
+    //PARTICLE_TYPE has no default value; declared as a writable registry so built-in particle types can be registered in vanilla order at startup
     public static readonly MappedRegistry<ParticleType<object>> PARTICLE_TYPE = RegisterSimple<ParticleType<object>>(Registries.PARTICLE_TYPE);
     public static readonly Registry<BlockEntityType<object>> BLOCK_ENTITY_TYPE = RegisterSimple<BlockEntityType<object>>(Registries.BLOCK_ENTITY_TYPE);
     public static readonly Registry<object> CUSTOM_STAT = RegisterSimple<object>(Registries.CUSTOM_STAT);
     public static readonly DefaultedRegistry<ChunkStatus> CHUNK_STATUS = RegisterDefaulted<ChunkStatus>(Registries.CHUNK_STATUS, "empty");
-    //NOISE 噪声参数注册表供 Noises.Bootstrap 注册 64 个内置 NoiseParameters
+    //NOISE noise parameter registry, used by Noises.Bootstrap to register 64 built-in NoiseParameters
     public static readonly Registry<NoiseParameters> NOISE = RegisterSimple<NoiseParameters>(Registries.NOISE);
     public static readonly Registry<RuleTestType<object>> RULE_TEST = RegisterSimple<RuleTestType<object>>(Registries.RULE_TEST);
     public static readonly Registry<RuleBlockEntityModifierType<object>> RULE_BLOCK_ENTITY_MODIFIER = RegisterSimple<RuleBlockEntityModifierType<object>>(Registries.RULE_BLOCK_ENTITY_MODIFIER);
@@ -35,7 +35,7 @@ public static class BuiltInRegistries
     public static readonly Registry<object> CHAT_TYPE = RegisterSimple<object>(Registries.CHAT_TYPE);
     public static readonly Registry<RecipeType<object>> RECIPE_TYPE = RegisterSimple<RecipeType<object>>(Registries.RECIPE_TYPE);
     public static readonly Registry<RecipeSerializer<object>> RECIPE_SERIALIZER = RegisterSimple<RecipeSerializer<object>>(Registries.RECIPE_SERIALIZER);
-    //实体属性注册表的条目类型在 NetCraft.Registry.EntityAttribute 下
+    //The entity attribute registry's entry type lives under NetCraft.Registry.EntityAttribute
     public static readonly Registry<EntityAttribute.Attribute> ATTRIBUTE =
         RegisterSimple<EntityAttribute.Attribute>(Registries.ATTRIBUTE);
     public static readonly Registry<PositionSourceType<object>> POSITION_SOURCE_TYPE = RegisterSimple<PositionSourceType<object>>(Registries.POSITION_SOURCE_TYPE);
@@ -58,25 +58,25 @@ public static class BuiltInRegistries
     public static readonly Registry<HeightProviderType<object>> HEIGHT_PROVIDER_TYPE = RegisterSimple<HeightProviderType<object>>(Registries.HEIGHT_PROVIDER_TYPE);
     public static readonly Registry<BlockPredicateType> BLOCK_PREDICATE_TYPE = RegisterSimple<BlockPredicateType>(Registries.BLOCK_PREDICATE_TYPE);
     public static readonly Registry<WorldCarver> CARVER = RegisterSimple<WorldCarver>(Registries.CARVER);
-    //CONFIGURED_CARVER 配置化雕刻器注册表 元素由 worldgen/configured_carver/*.json 数据驱动装载
+    //CONFIGURED_CARVER configured carver registry; elements are loaded from worldgen/configured_carver/*.json
     public static readonly Registry<ConfiguredWorldCarver> CONFIGURED_CARVER = RegisterSimple<ConfiguredWorldCarver>(Registries.CONFIGURED_CARVER);
-    //FEATURE 特征类型注册表 元素是各 feature 单例 由 FeatureBootstrap 注册
+    //FEATURE feature type registry; elements are the feature singletons, registered by FeatureBootstrap
     public static readonly Registry<Feature> FEATURE = RegisterSimple<Feature>(Registries.FEATURE);
-    //CONFIGURED_FEATURE 配置化特征注册表 元素由 worldgen/configured_feature/*.json 数据驱动装载
+    //CONFIGURED_FEATURE configured feature registry; elements are loaded from worldgen/configured_feature/*.json
     public static readonly Registry<ConfiguredFeature> CONFIGURED_FEATURE = RegisterSimple<ConfiguredFeature>(Registries.CONFIGURED_FEATURE);
-    //PLACED_FEATURE 已放置特征注册表 元素由 worldgen/placed_feature/*.json 数据驱动装载
+    //PLACED_FEATURE placed feature registry; elements are loaded from worldgen/placed_feature/*.json
     public static readonly Registry<PlacedFeature> PLACED_FEATURE = RegisterSimple<PlacedFeature>(Registries.PLACED_FEATURE);
     public static readonly Registry<StructurePlacementType<object>> STRUCTURE_PLACEMENT = RegisterSimple<StructurePlacementType<object>>(Registries.STRUCTURE_PLACEMENT);
     public static readonly Registry<StructurePieceType> STRUCTURE_PIECE = RegisterSimple<StructurePieceType>(Registries.STRUCTURE_PIECE);
     public static readonly Registry<StructureType<object>> STRUCTURE_TYPE = RegisterSimple<StructureType<object>>(Registries.STRUCTURE_TYPE);
-    //STRUCTURE 结构注册表 元素由 worldgen/structure/*.json 数据驱动装载
-    //Registry 项目不能反向引用 Game 层 所以键用 stub 接口 实际元素是实现该接口的 Game 层 Structure
+    //STRUCTURE structure registry; elements are loaded from worldgen/structure/*.json
+    //The Registry project cannot reference the Game layer, so the key uses a stub interface and the actual elements are Game-layer Structure implementations
     public static readonly Registry<Structure> STRUCTURE = RegisterSimple<Structure>(Registries.STRUCTURE);
-    //STRUCTURE_SET 结构集合注册表 元素由 worldgen/structure_set/*.json 数据驱动装载
+    //STRUCTURE_SET structure set registry; elements are loaded from worldgen/structure_set/*.json
     public static readonly Registry<StructureSet> STRUCTURE_SET = RegisterSimple<StructureSet>(Registries.STRUCTURE_SET);
-    //PROCESSOR_LIST 处理器列表注册表 元素由 worldgen/processor_list/*.json 数据驱动装载
+    //PROCESSOR_LIST processor list registry; elements are loaded from worldgen/processor_list/*.json
     public static readonly Registry<StructureProcessorList> PROCESSOR_LIST = RegisterSimple<StructureProcessorList>(Registries.PROCESSOR_LIST);
-    //TEMPLATE_POOL 模板池注册表 元素由 worldgen/template_pool/*.json 数据驱动装载
+    //TEMPLATE_POOL template pool registry; elements are loaded from worldgen/template_pool/*.json
     public static readonly Registry<StructureTemplatePool> TEMPLATE_POOL = RegisterSimple<StructureTemplatePool>(Registries.TEMPLATE_POOL);
     public static readonly Registry<PlacementModifierType> PLACEMENT_MODIFIER_TYPE = RegisterSimple<PlacementModifierType>(Registries.PLACEMENT_MODIFIER_TYPE);
     public static readonly Registry<BlockStateProviderType<object>> BLOCKSTATE_PROVIDER_TYPE = RegisterSimple<BlockStateProviderType<object>>(Registries.BLOCK_STATE_PROVIDER_TYPE);
@@ -90,19 +90,19 @@ public static class BuiltInRegistries
     public static readonly Registry<MapCodec<object>> MATERIAL_CONDITION = RegisterSimple<MapCodec<object>>(Registries.MATERIAL_CONDITION);
     public static readonly Registry<MapCodec<object>> MATERIAL_RULE = RegisterSimple<MapCodec<object>>(Registries.MATERIAL_RULE);
     public static readonly Registry<MapCodec<object>> DENSITY_FUNCTION_TYPE = RegisterSimple<MapCodec<object>>(Registries.DENSITY_FUNCTION_TYPE);
-    //DENSITY_FUNCTION 密度函数注册表供密度函数 JSON 之间互相引用
-    //元素是 DensityFunction 用 object 弱类型是 Registry 项目不能反向引用 Game 导致的折中
+    //DENSITY_FUNCTION density function registry, letting density function JSON reference each other
+    //Elements are DensityFunction; using the weak object type is a compromise because the Registry project cannot reference the Game layer
     public static readonly Registry<object> DENSITY_FUNCTION = RegisterSimple<object>(Registries.DENSITY_FUNCTION);
-    //MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST 多噪声群系源参数表 data/minecraft/worldgen/multi_noise_biome_source_parameter_list/*.json
-    //元素是 MultiNoiseBiomeSourceParameterList 同样用 object 键
+    //MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST multi-noise biome source parameter list, data/minecraft/worldgen/multi_noise_biome_source_parameter_list/*.json
+    //Elements are MultiNoiseBiomeSourceParameterList, also keyed by object
     public static readonly Registry<object> MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST = RegisterSimple<object>(Registries.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST);
-    //NOISE_SETTINGS 噪声生成设置 data/minecraft/worldgen/noise_settings/*.json
-    //元素是 NoiseGeneratorSettings 同样用 object 键
+    //NOISE_SETTINGS noise generator settings, data/minecraft/worldgen/noise_settings/*.json
+    //Elements are NoiseGeneratorSettings, also keyed by object
     public static readonly Registry<object> NOISE_SETTINGS = RegisterSimple<object>(Registries.NOISE_SETTINGS);
-    //DIMENSION_TYPE 维度类型 data/minecraft/dimension_type/*.json
+    //DIMENSION_TYPE dimension type, data/minecraft/dimension_type/*.json
     public static readonly Registry<DimensionType> DIMENSION_TYPE =
         RegisterSimple<DimensionType>(Registries.DIMENSION_TYPE);
-    //LEVEL_STEM 关卡定义 元素来自 world_preset 的 dimensions 段 不是独立目录
+    //LEVEL_STEM level stem definition; elements come from the dimensions section of world_preset, not a separate directory
     public static readonly Registry<LevelStem> LEVEL_STEM = RegisterSimple<LevelStem>(Registries.LEVEL_STEM);
     public static readonly Registry<MapCodec<Block>> BLOCK_TYPE = RegisterSimple<MapCodec<Block>>(Registries.BLOCK_TYPE);
     public static readonly Registry<MapCodec<StructureProcessor>> STRUCTURE_PROCESSOR = RegisterSimple<MapCodec<StructureProcessor>>(Registries.STRUCTURE_PROCESSOR);
@@ -128,7 +128,7 @@ public static class BuiltInRegistries
     public static readonly Registry<RecipeDisplayType<object>> RECIPE_DISPLAY = RegisterSimple<RecipeDisplayType<object>>(Registries.RECIPE_DISPLAY);
     public static readonly Registry<SlotDisplayType<object>> SLOT_DISPLAY = RegisterSimple<SlotDisplayType<object>>(Registries.SLOT_DISPLAY);
     public static readonly Registry<RecipeBookCategory> RECIPE_BOOK_CATEGORY = RegisterSimple<RecipeBookCategory>(Registries.RECIPE_BOOK_CATEGORY);
-    //TICKET_TYPE 无默认值 声明成可写注册表便于启动期一次性登记九种内置票类型
+    //TICKET_TYPE has no default value; declared as a writable registry so the nine built-in ticket types can be registered at once at startup
     public static readonly MappedRegistry<TicketType> TICKET_TYPE = RegisterSimple<TicketType>(Registries.TICKET_TYPE);
     public static readonly Registry<IncomingRpcMethod<object, object>> INCOMING_RPC_METHOD = RegisterSimple<IncomingRpcMethod<object, object>>(Registries.INCOMING_RPC_METHOD);
     public static readonly Registry<OutgoingRpcMethod<object, object>> OUTGOING_RPC_METHOD = RegisterSimple<OutgoingRpcMethod<object, object>>(Registries.OUTGOING_RPC_METHOD);
@@ -145,34 +145,34 @@ public static class BuiltInRegistries
     public static readonly Registry<AttributeType<object>> ATTRIBUTE_TYPE = RegisterSimple<AttributeType<object>>(Registries.ATTRIBUTE_TYPE);
     public static readonly Registry<MapCodec<SlotSource>> SLOT_SOURCE_TYPE = RegisterSimple<MapCodec<SlotSource>>(Registries.SLOT_SOURCE_TYPE);
     public static readonly Registry<Consumer<GameTestHelper>> TEST_FUNCTION = RegisterSimple<Consumer<GameTestHelper>>(Registries.TEST_FUNCTION);
-    //WORLD_CLOCK/TIMELINE 注册顺序必须按字典序与 SynchronizedRegistryData 同步列表一致
+    //WORLD_CLOCK/TIMELINE registration order must match the lexicographic order of the SynchronizedRegistryData sync list
     public static readonly Registry<WorldClock> WORLD_CLOCK = RegisterSimple<WorldClock>(Registries.WORLD_CLOCK);
     public static readonly Registry<Timeline> TIMELINE = RegisterSimple<Timeline>(Registries.TIMELINE);
-    //ENCHANTMENT/JUKEBOX_SONG/TRIM_MATERIAL/TRIM_PATTERN 供附魔 唱片 纹饰组件与谓词使用
+    //ENCHANTMENT/JUKEBOX_SONG/TRIM_MATERIAL/TRIM_PATTERN used by enchantment, jukebox and trim components and predicates
     public static readonly Registry<Enchantment> ENCHANTMENT = RegisterSimple<Enchantment>(Registries.ENCHANTMENT);
     public static readonly Registry<JukeboxSong> JUKEBOX_SONG = RegisterSimple<JukeboxSong>(Registries.JUKEBOX_SONG);
     public static readonly Registry<TrimMaterial> TRIM_MATERIAL = RegisterSimple<TrimMaterial>(Registries.TRIM_MATERIAL);
     public static readonly Registry<TrimPattern> TRIM_PATTERN = RegisterSimple<TrimPattern>(Registries.TRIM_PATTERN);
 
-    //简单注册表注册
-    //返回具体类型而非 Registry<T> 便于启动期按名字逐个注册(如 TICKET_TYPE 这类无默认值的表)
+    //Simple registry registration
+    //Returns the concrete type rather than Registry<T> so startup can register by name one by one (for tables without defaults like TICKET_TYPE)
     private static MappedRegistry<T> RegisterSimple<T>(ResourceKey<Registry<T>> key) where T : class
         => new MappedRegistry<T>(key, Lifecycle.Stable);
 
-    //带默认值的注册表注册
+    //Defaulted registry registration
     private static DefaultedRegistry<T> RegisterDefaulted<T>(ResourceKey<Registry<T>> key, string defaultKey) where T : class
         => new DefaultedMappedRegistry<T>(defaultKey, key, Lifecycle.Stable);
 
-    //TODO bootstrap：原版 bootStrap 调用各注册表 bootstrap 回调，stub 阶段无内容
+    //TODO bootstrap: vanilla bootStrap calls each registry's bootstrap callback; nothing at the stub stage
     public static void BootStrap()
     {
-        //Log.Debug($"BootStrap 入口");
-        //Log.Debug($"BootStrap 出口");
+        //Log.Debug($"BootStrap enter");
+        //Log.Debug($"BootStrap exit");
     }
 
-    //CreateRegistryAccess 反射收集所有 Registry<T> 静态字段构造不可变 RegistryAccess
-    //供 ReloadableServerResources.LoadResources 调 TagManager.BindAll 使用
-    //必须在 BootstrapClass.BootStrap 之后调用因 BindAll 要求 Registry 已 Freeze
+    //CreateRegistryAccess reflectively collects all static Registry<T> fields into an immutable RegistryAccess
+    //Used by ReloadableServerResources.LoadResources for TagManager.BindAll
+    //Must be called after BootstrapClass.BootStrap because BindAll requires the registries to be frozen
     public static Frozen CreateRegistryAccess()
     {
         var entries = new List<RegistryEntry>();
@@ -181,21 +181,21 @@ public static class BuiltInRegistries
         return new ImmutableRegistryAccess(entries);
     }
 
-    //EnumerateRegistries 反射遍历所有 Registry<T> 静态字段返回 (注册表Identifier, 实例)
-    //复用 ValidateRegistries 反射模式避免重复遍历逻辑
+    //EnumerateRegistries reflectively walks all static Registry<T> fields and returns (registry Identifier, instance)
+    //Reuses the ValidateRegistries reflection pattern to avoid duplicated iteration logic
     public static IEnumerable<(Identifier Key, object Value)> EnumerateRegistries()
     {
         foreach (var field in typeof(BuiltInRegistries).GetFields(BindingFlags.Public | BindingFlags.Static))
         {
-            //字段声明类型可能直接是 Registry<T> 本身(如 DATA_COMPONENT_TYPE) 也可能是 DefaultedRegistry<T> 等派生接口
-            //GetInterfaces 不返回接口自身 只判继承会漏掉前者导致这些注册表既不冻结也进不了 RegistryAccess
+            //The field's declared type may be Registry<T> itself (like DATA_COMPONENT_TYPE) or a derived interface such as DefaultedRegistry<T>
+            //GetInterfaces does not return the interface itself, so testing only inheritance would miss the former and leave those registries neither frozen nor present in RegistryAccess
             var fieldType = field.FieldType;
             var isRegistry = fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(Registry<>)
                 || fieldType.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(Registry<>));
             if (!isRegistry) continue;
             var registry = field.GetValue(null);
             if (registry == null) continue;
-            //反射拿 registry.Key.Identifier 避免泛型不变性无法 cast ResourceKey<Registry<T>>
+            //Reflectively read registry.Key.Identifier since generic invariance prevents casting to ResourceKey<Registry<T>>
             var keyObj = registry.GetType().GetProperty("Key")?.GetValue(registry);
             var identifier = keyObj?.GetType().GetProperty("Identifier")?.GetValue(keyObj) as Identifier?;
             if (identifier is null) continue;

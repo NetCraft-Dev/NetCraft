@@ -2,8 +2,8 @@ using System.Collections.Concurrent;
 
 namespace NetCraft.Util.Thread;
 
-//严格队列接口对应原版StrictQueue
-//pop按入队或优先级顺序返回null表示空
+//Strict queue interface, maps to vanilla StrictQueue
+//pop returns in enqueue or priority order, null means empty
 public interface StrictQueue<T> where T : class
 {
     T? Pop();
@@ -12,14 +12,14 @@ public interface StrictQueue<T> where T : class
     int Size { get; }
 }
 
-//带优先级的可运行任务对应原版RunnableWithPriority
-//priority越小越优先0为最高
+//Prioritized runnable task, maps to vanilla RunnableWithPriority
+//Lower priority value wins, 0 is highest
 public sealed record RunnableWithPriority(int Priority, Action Task)
 {
     public void Run() => Task();
 }
 
-//包装ConcurrentQueue的普通顺序队列对应原版QueueStrictQueue
+//Plain sequential queue wrapping a ConcurrentQueue, maps to vanilla QueueStrictQueue
 public sealed class QueueStrictQueue : StrictQueue<Action>
 {
     private readonly ConcurrentQueue<Action> _queue = new();
@@ -30,8 +30,8 @@ public sealed class QueueStrictQueue : StrictQueue<Action>
     public int Size => _queue.Count;
 }
 
-//按优先级分桶的队列对应原版FixedPriorityQueue
-//内部多个ConcurrentQueue按优先级索引pop
+//Bucketed-by-priority queue, maps to vanilla FixedPriorityQueue
+//Internally multiple ConcurrentQueues indexed by priority for pop
 public sealed class FixedPriorityQueue : StrictQueue<RunnableWithPriority>
 {
     private readonly ConcurrentQueue<RunnableWithPriority>[] _queues;

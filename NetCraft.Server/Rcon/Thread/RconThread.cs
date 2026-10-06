@@ -5,8 +5,8 @@ using NetCraft.Game.Server;
 
 namespace NetCraft.Game.Server.Rcon.Thread;
 
-//RconThread RCON 监听线程对应原版 net.minecraft.server.rcon.thread.RconThread
-//收下 TCP 连接后每个客户端一条 RconClient 线程 协议见 RconClient
+//RconThread, the RCON listener thread, maps to vanilla net.minecraft.server.rcon.thread.RconThread
+//After accepting a TCP connection each client gets an RconClient thread, see RconClient for the protocol
 public class RconThread : GenericThread
 {
     private readonly Socket _socket;
@@ -22,7 +22,7 @@ public class RconThread : GenericThread
         _rconPassword = rconPassword;
     }
 
-    //Create 按配置建监听端口与密码没配好时返回 null 表示禁用 对应原版 create
+    //Create builds the listener from config and returns null when the port or password is not set up, meaning disabled, maps to vanilla create
     public static RconThread? Create(DedicatedServer serverInterface)
     {
         var settings = serverInterface.Settings;
@@ -57,14 +57,14 @@ public class RconThread : GenericThread
         }
     }
 
-    //ResolveAddress 解析绑定地址 支持 IP 字面量与主机名
+    //ResolveAddress resolves the bind address, supports IP literals and host names
     private static IPAddress ResolveAddress(string serverIp)
         => IPAddress.TryParse(serverIp, out var parsed)
             ? parsed
             : Dns.GetHostAddresses(serverIp).FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)
               ?? IPAddress.Any;
 
-    //ClearClients 回收已退出的客户端线程
+    //ClearClients reclaims exited client threads
     private void ClearClients() => _clients.RemoveAll(client => !client.IsRunning());
 
     protected override void Run()
@@ -75,7 +75,7 @@ public class RconThread : GenericThread
             {
                 try
                 {
-                    //五百毫秒等不到连接就回头清一次客户端列表 对应原版 500ms 的 accept 超时
+                    //If no connection arrives within 500ms, clear the client list once, maps to the vanilla 500ms accept timeout
                     if (!_socket.Poll(500_000, SelectMode.SelectRead))
                     {
                         ClearClients();

@@ -1,8 +1,8 @@
 namespace NetCraft.Registry;
 
-//注册元信息记录来源资源包与生命周期
+//Registration metadata records the source resource pack and lifecycle
 public sealed record RegistrationInfo(KnownPack? KnownPackInfo, Lifecycle Lifecycle)
 {
-    //内置注册项元信息无来源包stable
+    //Built-in entry metadata has no source pack and is stable
     public static readonly RegistrationInfo BuiltIn = new(null, Lifecycle.Stable);
 }

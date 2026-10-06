@@ -5,14 +5,14 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Game.Client.Render.World;
 
-//ChunkMeshBuilder 区块 mesh 生成器对标原版 SectionCompiler
-//遍历 LevelChunkSection 16³ 方块对非空方块查 BakedModel 按 cullface+邻居 BlockRenderShape 剔除面
-//cullface quad 邻居是 FullBlock 则剔除该方向面 no-cull quad 总是渲染
-//顶点位置由 BlockModelBaker 产出 0-16 范围经 PoseStack scale(1/16) 归一化到 0-1 再 translate(x,y,z) 平移到方块位置
-//originX/Y/Z 是 section 世界基坐标光照查询用首版不跨 section 边界邻居查询超出 0-15 视为 air 不剔除
-//光照通过 ChunkLightSampler 查面外侧邻居的 block/sky light null 时走 FullBright 兼容旧测试
-//face-based shading 按 quad.Direction 固定 shade 系数 bake 进 Color RGB 对齐原版 face 拣选
-//流体渲染不含 FluidRenderer 是独立子系统后续补
+//ChunkMeshBuilder chunk mesh generator, maps to vanilla SectionCompiler
+//Iterates the LevelChunkSection's 16³ blocks; for non-empty blocks looks up BakedModel and culls faces by cullface + neighbor BlockRenderShape
+//cullface quads: if the neighbor is FullBlock, cull that direction's face; no-cull quads are always rendered
+//Vertex positions come from BlockModelBaker in 0-16 range, normalized to 0-1 by PoseStack scale(1/16), then translated to the block position by translate(x,y,z)
+//originX/Y/Z is the section's world base coordinate, used for light queries; the first version does no cross-section neighbor queries, so out-of-range 0-15 is treated as air and not culled
+//Light goes through ChunkLightSampler to fetch the face's outer neighbor block/sky light; when null, FullBright is used for old tests
+//face-based shading bakes a fixed shade factor per quad.Direction into Color RGB, aligning with vanilla face picking
+//Fluid rendering is not included; FluidRenderer is a separate subsystem to be added later
 public sealed class ChunkMeshBuilder
 {
     private readonly Func<BlockState, BakedModel?> _modelMapper;
@@ -21,26 +21,26 @@ public sealed class ChunkMeshBuilder
     public ChunkMeshBuilder(BlockStateModelMapper modelMapper, ChunkLightSampler? lightSampler = null)
         : this(modelMapper.GetModel, lightSampler) { }
 
-    //Func 构造供测试注入 stub 映射避免依赖 ResourceManager
+    //Func constructor for tests to inject a stub mapping, avoiding a ResourceManager dependency
     public ChunkMeshBuilder(Func<BlockState, BakedModel?> modelMapper, ChunkLightSampler? lightSampler = null)
     {
         _modelMapper = modelMapper;
         _lightSampler = lightSampler;
     }
 
-    //Build 遍历 section 16³ 方块生成 mesh 数据 originX/Y/Z 是 section 世界基坐标
-    //regionCache=null 走 W7 越界视为 air 逻辑兼容旧单测
+    //Build iterates the section's 16³ blocks to generate mesh data; originX/Y/Z is the section's world base coordinate
+    //regionCache=null uses the W7 out-of-bounds-as-air logic for compatibility with old unit tests
     public ChunkMeshData Build(LevelChunkSection section, int originX = 0, int originY = 0, int originZ = 0)
         => BuildCore(section, null, originX, originY, originZ);
 
-    //Build 重载接收 RenderRegionCache 跨 section 邻居查询解决边界面剔除
-    //regionCache.Center 应与 section 所在 SectionPos 一致
+    //Build overload taking a RenderRegionCache for cross-section neighbor queries, fixing boundary face culling
+    //regionCache.Center must match the SectionPos of the section
     public ChunkMeshData Build(LevelChunkSection section, RenderRegionCache regionCache, int originX, int originY, int originZ)
         => BuildCore(section, regionCache, originX, originY, originZ);
 
-    //BuildBlock 把单个方块的模型按给定变换烘进 mesh 供活塞这类会移动的方块每帧重画
-    //区块网格是静态烘焙的 每帧都变的位移烘不进去 只能单独走一条动态通道
-    //移动中的方块邻居关系随时在变 六个方向的面一律不剔 光照按方块所在格取
+    //BuildBlock bakes a single block's model into the mesh under the given transform, for moving blocks like pistons that re-render each frame
+    //The chunk mesh is baked statically; a displacement that changes every frame cannot be baked in, so it goes through a separate dynamic pass
+    //A moving block's neighbor relationships change at any time, so faces in all six directions are never culled; light is fetched from the block's own cell
     public void BuildBlock(BlockState state, NetCraft.Primitives.BlockPos pos, PoseStack pose,
         ChunkMeshData mesh)
     {
@@ -55,7 +55,7 @@ public sealed class ChunkMeshBuilder
         }
     }
 
-    //EmitMovingQuads 写一批移动方块的 quad 光照取方块自身所在格
+    //EmitMovingQuads writes a batch of moving block quads; light is fetched from the block's own cell
     private void EmitMovingQuads(ChunkMeshData mesh, RenderLayer layer, IReadOnlyList<BakedQuad> quads,
         NetCraft.Primitives.BlockPos pos, PoseStack pose, QuadInstance instance)
     {
@@ -72,7 +72,7 @@ public sealed class ChunkMeshBuilder
         }
     }
 
-    //BuildCore 公共编译逻辑 regionCache!=null 时跨 section 面剔除 否则走 W7 越界视为 air
+    //BuildCore shared compile logic; cross-section face culling when regionCache!=null, otherwise W7 out-of-bounds-as-air
     private ChunkMeshData BuildCore(LevelChunkSection section, RenderRegionCache? regionCache, int originX, int originY, int originZ)
     {
         var mesh = new ChunkMeshData();
@@ -89,7 +89,7 @@ public sealed class ChunkMeshBuilder
                 continue;
             pose.PushPose();
             pose.Scale(1f / 16f, 1f / 16f, 1f / 16f);
-            //translate 加 sectionOrigin 把顶点 bake 到世界坐标 shader 端 Model=Identity
+            //translate adds sectionOrigin to bake vertices into world coordinates; shader-side Model=Identity
             pose.Translate(x + originX, y + originY, z + originZ);
             AddBlockQuads(pose, section, regionCache, x, y, z, originX, originY, originZ, model, mesh);
             pose.PopPose();
@@ -97,22 +97,22 @@ public sealed class ChunkMeshBuilder
         return mesh;
     }
 
-    //AddBlockQuads 把方块的 BakedModel quad 按 layer + cullface 写入 mesh
+    //AddBlockQuads writes the block's BakedModel quads into the mesh by layer + cullface
     private void AddBlockQuads(PoseStack pose, LevelChunkSection section, RenderRegionCache? regionCache,
         int x, int y, int z, int originX, int originY, int originZ, BakedModel model, ChunkMeshData mesh)
     {
         var instance = new QuadInstance();
         foreach (var layer in model.Layers)
         {
-            //cullface quad：按方向查邻居 FullBlock 则剔除
+            //cullface quads: look up the neighbor by direction and cull if FullBlock
             AddCullfaceQuads(pose, section, regionCache, x, y, z, originX, originY, originZ, model, layer, mesh, instance);
-            //no-cull quad：总是渲染
+            //no-cull quads: always rendered
             AddNoCullQuads(pose, x, y, z, originX, originY, originZ, model, layer, mesh, instance);
         }
     }
 
-    //AddCullfaceQuads 遍历 6 方向 cullface quad 邻居是 FullBlock 则跳过
-    //regionCache!=null 跨 section 查邻居 否则走 W7 越界视为 air
+    //AddCullfaceQuads iterates the 6-direction cullface quads, skipping when the neighbor is FullBlock
+    //regionCache!=null queries the neighbor across sections, otherwise W7 out-of-bounds-as-air
     private void AddCullfaceQuads(PoseStack pose, LevelChunkSection section, RenderRegionCache? regionCache,
         int x, int y, int z, int originX, int originY, int originZ,
         BakedModel model, RenderLayer layer, ChunkMeshData mesh, QuadInstance instance)
@@ -133,7 +133,7 @@ public sealed class ChunkMeshBuilder
         }
     }
 
-    //AddNoCullQuads 写入无 cullface 的 quad 总是渲染
+    //AddNoCullQuads writes quads without cullface; always rendered
     private void AddNoCullQuads(PoseStack pose, int x, int y, int z, int originX, int originY, int originZ,
         BakedModel model, RenderLayer layer, ChunkMeshData mesh, QuadInstance instance)
     {
@@ -149,9 +149,9 @@ public sealed class ChunkMeshBuilder
         }
     }
 
-    //ShouldCullFace 判断当前方块某方向面是否被邻居遮挡应剔除
-    //regionCache!=null 跨 section 查邻居世界坐标 否则走 W7 越界视为 air 不剔除
-    //邻居 BlockRenderShape==FullBlock 则剔除 Custom/Empty 不剔除
+    //ShouldCullFace decides whether the current block's face in a direction is occluded by a neighbor and should be culled
+    //regionCache!=null queries the neighbor's world coordinates across sections, otherwise W7 out-of-bounds-as-air (not culled)
+    //Cull when the neighbor's BlockRenderShape==FullBlock; Custom/Empty are not culled
     private static bool ShouldCullFace(LevelChunkSection section, RenderRegionCache? regionCache,
         int x, int y, int z, int originX, int originY, int originZ, Direction dir)
     {
@@ -167,8 +167,8 @@ public sealed class ChunkMeshBuilder
         return BlockRenderShapeProvider.GetShape(neighbor) == BlockRenderShape.FullBlock;
     }
 
-    //GetLightForFace 查面外侧邻居位置的 packed light coords
-    //_lightSampler 为 null 时返回 FullBright 兼容无光照环境的单测
+    //GetLightForFace gets the packed light coords at the face's outer neighbor position
+    //When _lightSampler is null, returns FullBright for unit tests without a lighting environment
     private int GetLightForFace(int x, int y, int z, int originX, int originY, int originZ,
         Direction dir, int lightEmission)
     {
@@ -180,8 +180,8 @@ public sealed class ChunkMeshBuilder
         return _lightSampler.GetLightCoords(neighborX, neighborY, neighborZ, lightEmission);
     }
 
-    //ApplyFaceShade 把 face shade 系数 bake 进 Color 的 RGB 段保留 Alpha
-    //原版按轴分档 Y 轴 Up=1.0/Down=0.5 Z 轴 North/South=0.8 X 轴 East/West=0.6
+    //ApplyFaceShade bakes the face shade factor into Color's RGB segment, preserving Alpha
+    //Vanilla tiers by axis: Y axis Up=1.0/Down=0.5, Z axis North/South=0.8, X axis East/West=0.6
     private static int ApplyFaceShade(int color, Direction dir)
     {
         var shade = FaceShade(dir);

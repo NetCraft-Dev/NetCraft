@@ -2,12 +2,12 @@ using NetCraft.Codec;
 
 namespace NetCraft.Util.Collection;
 
-//固定大小校验工具对应原版net.minecraft.util.Util.fixedSize
-//校验流或列表长度与预期size是否匹配不匹配返回DataResult.Error
+//Fixed-size validation helper, maps to vanilla net.minecraft.util.Util.fixedSize
+//Validates whether a stream or list length matches the expected size, returns DataResult.Error on mismatch
 public static class FixedSizeUtil
 {
-    //fixedSize校验int流长度对应原版Util.fixedSize(IntStream,int)
-    //limit(size+1)多取一个用于区分刚好size与超过size的情况
+    //fixedSize validates int stream length, maps to vanilla Util.fixedSize(IntStream,int)
+    //limit(size+1) takes one extra to distinguish exactly size from exceeding size
     public static DataResult<int[]> FixedSize(IEnumerable<int> stream, int size)
     {
         var ints = stream.Take(size + 1).ToArray();
@@ -20,7 +20,7 @@ public static class FixedSizeUtil
         return DataResult<int[]>.Success(ints);
     }
 
-    //fixedSize校验long流长度对应原版Util.fixedSize(LongStream,int)
+    //fixedSize validates long stream length, maps to vanilla Util.fixedSize(LongStream,int)
     public static DataResult<long[]> FixedSize(IEnumerable<long> stream, int size)
     {
         var longs = stream.Take(size + 1).ToArray();
@@ -33,8 +33,8 @@ public static class FixedSizeUtil
         return DataResult<long[]>.Success(longs);
     }
 
-    //fixedSize校验列表长度对应原版Util.fixedSize(List,int)
-    //超size取前size段作为partial值短于size不返回partial
+    //fixedSize validates list length, maps to vanilla Util.fixedSize(List,int)
+    //When exceeding size, takes the first size as the partial value; when shorter than size, returns no partial
     public static DataResult<IReadOnlyList<T>> FixedSize<T>(IReadOnlyList<T> list, int size)
     {
         if (list.Count != size)

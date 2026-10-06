@@ -5,19 +5,19 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Game.Client.Render.World;
 
-//ViewArea 视锥内 section 列表管理对标原版 ViewArea
-//Update 遍历 loaded chunks 测 frustum diff 出新可见 section 调 onNewSection 触发编译
-//onRemoved 首版不处理 mesh 保留在 dispatcher._sections 下次再可见直接用
-//_visibleSections 只在 Render 线程访问无并发不需同步原语
+//ViewArea manages the list of sections inside the frustum, maps to vanilla ViewArea
+//Update walks loaded chunks, tests the frustum, diffs out newly visible sections, and calls onNewSection to trigger compilation
+//onRemoved is not handled in the first version; meshes stay in dispatcher._sections and are reused when visible again
+//_visibleSections is only accessed on the Render thread; no concurrency, so no synchronization primitives needed
 public sealed class ViewArea
 {
     private HashSet<long> _visibleSections = new();
 
     public int VisibleCount => _visibleSections.Count;
 
-    //Update 遍历 level.GetLoadedChunks 所有 section 测 frustum 收集新可见集合
-    //newVisible 中不在 _visibleSections 的调 onNewSection 触发 dispatcher.MarkDirty
-    //首版不调 onRemoved 移除的 section mesh 保留复用 LRU 卸载留优化
+    //Update walks all sections of level.GetLoadedChunks, tests the frustum, and collects the newly visible set
+    //For entries in newVisible not in _visibleSections, call onNewSection to trigger dispatcher.MarkDirty
+    //The first version does not call onRemoved; removed section meshes are kept for reuse, with LRU unloading left as an optimization
     public void Update(Frustum frustum, ClientLevel level, Action<SectionPos>? onNewSection = null)
     {
         var newVisible = new HashSet<long>();

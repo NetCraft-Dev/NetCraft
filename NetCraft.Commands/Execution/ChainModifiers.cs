@@ -1,7 +1,7 @@
 namespace NetCraft.Commands.Execution;
 
-//ChainModifiers 执行链标记对应原版 net.minecraft.commands.execution.ChainModifiers
-//forked 来自 /execute 分叉修饰 return 来自 /return 只有这两个标志
+//ChainModifiers execution chain flags, maps to vanilla net.minecraft.commands.execution.ChainModifiers
+//forked comes from /execute fork modifiers, return comes from /return; there are just these two flags
 public sealed record ChainModifiers(byte Flags)
 {
     public static readonly ChainModifiers Default = new(0);
@@ -14,15 +14,15 @@ public sealed record ChainModifiers(byte Flags)
         return newFlags != Flags ? new ChainModifiers(newFlags) : this;
     }
 
-    //IsForked 是否处于分叉模式
+    //IsForked whether in fork mode
     public bool IsForked() => (Flags & FlagForked) != 0;
 
-    //SetForked 打上分叉标记
+    //SetForked sets the fork flag
     public ChainModifiers SetForked() => SetFlag(FlagForked);
 
-    //IsReturn 是否处于返回模式
+    //IsReturn whether in return mode
     public bool IsReturn() => (Flags & FlagIsReturn) != 0;
 
-    //SetReturn 打上返回标记
+    //SetReturn sets the return flag
     public ChainModifiers SetReturn() => SetFlag(FlagIsReturn);
 }

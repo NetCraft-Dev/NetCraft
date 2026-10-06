@@ -4,8 +4,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Commands.Functions;
 
-//PlainTextFunction 无宏的函数对应原版 net.minecraft.commands.functions.PlainTextFunction record
-//条目已编译好 实例化就是自身
+//PlainTextFunction a function without macros, maps to vanilla net.minecraft.commands.functions.PlainTextFunction record
+//Entries are already compiled; instantiation returns itself
 public sealed record PlainTextFunction<T> : InstantiatedFunction<T>, CommandFunction<T>
    
 {
@@ -19,7 +19,7 @@ public sealed record PlainTextFunction<T> : InstantiatedFunction<T>, CommandFunc
         Entries = entries;
     }
 
-    //Instantiate 无参数函数直接返回自身
+    //Instantiate a function without arguments returns itself directly
     public InstantiatedFunction<T> Instantiate(CompoundTag? arguments, CommandDispatcher<T> dispatcher)
         => this;
 }

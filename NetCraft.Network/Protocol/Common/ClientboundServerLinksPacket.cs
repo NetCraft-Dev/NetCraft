@@ -2,12 +2,12 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ServerLink 服务器链接条目对应原版 net.minecraft.server.ServerLinks.Entry
-//Type 是已知类型 id 可空表示自定义链接 Label 是显示文本原版用 Component 简化为 string
+//ServerLink server link entry, maps to vanilla net.minecraft.server.ServerLinks.Entry
+//Type is a known type id, nullable meaning a custom link; Label is the display text, a Component in vanilla simplified to string
 public sealed record ServerLink(Identifier? Type, string Label, string Url);
 
-//ClientboundServerLinksPacket 服务器链接包对应原版 net.minecraft.network.protocol.common.ClientboundServerLinksPacket
-//含 List<ServerLink> 服务端发送的自定义链接
+//ClientboundServerLinksPacket server links packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundServerLinksPacket
+//Contains List<ServerLink>, the custom links sent by the server
 public sealed record ClientboundServerLinksPacket(List<ServerLink> Links) : Packet<ClientCommonPacketListener>
 {
     public const int MaxLinks = 32;

@@ -1,14 +1,14 @@
 namespace NetCraft.Util.Random;
 
-//带权重项对应原版net.minecraft.util.random.Weighted
-//值与权重一对零或正权重不能为负
+//Weighted entry, maps to vanilla net.minecraft.util.random.Weighted
+//A value and weight pair, zero or positive, weight must not be negative
 public sealed record Weighted<T>
 {
     public T Value { get; }
     public int Weight { get; }
 
-    //Weighted构造对应原版Weighted(T,int)
-    //权重为负抛ArgumentException零权重警告由调用方处理
+    //Weighted constructor, maps to vanilla Weighted(T,int)
+    //Negative weight throws ArgumentException; zero-weight warnings are handled by the caller
     public Weighted(T value, int weight)
     {
         if (weight < 0)
@@ -17,10 +17,10 @@ public sealed record Weighted<T>
         Weight = weight;
     }
 
-    //map转换值类型保持权重对应原版map
+    //map transforms the value type keeping the weight, maps to vanilla map
     public Weighted<U> Map<U>(Func<T, U> function)
         => new(function(Value), Weight);
 
-    //TODO Codec集成RecordCodecBuilder未就绪后补codec静态方法
-    //TODO StreamCodec集成NetCraft.Network.StreamCodec扩展后补streamCodec静态方法
+    //TODO Codec integration: add the codec static method once RecordCodecBuilder is ready
+    //TODO StreamCodec integration: add the streamCodec static method after the NetCraft.Network.StreamCodec extension
 }

@@ -2,7 +2,7 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.Environment;
 
-//AttributeType 环境属性类型，描述值的 codec 与允许的修饰符对应原版 AttributeType
+//AttributeType environment attribute type describing the value codec and allowed modifiers, maps to vanilla AttributeType
 public sealed class AttributeType<Value>
 {
     private static readonly IReadOnlyDictionary<AttributeModifier.OperationId, AttributeModifier<Value, object>> EmptyLibrary =
@@ -22,17 +22,17 @@ public sealed class AttributeType<Value>
         ModifierCodec = new ModifierCodecImpl(this);
     }
 
-    //OfInterpolated 值可插值的类型，本移植只保留数据侧属性
+    //OfInterpolated interpolatable value type; this port keeps only the data-side attributes
     public static AttributeType<Value> OfInterpolated(Codec<Value> valueCodec,
         IReadOnlyDictionary<AttributeModifier.OperationId, AttributeModifier<Value, object>> modifierLibrary)
         => new(valueCodec, modifierLibrary);
 
-    //OfNotInterpolated 值不插值的类型，无库时只允许 override
+    //OfNotInterpolated non-interpolatable value type; with no library only override is allowed
     public static AttributeType<Value> OfNotInterpolated(Codec<Value> valueCodec,
         IReadOnlyDictionary<AttributeModifier.OperationId, AttributeModifier<Value, object>>? modifierLibrary = null)
         => new(valueCodec, modifierLibrary ?? EmptyLibrary);
 
-    //CheckAllowedModifier 校验修饰符是否属于该类型
+    //CheckAllowedModifier checks whether the modifier belongs to this type
     public void CheckAllowedModifier(AttributeModifier<Value, object> modifier)
     {
         if (ReferenceEquals(modifier, AttributeModifier.Override<Value>())) return;
@@ -40,7 +40,7 @@ public sealed class AttributeType<Value>
         throw new ArgumentException($"Modifier {modifier} is not valid for this attribute type");
     }
 
-    //GetOperationId 反查修饰符对应的操作标识，找不到返回 null
+    //GetOperationId reverse-looks up the modifier's operation id, returning null if not found
     public AttributeModifier.OperationId? GetOperationId(AttributeModifier<Value, object> modifier)
     {
         if (ReferenceEquals(modifier, AttributeModifier.Override<Value>())) return AttributeModifier.OperationId.Override;
@@ -49,7 +49,7 @@ public sealed class AttributeType<Value>
         return null;
     }
 
-    //ModifierCodecImpl 按操作标识名解析修饰符，override 恒可用其余必须在该类型的库里
+    //ModifierCodecImpl resolves a modifier by operation id name; override is always available and the rest must be in the type's library
     private sealed class ModifierCodecImpl : ScalarCodec<AttributeModifier<Value, object>>
     {
         private readonly AttributeType<Value> _type;

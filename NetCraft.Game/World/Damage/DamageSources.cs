@@ -2,9 +2,9 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Damage;
 
-//DamageSources 伤害来源工厂 对应原版 net.minecraft.world.damagesource.DamageSources
-//按注册表预建无参来源 并给出各种带实体来源的工厂
-//原版针对投射物各类型(箭/火球/凋灵头)的专门工厂依赖那些投射物类型 未接通故统一收实体参数
+//DamageSources damage source factory, maps to vanilla net.minecraft.world.damagesource.DamageSources
+//Prebuilds parameterless sources from the registry and provides various factories with entity sources
+//Vanilla has dedicated factories per projectile type (arrow/fireball/wither skull) that depend on those projectile types; not wired up here, so they take an entity argument uniformly
 public sealed class DamageSources
 {
     private readonly Registry<DamageType> _damageTypes;
@@ -65,7 +65,7 @@ public sealed class DamageSources
         _genericKill = Source(DamageTypes.GENERIC_KILL);
     }
 
-    //Source 按资源键建一个无实体来源
+    //Source builds a source without an entity from a resource key
     private DamageSource Source(ResourceKey<DamageType> key)
         => new(_damageTypes.WrapAsHolder(_damageTypes.GetValueOrThrow(key)), null, null);
 
@@ -119,64 +119,64 @@ public sealed class DamageSources
 
     public DamageSource GenericKill() => _genericKill;
 
-    //FallingBlock 坠落方块砸中 对应原版 fallingBlock
+    //FallingBlock hit by a falling block, maps to vanilla fallingBlock
     public DamageSource FallingBlock(NetCraft.Registry.Entity entity) => WithEntity(DamageTypes.FALLING_BLOCK, entity);
 
-    //Anvil 铁砧砸中 对应原版 anvil
+    //Anvil hit by an anvil, maps to vanilla anvil
     public DamageSource Anvil(NetCraft.Registry.Entity entity) => WithEntity(DamageTypes.FALLING_ANVIL, entity);
 
-    //FallingStalactite 钟乳石砸中 对应原版 fallingStalactite
+    //FallingStalactite hit by a falling stalactite, maps to vanilla fallingStalactite
     public DamageSource FallingStalactite(NetCraft.Registry.Entity entity)
         => WithEntity(DamageTypes.FALLING_STALACTITE, entity);
 
-    //Sting 蜂刺 对应原版 sting
+    //Sting bee sting, maps to vanilla sting
     public DamageSource Sting(NetCraft.Registry.Entity entity) => WithEntity(DamageTypes.STING, entity);
 
-    //MobAttack 生物近战 对应原版 mobAttack
+    //MobAttack mob melee, maps to vanilla mobAttack
     public DamageSource MobAttack(NetCraft.Registry.Entity entity) => WithEntity(DamageTypes.MOB_ATTACK, entity);
 
-    //NoAggroMobAttack 不引仇恨的生物近战 对应原版 noAggroMobAttack
+    //NoAggroMobAttack mob melee that does not draw aggro, maps to vanilla noAggroMobAttack
     public DamageSource NoAggroMobAttack(NetCraft.Registry.Entity entity)
         => WithEntity(DamageTypes.MOB_ATTACK_NO_AGGRO, entity);
 
-    //PlayerAttack 玩家近战 对应原版 playerAttack
+    //PlayerAttack player melee, maps to vanilla playerAttack
     public DamageSource PlayerAttack(NetCraft.Registry.Entity entity) => WithEntity(DamageTypes.PLAYER_ATTACK, entity);
 
-    //Thorns 荆棘反伤 对应原版 thorns
+    //Thorns thorns recoil, maps to vanilla thorns
     public DamageSource Thorns(NetCraft.Registry.Entity entity) => WithEntity(DamageTypes.THORNS, entity);
 
-    //Mace 重锤猛击 对应原版 mace
+    //Mace mace smash, maps to vanilla mace
     public DamageSource Mace(NetCraft.Registry.Entity entity) => WithEntity(DamageTypes.MACE_SMASH, entity);
 
-    //Arrow 箭矢 直接来源是箭真凶是射手 对应原版 arrow
+    //Arrow arrow; the direct source is the arrow, the culprit is the shooter, maps to vanilla arrow
     public DamageSource Arrow(NetCraft.Registry.Entity arrow, NetCraft.Registry.Entity? shooter)
         => Indirect(DamageTypes.ARROW, arrow, shooter);
 
-    //Trident 三叉戟 对应原版 trident
+    //Trident trident, maps to vanilla trident
     public DamageSource Trident(NetCraft.Registry.Entity trident, NetCraft.Registry.Entity? thrower)
         => Indirect(DamageTypes.TRIDENT, trident, thrower);
 
-    //MobProjectile 生物投射物 对应原版 mobProjectile
+    //MobProjectile mob projectile, maps to vanilla mobProjectile
     public DamageSource MobProjectile(NetCraft.Registry.Entity projectile, NetCraft.Registry.Entity? owner)
         => Indirect(DamageTypes.MOB_PROJECTILE, projectile, owner);
 
-    //Thrown 投掷物 对应原版 thrown
+    //Thrown thrown item, maps to vanilla thrown
     public DamageSource Thrown(NetCraft.Registry.Entity projectile, NetCraft.Registry.Entity? thrower)
         => Indirect(DamageTypes.THROWN, projectile, thrower);
 
-    //IndirectMagic 间接魔法伤害 对应原版 indirectMagic
+    //IndirectMagic indirect magic damage, maps to vanilla indirectMagic
     public DamageSource IndirectMagic(NetCraft.Registry.Entity direct, NetCraft.Registry.Entity? causing)
         => Indirect(DamageTypes.INDIRECT_MAGIC, direct, causing);
 
-    //Explosion 爆炸 直接来源与真凶同源 对应原版 explosion(Entity, Entity)
+    //Explosion explosion; the direct source and the culprit are the same, maps to vanilla explosion(Entity, Entity)
     public DamageSource Explosion(NetCraft.Registry.Entity direct, NetCraft.Registry.Entity? causing)
         => Indirect(DamageTypes.EXPLOSION, direct, causing);
 
-    //WithEntity 真凶与直接来源为同一实体
+    //WithEntity the culprit and direct source are the same entity
     private DamageSource WithEntity(ResourceKey<DamageType> key, NetCraft.Registry.Entity entity)
         => new(_damageTypes.WrapAsHolder(_damageTypes.GetValueOrThrow(key)), entity, entity);
 
-    //Indirect 直接来源与真凶分开
+    //Indirect the direct source and the culprit are separate
     private DamageSource Indirect(ResourceKey<DamageType> key, NetCraft.Registry.Entity direct,
         NetCraft.Registry.Entity? causing)
         => new(_damageTypes.WrapAsHolder(_damageTypes.GetValueOrThrow(key)), direct, causing);

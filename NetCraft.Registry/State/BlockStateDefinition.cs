@@ -2,9 +2,9 @@ using System.Text.RegularExpressions;
 
 namespace NetCraft.Registry.State;
 
-//BlockStateDefinition 非泛型版本专门构建 BlockState struct
-//对应原版 StateDefinition<Block, BlockState> 但数据存 BlockStateRegistry
-//笛卡尔积枚举所有可能状态构建 neighbors 用 int 索引避免 BlockState 引用
+//BlockStateDefinition non-generic version dedicated to building the BlockState struct
+//Maps to vanilla StateDefinition<Block, BlockState> but stores data in BlockStateRegistry
+//Enumerates all possible states via Cartesian product to build neighbors, using int indexes to avoid BlockState references
 public sealed class BlockStateDefinition
 {
     private static readonly Regex NamePattern = new("^[a-z0-9_]+$", RegexOptions.Compiled);
@@ -16,8 +16,8 @@ public sealed class BlockStateDefinition
     public BlockStateDefinition(Block owner, IDictionary<string, PropertyBase> properties)
     {
         _owner = owner;
-        //原版用 ImmutableSortedMap.copyOf 按属性名做字符串序排列 这里必须用 Ordinal 对齐
-        //用默认比较器会走文化相关排序 与 Java 的 UTF-16 码点序在部分字符上不一致
+        //Vanilla uses ImmutableSortedMap.copyOf to sort by property name in string order; Ordinal must be used here to align
+        //Using the default comparer would sort by culture, which differs from Java's UTF-16 code point order on some characters
         _propertiesByName = new SortedDictionary<string, PropertyBase>(properties, StringComparer.Ordinal);
         _states = _propertiesByName.Count switch
         {
@@ -26,7 +26,7 @@ public sealed class BlockStateDefinition
         };
     }
 
-    //无属性的单一状态
+    //A singleton state with no properties
     private static IReadOnlyList<BlockState> CreateSingletonState(Block owner)
     {
         var state = BlockStateRegistry.Register(owner, Array.Empty<PropertyBase>(), Array.Empty<object?>());
@@ -34,7 +34,7 @@ public sealed class BlockStateDefinition
         return new List<BlockState> { state };
     }
 
-    //笛卡尔积枚举所有状态并构建 neighbors 用 int 索引
+    //Enumerate all states via Cartesian product and build neighbors using int indexes
     private static IReadOnlyList<BlockState> CreateMultiPropertyStates(Block owner, SortedDictionary<string, PropertyBase> propertiesByName)
     {
         var propertyKeys = propertiesByName.Values.ToArray();
@@ -50,7 +50,7 @@ public sealed class BlockStateDefinition
             states.Add(state);
         }
 
-        //构建每个状态的 neighbors 用 int 索引避免 BlockState 引用
+        //Build the neighbors for each state using int indexes to avoid BlockState references
         foreach (var (values, stateId) in statesByValues)
         {
             var neighbors = new int[propertyKeys.Length][];
@@ -70,7 +70,7 @@ public sealed class BlockStateDefinition
         return states;
     }
 
-    //笛卡尔积枚举
+    //Cartesian product enumeration
     private static IEnumerable<IEnumerable<object>> CartesianProduct(IReadOnlyList<IReadOnlyList<object>> sequences)
     {
         var result = new List<List<object>> { new() };
@@ -100,7 +100,7 @@ public sealed class BlockStateDefinition
     public override string ToString()
         => $"BlockStateDefinition(owner={_owner}, properties=[{string.Join(",", _propertiesByName.Values.Select(p => p.Name))}])";
 
-    //值列表包装用作字典 key
+    //Value list wrapper used as a dictionary key
     private sealed class ValueList : IEquatable<ValueList>
     {
         public IReadOnlyList<object> Values { get; }
@@ -133,7 +133,7 @@ public sealed class BlockStateDefinition
         public int GetHashCode(ValueList obj) => obj.GetHashCode();
     }
 
-    //构建器对应原版 StateDefinition.Builder
+    //Builder, maps to vanilla StateDefinition.Builder
     public class Builder
     {
         private readonly Block _owner;

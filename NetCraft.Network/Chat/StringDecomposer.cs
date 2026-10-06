@@ -1,23 +1,23 @@
 namespace NetCraft.Network.Chat;
 
-//StringDecomposer 字符串拆解器对标原版 net.minecraft.util.StringDecomposer
-//UTF-16 代理对解码 + § 颜色码解析遍历时回调 FormattedCharSink
-//Iterate 纯解码不解析颜色码 IterateFormatted 含 § 颜色码解析 IterateBackwards 反向遍历
-//孤立代理返回 ReplacementChar(U+FFFD) 对标原版 REPLACEMENT_CHAR
+//StringDecomposer string decomposer, mirrors vanilla net.minecraft.util.StringDecomposer
+//UTF-16 surrogate pair decoding + § color code parsing, invoking a FormattedCharSink during traversal
+//Iterate does pure decoding without parsing color codes, IterateFormatted includes § color code parsing, IterateBackwards traverses backward
+//A lone surrogate returns ReplacementChar(U+FFFD), mirrors vanilla REPLACEMENT_CHAR
 public static class StringDecomposer
 {
     private const char ReplacementChar = '\uFFFD';
 
-    //FeedChar 喂单个字符孤立代理返回 ReplacementChar 否则直接 codepoint
-    //对标原版 feedChar 高低代理已在调用前单独处理此处兜底剩余代理
+    //FeedChar feeds a single character: a lone surrogate returns ReplacementChar, otherwise the codepoint directly
+    //Mirrors vanilla feedChar; high and low surrogates are handled separately before the call, and this backstops any remaining surrogates
     private static bool FeedChar(Style style, FormattedCharSink output, int pos, char ch)
     {
         if (char.IsSurrogate(ch)) return output(pos, style, ReplacementChar);
         return output(pos, style, ch);
     }
 
-    //Iterate 正向遍历 UTF-16 代理对解码对标原版 iterate
-    //高代理后跟低代理合并为 codepoint 否则 ReplacementChar
+    //Iterate forward traversal with UTF-16 surrogate pair decoding, mirrors vanilla iterate
+    //A high surrogate followed by a low surrogate merges into a codepoint, otherwise ReplacementChar
     public static bool Iterate(string text, Style style, FormattedCharSink output)
     {
         int size = text.Length;
@@ -46,8 +46,8 @@ public static class StringDecomposer
         return true;
     }
 
-    //IterateBackwards 反向遍历对标原版 iterateBackwards
-    //从末尾向前低代理前跟高代理合并为 codepoint 否则 ReplacementChar
+    //IterateBackwards backward traversal, mirrors vanilla iterateBackwards
+    //From the end backward, a low surrogate preceded by a high surrogate merges into a codepoint, otherwise ReplacementChar
     public static bool IterateBackwards(string text, Style style, FormattedCharSink output)
     {
         int size = text.Length;
@@ -76,9 +76,9 @@ public static class StringDecomposer
         return true;
     }
 
-    //IterateFormatted 正向遍历含 § 颜色码解析对标原版 iterateFormatted
-    //§=0xA7 后跟格式码 ChatFormatting.GetByCode 解析应用 ApplyLegacyFormat 到 style
-    //RESET 重置为 resetStyle 其他格式累加到当前 style
+    //IterateFormatted forward traversal with § color code parsing, mirrors vanilla iterateFormatted
+    //§=0xA7 followed by a format code; ChatFormatting.GetByCode parses it and ApplyLegacyFormat applies it to the style
+    //RESET resets to resetStyle, while other formats accumulate onto the current style
     public static bool IterateFormatted(string text, Style style, FormattedCharSink output)
         => IterateFormatted(text, 0, style, output);
 
@@ -126,8 +126,8 @@ public static class StringDecomposer
         return true;
     }
 
-    //FilterBrokenSurrogates 过滤损坏的代理对返回纯净字符串对标原版 filterBrokenSurrogates
-    //孤立代理替换为 ReplacementChar 保留代理对
+    //FilterBrokenSurrogates filters broken surrogate pairs and returns a clean string, mirrors vanilla filterBrokenSurrogates
+    //Lone surrogates are replaced with ReplacementChar while surrogate pairs are kept
     public static string FilterBrokenSurrogates(string input)
     {
         var builder = new System.Text.StringBuilder();

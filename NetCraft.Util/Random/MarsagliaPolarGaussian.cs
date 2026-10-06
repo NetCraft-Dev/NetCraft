@@ -1,10 +1,10 @@
 namespace NetCraft.Util.Random;
 
-//Marsaglia极坐标高斯分布对应原版net.minecraft.world.level.levelgen.MarsagliaPolarGaussian
-//包装RandomSource生成标准正态分布值缓存下一值避免重算
+//Marsaglia polar Gaussian distribution, maps to vanilla net.minecraft.world.level.levelgen.MarsagliaPolarGaussian
+//Wraps RandomSource to generate standard normal values, caching the next value to avoid recomputation
 public sealed class MarsagliaPolarGaussian
 {
-    //randomSource底层随机源对应原版randomSource字段public供调试访问
+    //randomSource underlying random source, maps to vanilla randomSource field, public for debug access
     public RandomSource RandomSource { get; }
     private double _nextNextGaussian;
     private bool _haveNextNextGaussian;
@@ -14,11 +14,11 @@ public sealed class MarsagliaPolarGaussian
         RandomSource = randomSource;
     }
 
-    //reset清除缓存对应原版reset
+    //reset clears the cache, maps to vanilla reset
     public void Reset() => _haveNextNextGaussian = false;
 
-    //nextGaussian生成标准正态分布值对应原版nextGaussian
-    //Marsaglia极坐标法拒绝采样后两个独立高斯值一个返回一个缓存
+    //nextGaussian generates a standard normal value, maps to vanilla nextGaussian
+    //Marsaglia polar method: after rejection sampling, two independent Gaussian values, one returned and one cached
     public double NextGaussian()
     {
         if (_haveNextNextGaussian)

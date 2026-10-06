@@ -1,19 +1,19 @@
 namespace NetCraft.Primitives.Phys;
 
-//Shapes 形状工厂与布尔运算 对应原版 Shapes
-//提供盒/整块/空三个基础形状 以及按布尔运算合成新形状的入口
-//旋转镜像相关方法依赖 OctahedralGroup 留到 V-4 补齐
+//Shapes shape factory and boolean operations, maps to vanilla Shapes
+//Provides the three base shapes box/full-block/empty, plus the entry points to combine new shapes by boolean operations
+//Rotation and mirror methods depend on OctahedralGroup and are left for V-4
 public static partial class Shapes
 {
     public const double Epsilon = 1.0E-7;
     public const double BigEpsilon = 1.0E-6;
 
-    //DoubleLineConsumer 盒或棱的两角点回调 对应原版 Shapes.DoubleLineConsumer
+    //DoubleLineConsumer callback for the two corners of a box or edge, maps to vanilla Shapes.DoubleLineConsumer
     public delegate void DoubleLineConsumer(double x1, double y1, double z1, double x2, double y2, double z2);
 
     private static readonly VoxelShape BlockShape = MakeBlock();
 
-    //BlockCenter 方块中心 作为默认旋转中心
+    //BlockCenter block center, used as the default rotation center
     private static readonly Vec3 BlockCenter = new(0.5, 0.5, 0.5);
 
     private static readonly VoxelShape EmptyShape = new ArrayVoxelShape(
@@ -47,12 +47,12 @@ public static partial class Shapes
     public static VoxelShape Box(double minX, double minY, double minZ, double maxX, double maxY, double maxZ)
     {
         if (minX > maxX || minY > maxY || minZ > maxZ)
-            throw new ArgumentException("最小值不能大于最大值");
+            throw new ArgumentException("Minimum must not be greater than maximum");
         return Create(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
-    //Create 按能否落在 1/2/4/8 分格上选紧凑表示 对应原版 create
-    //能整除就用离散立方网格 不能就用坐标数组 两者对外行为一致
+    //Create picks the compact representation based on whether it lands on 1/2/4/8 divisions, maps to vanilla create
+    //If it divides evenly use the discrete cube grid, otherwise use coordinate arrays, both behave identically to the outside
     public static VoxelShape Create(double minX, double minY, double minZ, double maxX, double maxY, double maxZ)
     {
         if (maxX - minX < Epsilon || maxY - minY < Epsilon || maxZ - minZ < Epsilon) return Empty();
@@ -77,7 +77,7 @@ public static partial class Shapes
     public static VoxelShape Create(AABB aabb)
         => Create(aabb.Min.X, aabb.Min.Y, aabb.Min.Z, aabb.Max.X, aabb.Max.Y, aabb.Max.Z);
 
-    //FindBits 取能整除这个坐标所需的最小分格位数 超出单位立方返回 -1 对应原版 findBits
+    //FindBits the smallest division bit count that divides this coordinate evenly, returns -1 outside the unit cube, maps to vanilla findBits
     private static int FindBits(double min, double max)
     {
         if (min < -Epsilon || max > 1.0 + Epsilon) return -1;
@@ -93,10 +93,10 @@ public static partial class Shapes
         return -1;
     }
 
-    //Lcm 最小公倍数 对应原版 Shapes.lcm 返回 long 因为两份网格相乘可能溢出 int
+    //Lcm least common multiple, maps to vanilla Shapes.lcm, returns long because multiplying the two grids may overflow int
     internal static long Lcm(int first, int second) => (long)first * (second / Gcd(first, second));
 
-    //Gcd 最大公约数 对应 Guava IntMath.gcd
+    //Gcd greatest common divisor, maps to Guava IntMath.gcd
     public static int Gcd(int a, int b)
     {
         a = Math.Abs(a);
@@ -114,16 +114,16 @@ public static partial class Shapes
         return result;
     }
 
-    //Join 布尔运算后顺手做一次盒合并 对应原版 join
+    //Join runs a box merge after the boolean operation, maps to vanilla join
     public static VoxelShape Join(VoxelShape first, VoxelShape second, BooleanOp op)
         => JoinUnoptimized(first, second, op).Optimize();
 
-    //JoinUnoptimized 两侧形状按布尔运算合成为一个 对应原版 joinUnoptimized
-    //先按各自坐标轴挑归并器 再在离散网格上逐格套 op
+    //JoinUnoptimized combines both shapes into one by a boolean operation, maps to vanilla joinUnoptimized
+    //First pick a merger per axis, then apply op cell by cell on the discrete grid
     public static VoxelShape JoinUnoptimized(VoxelShape first, VoxelShape second, BooleanOp op)
     {
-        //两侧都空却要出实心的运算没有意义 直接挡掉避免后面下标越界
-        if (op(false, false)) throw new ArgumentException("该布尔运算在两侧都空时会产出实心");
+        //An operation that produces a solid when both sides are empty is meaningless, reject it up front to avoid index overruns later
+        if (op(false, false)) throw new ArgumentException("This boolean operation produces a solid when both sides are empty");
         if (ReferenceEquals(first, second)) return op(true, true) ? first : Empty();
 
         var firstOnlyMatters = op(true, false);
@@ -139,17 +139,17 @@ public static partial class Shapes
             second.GetCoords(Direction.Axis.Z), firstOnlyMatters, secondOnlyMatters);
 
         var voxelShape = BitSetDiscreteVoxelShape.Join(first.Shape, second.Shape, xMerger, yMerger, zMerger, op);
-        //三轴都是等分网格才能用离散表示 否则坐标不均匀只能退回坐标数组
+        //Only when all three axes are evenly divided grids can the discrete representation be used, otherwise the coordinates are uneven and it must fall back to coordinate arrays
         if (xMerger is DiscreteCubeMerger && yMerger is DiscreteCubeMerger && zMerger is DiscreteCubeMerger)
             return new CubeVoxelShape(voxelShape);
         return new ArrayVoxelShape(voxelShape, xMerger.List, yMerger.List, zMerger.List);
     }
 
-    //JoinIsNotEmpty 只判布尔运算结果是否非空 不算出形状 对应原版 joinIsNotEmpty
-    //比 Join 便宜得多 光照遮挡与碰撞预判大量用到
+    //JoinIsNotEmpty only tests whether the boolean operation result is non-empty without building the shape, maps to vanilla joinIsNotEmpty
+    //Much cheaper than Join, heavily used by light occlusion and collision pre-checks
     public static bool JoinIsNotEmpty(VoxelShape first, VoxelShape second, BooleanOp op)
     {
-        if (op(false, false)) throw new ArgumentException("该布尔运算在两侧都空时会产出实心");
+        if (op(false, false)) throw new ArgumentException("This boolean operation produces a solid when both sides are empty");
 
         var firstEmpty = first.IsEmpty;
         var secondEmpty = second.IsEmpty;
@@ -158,7 +158,7 @@ public static partial class Shapes
 
         var firstOnlyMatters = op(true, false);
         var secondOnlyMatters = op(false, true);
-        //任一轴上完全分离 结果就是两侧各自的取舍
+        //If fully separated on any axis the result is just the picks of each side
         foreach (var axis in AxisValues)
         {
             if (first.Max(axis) < second.Min(axis) - Epsilon) return firstOnlyMatters || secondOnlyMatters;
@@ -181,7 +181,7 @@ public static partial class Shapes
                 zMerger.ForMergedIndexes((z1, z2, _) =>
                     !op(first.IsFullWide(x1, y1, z1), second.IsFullWide(x2, y2, z2)))));
 
-    //Collide 让一个移动盒沿轴推进 返回被这组形状挡住后的实际位移 对应原版 Shapes.collide
+    //Collide advances a moving box along an axis and returns the actual displacement after being blocked by this group of shapes, maps to vanilla Shapes.collide
     public static double Collide(Direction.Axis axis, AABB moving, IEnumerable<VoxelShape> shapes, double distance)
     {
         foreach (var shape in shapes)
@@ -192,7 +192,7 @@ public static partial class Shapes
         return distance;
     }
 
-    //BlockOccludes 判定一个形状的某面是否把方向的整面盖住 对应原版 blockOccludes
+    //BlockOccludes tests whether one face of a shape fully covers the whole face on the direction, maps to vanilla blockOccludes
     public static bool BlockOccludes(VoxelShape shape, VoxelShape occluder, Direction direction)
     {
         if (ReferenceEquals(shape, Block()) && ReferenceEquals(occluder, Block())) return true;
@@ -208,7 +208,7 @@ public static partial class Shapes
                 new SliceShape(second, axis, 0), op);
     }
 
-    //MergedFaceOccludes 合并面上是否无缝隙 对应原版 mergedFaceOccludes
+    //MergedFaceOccludes whether the merged face has no gaps, maps to vanilla mergedFaceOccludes
     public static bool MergedFaceOccludes(VoxelShape shape, VoxelShape occluder, Direction direction)
     {
         if (ReferenceEquals(shape, Block()) || ReferenceEquals(occluder, Block())) return true;
@@ -237,8 +237,8 @@ public static partial class Shapes
     public static VoxelShape Rotate(VoxelShape shape, OctahedralGroup rotation)
         => Rotate(shape, rotation, BlockCenter);
 
-    //Rotate 按八面体群旋转形状 对应原版 Shapes.rotate
-    //离散格点转完后坐标轴可能互换 所以三轴坐标序列要按置换后的轴重取
+    //Rotate rotates the shape by an octahedral group, maps to vanilla Shapes.rotate
+    //After rotating the discrete cells the axes may swap, so the three coordinate sequences must be re-taken along the permuted axes
     public static VoxelShape Rotate(VoxelShape shape, OctahedralGroup rotation, Vec3 rotationPoint)
     {
         if (rotation == OctahedralGroup.Identity) return shape;
@@ -257,8 +257,8 @@ public static partial class Shapes
                 newZ.Choose(rotationPoint.X, rotationPoint.Y, rotationPoint.Z), rotationPoint.Z));
     }
 
-    //FlipAxisIfNeeded 该轴取负时把坐标序列镜像 对应原版 flipAxisIfNeeded
-    //旋转中心与旧中心在该轴上的投影相同时只是平移 不必重建序列
+    //FlipAxisIfNeeded mirrors the coordinate sequence when the axis is negated, maps to vanilla flipAxisIfNeeded
+    //When the rotation center and the old center project the same on this axis it is just a translation, no need to rebuild the sequence
     internal static IReadOnlyList<double> FlipAxisIfNeeded(IReadOnlyList<double> newAxis, bool flip,
         double newRelative, double oldRelative)
     {
@@ -277,7 +277,7 @@ public static partial class Shapes
     public static Dictionary<Direction.Axis, VoxelShape> RotateHorizontalAxis(VoxelShape zAxis)
         => RotateHorizontalAxis(zAxis, BlockCenter);
 
-    //RotateHorizontalAxis 沿Z轴的形状转出沿X轴的 对应原版 rotateHorizontalAxis
+    //RotateHorizontalAxis derives the X-axis shape from the Z-axis one, maps to vanilla rotateHorizontalAxis
     public static Dictionary<Direction.Axis, VoxelShape> RotateHorizontalAxis(VoxelShape zAxis, Vec3 rotationCenter)
         => new()
         {
@@ -302,8 +302,8 @@ public static partial class Shapes
     public static Dictionary<Direction, VoxelShape> RotateHorizontal(VoxelShape north, OctahedralGroup initial)
         => RotateHorizontal(north, initial, BlockCenter);
 
-    //RotateHorizontal 由北向形状转出水平四向 对应原版 rotateHorizontal
-    //NORTH 那一格原版沿用默认旋转中心 这里照抄不改成 rotationCenter
+    //RotateHorizontal derives the four horizontal directions from the north-facing shape, maps to vanilla rotateHorizontal
+    //For NORTH vanilla keeps the default rotation center, copied as is here rather than changing it to rotationCenter
     public static Dictionary<Direction, VoxelShape> RotateHorizontal(VoxelShape north, OctahedralGroup initial,
         Vec3 rotationCenter)
         => new()
@@ -320,7 +320,7 @@ public static partial class Shapes
     public static Dictionary<Direction, VoxelShape> RotateAll(VoxelShape north, Vec3 rotationCenter)
         => RotateAll(north, OctahedralGroup.Identity, rotationCenter);
 
-    //RotateAll 由北向形状转出六向 对应原版 rotateAll
+    //RotateAll derives all six directions from the north-facing shape, maps to vanilla rotateAll
     public static Dictionary<Direction, VoxelShape> RotateAll(VoxelShape north, OctahedralGroup initial,
         Vec3 rotationCenter)
         => new()
@@ -333,8 +333,8 @@ public static partial class Shapes
             [Direction.Down] = Rotate(north, OctahedralGroups.BlockRotX90.Compose(initial), rotationCenter),
         };
 
-    //CreateIndexMerger 按两侧坐标的形态挑最省的归并器 对应原版 createIndexMerger
-    //cost 是当前轴上已经确定的格数 用它估归并结果规模 太小就不值得走离散对齐
+    //CreateIndexMerger picks the cheapest merger based on the shapes of both coordinate sequences, maps to vanilla createIndexMerger
+    //cost is the cell count already fixed on the current axis, used to estimate the merge result size, too small is not worth the discrete alignment
     private static IIndexMerger CreateIndexMerger(int cost, IReadOnlyList<double> first, IReadOnlyList<double> second,
         bool firstOnlyMatters, bool secondOnlyMatters)
     {
@@ -352,6 +352,6 @@ public static partial class Shapes
         return new IndirectMerger(first, second, firstOnlyMatters, secondOnlyMatters);
     }
 
-    //FuzzyEquals 按容差判等 对应 Guava DoubleMath.fuzzyEquals
+    //FuzzyEquals equality within tolerance, maps to Guava DoubleMath.fuzzyEquals
     internal static bool FuzzyEquals(double a, double b) => Math.Abs(a - b) < Epsilon;
 }

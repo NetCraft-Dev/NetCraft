@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetChunkCacheCenterPacket 区块缓存中心包对应原版 ClientboundSetChunkCacheCenterPacket
-//字段 X(int) Z(int)
+//ClientboundSetChunkCacheCenterPacket chunk cache center packet, maps to vanilla ClientboundSetChunkCacheCenterPacket
+//Fields: X(int), Z(int)
 public sealed record ClientboundSetChunkCacheCenterPacket(int X, int Z) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetChunkCacheCenterPacket> StreamCodec { get; } = new SetChunkCacheCenterCodec();

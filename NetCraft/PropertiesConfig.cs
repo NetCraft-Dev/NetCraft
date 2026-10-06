@@ -3,39 +3,39 @@ using System.Text;
 
 namespace NetCraft;
 
-//PropertiesConfig 通用 properties 文件读写容器
-//对应原版 com.mojang.util.PropertiesUtils 简化版
-//支持 # 注释 key=value 行 加载与保存到指定路径
+//PropertiesConfig generic properties file read/write container
+//Simplified version of vanilla com.mojang.util.PropertiesUtils
+//Supports # comments and key=value lines; loads from and saves to the given path
 public sealed class PropertiesConfig
 {
     private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
     private readonly List<string> _comments = new();
 
-    //索引器读写 key 对应 value 不存在返回空字符串
+    //Indexer reads/writes the value for a key; returns an empty string when absent
     public string this[string key]
     {
         get => _values.GetValueOrDefault(key, string.Empty);
         set => _values[key] = value;
     }
 
-    //GetOrDefault 查询 key 不存在返回默认值
+    //GetOrDefault looks up a key; returns the default when absent
     public string GetOrDefault(string key, string defaultValue)
         => _values.TryGetValue(key, out var v) ? v : defaultValue;
 
-    //GetInt 解析 int 不存在或失败返回 defaultValue
+    //GetInt parses an int; returns defaultValue when absent or failed
     public int GetInt(string key, int defaultValue)
         => int.TryParse(GetOrDefault(key, string.Empty), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : defaultValue;
 
-    //GetBool 解析 bool 不存在或失败返回 defaultValue
+    //GetBool parses a bool; returns defaultValue when absent or failed
     public bool GetBool(string key, bool defaultValue)
         => bool.TryParse(GetOrDefault(key, string.Empty), out var v) ? v : defaultValue;
 
-    //GetFloat 解析 float 不存在或失败返回 defaultValue
+    //GetFloat parses a float; returns defaultValue when absent or failed
     public float GetFloat(string key, float defaultValue)
         => float.TryParse(GetOrDefault(key, string.Empty), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : defaultValue;
 
-    //GetIntBytes 解析字节数表示的字符串如 256MB 返回字节数
-    //后缀支持 K/M/G 不区分大小写 简化版仅 K/M/G 三档
+    //GetIntBytes parses a byte-count string like 256MB and returns the number of bytes
+    //Suffixes K/M/G are case-insensitive; this simplified version only supports K/M/G
     public long GetSize(string key, long defaultValue)
     {
         var raw = GetOrDefault(key, string.Empty);
@@ -52,20 +52,20 @@ public sealed class PropertiesConfig
         return long.TryParse(span, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v * multiplier : defaultValue;
     }
 
-    //Set 写入 key=value
+    //Set writes key=value
     public void Set(string key, string value) => _values[key] = value;
 
-    //SetInt 写入 int 字段
+    //SetInt writes an int field
     public void SetInt(string key, int value) => _values[key] = value.ToString(CultureInfo.InvariantCulture);
 
-    //SetBool 写入 bool 字段
+    //SetBool writes a bool field
     public void SetBool(string key, bool value) => _values[key] = value ? "true" : "false";
 
-    //ContainsKey 是否含指定 key
+    //ContainsKey checks whether the given key exists
     public bool ContainsKey(string key) => _values.ContainsKey(key);
 
-    //Load 从指定路径读取 properties 文件
-    //文件不存在返回空容器不抛
+    //Load reads a properties file from the given path
+    //Returns an empty container when the file does not exist; does not throw
     public void Load(string path)
     {
         _values.Clear();
@@ -89,7 +89,7 @@ public sealed class PropertiesConfig
         }
     }
 
-    //Save 保存到指定路径 覆盖已有文件
+    //Save writes to the given path, overwriting the existing file
     public void Save(string path)
     {
         var dir = Path.GetDirectoryName(path);
@@ -108,7 +108,7 @@ public sealed class PropertiesConfig
         File.WriteAllText(path, sb.ToString());
     }
 
-    //EscapeValue 简单转义 value 中的换行和等号
+    //EscapeValue simply escapes newlines and equals signs in the value
     private static string EscapeValue(string value)
         => value.Replace("\\", "\\\\").Replace("\n", "\\n").Replace("\r", "\\r");
 

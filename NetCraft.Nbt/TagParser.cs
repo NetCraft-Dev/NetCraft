@@ -4,15 +4,15 @@ using NetCraft.Util.Parsing.Packrat.Commands;
 
 namespace NetCraft.Nbt;
 
-//SNBT解析器入口对应原版net.minecraft.nbt.TagParser
-//包装Grammar提供parseFully/parseAsArgument方法
-//FLATTENED_CODEC从字符串解析CompoundTag LENIENT_CODEC兼容CompoundTag.CODEC
+//SNBT parser entry point, mirroring vanilla net.minecraft.nbt.TagParser
+//Wraps a Grammar and exposes parseFully/parseAsArgument
+//FLATTENED_CODEC parses a CompoundTag from a string, LENIENT_CODEC is compatible with CompoundTag.CODEC
 public sealed class TagParser<T>
 {
     public const char ElementSeparator = ',';
     public const char NameValueSeparator = ':';
 
-    //NbtOps下的解析器实例共享给静态方法
+    //Parser instance under NbtOps, shared with the static methods
     private static readonly TagParser<Tag> NbtOpsParser = Create(NbtOps.Instance);
 
     public static readonly SimpleCommandExceptionType ErrorTrailingData =
@@ -21,7 +21,7 @@ public sealed class TagParser<T>
     public static readonly SimpleCommandExceptionType ErrorExpectedCompound =
         new("Expected compound tag");
 
-    //FLATTENED_CODEC从字符串解析成CompoundTag失败抛异常失败时反向toString
+    //FLATTENED_CODEC parses a CompoundTag from a string and throws on failure, rendering the input back with toString for the message
     public static readonly Codec<CompoundTag> FlattenedCodec = Codecs.String.ComapFlatMap(
         s =>
         {
@@ -39,7 +39,7 @@ public sealed class TagParser<T>
         },
         v => v.ToString());
 
-    //LENIENT_CODEC先尝试FLATTENED_CODEC失败再尝试CompoundTag.CODEC
+    //LENIENT_CODEC tries FLATTENED_CODEC first and falls back to CompoundTag.CODEC
     public static readonly Codec<CompoundTag> LenientCodec =
         Codecs.WithAlternative(FlattenedCodec, CompoundTag.Codec);
 
@@ -54,26 +54,26 @@ public sealed class TagParser<T>
 
     public DynamicOps<T> Ops => _ops;
 
-    //create工厂用SnbtGrammar.CreateParser构造grammar
-    //U是方法泛型参数独立于类泛型T对应原版static <T> create方法
+    //The create factory builds the grammar with SnbtGrammar.CreateParser
+    //U is a method type parameter independent of the class parameter T, mirroring the vanilla static <T> create method
     public static TagParser<U> Create<U>(DynamicOps<U> ops)
         => new(ops, SnbtGrammar.CreateParser(ops));
 
-    //castToCompoundOrThrow非CompoundTag抛ErrorExpectedCompound
+    //castToCompoundOrThrow throws ErrorExpectedCompound for a non-CompoundTag
     private static CompoundTag CastToCompoundOrThrow(CommandStringReader reader, Tag result)
     {
         if (result is CompoundTag compoundTag) return compoundTag;
         throw ErrorExpectedCompound.CreateWithContext(reader);
     }
 
-    //parseCompoundFully解析完整字符串强制返回CompoundTag
+    //parseCompoundFully parses the whole string and forces a CompoundTag result
     public static CompoundTag ParseCompoundFully(string input)
     {
         var reader = new CommandStringReader(input);
         return CastToCompoundOrThrow(reader, NbtOpsParser.ParseFully(reader));
     }
 
-    //parseFully解析完整字符串尾部有剩余字符报ErrorTrailingData
+    //parseFully parses the whole string and reports ErrorTrailingData when characters are left over
     public T ParseFully(string input)
         => ParseFully(new CommandStringReader(input));
 
@@ -86,16 +86,16 @@ public sealed class TagParser<T>
         return result;
     }
 
-    //parseAsArgument只解析不要求尾部为空
+    //parseAsArgument parses without requiring the input to be fully consumed
     public T ParseAsArgument(CommandStringReader reader)
         => _grammar.ParseForCommands(reader);
 
-    //parseCompoundAsArgument用NbtOpsParser解析后强制返回CompoundTag
+    //parseCompoundAsArgument parses with NbtOpsParser and forces a CompoundTag result
     public static CompoundTag ParseCompoundAsArgument(CommandStringReader reader)
         => CastToCompoundOrThrow(reader, NbtOpsParser.ParseAsArgument(reader));
 
-    //ParseTagAsArgument 静态入口解析任意标签不要求尾部为空 对应原版 TagParser.parseTag
-    //名字带 AsArgument 区分实例版 parseAsArgument 静态实例方法不能同名
+    //ParseTagAsArgument is the static entry point for parsing any tag without requiring full consumption. Mirrors vanilla TagParser.parseTag
+    //The AsArgument suffix distinguishes it from the instance parseAsArgument, since the static and instance methods cannot share a name
     public static Tag ParseTagAsArgument(CommandStringReader reader)
         => NbtOpsParser.ParseAsArgument(reader);
 }

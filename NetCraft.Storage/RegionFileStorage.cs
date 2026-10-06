@@ -7,9 +7,9 @@ using NetCraft.Util;
 
 namespace NetCraft.Storage;
 
-//多RegionFile的LRU缓存管理对应原版RegionFileStorage
-//按region坐标缓存256个RegionFile，提供chunk级别的CompoundTag读写
-//优化点2.8：读取路径按开关RegionFileMemoryMapped选择MMF读取入口
+//LRU cache management for multiple RegionFiles, maps to vanilla RegionFileStorage
+//Caches up to 256 RegionFiles by region coords, providing chunk-level CompoundTag read/write
+//Optimization 2.8: the read path selects the MMF read entry point based on the RegionFileMemoryMapped switch
 public sealed class RegionFileStorage : IDisposable
 {
     public const string AnvilExtension = ".mca";
@@ -20,8 +20,8 @@ public sealed class RegionFileStorage : IDisposable
     private readonly bool _sync;
     private readonly LinkedList<(long Key, RegionFile Region)> _lru = new();
     private readonly Dictionary<long, LinkedListNode<(long Key, RegionFile Region)>> _cache = new();
-    //全方法互斥锁对应原版RegionFileStorage的synchronized
-    //缺锁时LRU驱逐可能关掉正在写入的RegionFile引发ObjectDisposedException
+    //A whole-method mutex, maps to the synchronized in vanilla RegionFileStorage
+    //Without the lock, LRU eviction could close a RegionFile being written, causing ObjectDisposedException
     private readonly object _gate = new();
 
     public RegionFileStorage(RegionStorageInfo info, string folder, bool sync)
@@ -59,8 +59,8 @@ public sealed class RegionFileStorage : IDisposable
         }
     }
 
-    //按开关选择读取入口对应优化点2.8
-    //MMF路径失败时降级到FileStream路径保证语义一致
+    //Select the read entry point by switch, optimization 2.8
+    //Falls back to the FileStream path when MMF fails, keeping semantics identical
     private static BinaryReader? OpenChunkInputStream(RegionFile region, ChunkPos pos)
     {
         if (OptimizationFlags.RegionFileMemoryMapped)
@@ -71,7 +71,7 @@ public sealed class RegionFileStorage : IDisposable
             }
             catch (InvalidOperationException)
             {
-                //文件过小走FileStream路径
+                //File too small, use the FileStream path
                 return region.GetChunkDataInputStream(pos);
             }
         }
@@ -87,19 +87,19 @@ public sealed class RegionFileStorage : IDisposable
             var reader = OpenChunkInputStream(region, pos);
             if (reader == null)
             {
-                //Log.Debug($"Read 出口 result=null");
+                //Log.Debug($"Read exit result=null");
                 return null;
             }
             using (reader)
             {
                 var result = NbtIo.Read(new BinaryNbtReader(reader), NbtAccounter.UnlimitedHeap());
-                //Log.Debug($"Read 出口 result={result}");
+                //Log.Debug($"Read exit result={result}");
                 return result;
             }
         }
     }
 
-    //按流式visitor扫描chunk，不构建完整Tag对象
+    //Scan a chunk through a streaming visitor without building a full Tag
     public void ScanChunk(ChunkPos pos, StreamTagVisitor scanner)
     {
         Log.Debug($"ScanChunk entry pos={pos}");
@@ -109,57 +109,57 @@ public sealed class RegionFileStorage : IDisposable
             var reader = OpenChunkInputStream(region, pos);
             if (reader == null)
             {
-                //Log.Debug($"ScanChunk 出口");
+                //Log.Debug($"ScanChunk exit");
                 return;
             }
             using (reader)
                 NbtIo.Parse(new BinaryNbtReader(reader), scanner, NbtAccounter.UnlimitedHeap());
         }
-        //Log.Debug($"ScanChunk 出口");
+        //Log.Debug($"ScanChunk exit");
     }
 
     public void Write(ChunkPos pos, CompoundTag? value)
     {
-        //Log.Debug($"Write 入口 pos={pos} value={value}");
+        //Log.Debug($"Write entry pos={pos} value={value}");
         Log.Debug($"Write entry pos={pos}");
         if (DebugFlags.DebugDontSaveWorld)
         {
-            ////Log.Debug($"Write 出口");
+            ////Log.Debug($"Write exit");
             return;
         }
-        //写入全程持锁 从GetChunkDataOutputStream到回写完成 驱逐关闭不可能插进中间
+        //The lock is held for the whole write, from GetChunkDataOutputStream to write-back completion; an eviction close cannot slip in
         lock (_gate)
         {
             var region = GetRegionFile(pos);
             if (value == null)
             {
                 region.Clear(pos);
-                //Log.Debug($"Write 出口");
+                //Log.Debug($"Write exit");
                 return;
             }
             var writer = region.GetChunkDataOutputStream(pos);
             using (writer)
                 NbtIo.Write(value, new BinaryNbtWriter(writer));
         }
-        //Log.Debug($"Write 出口");
+        //Log.Debug($"Write exit");
     }
 
     public RegionStorageInfo Info() => _info;
 
     public void Flush()
     {
-        //Log.Debug($"Flush 入口");
+        //Log.Debug($"Flush entry");
         lock (_gate)
         {
             foreach (var (_, region) in _lru)
                 region.Flush();
         }
-        //Log.Debug($"Flush 出口");
+        //Log.Debug($"Flush exit");
     }
 
     public void Close()
     {
-        //Log.Debug($"Close 入口");
+        //Log.Debug($"Close entry");
         var collector = new ExceptionCollector<IOException>();
         lock (_gate)
         {
@@ -172,7 +172,7 @@ public sealed class RegionFileStorage : IDisposable
             _cache.Clear();
         }
         collector.ThrowIfPresent();
-        //Log.Debug($"Close 出口");
+        //Log.Debug($"Close exit");
     }
 
     public void Dispose() => Close();

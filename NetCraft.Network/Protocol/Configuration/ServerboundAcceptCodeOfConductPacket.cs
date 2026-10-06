@@ -1,8 +1,8 @@
 namespace NetCraft.Network.Protocol.Configuration;
 
-//ServerboundAcceptCodeOfConductPacket 客户端确认接受服务端行为准则
-//对应原版 net.minecraft.network.protocol.configuration.ServerboundAcceptCodeOfConductPacket
-//无 payload 用单例 INSTANCE
+//ServerboundAcceptCodeOfConductPacket the client confirms acceptance of the server's code of conduct
+//Maps to vanilla net.minecraft.network.protocol.configuration.ServerboundAcceptCodeOfConductPacket
+//No payload, using the INSTANCE singleton
 public sealed record ServerboundAcceptCodeOfConductPacket : Packet<ServerConfigurationPacketListener>
 {
     public static readonly ServerboundAcceptCodeOfConductPacket Instance = new();

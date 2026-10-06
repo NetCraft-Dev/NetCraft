@@ -1,7 +1,7 @@
 namespace NetCraft.Storage;
 
-//CopyOnWriteFileStore 写时复制文件系统的存储信息 对应原版 net.minecraft.util.filefix.virtualfilesystem.CopyOnWriteFileStore
-//空间统计取自临时目录所在的真实存储
+//CopyOnWriteFileStore, file store info for the copy-on-write filesystem, maps to vanilla net.minecraft.util.filefix.virtualfilesystem.CopyOnWriteFileStore
+//Space stats come from the real store holding the temp directory
 public sealed class CopyOnWriteFileStore
 {
     private readonly CopyOnWriteFileSystem _fs;

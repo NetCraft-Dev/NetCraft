@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ServerboundCustomPayloadPacket 服务端自定义载荷包对应原版 net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket
-//简化版用 Identifier id + byte[] payload 透传原始字节
+//ServerboundCustomPayloadPacket server-side custom payload packet, maps to vanilla net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket
+//The simplified form uses Identifier id + byte[] payload to pass raw bytes through
 public sealed record ServerboundCustomPayloadPacket(Identifier Id, byte[] Payload) : Packet<ServerCommonPacketListener>
 {
     public const int MaxPayloadLength = 1048576;

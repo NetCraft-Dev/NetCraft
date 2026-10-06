@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Profiling.Metrics;
 
-//可被profiler测量的对象接口对应原版net.minecraft.util.profiling.metrics.ProfilerMeasured
-//实现类返回自己的MetricSampler列表由MetricsRegistry聚合
+//Profiler-measurable object interface, maps to vanilla net.minecraft.util.profiling.metrics.ProfilerMeasured
+//Implementations return their own MetricSampler list, aggregated by MetricsRegistry
 public interface ProfilerMeasured
 {
     List<MetricSampler> ProfiledMetrics();

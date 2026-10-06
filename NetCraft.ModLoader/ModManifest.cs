@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace NetCraft.ModLoader;
@@ -182,6 +183,46 @@ public sealed class ModHookRule
 
     [JsonPropertyName("sliceTo")]
     public string? SliceTo { get; set; }
+
+    //InType/InMethod 宿主限定 只在这个方法体内匹配锚点 两个都可省
+    [JsonPropertyName("inType")]
+    public string? InType { get; set; }
+
+    [JsonPropertyName("inMethod")]
+    public string? InMethod { get; set; }
+
+    //PlacementName 锚点落位方式 取 Replace/Before/After 默认 Replace
+    //Before 与 After 保留原调用 在它前或后插一次回调 回调拿的是宿主方法的参数
+    [JsonPropertyName("placement")]
+    public string PlacementName { get; set; } = "Replace";
+
+    //LocalIndex 局部变量槽位 0 基 只有 type 为 LocalRead/LocalWrite 时用
+    [JsonPropertyName("localIndex")]
+    public int? LocalIndex { get; set; }
+
+    //ConstantValue 要匹配的常量 只有 type 为 Constant 时用
+    //JSON 里没有类型标记 按值域猜整数的宽度 要在 ldc.i8 上匹配 long 5 只能靠注解写 5L
+    [JsonPropertyName("constantValue")]
+    public JsonElement? ConstantValue { get; set; }
+
+    //ScannedConstantValue 注解里写的常量 扫描阶段直接塞 CLR 值
+    //注解那条路不过 JSON 装箱类型就是属性上写的那个 与清单要分开存
+    [JsonIgnore]
+    public object? ScannedConstantValue { get; set; }
+
+    //ConstantValueObject 引擎取用的常量值 注解优先 没有就把清单里的 JSON 折成 CLR 值
+    [JsonIgnore]
+    public object? ConstantValueObject => ScannedConstantValue ?? (ConstantValue switch
+    {
+        null => null,
+        { ValueKind: JsonValueKind.True } => true,
+        { ValueKind: JsonValueKind.False } => false,
+        { ValueKind: JsonValueKind.String } text => text.GetString(),
+        { ValueKind: JsonValueKind.Number } number when number.TryGetInt32(out var int32) => int32,
+        { ValueKind: JsonValueKind.Number } number when number.TryGetInt64(out var int64) => int64,
+        { ValueKind: JsonValueKind.Number } number => number.GetDouble(),
+        _ => null,
+    });
 
     //EnvironmentValue 该规则适用的运行端 取 both/client/server 默认 both
     //同一份清单可以两端共用 但指向服务端类型的规则在客户端跑时目标程序集根本不在

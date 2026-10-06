@@ -4,34 +4,34 @@ using NetCraft.Util;
 
 namespace NetCraft.Game.Network;
 
-//FriendlyByteBufExtensions 业务包需要的扩展方法
-//FriendlyByteBuf 内核只保留基础类型读写业务类型 BlockPos/SectionPos/Enum 等在此扩展
+//FriendlyByteBufExtensions extension methods needed by business packets
+//The FriendlyByteBuf kernel only keeps primitive type reads/writes; business types like BlockPos/SectionPos/Enum are extended here
 public static class FriendlyByteBufExtensions
 {
-    //ReadUnsignedByte 读 1 字节为 int 对齐原版 readUnsignedByte
+    //ReadUnsignedByte reads 1 byte as an int, aligns with vanilla readUnsignedByte
     public static int ReadUnsignedByte(this FriendlyByteBuf buf)
         => buf.ReadByte();
 
-    //ReadBlockPos 读 packed long 还原 BlockPos
+    //ReadBlockPos reads a packed long and restores a BlockPos
     public static BlockPos ReadBlockPos(this FriendlyByteBuf buf)
         => BlockPos.FromLong(buf.ReadLong());
 
-    //WriteBlockPos 写 BlockPos 为 packed long
+    //WriteBlockPos writes a BlockPos as a packed long
     public static FriendlyByteBuf WriteBlockPos(this FriendlyByteBuf buf, BlockPos pos)
         => buf.WriteLong(pos.AsLong());
 
-    //ReadSectionPos 读 packed long 还原 SectionPos
+    //ReadSectionPos reads a packed long and restores a SectionPos
     public static SectionPos ReadSectionPos(this FriendlyByteBuf buf)
         => SectionPos.Of(buf.ReadLong());
 
-    //WriteSectionPos 写 SectionPos 为 packed long
+    //WriteSectionPos writes a SectionPos as a packed long
     public static FriendlyByteBuf WriteSectionPos(this FriendlyByteBuf buf, SectionPos pos)
         => buf.WriteLong(pos.AsLong());
 
-    //ReadBlockHitResult 读方块命中结果 字段顺序严格对齐原版 readBlockHitResult
-    //坐标 -> 面(VarInt) -> 命中点相对偏移(float*3) -> 是否内部 -> 是否撞世界边界
-    //末尾的 worldBorder 位不能省: 省掉它紧接着读的 sequence 会读到这一位
-    //客户端记录的预测序号是 1 而回执变成 0 服务端就永远清不掉客户端的预测 方块的后续更新全被缓存
+    //ReadBlockHitResult reads a block hit result; field order strictly aligns with vanilla readBlockHitResult
+    //Position -> face (VarInt) -> hit offset relative to the block (float*3) -> inside -> world border hit
+    //The trailing worldBorder bit cannot be dropped: without it the following sequence read would consume this bit
+    //The client records sequence 1 but the ack turns it into 0, so the server can never clear the client prediction and all later block updates stay cached
     public static BlockHitResult ReadBlockHitResult(this FriendlyByteBuf buf)
     {
         var pos = buf.ReadBlockPos();
@@ -45,8 +45,8 @@ public static class FriendlyByteBufExtensions
             new Vec3(pos.X + clickX, pos.Y + clickY, pos.Z + clickZ), inside, worldBorder);
     }
 
-    //WriteBlockHitResult 写方块命中结果 与原版 writeBlockHitResult 逐字段一致
-    //命中点写的是相对方块原点的偏移 不是绝对坐标
+    //WriteBlockHitResult writes a block hit result, field-by-field identical to vanilla writeBlockHitResult
+    //The hit point is written as an offset relative to the block origin, not absolute coordinates
     public static FriendlyByteBuf WriteBlockHitResult(this FriendlyByteBuf buf, BlockHitResult hit)
     {
         buf.WriteBlockPos(hit.BlockPos);
@@ -58,7 +58,7 @@ public static class FriendlyByteBufExtensions
         return buf.WriteBoolean(hit.WorldBorderHit);
     }
 
-    //ReadEnum 读 VarInt 还原枚举值按声明顺序
+    //ReadEnum reads a VarInt and restores the enum value by declaration order
     public static T ReadEnum<T>(this FriendlyByteBuf buf) where T : struct, Enum
     {
         T[] values = (T[])Enum.GetValues(typeof(T));
@@ -66,7 +66,7 @@ public static class FriendlyByteBufExtensions
         return values[ordinal];
     }
 
-    //WriteEnum 写枚举值的声明顺序为 VarInt
+    //WriteEnum writes the enum value's declaration order as a VarInt
     public static FriendlyByteBuf WriteEnum<T>(this FriendlyByteBuf buf, T value) where T : struct, Enum
     {
         T[] values = (T[])Enum.GetValues(typeof(T));
@@ -74,7 +74,7 @@ public static class FriendlyByteBufExtensions
         return buf.WriteVarInt(ordinal);
     }
 
-    //ReadIntIdList 读 VarInt 长度前缀的 int 数组
+    //ReadIntIdList reads an int array with a VarInt length prefix
     public static int[] ReadIntIdList(this FriendlyByteBuf buf)
     {
         int length = buf.ReadVarInt();
@@ -84,7 +84,7 @@ public static class FriendlyByteBufExtensions
         return ids;
     }
 
-    //WriteIntIdList 写 int 数组为 VarInt 长度前缀 + VarInt 数组
+    //WriteIntIdList writes an int array as a VarInt length prefix + VarInt array
     public static FriendlyByteBuf WriteIntIdList(this FriendlyByteBuf buf, int[] ids)
     {
         buf.WriteVarInt(ids.Length);
@@ -93,13 +93,13 @@ public static class FriendlyByteBufExtensions
         return buf;
     }
 
-    //LpAbsMinValue/LpAbsMaxValue 低精度向量的有效分量下限与上限 对应原版 LpVec3
+    //LpAbsMinValue/LpAbsMaxValue lower and upper bounds of a valid component of a low-precision vector, maps to vanilla LpVec3
     private const double LpAbsMinValue = 3.051944088384301E-5d;
     private const double LpAbsMaxValue = 1.7179869183E10d;
     private const int LpMaxQuantizedValue = 32766;
 
-    //ReadLpVec3 读低精度量化向量对应原版 LpVec3.read
-    //1 字节 0 表示零向量 否则 15 位量化分量乘缩放系数 缩放高位按需续读 VarInt
+    //ReadLpVec3 reads a low-precision quantized vector, maps to vanilla LpVec3.read
+    //A first byte of 0 means a zero vector; otherwise 15-bit quantized components times the scale factor, with the scale high bits read as a continuation VarInt when needed
     public static Vec3 ReadLpVec3(this FriendlyByteBuf buf)
     {
         int lowest = buf.ReadUnsignedByte();
@@ -115,7 +115,7 @@ public static class FriendlyByteBufExtensions
             LpUnpack(buffer >> 33) * scale);
     }
 
-    //WriteLpVec3 写低精度量化向量对应原版 LpVec3.write
+    //WriteLpVec3 writes a low-precision quantized vector, maps to vanilla LpVec3.write
     public static FriendlyByteBuf WriteLpVec3(this FriendlyByteBuf buf, Vec3 value)
     {
         double x = LpSanitize(value.X);
@@ -137,15 +137,15 @@ public static class FriendlyByteBufExtensions
         return buf;
     }
 
-    //LpPack 归一化分量量化到 15 位
+    //LpPack quantizes a normalized component to 15 bits
     private static long LpPack(double value)
         => (long)Math.Round((value * 0.5d + 0.5d) * LpMaxQuantizedValue);
 
-    //LpUnpack 15 位量化值还原为 -1~1 的分量
+    //LpUnpack restores a 15-bit quantized value to a component in -1~1
     private static double LpUnpack(long value)
         => (Math.Min(value & 32767, LpMaxQuantizedValue) * 2.0d / LpMaxQuantizedValue) - 1.0d;
 
-    //LpSanitize NaN 归零并把分量夹到有效范围
+    //LpSanitize zeroes out NaN and clamps the component to the valid range
     private static double LpSanitize(double value)
         => double.IsNaN(value) ? 0d : Math.Clamp(value, -LpAbsMaxValue, LpAbsMaxValue);
 }

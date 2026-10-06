@@ -3,9 +3,9 @@ using NetCraft.Commands;
 
 namespace NetCraft.Commands.Exceptions;
 
-//CommandSyntaxException 命令语法异常对应原版com.mojang.brigadier.exceptions.CommandSyntaxException
-//携带type与message可选携带input与cursor用于上下文定位
-//静态字段BuiltInExceptions可运行时替换EnableCommandStackTraces控制栈追踪
+//CommandSyntaxException maps to vanilla com.mojang.brigadier.exceptions.CommandSyntaxException
+//Carries type and message, optionally carries input and cursor for context localization
+//The static BuiltInExceptions field can be swapped at runtime; EnableCommandStackTraces controls stack traces
 public sealed class CommandSyntaxException : Exception
 {
     public const int ContextAmount = 10;

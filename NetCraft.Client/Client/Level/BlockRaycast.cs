@@ -3,17 +3,17 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Client.Level;
 
-//BlockRaycast 客户端视线拾取对应原版 Entity.pick 的体素遍历
-//从眼睛位置沿 yaw/pitch 决定的视线方向按固定步长推进 命中第一个非空气方块即返回
+//BlockRaycast client look picking, maps to vanilla Entity.pick's voxel traversal
+//Steps from the eye position along the view direction determined by yaw/pitch at a fixed step, returning on the first non-air block hit
 public static class BlockRaycast
 {
-    //Step 采样步长 0.1 格 拾取距离内最多几十次方块查询
+    //Step sampling step 0.1 blocks; within reach this is at most a few dozen block queries
     private const double Step = 0.1;
 
-    //Reach 最大拾取距离 对应原版方块交互距离
+    //Reach max pick distance, maps to vanilla block interaction distance
     public const double Reach = 4.5;
 
-    //TryPick 找视线上的第一个非空气方块 命中返回方块坐标与进入面
+    //TryPick finds the first non-air block along the view; on hit returns the block position and entry face
     public static bool TryPick(ClientLevel level, Vec3 origin, float yaw, float pitch,
         out BlockPos pos, out Direction face)
     {
@@ -59,7 +59,7 @@ public static class BlockRaycast
         return false;
     }
 
-    //EnterFace 由进入方向反推被击中的面 视线朝 +X 进入说明打的是方块的西面
+    //EnterFace infers the hit face from the entry direction; entering toward +X means the block's west face was hit
     private static Direction EnterFace(int fromX, int fromY, int fromZ, int toX, int toY, int toZ)
     {
         if (toX != fromX) return toX > fromX ? Direction.West : Direction.East;

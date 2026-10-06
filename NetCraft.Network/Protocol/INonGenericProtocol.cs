@@ -1,22 +1,22 @@
 namespace NetCraft.Network.Protocol;
 
-//INonGenericProtocol 非泛型协议接口
-//Connection 存当前 inbound/outbound 协议时不依赖 THandler 用 object 装箱传递 Packet
-//ProtocolInfo<THandler> 继承此接口用显式实现提供非泛型访问入口
+//INonGenericProtocol non-generic protocol interface
+//Connection stores the current inbound/outbound protocol without depending on THandler, passing Packet boxed as object
+//ProtocolInfo<THandler> inherits this interface and provides a non-generic access point via explicit implementation
 public interface INonGenericProtocol
 {
-    //Id 协议枚举
+    //Id protocol enum
     ConnectionProtocol Id { get; }
 
-    //FlowDirection 包方向
+    //FlowDirection packet direction
     FlowDirection FlowDirection { get; }
 
-    //DecodePacket 从缓冲区解码一个包返回 Packet<THandler> 装箱为 object
+    //DecodePacket decodes one packet from the buffer and returns Packet<THandler> boxed as object
     object? DecodePacket(RegistryFriendlyByteBuf buf);
 
-    //EncodePacket 编码一个包接受 Packet<THandler> 装箱为 object
+    //EncodePacket encodes one packet, taking Packet<THandler> boxed as object
     void EncodePacket(RegistryFriendlyByteBuf buf, object packet);
 
-    //PacketIdFor 获取包的网络 ID 写入到缓冲区前缀
+    //PacketIdFor gets the packet's network ID written to the buffer prefix
     int PacketIdFor(object packet);
 }

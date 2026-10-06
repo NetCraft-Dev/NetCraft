@@ -1,8 +1,8 @@
 namespace NetCraft.Primitives.Phys;
 
-//OctahedralGroup 八面体群 对应原版 com.mojang.math.OctahedralGroup
-//每个元素是一个坐标轴置换加三轴取负的开关 覆盖立方体的48个对称变换
-//枚举顺序必须与原版 ordinal 一致 合成表按下标取
+//OctahedralGroup octahedral group, maps to vanilla com.mojang.math.OctahedralGroup
+//Each element is an axis permutation plus three axis-inversion switches, covering the 48 symmetry transforms of a cube
+//The enum order must match the vanilla ordinal, the composition table indexes by ordinal
 public enum OctahedralGroup
 {
     Identity = 0,
@@ -55,12 +55,12 @@ public enum OctahedralGroup
     Rot90RefZPos = 47,
 }
 
-//OctahedralGroups 八面体群的合成求逆与方向旋转 对应原版枚举内的方法与两张静态表
+//OctahedralGroups composition, inversion and direction rotation of the octahedral group, maps to the methods and two static tables in the vanilla enum
 public static class OctahedralGroups
 {
     private const int Count = 48;
 
-    //每个群的置换与三轴取负开关 顺序与枚举一一对应
+    //Permutation and three axis-inversion switches of each group, order corresponds one to one with the enum
     private static readonly (SymmetricGroup3 Perm, bool InvertX, bool InvertY, bool InvertZ)[] Entries =
     {
         (SymmetricGroup3.P123, false, false, false),
@@ -119,7 +119,7 @@ public static class OctahedralGroups
 
     private static readonly OctahedralGroup[] InverseTable = BuildInverseTable();
 
-    //每个群对六个方向的映射 方向旋转用得极频繁预先摊平
+    //Mapping of each group over the six directions, direction rotation is used extremely often so it is precomputed
     private static readonly Direction[][] RotatedDirections = BuildRotatedDirections();
 
     public static readonly OctahedralGroup BlockRotX270 = OctahedralGroup.Rot90XPos;
@@ -132,7 +132,7 @@ public static class OctahedralGroups
     public static readonly OctahedralGroup BlockRotZ180 = OctahedralGroup.Rot180FaceXy;
     public static readonly OctahedralGroup BlockRotZ90 = OctahedralGroup.Rot90ZNeg;
 
-    //Compose 先做 that 再做 this 对应原版 compose
+    //Compose does that first then this, maps to vanilla compose
     public static OctahedralGroup Compose(this OctahedralGroup first, OctahedralGroup that)
         => CayleyTable[(int)first, (int)that];
 
@@ -140,7 +140,7 @@ public static class OctahedralGroups
 
     public static SymmetricGroup3 Permutation(this OctahedralGroup group) => Entries[(int)group].Perm;
 
-    //Inverts 该轴在变换里是否取负 对应原版 inverts
+    //Inverts whether the axis is negated in the transform, maps to vanilla inverts
     public static bool Inverts(this OctahedralGroup group, Direction.Axis axis) => axis switch
     {
         Direction.Axis.X => Entries[(int)group].InvertX,
@@ -148,12 +148,12 @@ public static class OctahedralGroups
         _ => Entries[(int)group].InvertZ,
     };
 
-    //Rotate 方向经变换后的新方向 对应原版 rotate(Direction)
-    //新轴取置换的逆 取负与否按新轴判定
+    //Rotate the new direction after the transform, maps to vanilla rotate(Direction)
+    //The new axis is the inverse of the permutation, negated or not is decided by the new axis
     public static Direction Rotate(this OctahedralGroup group, Direction direction)
         => RotatedDirections[(int)group][direction.Id3D];
 
-    //Rotate 向量经变换后的新向量 对应原版 rotate(Vector3i)
+    //Rotate the new vector after the transform, maps to vanilla rotate(Vector3i)
     public static Vec3i Rotate(this OctahedralGroup group, Vec3i v)
     {
         var permuted = Entries[(int)group].Perm.PermuteVector(v);
@@ -163,7 +163,7 @@ public static class OctahedralGroups
             Entries[(int)group].InvertZ ? -permuted.Z : permuted.Z);
     }
 
-    //Trace 置换下标左移三位再放三轴取负位 用它给每个群一个指纹 对应原版 trace
+    //Trace shifts the permutation ordinal left by three bits then places the three axis-inversion bits, giving each group a fingerprint, maps to vanilla trace
     private static int Trace(bool invertX, bool invertY, bool invertZ, SymmetricGroup3 permutation)
     {
         var inversionIndex = (invertZ ? 4 : 0) + (invertY ? 2 : 0) + (invertX ? 1 : 0);
@@ -211,7 +211,7 @@ public static class OctahedralGroups
                     table[i] = Values[j];
                     found = true;
                 }
-            if (!found) throw new InvalidOperationException($"八面体群{Values[i]}没有逆元");
+            if (!found) throw new InvalidOperationException($"Octahedral group {Values[i]} has no inverse");
         }
         return table;
     }

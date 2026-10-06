@@ -2,8 +2,8 @@ using NetCraft.Util.Profiling;
 
 namespace NetCraft.Util.Profiling.Metrics.Profiling;
 
-//指标记录器接口对应原版net.minecraft.util.profiling.metrics.profiling.MetricsRecorder
-//控制采样窗口的启动/停止/tick采样
+//Metrics recorder interface, maps to vanilla net.minecraft.util.profiling.metrics.profiling.MetricsRecorder
+//Controls sampling window start/stop/tick sampling
 public interface MetricsRecorder
 {
     void End();

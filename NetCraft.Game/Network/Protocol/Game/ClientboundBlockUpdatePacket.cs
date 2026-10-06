@@ -2,8 +2,8 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundBlockUpdatePacket 方块更新包对应原版 ClientboundBlockUpdatePacket
-//字段 pos BlockPos blockState 用 BlockState registry idMapper VarInt 编解码暂用 int 占位
+//ClientboundBlockUpdatePacket block update packet, maps to vanilla ClientboundBlockUpdatePacket
+//Fields: pos BlockPos, blockState uses the BlockState registry idMapper VarInt; for now an int placeholder is used for encoding
 public sealed record ClientboundBlockUpdatePacket(BlockPos Pos, int BlockState) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundBlockUpdatePacket> StreamCodec { get; } = new BlockUpdateCodec();

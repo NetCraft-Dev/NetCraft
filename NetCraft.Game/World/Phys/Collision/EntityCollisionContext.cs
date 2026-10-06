@@ -6,18 +6,18 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Game.World.Phys.Collision;
 
-//EntityCollisionContext 带实体状态的碰撞上下文 对应原版 EntityCollisionContext
-//实体底部高度决定方块要不要把它当"上方" 主手物品决定某些方块是否给碰撞
-//Entity 用完全限定名 当前命名空间祖先里有同名的 NetCraft.Game.World.Entity 命名空间
+//EntityCollisionContext collision context carrying entity state, maps to vanilla EntityCollisionContext
+//The entity's bottom height decides whether a block treats it as "above"; the main hand item decides whether some blocks give collision
+//Entity uses the fully qualified name; an ancestor namespace here has the same-named NetCraft.Game.World.Entity namespace
 public class EntityCollisionContext : CollisionContext
 {
-    //原版那个常数是 (double)(float)1.0E-5 照抄不要改成 1.0E-5
+    //Vanilla's constant is (double)(float)1.0E-5; copy it as is and do not change it to 1.0E-5
     private const double BelowTolerance = 9.999999747378752E-6;
 
-    //EmptyWithoutFluidCollisions 无实体且不与流体碰撞的空上下文
+    //EmptyWithoutFluidCollisions empty context without an entity that does not collide with fluids
     public static readonly CollisionContext EmptyWithoutFluidCollisions = new Empty(false);
 
-    //EmptyWithFluidCollisions 无实体但与流体也碰撞的空上下文
+    //EmptyWithFluidCollisions empty context without an entity that also collides with fluids
     public static readonly CollisionContext EmptyWithFluidCollisions = new Empty(true);
 
     private readonly bool _descending;
@@ -38,8 +38,8 @@ public class EntityCollisionContext : CollisionContext
         _entity = entity;
     }
 
-    //从实体身上取初始状态 对应原版那个待废弃构造器
-    //原版这里会取 LivingEntity 的主手物品 物品体系接入前一律按空栈
+    //Takes the initial state from the entity, maps to the vanilla deprecated constructor
+    //Vanilla reads the LivingEntity's main hand item here; before the item system is wired up it is always an empty stack
     public EntityCollisionContext(NetCraft.Registry.Entity entity, bool alwaysCollideWithFluid, bool placement)
         : this(entity.IsDescending(), placement, entity.Pos.Y, ItemStack.Empty, alwaysCollideWithFluid, entity) { }
 
@@ -54,8 +54,8 @@ public class EntityCollisionContext : CollisionContext
 
     public override bool AlwaysCollideWithFluid() => _alwaysCollideWithFluid;
 
-    //原版要求实体能站在该流体上且上方流体不同种
-    //液体承载体系（船 冰 岩浆行者一类）未接入 先一律返回否
+    //Vanilla requires the entity to be able to stand on the fluid and the fluid above to be of a different kind
+    //The liquid support system (boats, ice, frost walker) is not wired up; returns no unconditionally for now
     public override bool CanStandOnFluid(FluidState fluidStateAbove, FluidState fluid) => false;
 
     public override VoxelShape GetCollisionShape(BlockState state, CollisionGetter getter, BlockPos pos)
@@ -63,7 +63,7 @@ public class EntityCollisionContext : CollisionContext
 
     public override bool IsPlacement => _placement;
 
-    //Empty 无实体的空上下文 上方判定一律用调用方给的默认值
+    //Empty empty context without an entity; the above check always uses the caller-provided default
     private sealed class Empty : EntityCollisionContext
     {
         public Empty(bool alwaysCollideWithFluid)

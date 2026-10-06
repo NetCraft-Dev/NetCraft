@@ -1,11 +1,11 @@
 namespace NetCraft.Storage.Chunk;
 
-//CarvingMask 雕刻标记对应原版 net.minecraft.world.level.chunk.CarvingMask
-//按 x|z<<4|(y-minY)<<8 索引记录已被雕刻过的方块 同一位置不会重复雕刻
-//同时给存档留 long 数组的紧凑形式 尾部全零的字会被裁掉与原版 toLongArray 一致
+//CarvingMask, carving mask, maps to vanilla net.minecraft.world.level.chunk.CarvingMask
+//Indexed by x|z<<4|(y-minY)<<8, records blocks already carved; the same position is never carved twice
+//Also keeps a compact long array form for saves; trailing all-zero words are trimmed, matching vanilla toLongArray
 public sealed class CarvingMask
 {
-    //Mask 外部补充掩码对应原版 CarvingMask.Mask 结构生成期用它排除结构范围
+    //Mask, the external supplementary mask, maps to vanilla CarvingMask.Mask; used during structure generation to exclude structure bounds
     public interface Mask
     {
         bool Test(int x, int y, int z);
@@ -29,14 +29,14 @@ public sealed class CarvingMask
 
     public void SetAdditionalMask(Mask mask) => _additionalMask = mask;
 
-    //GetIndex 位索引按 x/z 各 4 位与相对最低位的 y 拼成对应原版 getIndex
+    //GetIndex builds the bit index from 4 bits of x and z plus y relative to minY, maps to vanilla getIndex
     private int GetIndex(int x, int y, int z) => (x & 15) | ((z & 15) << 4) | ((y - _minY) << 8);
 
     public void Set(int x, int y, int z)
     {
         var index = GetIndex(x, y, z);
         var word = index >> 6;
-        //原版 BitSet 会自动扩容 越界位按扩容处理
+        //Vanilla BitSet grows automatically; out-of-range bits are handled by growing
         if (word >= _words.Length) Array.Resize(ref _words, word + 1);
         _words[word] |= 1L << index;
     }
@@ -50,7 +50,7 @@ public sealed class CarvingMask
         return (_words[word] & (1L << index)) != 0L;
     }
 
-    //ToArray 导出紧凑 long 数组对应原版 toLongArray
+    //ToArray exports a compact long array, maps to vanilla toLongArray
     public long[] ToArray()
     {
         var length = _words.Length;

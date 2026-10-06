@@ -12,7 +12,7 @@ The public surface is split into three namespaces:
 
 | Namespace | Contents | Notes |
 | --- | --- | --- |
-| `NetCraft.ModApi.Wrapper` | Event and subscription base class `NcEvent<T>`, `Nc*` facades, `Nc*` object handles | Wrapper layer; no kernel types on the public surface |
+| `NetCraft.ModApi.Wrapper` | Event and subscription class `NcEvent<T>`, `Nc*` facades, `Nc*` object handles | Wrapper layer; kernel types appear only where the purity policy whitelists them |
 | `NetCraft.ModApi.Extension` | `[Inject]` / `[Mixin]` annotations | Extension points; rules bind to kernel class and method names |
 | `NetCraft.ModApi.Internal` | Injection probes | Do not reference directly |
 
@@ -60,8 +60,10 @@ All events live under `NetCraft.ModApi.Wrapper`; after `using NetCraft.ModApi.Wr
 | Event                           | Args type              | Trigger                                                   | Side   | ModApi hook point                                        |
 | ------------------------------- | ---------------------- | --------------------------------------------------------- | ------ | -------------------------------------------------------- |
 | `ServerEvents.Tick`             | `ServerTickArgs`       | every tick of the server main loop                        | server | `DedicatedServer::Tick` (Mark)                           |
+| `ServerEvents.Starting`         | `ServerPhaseArgs`      | the server begins booting; the world is not loaded yet    | server | `DedicatedServer::InitServer` (Mark)                     |
 | `ServerEvents.Started`          | `ServerPhaseArgs`      | main loop started, after `Done (x.xxxs)!` is printed      | server | `MinecraftServer::Run` (Mark)                            |
 | `ServerEvents.Stopping`         | `ServerPhaseArgs`      | server begins shutting down; players are about to be disconnected | server | `DedicatedServer::Stop` (Mark)                    |
+| `ServerEvents.Stopped`          | `ServerPhaseArgs`      | the main loop has exited; shutdown flush already finished | server | after `MinecraftServer::Run` returns (`ServerProbe`, CallSite) |
 | `ServerEvents.CommandRegister`  | `CommandRegisterArgs`  | all built-in commands have been registered                | server | `EffectCommand::Register` call site (CallSite)           |
 | `ServerEvents.PlayerJoin`       | `PlayerJoinArgs`       | the join packet sequence has been sent                    | server | `PlayerList::PlaceNewPlayer` call site (CallSite)        |
 | `ServerEvents.PlayerLeave`      | `PlayerLeaveArgs`      | player removed from the online list                       | server | `PlayerList::RemovePlayer` call site (CallSite)          |
@@ -93,9 +95,15 @@ IDisposable Subscribe(Action<T> handler)
 
 - Dispatch takes a snapshot of the callback list, so subscribing or unregistering from inside a callback does not affect the current dispatch.
 
+- **Handler exceptions are isolated**: a throwing callback is logged (`NetCraft-ModApi event handler exception`) and dispatch continues with the remaining handlers. A mod can never take down the kernel thread it is called on, nor suppress other mods' callbacks.
+
 - Without unregistering it stays effective forever; mods provide no unload mechanism, so manual unregistration is usually unnecessary.
 
-### 2.3 Args types
+### 2.3 Cancellation
+
+Cancellation exists as a mechanism and ships Bukkit-style: an args type implements `INcCancellable` (a single `bool Cancelled { get; set; }`), any handler sets `Cancelled = true`, and the injection probe reads the verdict back after dispatch and skips the kernel's original call. The first cancellable events (block break/place/use, chat, damage, login denial) land with the interaction batch; today's events are all post-hoc observations.
+
+### 2.4 Args types
 
 **`ServerTickArgs`**
 
@@ -113,11 +121,11 @@ Note this is counted by ModApi itself, not the kernel's `TickCount`.
 
 **`ServerPhaseArgs`**
 
-| Property | Type     | Notes                        |
-| -------- | -------- | ---------------------------- |
-| `Phase`  | `string` | phase name, `started` or `stopping` |
+| Property | Type     | Notes                                                |
+| -------- | -------- | ---------------------------------------------------- |
+| `Phase`  | `string` | phase name, one of `starting` / `started` / `stopping` / `stopped` |
 
-The field duplicates the event itself; it is kept so logging can use one uniform format.
+The field duplicates the event itself; it is kept so logging can use one uniform format. `Starting` fires before the world is loaded, `Stopped` after the main loop has exited and the shutdown flush has finished — only pure in-memory work belongs in a `Stopped` callback.
 
 **`CommandRegisterArgs`**
 
@@ -130,21 +138,21 @@ The field duplicates the event itself; it is kept so logging can use one uniform
 
 | Property      | Type           | Notes                                          |
 | ------------- | -------------- | ---------------------------------------------- |
-| `Player`      | `ServerPlayer` | the player who just joined; join packets already sent, state is safe to read |
+| `Player`      | `NcPlayer` | the player who just joined; join packets already sent, state is safe to read |
 | `ProfileName` | `string`       | player name                                    |
 
 **`PlayerLeaveArgs`**
 
 | Property  | Type           | Notes                                 |
 | --------- | -------------- | ------------------------------------- |
-| `Player`  | `ServerPlayer` | the leaving player, no longer in the online list at this point |
+| `Player`  | `NcPlayer` | the leaving player, no longer in the online list at this point |
 | `Removed` | `bool`         | whether actually removed; `false` on repeated removal |
 
 **`PlayerDisconnectArgs`**
 
 | Property | Type           | Notes                                 |
 | -------- | -------------- | ------------------------------------- |
-| `Player` | `ServerPlayer` | the disconnected player               |
+| `Player` | `NcPlayer` | the disconnected player               |
 | `Reason` | `string`       | disconnect reason; plain text when given as a component |
 
 The disconnect packet has been sent and the connection closed; sending packets to this player now has no effect.
@@ -153,8 +161,8 @@ The disconnect packet has been sent and the connection closed; sending packets t
 
 | Property   | Type            | Notes                                        |
 | ---------- | --------------- | -------------------------------------------- |
-| `Player`   | `ServerPlayer`  | the player who was hurt                      |
-| `Attacker` | `ServerPlayer?` | the player who dealt the damage; `null` for environmental and command damage |
+| `Player`   | `NcPlayer`  | the player who was hurt                      |
+| `Attacker` | `NcPlayer?` | the player who dealt the damage; `null` for environmental and command damage |
 | `Amount`   | `float`         | damage amount this time                      |
 
 Does not fire during invulnerability frames or after death (the kernel's `Hurt` returns `false`).
@@ -163,8 +171,8 @@ Does not fire during invulnerability frames or after death (the kernel's `Hurt` 
 
 | Property   | Type            | Notes                          |
 | ---------- | --------------- | ------------------------------ |
-| `Player`   | `ServerPlayer`  | the player who died            |
-| `Attacker` | `ServerPlayer?` | the killer; `null` when there is none |
+| `Player`   | `NcPlayer`  | the player who died            |
+| `Attacker` | `NcPlayer?` | the killer; `null` when there is none |
 
 The kernel resets immediately after health reaches zero, so when the event fires the player is already at full health at the respawn point; the coordinates and drops at the moment of death are not available.
 
@@ -197,7 +205,7 @@ When `ChunkUnloaded` fires the block entities have already been cleaned up along
 | `Command` | `string`               | raw command text; chat commands carry no leading slash |
 | `Result`  | `int`                  | command return value; 0 means failure or denial |
 | `Source`  | `CommandSourceStack?`  | command source; `null` on the player-overload path |
-| `Player`  | `ServerPlayer?`        | the player who issued the command; `null` when issued from the console |
+| `Player`  | `NcPlayer?`        | the player who issued the command; `null` when issued from the console |
 
 The event fires **after** the command finishes; it cannot change execution. Syntax errors and permission denials also come through here; use `Result` to tell them apart. Commands a player sends from the chat bar go through the `Execute(ServerPlayer, string)` overload, where the kernel builds the command source internally, so in that case `Source` is `null` and only `Player` is set.
 
@@ -212,11 +220,9 @@ Fires once per loaded level per tick, so a multi-level world receives several pe
 
 **`SavedDataSavingArgs`**
 
-| Property  | Type                | Notes                       |
-| --------- | ------------------- | --------------------------- |
-| `Storage` | `SavedDataStorage`  | the saved-data table being persisted |
+Carries no data today. The saved-data table itself is a volatile kernel type and stays off the public surface until the storage batch gives it a wrapper; the event still marks the moment a synchronous flush has completed (world clock, game rules, world border data).
 
-This is a different path from `ServerEvents.ChunkSaved`: the chunk one only takes a snapshot and writes asynchronously, whereas this one fires after a synchronous write completes. World clock, game rules, and world border data go through it.
+This is a different path from `ServerEvents.ChunkSaved`: the chunk one only takes a snapshot and writes asynchronously, whereas this one fires after a synchronous write completes.
 
 **`BlockChangedArgs`**
 
@@ -232,7 +238,7 @@ The state has already been written to the chunk and is about to sync to clients,
 | Property | Type            | Notes                                      |
 | -------- | --------------- | ------------------------------------------ |
 | `Pos`    | `BlockPos`      | position of the broken block                |
-| `Player` | `ServerPlayer?` | the breaker; `null` for non-player causes such as redstone |
+| `Player` | `NcPlayer?` | the breaker; `null` for non-player causes such as redstone |
 
 Fires only when the block is actually replaced; empty positions and rejected breaks do not trigger it. Break effects and drops have already been handled, so what you read in the event is the result.
 
@@ -330,17 +336,31 @@ Facades are `Nc*` static classes that gather capabilities scattered across the k
 
 | Facade | Purpose |
 | --- | --- |
-| `NcServer` | server instance, tick rate, commands, entity tracking, player data, game rules, broadcast, command execution |
+| `NcServer` | server instance, tick rate, game rules, settings view, world spawn, weather, broadcast, command execution |
 | `NcPlayers` | online player queries and operations (kick, teleport, health, game mode, permissions) |
-| `NcWorld` | overworld block read/write and breaking, weather, time, border, clock, sounds, level events; takes `NcLevel` handles to reach other dimensions, coordinates are plain `x y z` ints |
+| `NcWorld` | overworld block read/write and breaking, weather, time, world border, sounds, level events; takes `NcLevel` handles to reach other dimensions, coordinates are plain `x y z` ints |
 | `NcRegistries` | built-in registries looked up by name (blocks, items, fluids, effects, biomes, particles, entities, block entities) |
 | `NcRecipes` | recipe queries (grid crafting, stonecutting, cooking; fetch recipes by id) |
-| `NcLists` | lists and config (whitelist, ops, bans, `server.properties`) |
+| `NcLists` | list handles (whitelist, ops, bans, IP bans) and the settings view |
 | `NcStartup` | startup arguments (kernel-unrecognized tokens and name-based subscription) |
+| `NcAccess` | escape hatch for kernel members the facades do not reach, see [4.3](#43-private-member-access) |
 
-`NcPlayer` is not a static facade but an **object handle**: `NcPlayers.All` / `Find` return it, and `Player` / `Attacker` in player events are also it. Handles are read-only and constructed by probes; mods cannot get the kernel's `ServerPlayer` — the first anchor of "no kernel types on the public surface". The same kernel player always maps to the same handle, cached internally by weak reference and automatically invalidated once the player logs off.
+`NcPlayer` is not a static facade but an **object handle**: `NcPlayers.All` / `Find` return it, and `Player` / `Attacker` in player events are also it. Handles are read-only and constructed by probes; mods cannot get the kernel's `ServerPlayer` — the first anchor of the wrapper purity policy. The same kernel player always maps to the same handle, cached internally by weak reference and automatically invalidated once the player logs off.
 
 `NcLevel` follows the same shape for levels. `NcWorld.Overworld` / `Nether` / `End` and `NcWorld.Get("minecraft:the_nether")` return it, and `LevelTickArgs.Level` is one too. It carries the dimension id, time, weather, build height, tick count, and chunk force-loading; block operations stay on `NcWorld` and take the handle plus `x y z`. `BlockPos` never shows up, so a mod's dll carries no reference to the kernel level type.
+
+The remaining capabilities are also wrapped as handles:
+
+| Handle | Wraps | Surface |
+| --- | --- | --- |
+| `NcServerSettings` | server.properties | typed read-only properties (port, motd, difficulty, …), the four setters (`gamemode`, `difficulty`, `player-idle-timeout`, `white-list`), `Save()` |
+| `NcTickRate` | tick rate manager | `Rate` / `SetRate`, `IsFrozen` / `SetFrozen`, `Sprint` / `StopSprint`, `Step` / `StopStep` |
+| `NcGameRules` | game rules table | `GetBool` / `SetBool`, `GetInt` / `SetInt` by name (int writes are clamped to the rule's declared range), `All` name list |
+| `NcWorldBorder` | world border | size, center, bounds, damage, safe zone, warnings — all readable and writable |
+| `NcWhiteList` / `NcOpList` | whitelist / ops | `Count`, `Names`, `Contains`, `Add`, `Remove` (ops take a permission level and expose it) |
+| `NcBanList` / `NcIpBanList` | player / IP bans | `IsBanned`, `Ban(profile, reason?)`, `Unban` (IP bans are addressed by IP string) |
+
+Which kernel types may appear unwrapped on the public surface is governed by the wrapper purity policy — see [the ModApi README](https://github.com/NetCraft-Dev/NetCraft.ModApi#wrapper-purity-policy) (whitelisted / wrapped / internal). In short: brigadier, the `Primitives` value types, `ItemStack` and `GameProfile` are frozen by contract; everything else reaches mods through an `Nc*` handle. `NcAccess` ([4.3](#43-private-member-access)) is the deliberate hole in that wall.
 
 ### 4.1 Registries
 
@@ -372,6 +392,42 @@ if (NcRecipes.IsAvailable)
 }
 ```
 
+### 4.3 Private member access
+
+`NcAccess` is the escape hatch for kernel members the facades do not reach. It resolves a member by name, compiles a delegate for it on first use and caches the handle, so repeated calls cost no reflection binding.
+
+```csharp
+using NetCraft.ModApi.Wrapper;
+
+//a handle goes in, the kernel object comes out
+var raw = NcAccess.Unwrap(player);                     //NcPlayer → ServerPlayer
+
+//resolve a member once, then use it as often as you like
+var type = NcAccess.FindType("NetCraft.Game.Server.PlayerList")!;
+var field = NcAccess.Field(type, "players");
+var online = field!.Get(raw);
+
+var method = NcAccess.Method(type, "RespawnPlayer");
+method!.Invoke(raw, victim, killer);
+```
+
+| Entry | Returns |
+| --- | --- |
+| `Unwrap(object)` | the kernel object behind an `Nc*` handle; anything that is not a handle comes back unchanged |
+| `FindType(string)` | a `Type` by full name searched across the loaded assemblies, `null` when absent |
+| `Field(Type or string, name)` | an `NcField`, `null` when absent |
+| `Property(Type or string, name)` | an `NcProperty`, `null` when absent |
+| `Method(Type or string, name, params Type[])` | an `NcMethod`, `null` when absent; with no parameter types the first same-named overload is taken |
+
+The three handle types expose `Name`, the declared type, and `Get` / `Set` (`Invoke` for methods), with generic overloads that cast for you. A member that cannot be written (`readonly` fields, get-only properties) reports `CanWrite` / `CanRead` as false and throws when written anyway. Static members take a `null` target.
+
+Boundaries:
+
+- **Member names are kernel implementation details.** A rename on the kernel side breaks a mod that reaches for it, and the purity policy's promise — a compat shim instead of a break — does not extend here. Use a facade whenever one covers what you need.
+- **Overloads match exactly.** Parameter types, when given, must match exactly; without them the first same-named method wins, which is only safe when the name is not overloaded.
+- **`ref` / `out` parameters and generic method definitions** cannot be compiled into a delegate and are rejected when called, and so is an argument count that does not match.
+- **Private members of a base class** are not reachable through the derived type; resolve them on the type that declares them.
+
 ***
 
 ## 5. Internals
@@ -382,7 +438,7 @@ You do not need this section to write mods, but it may help when debugging.
 
 | Class                                                    | Form        | Responsibility                                              |
 | -------------------------------------------------------- | ----------- | ----------------------------------------------------------- |
-| `Internal.SignalProbe.OnSignal(string)`                  | Mark ×4     | all "something happened" signals funnel into one method, dispatched to the matching event by `label` |
+| `Internal.SignalProbe.OnSignal(string)`                  | Mark ×5     | all "something happened" signals funnel into one method, dispatched to the matching event by `label` |
 | `Internal.CommandProbe.OnCommandsReady(object)`          | CallSite    | replaces the call to `EffectCommand::Register`; after restoring the original call it fires `CommandRegister` |
 | `Internal.PlayerProbe.OnXxx(object, ...)`                | CallSite ×6 | player events, one method per hook point; after restoring the original call it publishes the event |
 | `Internal.LevelProbe.OnChunkXxxAssigned(object, object)` | CallSite ×3 | chunk events, hooked at the assignment sites of `ServerChunkCache`'s three callback properties; a wrapper delegate is layered on before handing control back to the kernel |
@@ -396,7 +452,9 @@ The only things that cannot be `object` in a signature are value-type parameters
 
 ### 5.2 Hook point list
 
-ModApi's `ncmod.json` contains twenty-four rules, matching the table in 2.1 one-to-one. To change a hook point or add a rule, edit this file; after editing, rebuild (it is an embedded resource) and put the resulting dll back into `mods/` — the latter is already done automatically by `DeployModToHosts` in `NetCraft.ModApi.csproj`, and missing it manifests as the rules not taking effect at all.
+ModApi's `ncmod.json` contains twenty-five rules, matching the table in 2.1 one-to-one. To change a hook point or add a rule, edit this file; after editing, rebuild (it is an embedded resource) and put the resulting dll back into `mods/` — the latter is already done automatically by `ncm build`'s deploy step, and missing it manifests as the rules not taking effect at all.
+
+The four lifecycle phases come from three hook shapes: `Starting` is a Mark on `DedicatedServer::InitServer` (the first statement of boot), `Started` and `Stopping` are Marks on `MinecraftServer::Run` and `DedicatedServer::Stop` entries, and `Stopped` needs no rule of its own — `ServerProbe.OnServerRun` wraps the single call to `Run`, publishes `Stopped` when it returns, and only then lets the captured server instance go.
 
 `CommandManager::Execute` has two overloads that share one rule. `Lead.Hook`'s CallSite matches call sites by "type + method name", not by parameter list, and both overloads take two parameters, so the probe can take `object` for the first parameter and dispatch by the real type.
 
@@ -424,7 +482,9 @@ The following are hook points whose locations are confirmed but that have not ye
 | Command execution | `CommandSourceStack::SendSuccess` / `SendFailure` (the response half, with many call sites) |
 | Network           | per-packet-type `ServerGamePacketListenerImpl::HandleXxx` (currently only a unified entry point) |
 
-Directions already done: level ticks became `ServerEvents.LevelTick`, saved data persistence became `ServerEvents.SavedDataSaving`, command execution became `ServerEvents.CommandExecuted`, and blocks became `ServerEvents.BlockChanged` / `BlockBroken` / `ItemDropped`.
+Directions already done: level ticks became `ServerEvents.LevelTick`, saved data persistence became `ServerEvents.SavedDataSaving`, command execution became `ServerEvents.CommandExecuted`, blocks became `ServerEvents.BlockChanged` / `BlockBroken` / `ItemDropped`, and the lifecycle is now four phases (`Starting` / `Started` / `Stopping` / `Stopped`).
+
+Two infrastructure pieces landed with the wrapper purity policy: handler exceptions are isolated inside `NcEvent.Publish` (logged, never propagated into the kernel), and cancellable events exist as a mechanism (`INcCancellable` + probe-side verdict readback) awaiting the interaction batch's first cancellable events.
 
 Hooking the block cell on `SetBlock` does not work: it has two default parameters, `notifyNeighbors` and `strict`, so compiled call sites take anywhere from 4 to 6 parameters, and since CallSite matches by "type + method name" without looking at the parameter list, one replacement method cannot handle all three stack shapes. Instead it hooks two places: state sync hooks `IBlockUpdateSink::BlockChanged` (the only interface call in `ServerLevel.SetBlock`, covering every change with client sync), and breaking and drops hook `ServerBlockUpdates`' own methods.
 

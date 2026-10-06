@@ -1,8 +1,8 @@
 namespace NetCraft.Game.World.Effect;
 
-//MobEffects 内置药水效果对应原版 net.minecraft.world.effect.MobEffects
-//注册顺序严格按原版静态字段声明顺序 注册表 id 即客户端注册表 id 错位客户端会显示错效果
-//字段初始化器按声明顺序执行 首次访问任一成员即完成全部登记 早于注册表冻结
+//MobEffects built-in mob effects, maps to vanilla net.minecraft.world.effect.MobEffects
+//Registration order strictly follows the vanilla static field declaration order; the registry id must equal the client registry id or the client shows the wrong effect
+//Field initializers run in declaration order; first access to any member completes all registration, before the registry freezes
 public static class MobEffects
 {
     private static bool _bootstrapped;
@@ -15,7 +15,7 @@ public static class MobEffects
     public static readonly Holder<NetCraft.Registry.MobEffect> INSTANT_HEALTH = Register("instant_health", new HealOrHarmMobEffect(MobEffectCategory.Beneficial, 16262179));
     public static readonly Holder<NetCraft.Registry.MobEffect> INSTANT_DAMAGE = Register("instant_damage", new HealOrHarmMobEffect(MobEffectCategory.Harmful, 11101546));
     public static readonly Holder<NetCraft.Registry.MobEffect> JUMP_BOOST = Register("jump_boost", new MobEffect(MobEffectCategory.Beneficial, 16646020));
-    //原版 setBlendDuration(150, 20, 60) 本作只需触发 NeedsBlend 三个时长参数用首参代表
+    //Vanilla setBlendDuration(150, 20, 60); this project only needs to trigger NeedsBlend and uses the first argument to represent the three durations
     public static readonly Holder<NetCraft.Registry.MobEffect> NAUSEA = Register("nausea", new MobEffect(MobEffectCategory.Harmful, 5578058).SetBlendDuration(150));
     public static readonly Holder<NetCraft.Registry.MobEffect> REGENERATION = Register("regeneration", new MobEffect(MobEffectCategory.Beneficial, 13458603));
     public static readonly Holder<NetCraft.Registry.MobEffect> RESISTANCE = Register("resistance", new MobEffect(MobEffectCategory.Beneficial, 9520880));
@@ -49,19 +49,19 @@ public static class MobEffects
     public static readonly Holder<NetCraft.Registry.MobEffect> INFESTED = Register("infested", new MobEffect(MobEffectCategory.Harmful, 9214860));
     public static readonly Holder<NetCraft.Registry.MobEffect> BREATH_OF_THE_NAUTILUS = Register("breath_of_the_nautilus", new MobEffect(MobEffectCategory.Beneficial, 65518));
 
-    //Bootstrap 触发内置效果登记 幂等
-    //登记实际由字段初始化器在类型首次访问时按声明顺序完成 这里只做幂等标记
+    //Bootstrap triggers built-in effect registration, idempotent
+    //Registration is actually done by field initializers in declaration order on first type access; this only sets the idempotent flag
     public static void Bootstrap()
     {
         if (_bootstrapped) return;
         _bootstrapped = true;
     }
 
-    //Find 按注册名取效果实现 未注册或非本子系统实现返回 null
+    //Find fetches the effect implementation by registry name; returns null when unregistered or not implemented by this subsystem
     public static MobEffect? Find(Identifier id)
         => BuiltInRegistries.MOB_EFFECT.GetValue(id) as MobEffect;
 
-    //Register 按调用顺序登记 注册表 id 由登记顺序决定
+    //Register registered in call order; the registry id is decided by registration order
     private static Holder<NetCraft.Registry.MobEffect> Register(string path, NetCraft.Registry.MobEffect value)
     {
         var id = Identifier.WithDefaultNamespace(path);

@@ -3,9 +3,9 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundContainerSetSlotPacket 容器槽位设置包对应原版 ClientboundContainerSetSlotPacket
-//字段 ContainerId(VarInt) StateId(VarInt) Slot(Short) Stack(ItemStack)
-//字段名 Stack 避免与 ItemStack 类型名冲突
+//ClientboundContainerSetSlotPacket container slot set packet, maps to vanilla ClientboundContainerSetSlotPacket
+//Fields: ContainerId(VarInt), StateId(VarInt), Slot(Short), Stack(ItemStack)
+//The field is named Stack to avoid clashing with the ItemStack type name
 public sealed record ClientboundContainerSetSlotPacket(int ContainerId, int StateId, int Slot, ItemStack Stack) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<RegistryFriendlyByteBuf, ClientboundContainerSetSlotPacket> StreamCodec { get; } = new ContainerSetSlotCodec();

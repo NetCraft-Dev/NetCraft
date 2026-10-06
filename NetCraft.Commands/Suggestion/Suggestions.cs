@@ -2,11 +2,11 @@ using NetCraft.Commands.Context;
 
 namespace NetCraft.Commands.Suggestion;
 
-//Suggestions 建议集合对应原版com.mojang.brigadier.suggestion.Suggestions
-//聚合多个Suggestion按range扩展并按忽略大小写排序供补全展示
+//Suggestions maps to vanilla com.mojang.brigadier.suggestion.Suggestions
+//Aggregates multiple Suggestions, expanding by range and sorting case-insensitively for display
 public sealed class Suggestions : IEquatable<Suggestions>
 {
-    //EmptyInstance 空建议共享实例由Empty()包装为Task返回
+    //EmptyInstance shared empty suggestions instance wrapped into a Task by Empty()
     private static readonly Suggestions _emptyInstance = new(StringRange.At(0), new List<Suggestion>());
     private static readonly Task<Suggestions> _empty = Task.FromResult(_emptyInstance);
 
@@ -74,7 +74,7 @@ public sealed class Suggestions : IEquatable<Suggestions>
 
     public static Task<Suggestions> Empty() => _empty;
 
-    //Merge 合并多个Suggestions去重后交给Create统一扩展排序
+    //Merge merges multiple Suggestions, deduplicating and handing off to Create for expansion and sorting
     public static Task<Suggestions> Merge(string command, ICollection<Suggestions> input)
     {
         if (input.Count == 0)
@@ -98,7 +98,7 @@ public sealed class Suggestions : IEquatable<Suggestions>
         return Create(command, texts);
     }
 
-    //Create 计算suggestions的最小range并扩展文本到统一range再按忽略大小写排序
+    //Create computes the minimal range across suggestions, expands the text to a common range and sorts case-insensitively
     public static Task<Suggestions> Create(string command, ICollection<Suggestion> suggestions)
     {
         if (suggestions.Count == 0)

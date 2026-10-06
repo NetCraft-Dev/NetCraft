@@ -3,8 +3,8 @@ using NetCraft.Game.Server;
 
 namespace NetCraft.Server.Gui;
 
-//ServerPlayerListPanel 玩家列表面板 对应原版 net.minecraft.server.gui.PlayerListComponent
-//只列在线玩家名 原版也是一张纯名单表
+//ServerPlayerListPanel, player list panel, maps to vanilla net.minecraft.server.gui.PlayerListComponent
+//Lists online player names only, vanilla is also a plain name list
 public sealed partial class ServerPlayerListPanel : UserControl
 {
     private readonly MinecraftServer _server;
@@ -16,7 +16,7 @@ public sealed partial class ServerPlayerListPanel : UserControl
         InitializeComponent();
     }
 
-    //Refresh 与上一次内容相同就不动 免得每次重设 ItemsSource 把滚动位置抖掉
+    //Refresh does nothing when the content is unchanged, avoids resetting ItemsSource each time and shaking the scroll position
     public void Refresh()
     {
         var names = _server.PlayerList.Players.Select(player => player.Profile.Name).ToList();

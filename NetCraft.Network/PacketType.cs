@@ -2,33 +2,33 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network;
 
-//IPacketType 非泛型包类型接口
-//PacketTypeRegistry 按 (Protocol, Direction, Id) 索引不依赖 THandler 用此接口
+//IPacketType non-generic packet type interface
+//PacketTypeRegistry indexes by (Protocol, Direction, Id) without depending on THandler, so this interface is used
 public interface IPacketType
 {
-    //Id 简化版网络 ID 由注册顺序分配
+    //Id is the simplified network ID, assigned by registration order
     int Id { get; }
-    //Protocol 所属协议
+    //Protocol is the owning protocol
     ConnectionProtocol Protocol { get; }
-    //Direction 方向与 FlowDirection 一致
+    //Direction matches FlowDirection
     FlowDirection Direction { get; }
 }
 
-//PacketType 包类型对应原版 net.minecraft.network.protocol.PacketType
-//注册到 PacketTypeRegistry 每种协议包有唯一 id
-//同时支持简化版 int Id（Connection.cs 用）和原版 Identifier（ProtocolInfoBuilder 用）
+//PacketType packet type, maps to vanilla net.minecraft.network.protocol.PacketType
+//Registered into PacketTypeRegistry, each protocol packet has a unique id
+//Supports both the simplified int Id (used by Connection.cs) and the vanilla Identifier (used by ProtocolInfoBuilder)
 public sealed class PacketType<THandler> : IPacketType
 {
-    //Id 简化版网络 ID 由注册顺序分配
+    //Id is the simplified network ID, assigned by registration order
     public int Id { get; }
-    //Protocol 所属协议
+    //Protocol is the owning protocol
     public ConnectionProtocol Protocol { get; }
-    //Direction 方向与 FlowDirection 一致
+    //Direction matches FlowDirection
     public FlowDirection Direction { get; }
-    //Codec 包编解码器
+    //Codec is the packet codec
     public StreamCodec<RegistryFriendlyByteBuf, Packet<THandler>>? Codec { get; }
-    //Identifier 原版标识符对齐原版 PacketType.id
-    //默认 null 不要求原版体系时可不设置
+    //Identifier is the vanilla identifier, aligns with vanilla PacketType.id
+    //Null by default, can be left unset when the vanilla system is not required
     public Identifier? Identifier { get; set; }
 
     public PacketType(int id, ConnectionProtocol protocol, FlowDirection direction, StreamCodec<RegistryFriendlyByteBuf, Packet<THandler>>? codec)
@@ -39,7 +39,7 @@ public sealed class PacketType<THandler> : IPacketType
         Codec = codec;
     }
 
-    //WithIdentifier 设置原版 Identifier 返回 this 便于链式
+    //WithIdentifier sets the vanilla Identifier and returns this for chaining
     public PacketType<THandler> WithIdentifier(Identifier identifier)
     {
         Identifier = identifier;
@@ -50,19 +50,19 @@ public sealed class PacketType<THandler> : IPacketType
         Identifier.HasValue ? $"{Protocol.Id()}/{Direction}/{Identifier.Value}" : $"PacketType[{Protocol}/{Direction} #{Id}]";
 }
 
-//FlowDirection 包方向对应原版 PacketFlow
-//Clientbound 服务端发往客户端
-//Serverbound 客户端发往服务端
+//FlowDirection packet direction, maps to vanilla PacketFlow
+//Clientbound server to client
+//Serverbound client to server
 public enum FlowDirection
 {
     Clientbound,
     Serverbound
 }
 
-//FlowDirectionExtensions FlowDirection 扩展方法对齐原版 PacketFlow.id/getOpposite
+//FlowDirectionExtensions extension methods for FlowDirection, aligns with vanilla PacketFlow.id/getOpposite
 public static class FlowDirectionExtensions
 {
-    //Id 返回方向小写名字符串
+    //Id returns the lowercase direction name string
     public static string Id(this FlowDirection direction) => direction switch
     {
         FlowDirection.Clientbound => "clientbound",
@@ -70,11 +70,11 @@ public static class FlowDirectionExtensions
         _ => direction.ToString().ToLowerInvariant(),
     };
 
-    //GetOpposite 返回反方向
+    //GetOpposite returns the opposite direction
     public static FlowDirection GetOpposite(this FlowDirection direction) =>
         direction == FlowDirection.Clientbound ? FlowDirection.Serverbound : FlowDirection.Clientbound;
 
-    //ToPacketFlow 转为 Protocol.PacketFlow
+    //ToPacketFlow converts to Protocol.PacketFlow
     public static Protocol.PacketFlow ToPacketFlow(this FlowDirection direction) =>
         direction == FlowDirection.Clientbound ? Protocol.PacketFlow.Clientbound : Protocol.PacketFlow.Serverbound;
 }

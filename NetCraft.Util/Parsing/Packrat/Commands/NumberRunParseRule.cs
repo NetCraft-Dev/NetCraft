@@ -2,8 +2,8 @@ using NetCraft.Util;
 
 namespace NetCraft.Util.Parsing.Packrat.Commands;
 
-//数字串匹配规则对应原版net.minecraft.util.parsing.packrat.commands.NumberRunParseRule
-//按字符谓词连续匹配首尾不允许下划线
+//Number run parse rule, maps to vanilla net.minecraft.util.parsing.packrat.commands.NumberRunParseRule
+//Matches consecutively by a character predicate, no underscore at either end
 public abstract class NumberRunParseRule : Rule<CommandStringReader, string>
 {
     private readonly DelayedException<CommandSyntaxException> _noValueError;

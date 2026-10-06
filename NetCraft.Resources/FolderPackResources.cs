@@ -2,14 +2,14 @@ using NetCraft.Registry;
 
 namespace NetCraft.Resources;
 
-//FolderPackResources 文件夹型资源包对应原版 net.minecraft.server.packs.FilePackResources
-//从文件系统目录读取资源 assets/对应ClientResources data/对应ServerData
+//FolderPackResources, a folder-based resource pack, maps to vanilla net.minecraft.server.packs.FilePackResources
+//Reads resources from a file system directory, assets/ maps to ClientResources and data/ maps to ServerData
 public sealed class FolderPackResources : PackResources
 {
     private readonly string _rootPath;
-    //_files 目录内全部文件的相对路径 统一用 '/' 分隔 构造时枚举一次
-    //资源查找是数据加载期最热的路径 逐次 File.Exists 等于每次都打一次盘
-    //这里用一次全目录枚举换掉后续全部探测 查询退化成纯内存的集合判定
+    //_files holds the relative paths of every file in the directory, all using '/', enumerated once at construction
+    //Resource lookup is the hottest path during data loading and a File.Exists per call means hitting the disk every time
+    //One full directory enumeration here replaces all later probes, turning the lookup into a pure in-memory set check
     private readonly HashSet<string> _files = new(StringComparer.Ordinal);
 
     public FolderPackResources(string packId, string rootPath) : base(packId)
@@ -18,7 +18,7 @@ public sealed class FolderPackResources : PackResources
         ScanFiles();
     }
 
-    //ScanFiles 枚举根目录下全部文件 相对路径按 '/' 归一
+    //ScanFiles enumerates all files under the root directory, normalizing relative paths to '/'
     private void ScanFiles()
     {
         if (!Directory.Exists(_rootPath)) return;
@@ -26,7 +26,7 @@ public sealed class FolderPackResources : PackResources
             _files.Add(Path.GetRelativePath(_rootPath, file).Replace(Path.DirectorySeparatorChar, '/'));
     }
 
-    //TypeToDir 资源类型到根目录名映射对齐原版 assets/data 约定
+    //TypeToDir maps a resource type to its root directory name, aligned with the vanilla assets/data convention
     internal static string TypeToDir(PackType type) => type switch
     {
         PackType.ClientResources => "assets",

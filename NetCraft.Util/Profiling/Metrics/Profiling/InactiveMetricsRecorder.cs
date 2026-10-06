@@ -2,8 +2,8 @@ using NetCraft.Util.Profiling;
 
 namespace NetCraft.Util.Profiling.Metrics.Profiling;
 
-//非活跃指标记录器对应原版net.minecraft.util.profiling.metrics.profiling.InactiveMetricsRecorder
-//所有方法空实现单例
+//Inactive metrics recorder, maps to vanilla net.minecraft.util.profiling.metrics.profiling.InactiveMetricsRecorder
+//Singleton with all methods empty
 public sealed class InactiveMetricsRecorder : MetricsRecorder
 {
     public static readonly MetricsRecorder Instance = new InactiveMetricsRecorder();

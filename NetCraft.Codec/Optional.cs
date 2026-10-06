@@ -1,7 +1,7 @@
 namespace NetCraft.Codec;
 
-//轻量Optional对应原版java.util.Optional
-//.NET无内置Optional避免与T?混淆
+//Lightweight Optional, mirroring vanilla java.util.Optional
+//.NET has no built-in Optional, and this type avoids confusion with T?
 public readonly struct Optional<T>
 {
     private readonly T? _value;
@@ -26,6 +26,6 @@ public readonly struct Optional<T>
     public Optional<R> Map<R>(Func<T, R> mapper)
         => IsPresent ? Optional<R>.Of(mapper(_value!)) : Optional<R>.Empty();
 
-    //存在时返回单元素序列不存在返回空序列对应原版Optional.stream
+    //Returns a single-element sequence when present and an empty one otherwise, mirroring vanilla Optional.stream
     public IEnumerable<T> Stream() => IsPresent ? new[] { _value! } : Enumerable.Empty<T>();
 }

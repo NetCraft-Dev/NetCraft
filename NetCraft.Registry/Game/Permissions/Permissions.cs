@@ -1,7 +1,7 @@
 namespace NetCraft.Registry;
 
-//Permissions 内置权限常量对应原版 net.minecraft.server.permissions.Permissions
-//命令类常量走 HasCommandLevel 非命令的独立开关走 Atom
+//Permissions built-in permission constants, maps to vanilla net.minecraft.server.permissions.Permissions
+//Command constants use HasCommandLevel and standalone non-command switches use Atom
 public static class Permissions
 {
     public static readonly Permission CommandsModerator = new Permission.HasCommandLevel(PermissionLevel.Moderators);
@@ -14,7 +14,7 @@ public static class Permissions
     public static readonly Permission ChatReceivePlayerMessages = Permission.Atom.Create("chat/receive_player_messages");
     public static readonly Permission ChatReceiveSystemMessages = Permission.Atom.Create("chat/receive_system_messages");
 
-    //ChatPermissions 聊天相关权限集合对应原版 CHAT_PERMISSIONS
+    //ChatPermissions chat-related permission set, maps to vanilla CHAT_PERMISSIONS
     public static readonly IReadOnlySet<Permission> ChatPermissions = new HashSet<Permission>
     {
         ChatSendMessages,

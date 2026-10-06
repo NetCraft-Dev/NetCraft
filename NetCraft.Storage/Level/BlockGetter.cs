@@ -3,10 +3,10 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Storage;
 
-//BlockGetter 方块读取接口对应原版 net.minecraft.world.level.BlockGetter
-//原版继承 LevelHeightAccessor 光照引擎取世界高度范围也走它
+//BlockGetter, block read interface, maps to vanilla net.minecraft.world.level.BlockGetter
+//Vanilla extends LevelHeightAccessor; the light engine also gets the world height range through it
 public interface BlockGetter : LevelHeightAccessor
 {
-    //getBlockState 按世界坐标取方块状态 越界返回空气
+    //getBlockState returns the block state at world coords; out of range returns air
     BlockState GetBlockState(int x, int y, int z);
 }

@@ -1,10 +1,10 @@
 namespace NetCraft.Commands.Functions;
 
-//StringTemplate 宏模板对应原版 net.minecraft.commands.functions.StringTemplate
-//把 $variable 切成字面段与变量名序列 替换时按段拼接
+//StringTemplate macro template, maps to vanilla net.minecraft.commands.functions.StringTemplate
+//Splits $variable into literal segments and a list of variable names, concatenating by segment on substitution
 public sealed record StringTemplate(List<string> Segments, List<string> Variables)
 {
-    //FromString 解析模板没有变量视为错误
+    //FromString parses the template; a template with no variables is treated as an error
     public static StringTemplate FromString(string input)
     {
         var segments = new List<string>();
@@ -45,7 +45,7 @@ public sealed record StringTemplate(List<string> Segments, List<string> Variable
         return new StringTemplate(segments, variables);
     }
 
-    //IsValidVariableName 变量名只收字母数字与下划线
+    //IsValidVariableName variable names accept only letters, digits and underscores
     public static bool IsValidVariableName(string variable)
     {
         foreach (var character in variable)
@@ -56,7 +56,7 @@ public sealed record StringTemplate(List<string> Segments, List<string> Variable
         return true;
     }
 
-    //Substitute 按实参拼回一行命令
+    //Substitute assembles the arguments back into one command line
     public string Substitute(List<string> arguments)
     {
         var builder = new System.Text.StringBuilder();

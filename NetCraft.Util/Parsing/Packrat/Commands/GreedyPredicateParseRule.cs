@@ -2,8 +2,8 @@ using NetCraft.Util;
 
 namespace NetCraft.Util.Parsing.Packrat.Commands;
 
-//贪婪谓词匹配规则对应原版net.minecraft.util.parsing.packrat.commands.GreedyPredicateParseRule
-//按字符谓词连续匹配minSize到maxSize长度失败返回null
+//Greedy predicate parse rule, maps to vanilla net.minecraft.util.parsing.packrat.commands.GreedyPredicateParseRule
+//Matches consecutively by a character predicate from minSize to maxSize length, returns null on failure
 public abstract class GreedyPredicateParseRule : Rule<CommandStringReader, string>
 {
     private readonly int _minSize;

@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundChunkBatchStartPacket 区块批次开始包对应原版 ClientboundChunkBatchStartPacket
-//字段 
+//ClientboundChunkBatchStartPacket chunk batch start packet, maps to vanilla ClientboundChunkBatchStartPacket
+//Fields:
 public sealed record ClientboundChunkBatchStartPacket() : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundChunkBatchStartPacket> StreamCodec { get; } = new ChunkBatchStartCodec();

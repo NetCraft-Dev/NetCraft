@@ -5,11 +5,11 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Game.World.Phys.Collision;
 
-//PositionCollisionContext 只按高度判定的碰撞上下文 对应原版 PositionCollisionContext
-//无实体的位置查询用它 比如流体能否承载某高度的方块
+//PositionCollisionContext collision context judged only by height, maps to vanilla PositionCollisionContext
+//Used for entity-less position queries, such as whether a fluid can support a block at some height
 public sealed class PositionCollisionContext : CollisionContext
 {
-    //原版那个常数是 (double)(float)1.0E-5 照抄不要改成 1.0E-5
+    //Vanilla's constant is (double)(float)1.0E-5; copy it as is and do not change it to 1.0E-5
     private const double BelowTolerance = 9.999999747378752E-6;
 
     private readonly double _y;

@@ -3,17 +3,17 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry;
 
-//BiomeCodecs 群系数据模型复用的通用编解码器
+//BiomeCodecs general codec utilities reused by the biome data model
 internal static class BiomeCodecs
 {
-    //PositiveInt 正整数对应原版 ExtraCodecs.POSITIVE_INT
+    //PositiveInt positive integer, maps to vanilla ExtraCodecs.POSITIVE_INT
     public static readonly Codec<int> PositiveInt = new IntMinCodec(1, "Value must be positive");
 
-    //NonNegativeInt 非负整数对应原版 ExtraCodecs.NON_NEGATIVE_INT
+    //NonNegativeInt non-negative integer, maps to vanilla ExtraCodecs.NON_NEGATIVE_INT
     public static readonly Codec<int> NonNegativeInt = new IntMinCodec(0, "Value must be non-negative");
 }
 
-//IntMinCodec 带下界校验的整数
+//IntMinCodec integer with a lower-bound check
 internal sealed class IntMinCodec : ScalarCodec<int>
 {
     private readonly int _min;
@@ -38,7 +38,7 @@ internal sealed class IntMinCodec : ScalarCodec<int>
         => DataResult<U>.Success(ops.CreateInt(value));
 }
 
-//FloatRangeCodec 带上下界校验的浮点对应原版 Codec.floatRange
+//FloatRangeCodec float with lower and upper bound checks, maps to vanilla Codec.floatRange
 internal sealed class FloatRangeCodec : ScalarCodec<float>
 {
     private readonly float _min;
@@ -63,7 +63,7 @@ internal sealed class FloatRangeCodec : ScalarCodec<float>
         => DataResult<U>.Success(ops.CreateFloat(value));
 }
 
-//StringEnumCodec 按序列化名编解码枚举对应原版 StringRepresentable.fromEnum
+//StringEnumCodec encodes/decodes an enum by serialized name, maps to vanilla StringRepresentable.fromEnum
 internal sealed class StringEnumCodec<T> : ScalarCodec<T> where T : struct, Enum
 {
     private readonly Dictionary<string, T> _byName;
@@ -92,7 +92,7 @@ internal sealed class StringEnumCodec<T> : ScalarCodec<T> where T : struct, Enum
             : DataResult<U>.Error(() => $"Unregistered {typeof(T).Name}: {value}");
 }
 
-//ValidatedCodec 解码后追加校验对应原版 Codec.validate
+//ValidatedCodec adds validation after decoding, maps to vanilla Codec.validate
 internal sealed class ValidatedCodec<T> : ScalarCodec<T>
 {
     private readonly Codec<T> _inner;
@@ -111,8 +111,8 @@ internal sealed class ValidatedCodec<T> : ScalarCodec<T>
         => _inner.EncodeStart(ops, value);
 }
 
-//SimpleMapCodec 字符串键映射对应原版 Codec.simpleMap
-//键值都走各自的 codec 编解码不额外限定键集合
+//SimpleMapCodec string-keyed map, maps to vanilla Codec.simpleMap
+//Both keys and values go through their own codecs; no extra restriction on the key set
 internal sealed class SimpleMapCodec<K, V> : ScalarCodec<IReadOnlyDictionary<K, V>> where K : notnull
 {
     private readonly Codec<K> _keyCodec;
@@ -152,8 +152,8 @@ internal sealed class SimpleMapCodec<K, V> : ScalarCodec<IReadOnlyDictionary<K, 
     }
 }
 
-//HolderSetIdCodec carvers 弱引用 codec 单个 id 字符串或 id 数组都接受
-//对应原版 ConfiguredWorldCarver.LIST_CODEC 的 HolderSet 两种形态
+//HolderSetIdCodec carvers weak-reference codec accepting either a single id string or an id array
+//Matches the two HolderSet forms of vanilla ConfiguredWorldCarver.LIST_CODEC
 internal sealed class HolderSetIdCodec : ScalarCodec<IReadOnlyList<Identifier>>
 {
     public static readonly HolderSetIdCodec Instance = new();

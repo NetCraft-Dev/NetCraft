@@ -4,9 +4,9 @@ using NetCraft.Commands.Tree;
 
 namespace NetCraft.Commands.Builder;
 
-//RequiredArgumentBuilder 必需参数构建器对应原版com.mojang.brigadier.builder.RequiredArgumentBuilder
-//链式构建ArgumentCommandNode<S,T>静态Argument方法创建实例
-//持name与ArgumentType<T>SuggestionProvider可选自定义补全
+//RequiredArgumentBuilder required argument builder, maps to vanilla com.mojang.brigadier.builder.RequiredArgumentBuilder
+//Chains into an ArgumentCommandNode<S,T>; the static Argument method creates an instance
+//Holds a name and an ArgumentType<T>, plus an optional SuggestionProvider for custom completions
 public sealed class RequiredArgumentBuilder<S, T> : ArgumentBuilder<S, RequiredArgumentBuilder<S, T>>
 {
     private readonly string _name;

@@ -1,25 +1,25 @@
 namespace NetCraft.Network.Protocol.Login;
 
-//ClientboundHelloPacket 服务端加密握手包对应原版 net.minecraft.network.protocol.login.ClientboundHelloPacket
-//含 serverId + publicKey + challenge + shouldAuthenticate
-//简化版不解析 PublicKey 直接保留 byte[]
+//ClientboundHelloPacket server encryption handshake packet, maps to vanilla net.minecraft.network.protocol.login.ClientboundHelloPacket
+//Contains serverId + publicKey + challenge + shouldAuthenticate
+//The simplified form does not parse PublicKey and keeps it as byte[]
 public sealed record ClientboundHelloPacket(
     string ServerId,
     byte[] PublicKey,
     byte[] Challenge,
     bool ShouldAuthenticate) : Packet<ClientLoginPacketListener>
 {
-    //MaxServerIdLength serverId 最大 20 字符
+    //MaxServerIdLength maximum serverId length 20 characters
     public const int MaxServerIdLength = 20;
 
-    //StreamCodec 包编解码器
+    //StreamCodec packet codec
     public static StreamCodec<FriendlyByteBuf, ClientboundHelloPacket> StreamCodec { get; } = new HelloCodec();
 
     public PacketType<ClientLoginPacketListener> Type => LoginPacketTypes.ClientboundHello;
 
     public void Handle(ClientLoginPacketListener handler) => handler.HandleHello(this);
 
-    //HelloCodec 编解码器读写 serverId + publicKey + challenge + shouldAuthenticate
+    //HelloCodec codec reading and writing serverId + publicKey + challenge + shouldAuthenticate
     private sealed class HelloCodec : StreamCodec<FriendlyByteBuf, ClientboundHelloPacket>
     {
         public ClientboundHelloPacket Decode(FriendlyByteBuf buf)

@@ -1,7 +1,7 @@
 namespace NetCraft.Storage.Paletted;
 
-//哈希palette对应原版HashMapPalette
-//用CrudeIncrementalIntIdentityHashBiMap实现值到id快速查找适合中等规模场景
+//Hash palette, maps to vanilla HashMapPalette
+//Uses CrudeIncrementalIntIdentityHashBiMap for fast value-to-id lookup, suited to medium-sized cases
 public sealed class HashMapPalette<T> : Palette<T>
 {
     private readonly CrudeIncrementalIntIdentityHashBiMap<T> _values;
@@ -20,7 +20,7 @@ public sealed class HashMapPalette<T> : Palette<T>
         _values = values;
     }
 
-    //已存在直接返回id不存在则加入超过容量则扩容对应原版idFor
+    //Return the id if it exists, otherwise add it; if over capacity, resize, maps to vanilla idFor
     public int IdFor(T value, PaletteResize<T> resizeHandler)
     {
         var id = _values.GetId(value);
@@ -52,7 +52,7 @@ public sealed class HashMapPalette<T> : Palette<T>
 
     public Palette<T> Copy() => new HashMapPalette<T>(_bits, _values.Copy());
 
-    //获取所有条目对应原版getEntries用于pack时输出palette
+    //Get all entries, maps to vanilla getEntries, used to emit the palette when packing
     public IReadOnlyList<T> GetEntries()
     {
         var list = new List<T>();

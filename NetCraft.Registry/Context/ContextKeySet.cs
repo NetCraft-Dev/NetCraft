@@ -1,7 +1,7 @@
 namespace NetCraft.Registry.Context;
 
-//上下文键集合对应原版ContextKeySet
-//分必需与可选两组，allowed是两组的并集
+//Context key set, maps to vanilla ContextKeySet
+//Split into required and optional groups; allowed is the union of both
 public sealed class ContextKeySet
 {
     private readonly HashSet<ContextKey> _required;
@@ -19,11 +19,11 @@ public sealed class ContextKeySet
 
     public IReadOnlySet<ContextKey> Allowed => _allowed;
 
-    //必需项前面加叹号
+    //Prefix required entries with an exclamation mark
     public override string ToString()
         => "[" + string.Join(", ", _allowed.Select(key => (_required.Contains(key) ? "!" : "") + key.Name)) + "]";
 
-    //集合构造器对应原版ContextKeySet.Builder
+    //Set builder, maps to vanilla ContextKeySet.Builder
     public sealed class Builder
     {
         private readonly HashSet<ContextKey> _required = new();

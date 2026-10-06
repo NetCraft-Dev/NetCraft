@@ -1,16 +1,16 @@
 namespace NetCraft.Util.Random;
 
-//随机源接口对应原版net.minecraft.util.RandomSource
-//所有随机数生成入口定义fork与各类next方法
+//Random source interface, maps to vanilla net.minecraft.util.RandomSource
+//All random number generation entry points, defining fork and the various next methods
 public interface RandomSource
 {
-    //fork派生新独立随机源对应原版fork
+    //fork derives a new independent random source, maps to vanilla fork
     RandomSource Fork();
 
-    //forkPositional派生位置性工厂对应原版forkPositional
+    //forkPositional derives a positional factory, maps to vanilla forkPositional
     PositionalRandomFactory ForkPositional();
 
-    //setSeed重置种子对应原版setSeed
+    //setSeed resets the seed, maps to vanilla setSeed
     void SetSeed(long seed);
 
     int NextInt();
@@ -21,26 +21,26 @@ public interface RandomSource
     double NextDouble();
     double NextGaussian();
 
-    //consumeCount消耗指定轮次对应原版consumeCount默认实现调nextInt
+    //consumeCount consumes the given number of rounds, maps to vanilla consumeCount, default calls nextInt
     void ConsumeCount(int rounds)
     {
         for (var i = 0; i < rounds; i++)
             NextInt();
     }
 
-    //nextIntBetweenInclusive闭区间随机整数对应原版nextIntBetweenInclusive
+    //nextIntBetweenInclusive closed-interval random integer, maps to vanilla nextIntBetweenInclusive
     int NextIntBetweenInclusive(int min, int maxInclusive)
         => NextInt(maxInclusive - min + 1) + min;
 
-    //triangle三角分布对应原版triangle(double)
+    //triangle triangular distribution, maps to vanilla triangle(double)
     double Triangle(double mean, double spread)
         => mean + spread * (NextDouble() - NextDouble());
 
-    //triangle三角分布float重载
+    //triangle triangular distribution float overload
     float Triangle(float mean, float spread)
         => mean + spread * (NextFloat() - NextFloat());
 
-    //nextInt带origin重载对应原版nextInt(origin,bound)
+    //nextInt with origin overload, maps to vanilla nextInt(origin,bound)
     int NextInt(int origin, int bound)
     {
         if (origin >= bound)
@@ -48,9 +48,9 @@ public interface RandomSource
         return origin + NextInt(bound - origin);
     }
 
-    //create默认工厂对应原版create生成唯一种子
+    //create default factory, maps to vanilla create, generates a unique seed
     static RandomSource Create() => Create(RandomSupport.GenerateUniqueSeed());
 
-    //create按种子构造LegacyRandomSource占位用XoroshiroRandomSource等Legacy阶段补
+    //create builds a LegacyRandomSource from the seed as a placeholder; XoroshiroRandomSource and the like come later in the Legacy stage
     static RandomSource Create(long seed) => new XoroshiroRandomSource(seed);
 }

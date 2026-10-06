@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundPlayerCombatEnterPacket 战斗开始包对应原版 ClientboundPlayerCombatEnterPacket
-//字段 
+//ClientboundPlayerCombatEnterPacket combat enter packet, maps to vanilla ClientboundPlayerCombatEnterPacket
+//Fields:
 public sealed record ClientboundPlayerCombatEnterPacket() : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundPlayerCombatEnterPacket> StreamCodec { get; } = new PlayerCombatEnterCodec();

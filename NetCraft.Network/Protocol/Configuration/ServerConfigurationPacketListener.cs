@@ -1,8 +1,8 @@
 namespace NetCraft.Network.Protocol.Configuration;
 
-//ServerConfigurationPacketListener 服务端 configuration 监听器
-//对应原版 net.minecraft.network.protocol.configuration.ServerConfigurationPacketListener
-//继承 ServerCommonPacketListener 加入 3 个 configuration 包的 handle 方法
+//ServerConfigurationPacketListener server-side configuration listener
+//Maps to vanilla net.minecraft.network.protocol.configuration.ServerConfigurationPacketListener
+//Inherits ServerCommonPacketListener and adds the 3 handle methods for configuration packets
 public interface ServerConfigurationPacketListener : ServerCommonPacketListener
 {
     void HandleConfigurationFinished(ServerboundFinishConfigurationPacket packet);

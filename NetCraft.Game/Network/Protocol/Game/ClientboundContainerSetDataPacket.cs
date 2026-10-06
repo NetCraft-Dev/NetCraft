@@ -2,8 +2,8 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundContainerSetDataPacket 容器数据设置包对应原版 ClientboundContainerSetDataPacket
-//字段 ContainerId(VarInt) Id(Short) Value(Short) 对齐原版三个数字字段
+//ClientboundContainerSetDataPacket container data set packet, maps to vanilla ClientboundContainerSetDataPacket
+//Fields: ContainerId(VarInt), Id(Short), Value(Short), aligns with the vanilla three numeric fields
 public sealed record ClientboundContainerSetDataPacket(int ContainerId, int Id, int Value) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<RegistryFriendlyByteBuf, ClientboundContainerSetDataPacket> StreamCodec { get; } = new ContainerSetDataCodec();

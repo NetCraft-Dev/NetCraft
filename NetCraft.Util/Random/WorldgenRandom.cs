@@ -1,13 +1,13 @@
 namespace NetCraft.Util.Random;
 
-//WorldgenRandom 世界生成种子派生工具 对应原版 net.minecraft.world.level.levelgen.WorldgenRandom
-//原版把派生逻辑做在随机源包装类上 本作直接给静态方法 底层随机源由调用方提供
-//结构放置与装饰都靠这几个派生保证同种子同结果 公式与消耗顺序必须逐字对齐否则结构位置会漂
-//注意结构放置要用 LegacyRandomSource 装饰用 Xoroshiro 两者数值不同不能混
+//WorldgenRandom worldgen seed derivation helper, maps to vanilla net.minecraft.world.level.levelgen.WorldgenRandom
+//Vanilla puts the derivation logic on a random source wrapper; this project provides static methods instead, with the underlying random source supplied by the caller
+//Structure placement and decoration rely on these derivations to guarantee same seed same result; the formula and consumption order must match exactly or structure positions drift
+//Note: structure placement uses LegacyRandomSource while decoration uses Xoroshiro; the two produce different values and must not be mixed
 public static class WorldgenRandom
 {
-    //SetLargeFeatureSeed 按区块坐标派生种子 对应原版 setLargeFeatureSeed
-    //先取两个奇数缩放因子再异或区块坐标 结构放置与雕刻器共用同一套公式
+    //SetLargeFeatureSeed derives a seed from chunk coordinates, maps to vanilla setLargeFeatureSeed
+    //Takes two odd scaling factors then XORs the chunk coordinates; structure placement and carvers share the same formula
     public static void SetLargeFeatureSeed(RandomSource random, long seed, int chunkX, int chunkZ)
     {
         random.SetSeed(seed);
@@ -16,15 +16,15 @@ public static class WorldgenRandom
         random.SetSeed(chunkX * xScale ^ chunkZ * zScale ^ seed);
     }
 
-    //SetLargeFeatureWithSalt 带盐派生种子 对应原版 setLargeFeatureWithSalt
-    //随机散布放置用它算某个网格的潜在区块 是纯线性组合不消耗随机数
+    //SetLargeFeatureWithSalt derives a salted seed, maps to vanilla setLargeFeatureWithSalt
+    //Random scatter placement uses it to compute potential chunks in a grid; it is a pure linear combination and consumes no random numbers
     public static void SetLargeFeatureWithSalt(RandomSource random, long seed, int x, int z, int salt)
     {
         random.SetSeed(x * 341873128712L + z * 132897987541L + seed + salt);
     }
 
-    //SetDecorationSeed 派生装饰种子并返回 对应原版 setDecorationSeed
-    //装饰与结构落地都以它为基准 返回值要接着喂给 SetFeatureSeed
+    //SetDecorationSeed derives and returns the decoration seed, maps to vanilla setDecorationSeed
+    //Decoration and structure placement both use it as reference; the return value is fed into SetFeatureSeed
     public static long SetDecorationSeed(RandomSource random, long worldSeed, int minBlockX, int minBlockZ)
     {
         random.SetSeed(worldSeed);
@@ -35,8 +35,8 @@ public static class WorldgenRandom
         return seed;
     }
 
-    //SetFeatureSeed 按步内序号派生种子 对应原版 setFeatureSeed
-    //步长取 10000 保证同一步内相邻序号互不重叠 特征与结构都用它
+    //SetFeatureSeed derives a seed from the in-step index, maps to vanilla setFeatureSeed
+    //Step size 10000 keeps adjacent indices within a step from overlapping; features and structures both use it
     public static void SetFeatureSeed(RandomSource random, long decorationSeed, int index, int step)
         => random.SetSeed(decorationSeed + index + 10000L * step);
 }

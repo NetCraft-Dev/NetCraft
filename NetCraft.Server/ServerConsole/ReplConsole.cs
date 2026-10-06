@@ -6,24 +6,24 @@ using NetCraft.Logging;
 
 namespace NetCraft.Server.ServerConsole;
 
-//ReplConsole 服务端命令行
-//交互时逐键读 行内编辑 历史 补全 写日志前先把提示符行腾出来
-//输入或输出被重定向时降级成只读行 输出原样直写 一个控制序列都不发
-//提交的命令走服务端控制台命令源 与 GUI 控制台那条路同一个入口
+//ReplConsole, the server console
+//Interactively it reads key by key, supports inline editing, history, completion, and clears the prompt line before writing logs
+//When input or output is redirected it degrades to a read loop, output is written straight through and no control sequence is emitted
+//Submitted commands go through the server console command source, the same entry as the GUI console
 public sealed class ReplConsole : IDisposable
 {
     private const string Prompt = "> ";
 
-    //清掉光标所在整行并把光标送回行首
+    //Clears the whole line the cursor is on and returns the cursor to the line start
     private const string ClearLine = "\r\u001B[2K";
 
-    //HistoryCapacity 历史保留上限 与 InputLine 的内存上限对齐
+    //HistoryCapacity history retention cap, aligned with the InputLine in-memory cap
     private const int HistoryCapacity = 1000;
 
-    //反向搜索提示符 命中与未命中两种写法 与 readline 一致
+    //Reverse search prompt, both the hit and miss forms, same as readline
     private const string SearchPrompt = "(reverse-i-search)`";
     private const string FailedSearchPrompt = "(failed reverse-i-search)`";
-    //查询串与命中文本之间那一段
+    //The segment between the query string and the matched text
     private const string SearchTail = "': ";
 
     private readonly object _lock = new();
@@ -37,22 +37,22 @@ public sealed class ReplConsole : IDisposable
     private Thread? _thread;
     private volatile bool _running;
 
-    //_candidates 当前留在提示符上方的补全候选 为 null 表示没有
-    //留着状态是为了重绘 日志到来时把候选一起画回去 不然刚列出来就被冲掉
+    //_candidates the completion candidates currently kept above the prompt, null means none
+    //The state is kept so it can be redrawn, when a log line arrives the candidates are drawn back with it, otherwise a fresh list is immediately wiped
     private IReadOnlyList<string>? _candidates;
-    //_candidateRows 候选区占了几行 擦除时按它上移 行数是本类自己渲染出来的 不必估终端宽度
+    //_candidateRows how many rows the candidate area occupies, erasing moves up by it, the row count comes from this class's own rendering so the terminal width need not be guessed
     private int _candidateRows;
-    //_drawn 提示符行是否已经画在屏幕上 空输入的空重绘靠它跳过 敲多少下回车都不往屏幕上添东西
+    //_drawn whether the prompt line is already drawn on screen, it makes the empty redraw of empty input skip, pressing Enter any number of times adds nothing to the screen
     private bool _drawn;
 
-    //_searching 是否停在 Ctrl+R 反向搜索里 搜索期间按键走另一套分派
+    //_searching whether it is parked in Ctrl+R reverse search, keys use a different dispatch during search
     private bool _searching;
     private string _searchQuery = string.Empty;
-    //_searchIndex 搜索游标 从历史末尾起往前退 指向下一条要比对的位置
+    //_searchIndex the search cursor, moves backward from the end of history and points to the next position to compare
     private int _searchIndex;
-    //_searchSavedText 进入搜索前的那行输入 按 Esc 还回去
+    //_searchSavedText the input line from before entering search, restored on Esc
     private string _searchSavedText = string.Empty;
-    //_searchMissed 上一次查找没命中 提示符上标出来 与 readline 一样
+    //_searchMissed the last search missed, marked on the prompt, same as readline
     private bool _searchMissed;
 
     private ReplConsole(DedicatedServer server, TextWriter output, bool interactive, ICompletionSource? completion,
@@ -65,9 +65,9 @@ public sealed class ReplConsole : IDisposable
         _highlighter = highlighter;
     }
 
-    //Start 接管服务端控制台
-    //交互模式下先接输出再接输入 反过来的话启动期日志会把提示符冲掉
-    //两处都被重定向时不接输出 管道里的内容应当保持原样
+    //Start takes over the server console
+    //In interactive mode the output is attached before the input, the reverse would let startup logs wipe the prompt
+    //When both are redirected the output is not attached, piped content should stay as is
     public static ReplConsole Start(DedicatedServer server)
     {
         var interactive = !Console.IsInputRedirected && !Console.IsOutputRedirected;
@@ -80,7 +80,7 @@ public sealed class ReplConsole : IDisposable
 
         if (interactive)
         {
-            //交互模式才载入历史与接输出 重定向那一支输出原样透传 历史也用不上
+            //Only interactive mode loads history and attaches the output, the redirected branch passes output through as is and has no use for history
             repl.LoadHistory();
             Console.SetOut(new ConsoleLineWriter(repl));
         }
@@ -89,18 +89,18 @@ public sealed class ReplConsole : IDisposable
         repl._thread = new Thread(interactive ? repl.RunInteractive : repl.RunRedirected)
         {
             Name = "NetCraft-Console",
-            //后台线程 服务端主循环退出了不必等它
+            //Background thread, no need to wait for it once the server main loop exits
             IsBackground = true,
         };
         repl._thread.Start();
         return repl;
     }
 
-    //HistoryPath 历史落盘位置 放程序根目录 对应 Paper 控制台的 console_history
+    //HistoryPath where history is written, in the program root, maps to Paper's console console_history
     private static string HistoryPath => Path.Combine(AppPaths.BaseDirectory, "console_history");
 
-    //LoadHistory 载入落盘的会话历史并接上后续落盘
-    //历史文件读不动也不该挡住命令行 任何异常都吞掉 当作没有历史
+    //LoadHistory loads the persisted session history and wires up subsequent writes
+    //An unreadable history file must not block the console, any exception is swallowed and treated as no history
     private void LoadHistory()
     {
         _input.HistoryAppended = SaveHistoryLine;
@@ -110,7 +110,7 @@ public sealed class ReplConsole : IDisposable
 
             var lines = File.ReadAllLines(HistoryPath);
             _input.LoadHistory(lines);
-            //文件比内存上限还长就顺手收一次 免得越攒越大
+            //If the file is longer than the in-memory cap, trim once to keep it from growing without bound
             if (lines.Length > HistoryCapacity) File.WriteAllLines(HistoryPath, _input.History);
         }
         catch (Exception e)
@@ -119,8 +119,8 @@ public sealed class ReplConsole : IDisposable
         }
     }
 
-    //SaveHistoryLine 每提交一条就追加落盘 下次启动还能翻出来
-    //写失败只记一条警告 已经跑出去的命令不该被它带偏
+    //SaveHistoryLine appends to disk on every commit so it can be recalled on the next startup
+    //A failed write only logs a warning, a command already dispatched should not be derailed by it
     private void SaveHistoryLine(string line)
     {
         try
@@ -133,8 +133,8 @@ public sealed class ReplConsole : IDisposable
         }
     }
 
-    //WriteLine 内核日志的出口
-    //交互时先把提示符行腾空再写 写完把提示符画回去 日志折行交给终端滚
+    //WriteLine the output point for kernel logs
+    //Interactively the prompt line is cleared first, then the prompt is drawn back after writing, log wrapping is left to the terminal scroll
     public void WriteLine(string text)
     {
         if (!_interactive)
@@ -147,23 +147,23 @@ public sealed class ReplConsole : IDisposable
 
         lock (_lock)
         {
-            //日志会插在候选区与提示符之间 先擦掉候选区 写完再连同候选一起画回来
+            //A log line lands between the candidate area and the prompt, erase the candidate area first and draw it back with the log after writing
             EraseCandidates();
             _output.Write(ClearLine);
             _output.Write(text);
             _output.Write('\n');
-            //日志把提示符挤掉了 这一次必须重画
+            //The log pushed the prompt away, this time a redraw is mandatory
             Render(force: true);
         }
     }
 
     public void Dispose()
     {
-        //读键线程可能正阻塞在 ReadKey 上 它是后台线程 不等它退出
+        //The key-reading thread may be blocked in ReadKey, it is a background thread so its exit is not awaited
         _running = false;
     }
 
-    //RunInteractive 输入是终端时的主路径
+    //RunInteractive the main path when input is a terminal
     private void RunInteractive()
     {
         lock (_lock) Render();
@@ -172,7 +172,7 @@ public sealed class ReplConsole : IDisposable
         {
             if (!Console.KeyAvailable)
             {
-                //15ms 一跳 按键延迟感觉不出来 也不至于空转烧核
+                //15ms per step, key latency is imperceptible and it does not spin and burn a core
                 Thread.Sleep(15);
                 continue;
             }
@@ -182,8 +182,8 @@ public sealed class ReplConsole : IDisposable
         }
     }
 
-    //RunRedirected 输入不是终端时的降级路径
-    //一行一条命令 读到 null 说明管道那头关了 线程自己收工
+    //RunRedirected the degraded path when input is not a terminal
+    //One command per line, reading null means the pipe end closed and the thread finishes on its own
     private void RunRedirected()
     {
         while (_running)
@@ -203,10 +203,10 @@ public sealed class ReplConsole : IDisposable
         }
     }
 
-    //HandleKey 按键分派
+    //HandleKey key dispatch
     private void HandleKey(ConsoleKeyInfo key)
     {
-        //搜索态另有一套键位 从字面输入切到查找串 这里整支截走
+        //Search mode has its own key map and switches from literal input to the search string, intercepted entirely here
         if (_searching)
         {
             HandleSearchKey(key);
@@ -246,11 +246,11 @@ public sealed class ReplConsole : IDisposable
                 _input.HistoryDown();
                 break;
             case ConsoleKey.Escape:
-                //与 readline 一致 丢掉当前这一行
+                //Same as readline, discard the current line
                 _input.Clear();
                 break;
             case ConsoleKey.L when key.Modifiers.HasFlag(ConsoleModifiers.Control):
-                //清屏后把输入与提示符重新画一遍 屏幕上的候选行已随清屏消失 状态也要跟着清
+                //Redraw the input and prompt after clearing the screen, the candidate rows are gone with the clear so the state is cleared too
                 _output.Write("\u001B[2J\u001B[H");
                 _candidates = null;
                 _candidateRows = 0;
@@ -258,41 +258,41 @@ public sealed class ReplConsole : IDisposable
                 Render();
                 return;
             case ConsoleKey.R when key.Modifiers.HasFlag(ConsoleModifiers.Control):
-                //Ctrl+R 进反向搜索 与 readline 一个路子
+                //Ctrl+R enters reverse search, same route as readline
                 BeginSearch();
                 Render(force: true);
                 return;
             default:
-                //控制字符与功能键不进输入
+                //Control characters and function keys do not enter the input
                 if (key.KeyChar < ' ' || key.KeyChar == '\u007F') return;
                 _input.Insert(key.KeyChar);
                 break;
         }
 
-        //输入变了 上一次的补全结果已经过期
+        //The input changed, the previous completion result is stale
         _candidates = null;
         Render();
     }
 
-    //BeginSearch 进入 Ctrl+R 反向搜索 记下当前这行 按 Esc 时还回去
+    //BeginSearch enters Ctrl+R reverse search, saves the current line to restore on Esc
     private void BeginSearch()
     {
         _searching = true;
         _searchQuery = string.Empty;
-        //游标停在历史末尾之后 按一次 Ctrl+R 正好从最新一条起查
+        //The cursor sits past the end of history so one Ctrl+R starts from the newest entry
         _searchIndex = _input.History.Count;
         _searchSavedText = _input.Text;
         _searchMissed = false;
-        //上一轮留下的候选跟搜索无关 让 Render 顺手清掉
+        //Candidates left from the previous round are unrelated to search, let Render clear them
         _candidates = null;
     }
 
-    //HandleSearchKey 搜索态按键 查询串走 _searchQuery 输入行只承载命中项
+    //HandleSearchKey search-mode keys, the query string goes through _searchQuery and the input line only carries the match
     private void HandleSearchKey(ConsoleKeyInfo key)
     {
         if (key.Key == ConsoleKey.R && key.Modifiers.HasFlag(ConsoleModifiers.Control))
         {
-            //再按一次 Ctrl+R 从当前命中往前接着找
+            //Another Ctrl+R continues searching backward from the current match
             SearchBackward();
             Render(force: true);
             return;
@@ -301,13 +301,13 @@ public sealed class ReplConsole : IDisposable
         switch (key.Key)
         {
             case ConsoleKey.Enter:
-                //接受命中并直接提交 与 readline 的 accept-line 一致
+                //Accept the match and submit directly, same as readline's accept-line
                 _searching = false;
                 ResetSearch();
                 Submit();
                 return;
             case ConsoleKey.Escape:
-                //放弃搜索 把进搜索前那行还回输入
+                //Abandon the search, restore the line from before entering search
                 _searching = false;
                 _input.SetText(_searchSavedText);
                 ResetSearch();
@@ -315,14 +315,14 @@ public sealed class ReplConsole : IDisposable
                 return;
             case ConsoleKey.Backspace:
                 if (_searchQuery.Length > 0) _searchQuery = _searchQuery[..^1];
-                //查询串变了 从末尾重查一遍
+                //The query string changed, search again from the end
                 SearchBackward(reset: true);
                 Render(force: true);
                 return;
             default:
                 if (key.KeyChar < ' ' || key.KeyChar == '\u007F')
                 {
-                    //其它控制键就地收掉搜索 命中项留在输入上接着编辑
+                    //Other control keys end the search in place, the match stays on the input for further editing
                     _searching = false;
                     ResetSearch();
                     Render(force: true);
@@ -335,12 +335,12 @@ public sealed class ReplConsole : IDisposable
         }
     }
 
-    //SearchBackward 从历史里往前找第一条含查询串的
-    //reset 为真时从最新一条重查 否则从当前游标再往前退一步 对应再按一次 Ctrl+R
+    //SearchBackward finds the first entry in history containing the query string
+    //When reset is true it searches from the newest entry, otherwise it steps one further back from the current cursor, matching another Ctrl+R
     private void SearchBackward(bool reset = false)
     {
         var history = _input.History;
-        //查询串还是空的时候就停在原地 不算未命中
+        //An empty query string stays put and does not count as a miss
         if (_searchQuery.Length == 0 || history.Count == 0)
         {
             _searchMissed = false;
@@ -360,11 +360,11 @@ public sealed class ReplConsole : IDisposable
             index--;
         }
 
-        //到头没找着 上一次命中留在输入上 只把提示符标成未命中
+        //Reached the start without a match, the last match stays on the input and only the prompt is marked as missed
         _searchMissed = true;
     }
 
-    //ResetSearch 收掉搜索态的全部中间状态
+    //ResetSearch clears all intermediate search state
     private void ResetSearch()
     {
         _searchQuery = string.Empty;
@@ -373,14 +373,14 @@ public sealed class ReplConsole : IDisposable
         _searchMissed = false;
     }
 
-    //Submit 提交当前行
+    //Submit submits the current line
     private void Submit()
     {
         var line = _input.Commit();
-        //提交时收掉候选区 回执要紧接着这一行 中间不该还夹着上一次的候选
+        //Clear the candidate area on submit, the reply must follow this line directly and must not have the previous candidates in between
         _candidates = null;
 
-        //空行只是敲了一下回车 屏幕上不该多留一行 把提示符原样画回去就行
+        //An empty line is just an Enter press and should not leave an extra line on screen, drawing the prompt back as is suffices
         if (line is null)
         {
             Render();
@@ -388,19 +388,19 @@ public sealed class ReplConsole : IDisposable
         }
 
         EraseCandidates();
-        //提交的这一刻把这一行留在屏幕上 后面的回执才接得上
+        //Leave this line on screen at submit time so the following reply connects
         _output.Write(ClearLine);
         _output.Write(Prompt);
         _output.Write(line);
         _output.Write('\n');
 
         Execute(line);
-        //提交行连同回执都写在新行上 这一次必须重画
+        //The submitted line and the reply are both written on new lines, this time a redraw is mandatory
         Render(force: true);
     }
 
-    //Complete 行内补全 与 readline 一个套路
-    //唯一候选直接补上 多个候选先补到公共前缀 补不动了才把候选列出来
+    //Complete inline completion, same scheme as readline
+    //A single candidate is filled in directly, multiple candidates fill to the common prefix first and only list when no further fill is possible
     private void Complete()
     {
         if (_completion is null) return;
@@ -413,7 +413,7 @@ public sealed class ReplConsole : IDisposable
         }
         catch (Exception ex)
         {
-            //补全用的解析器会见什么解析什么 不能让它把控制台线程带走
+            //The parser used for completion parses whatever it sees, it must not take down the console thread
             WriteLine($"Completion failed: {ex.GetType().Name} {ex.Message}");
             return;
         }
@@ -437,14 +437,14 @@ public sealed class ReplConsole : IDisposable
             return;
         }
 
-        //多候选又补不到公共前缀 就留在提示符上方等下一次编辑才收
+        //Multiple candidates that cannot fill to the common prefix stay above the prompt until the next edit
         _candidates = candidates;
         Render();
     }
 
-    //Execute 投递一行命令 由主循环取出执行
-    //带上斜杠也认 原版终端两种写法都收
-    //不在控制台线程直接跑 世界状态与主循环交叉会出问题 异常兜底也归主循环那边
+    //Execute enqueues one command line for the main loop to pick up
+    //A leading slash is accepted too, the vanilla terminal takes both spellings
+    //Does not run directly on the console thread, crossing world state with the main loop causes problems, exception fallback also belongs to the main loop
     private void Execute(string line)
     {
         var text = line.Trim();
@@ -453,10 +453,10 @@ public sealed class ReplConsole : IDisposable
         _server.EnqueueConsoleCommand(ServerCommandSource.Console(_server), text);
     }
 
-    //Render 重画候选区与提示符行 光标最后落在输入位置
-    //候选留在提示符上方 日志一来擦掉重画 于是新的日志不会把候选冲走
-    //force 为假时 屏幕上已经是提示符本身且没别的状态就直接跳过 一个字符都不写
-    //空输入敲回车走的就是这条 屏幕上看不出任何动静
+    //Render redraws the candidate area and the prompt line, the cursor ends up at the input position
+    //Candidates stay above the prompt and are erased and redrawn when a log arrives, so new logs do not wash the candidates away
+    //When force is false and the screen already shows just the prompt with no other state, it skips without writing a single character
+    //Pressing Enter on empty input takes this path and shows no visible change
     private void Render(bool force = false)
     {
         if (!force && _drawn && _candidateRows == 0 && _candidates is null && _input.Text.Length == 0) return;
@@ -465,8 +465,8 @@ public sealed class ReplConsole : IDisposable
         _output.Write(ClearLine);
         if (_candidates is { Count: > 0 } candidates)
         {
-            //候选一行一个 与游戏里按 Tab 出来的补全列表排法一致
-            //一行一个还保证了擦除准: 行长远小于终端宽度 终端不会自己折行 记几行就是几行
+            //One candidate per line, same layout as the completion list shown by pressing Tab in-game
+            //One per line also keeps erasing exact: line length is far below the terminal width so the terminal does not wrap, the counted rows are the actual rows
             foreach (var candidate in candidates)
             {
                 _output.Write(candidate);
@@ -477,7 +477,7 @@ public sealed class ReplConsole : IDisposable
 
         if (_searching)
         {
-            //搜索态提示符换成 readline 那一行 光标停在查找串末尾而不是命中行末尾
+            //In search mode the prompt becomes the readline line, the cursor sits at the end of the query string rather than the matched line
             _output.Write(_searchMissed ? FailedSearchPrompt : SearchPrompt);
             _output.Write(_searchQuery);
             _output.Write(SearchTail);
@@ -488,9 +488,9 @@ public sealed class ReplConsole : IDisposable
         else
         {
             _output.Write(Prompt);
-            //命令树认得的部分按节点上色 高亮只往字缝里插转义 可见长度不变
+            //The parts the command tree recognizes are colored by node, highlighting only inserts escapes between characters and the visible length is unchanged
             _output.Write(_highlighter?.Highlight(_input.Text) ?? _input.Text);
-            //画完把光标左移到输入位置 ANSI 的 D 是左移 n 列
+            //Move the cursor left to the input position after drawing, ANSI D is move left n columns
             var back = _input.Text.Length - _input.Caret;
             if (back > 0) _output.Write($"\u001B[{back}D");
         }
@@ -499,10 +499,10 @@ public sealed class ReplConsole : IDisposable
         _output.Flush();
     }
 
-    //EraseCandidates 把候选区连同提示符行一起从屏幕上抹掉 光标停在原来候选首行
-    //用"从光标清到屏幕尾"而不是逐行清空: 逐行清只把字抹掉 那几行还占着屏幕 收起来就留一片空行
-    //提示符行永远在屏幕最底部 光标下方不会有别的内容 清到屏幕尾是安全的
-    //行数是本类自己渲染时记下的 上移这么多行正好落在候选首行
+    //EraseCandidates wipes the candidate area together with the prompt line off the screen, the cursor lands on the first candidate row
+    //Uses "clear from the cursor to the end of screen" rather than clearing line by line: line-by-line clearing only erases the text while those rows still occupy the screen and leave a block of blank lines when collapsed
+    //The prompt line is always at the very bottom of the screen and nothing else is below the cursor, so clearing to the end of screen is safe
+    //The row count was recorded during this class's own rendering, moving up by it lands exactly on the first candidate row
     private void EraseCandidates()
     {
         if (_candidateRows == 0) return;
@@ -511,7 +511,7 @@ public sealed class ReplConsole : IDisposable
         _candidateRows = 0;
     }
 
-    //CommonPrefix 取所有候选的公共前缀 多候选时先补到分歧点
+    //CommonPrefix finds the common prefix of all candidates, for multiple candidates it fills to the divergence point
     private static string CommonPrefix(IReadOnlyList<string> values)
     {
         var prefix = values[0];

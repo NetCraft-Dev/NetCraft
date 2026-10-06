@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundChunkBatchFinishedPacket 区块批次结束包对应原版 ClientboundChunkBatchFinishedPacket
-//字段 BatchSize(int)
+//ClientboundChunkBatchFinishedPacket chunk batch finished packet, maps to vanilla ClientboundChunkBatchFinishedPacket
+//Field: BatchSize(int)
 public sealed record ClientboundChunkBatchFinishedPacket(int BatchSize) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundChunkBatchFinishedPacket> StreamCodec { get; } = new ChunkBatchFinishedCodec();

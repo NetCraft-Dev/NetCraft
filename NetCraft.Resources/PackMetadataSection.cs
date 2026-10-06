@@ -2,14 +2,14 @@ using System.Text.Json;
 
 namespace NetCraft.Resources;
 
-//PackMetadataSection 资源包元数据段对应原版 net.minecraft.server.packs.metadata.pack.PackMetadataSection
-//解析 pack.mcmeta 根 JSON 的 pack 子对象含 pack_format 与 description
-//用 System.Text.Json 对齐 TagFile 模式不走 Codec 路线
+//PackMetadataSection, resource pack metadata section, maps to vanilla net.minecraft.server.packs.metadata.pack.PackMetadataSection
+//Parses the pack sub-object of the pack.mcmeta root JSON, holding pack_format and description
+//Uses System.Text.Json following the TagFile pattern instead of the Codec route
 public sealed record PackMetadataSection(int PackFormat, string Description)
 {
-    //FromJson 解析 pack.mcmeta 根 JSON 的 pack 子对象
-    //格式 {"pack":{"pack_format":N,"description":"..."}} 缺 pack 节点抛 JsonException
-    //description 允许是字符串或聊天组件对象对象时返回 GetRawText 对齐原版
+    //FromJson parses the pack sub-object of the pack.mcmeta root JSON
+    //Format {"pack":{"pack_format":N,"description":"..."}}, a missing pack node throws JsonException
+    //description may be a string or a chat component object, an object returns GetRawText to align with vanilla
     public static PackMetadataSection FromJson(string json)
     {
         using var doc = JsonDocument.Parse(json);
@@ -23,14 +23,14 @@ public sealed record PackMetadataSection(int PackFormat, string Description)
     }
 }
 
-//PackMetadataSectionReader 元数据段读取器对应原版 MetadataSectionType
-//PackResources 通过 GetRootResource("pack.mcmeta") 暴露此 reader 统一解析
+//PackMetadataSectionReader, metadata section reader, maps to vanilla MetadataSectionType
+//PackResources exposes this reader through GetRootResource("pack.mcmeta") for unified parsing
 public static class PackMetadataSectionReader
 {
-    //SectionName 元数据段名对应原版 pack
+    //SectionName is the metadata section name, maps to vanilla pack
     public const string SectionName = "pack";
 
-    //Read 从 PackResources 读 pack.mcmeta 并解析返回 null 表示文件不存在
+    //Read reads and parses pack.mcmeta from PackResources, null means the file does not exist
     public static PackMetadataSection? Read(PackResources pack)
     {
         using var stream = pack.GetRootResource("pack.mcmeta");

@@ -1,16 +1,16 @@
 namespace NetCraft.Primitives.Phys;
 
-//VoxelShape 体素形状 对应原版 VoxelShape
-//方块碰撞形状的统一表示 底层是离散格 坐标靠子类给出
-//对外提供包围盒/拆盒/射线求交/沿轴碰撞这些能力
+//VoxelShape voxel shape, maps to vanilla VoxelShape
+//Unified representation of block collision shapes, backed by discrete cells, coordinates come from subclasses
+//Exposes bounding box, box decomposition, ray intersection and axis-aligned collision
 public abstract class VoxelShape
 {
-    //faces 按方向缓存四个侧面算出来的切片 对应原版 faces
+    //faces caches the slices computed for the four sides by direction, maps to vanilla faces
     private VoxelShape[]? _faces;
 
     protected VoxelShape(DiscreteVoxelShape shape) => Shape = shape;
 
-    //Shape 离散格表示 同程序集与派生类可见
+    //Shape the discrete cell representation, visible within the assembly and to derived classes
     protected internal readonly DiscreteVoxelShape Shape;
 
     public abstract IReadOnlyList<double> GetCoords(Direction.Axis axis);
@@ -28,11 +28,11 @@ public abstract class VoxelShape
     }
 
     public AABB Bounds() => IsEmpty
-        ? throw new InvalidOperationException("空形状没有包围盒")
+        ? throw new InvalidOperationException("An empty shape has no bounding box")
         : new AABB(Min(Direction.Axis.X), Min(Direction.Axis.Y), Min(Direction.Axis.Z),
             Max(Direction.Axis.X), Max(Direction.Axis.Y), Max(Direction.Axis.Z));
 
-    //SingleEncompassing 用一个盒把整个形状框住 对应原版 singleEncompassing
+    //SingleEncompassing encloses the whole shape in one box, maps to vanilla singleEncompassing
     public VoxelShape SingleEncompassing() => IsEmpty
         ? Shapes.Empty()
         : Shapes.Box(Min(Direction.Axis.X), Min(Direction.Axis.Y), Min(Direction.Axis.Z),
@@ -46,7 +46,7 @@ public abstract class VoxelShape
 
     public VoxelShape Move(Vec3i delta) => Move(delta.X, delta.Y, delta.Z);
 
-    //Move 平移形状 坐标统一加偏移不必重建离散格 对应原版 move
+    //Move translates the shape, coordinates get a uniform offset added, no need to rebuild discrete cells, maps to vanilla move
     public VoxelShape Move(double dx, double dy, double dz) => IsEmpty
         ? Shapes.Empty()
         : new ArrayVoxelShape(Shape,
@@ -54,8 +54,8 @@ public abstract class VoxelShape
             new OffsetDoubleList(GetCoords(Direction.Axis.Y), dy),
             new OffsetDoubleList(GetCoords(Direction.Axis.Z), dz));
 
-    //Optimize 把离散格合并成尽量少的盒再重建 对应原版 optimize
-    //布尔运算的结果往往是一堆碎格 过一遍能显著减少后续遍历量
+    //Optimize merges discrete cells into as few boxes as possible then rebuilds, maps to vanilla optimize
+    //Boolean operation results are often a pile of fragmented cells, one pass significantly reduces later iteration cost
     public VoxelShape Optimize()
     {
         var result = Shapes.Empty();
@@ -86,7 +86,7 @@ public abstract class VoxelShape
         return boxes;
     }
 
-    //Min/Max 固定另外两轴坐标只在 aAxis 上找实心范围 对应原版 min/max 三参版本
+    //Min/Max fix the other two axes' coordinates and find the solid range along aAxis only, maps to the vanilla three-argument min/max
     public double Min(Direction.Axis aAxis, double b, double c)
     {
         var bAxis = AxisCycle.Forward.Cycle(aAxis);
@@ -103,11 +103,11 @@ public abstract class VoxelShape
         return index <= 0 ? double.NegativeInfinity : Get(aAxis, index);
     }
 
-    //FindIndex 二分找出坐标落在哪一格 对应原版 findIndex
+    //FindIndex binary searches which cell a coordinate falls into, maps to vanilla findIndex
     protected virtual int FindIndex(Direction.Axis axis, double coord)
         => LowerBound(0, Shape.GetSize(axis) + 1, index => coord < Get(axis, index)) - 1;
 
-    //LowerBound 第一个让谓词为真的下标 对应 Mth.binarySearch
+    //LowerBound the first index where the predicate holds, maps to Mth.binarySearch
     private static int LowerBound(int from, int to, Func<int, bool> predicate)
     {
         var low = from;
@@ -121,7 +121,7 @@ public abstract class VoxelShape
         return high + 1;
     }
 
-    //Clip 射线与形状求交 起点已在形状内时直接报内侧命中 对应原版 clip
+    //Clip intersects a ray with the shape, when the origin is already inside it reports an inside hit, maps to vanilla clip
     public BlockHitResult? Clip(Vec3 from, Vec3 to, BlockPos pos)
     {
         if (IsEmpty) return null;
@@ -155,8 +155,8 @@ public abstract class VoxelShape
         return closest;
     }
 
-    //GetFaceShape 取朝某个方向的贴面 对应原版 getFaceShape
-    //贴图与光照只需要那一层切片 算完缓存起来
+    //GetFaceShape takes the face facing a direction, maps to vanilla getFaceShape
+    //Textures and lighting only need that single slice, cache it after computing
     public VoxelShape GetFaceShape(Direction direction)
     {
         if (IsEmpty || ReferenceEquals(this, Shapes.Block())) return this;
@@ -209,7 +209,7 @@ public abstract class VoxelShape
         Direction.Axis.Z,
     };
 
-    //Collide 沿轴推进一个盒 返回被形状挡住后的实际位移 对应原版 collide
+    //Collide advances a box along an axis and returns the actual displacement after being blocked by the shape, maps to vanilla collide
     public double Collide(Direction.Axis axis, AABB moving, double distance)
         => CollideX(AxisCycle.Between(axis, Direction.Axis.X), moving, distance);
 

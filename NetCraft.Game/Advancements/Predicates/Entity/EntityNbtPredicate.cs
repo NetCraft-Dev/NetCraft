@@ -5,16 +5,16 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Advancements.Predicates.Entity;
 
-//EntityNbtPredicate 实体 NBT 谓词 判定实体存档数据是否包含期望标签
-//对应原版 net.minecraft.advancements.predicates.entity.EntityNbtPredicate
+//EntityNbtPredicate entity NBT predicate, checks whether the entity save data contains the expected tag
+//maps to vanilla net.minecraft.advancements.predicates.entity.EntityNbtPredicate
 public sealed record EntityNbtPredicate(NbtPredicate Nbt) : EntitySubPredicate
 {
-    //Codec 持久化编解码 对应原版 CODEC
+    //Codec persistence codec, maps to vanilla CODEC
     public static readonly Codec<EntityNbtPredicate> Codec = NbtPredicate.Codec.ComapFlatMap(
         nbt => DataResult<EntityNbtPredicate>.Success(new EntityNbtPredicate(nbt)),
         predicate => predicate.Nbt);
 
-    //Matches 把实体写成不含类型 id 的存档再比对 对应原版 matches
+    //Matches writes the entity to save data without the type id and compares, maps to vanilla matches
     public bool Matches(NetCraft.Registry.Entity entity, ILevelReader? level, Vec3? position)
     {
         var tag = new CompoundTag();

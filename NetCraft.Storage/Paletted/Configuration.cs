@@ -1,31 +1,31 @@
 namespace NetCraft.Storage.Paletted;
 
-//Configuration接口对应原版net.minecraft.world.level.chunk.Configuration
-//描述palette配置bitsInMemory存储位宽bitsInStorage序列化位宽
+//Configuration interface, maps to vanilla net.minecraft.world.level.chunk.Configuration
+//Describes the palette config: bitsInMemory is the in-memory bits per entry, bitsInStorage the serialized bits per entry
 public interface Configuration
 {
-    //是否需要重新打包对应原版alwaysRepack
+    //Whether repacking is needed, maps to vanilla alwaysRepack
     bool AlwaysRepack { get; }
 
-    //内存中每元素bit数对应原版bitsInMemory
+    //Bits per element in memory, maps to vanilla bitsInMemory
     int BitsInMemory { get; }
 
-    //序列化到存档的每元素bit数对应原版bitsInStorage
+    //Bits per element serialized to disk, maps to vanilla bitsInStorage
     int BitsInStorage { get; }
 
-    //根据strategy与初始条目创建palette对应原版createPalette
+    //Create a palette from the strategy and initial entries, maps to vanilla createPalette
     Palette<T> CreatePalette<T>(Strategy<T> strategy, IReadOnlyList<T> paletteEntries);
 }
 
-//Palette工厂接口对应原版Palette.Factory
-//C#委托不支持泛型方法用接口表达
+//Palette factory interface, maps to vanilla Palette.Factory
+//C# delegates cannot have generic methods, so an interface expresses it
 public interface IPaletteFactory
 {
     Palette<T> Create<T>(int bits, IReadOnlyList<T> paletteEntries);
 }
 
-//简单配置对应原版Configuration.Simple
-//bitsInMemory与bitsInStorage相同factory指定palette类型
+//Simple configuration, maps to vanilla Configuration.Simple
+//bitsInMemory equals bitsInStorage; factory picks the palette type
 public sealed record SimpleConfiguration(IPaletteFactory Factory, int Bits) : Configuration
 {
     public bool AlwaysRepack => false;
@@ -38,8 +38,8 @@ public sealed record SimpleConfiguration(IPaletteFactory Factory, int Bits) : Co
         => Factory.Create<T>(Bits, paletteEntries);
 }
 
-//Global配置对应原版Configuration.Global
-//bitsInMemory与bitsInStorage不同alwaysRepack=true
+//Global configuration, maps to vanilla Configuration.Global
+//bitsInMemory differs from bitsInStorage and alwaysRepack=true
 public sealed record GlobalConfiguration(int BitsInMemory, int BitsInStorage) : Configuration
 {
     public bool AlwaysRepack => true;

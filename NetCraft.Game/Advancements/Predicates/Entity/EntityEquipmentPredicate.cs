@@ -5,8 +5,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Advancements.Predicates.Entity;
 
-//EntityEquipmentPredicate 实体装备谓词 用物品谓词逐个槽位判定
-//对应原版 net.minecraft.advancements.predicates.entity.EntityEquipmentPredicate
+//EntityEquipmentPredicate entity equipment predicate, checks each slot with the item predicate
+//maps to vanilla net.minecraft.advancements.predicates.entity.EntityEquipmentPredicate
 public sealed record EntityEquipmentPredicate(
     Optional<ItemPredicate> Head,
     Optional<ItemPredicate> Chest,
@@ -16,7 +16,7 @@ public sealed record EntityEquipmentPredicate(
     Optional<ItemPredicate> Mainhand,
     Optional<ItemPredicate> Offhand) : EntitySubPredicate
 {
-    //Codec 持久化编解码 字段名 head chest legs feet body mainhand offhand 对应原版 CODEC
+    //Codec persistence codec, field names head chest legs feet body mainhand offhand, maps to vanilla CODEC
     public static readonly Codec<EntityEquipmentPredicate> Codec = RecordCodecBuilder.Of7(
         ItemPredicate.Codec.OptionalFieldOf("head")
             .ForGetter((EntityEquipmentPredicate predicate) => predicate.Head),
@@ -35,7 +35,7 @@ public sealed record EntityEquipmentPredicate(
         (head, chest, legs, feet, body, mainhand, offhand) =>
             new EntityEquipmentPredicate(head, chest, legs, feet, body, mainhand, offhand));
 
-    //Matches 非装备持有者判否 否则逐槽位判定 未给出的槽位跳过 对应原版 matches
+    //Matches a non-equipment holder fails, otherwise checked per slot; slots without an expectation are skipped, maps to vanilla matches
     public bool Matches(NetCraft.Registry.Entity entity, ILevelReader? level, Vec3? position)
     {
         if (entity is not IEquipmentHolder holder) return false;

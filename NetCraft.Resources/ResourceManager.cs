@@ -2,22 +2,22 @@ using NetCraft.Registry;
 
 namespace NetCraft.Resources;
 
-//ResourceManager 资源管理器对应原版 net.minecraft.server.packs.resources.ResourceManager
-//按优先级合并多个 PackResources 提供统一的资源访问 API
+//ResourceManager, maps to vanilla net.minecraft.server.packs.resources.ResourceManager
+//Merges multiple PackResources by priority and provides a unified resource access API
 public sealed class ResourceManager
 {
-    //packs 按优先级排序（数值小的优先）
+    //packs sorted by priority (lower value wins)
     private readonly List<Pack> _packs = new();
-    //按类型分组的资源包列表缓存
+    //cache of pack lists grouped by type
     private readonly Dictionary<PackType, List<PackResources>> _byType = new();
 
     public IReadOnlyList<Pack> Packs => _packs;
 
-    //Reloaded 资源包增删或显式 Reload 完成后触发
-    //ReloadableServerResources 订阅此事件在 Pack 变更后重新加载 Tags 等
+    //Reloaded fires after packs are added/removed or an explicit Reload completes
+    //ReloadableServerResources subscribes to this event to reload Tags and the like after a pack change
     public event EventHandler<ReloadEventArgs>? Reloaded;
 
-    //AddPack 添加一个资源包按 Priority 插入合适位置
+    //AddPack adds a resource pack, inserting it at the right spot by Priority
     public void AddPack(Pack pack)
     {
         var inserted = false;
@@ -37,7 +37,7 @@ public sealed class ResourceManager
         RebuildCache();
     }
 
-    //RemovePack 按 id 移除资源包
+    //RemovePack removes a resource pack by id
     public bool RemovePack(Identifier id)
     {
         var removed = _packs.RemoveAll(p => p.Id == id) > 0;
@@ -45,13 +45,13 @@ public sealed class ResourceManager
         return removed;
     }
 
-    //GetResource 按 type+location 获取最高优先级资源
+    //GetResource fetches the highest priority resource for type+location
     public Resource? GetResource(PackType type, Identifier location)
     {
         if (!_byType.TryGetValue(type, out var list)) return null;
         foreach (var pack in list)
         {
-            //探测用流必须立刻释放 否则文件包下会一直占着文件句柄
+            //the probe stream must be released immediately, otherwise folder packs keep the file handle open
             using (var probe = pack.GetResource(type, location))
             {
                 if (probe != null)
@@ -63,7 +63,7 @@ public sealed class ResourceManager
         return null;
     }
 
-    //ListResources 列出所有资源包中匹配 namespace + pathPrefix 的资源
+    //ListResources lists resources matching namespace + pathPrefix across all packs
     public IEnumerable<Resource> ListResources(PackType type, string namespaceName, string pathPrefix)
     {
         if (!_byType.TryGetValue(type, out var list)) yield break;
@@ -79,7 +79,7 @@ public sealed class ResourceManager
         }
     }
 
-    //GetNamespaces 获取所有资源包的命名空间并集
+    //GetNamespaces returns the union of namespaces across all packs
     public ISet<string> GetNamespaces(PackType type)
     {
         var result = new HashSet<string>();
@@ -93,7 +93,7 @@ public sealed class ResourceManager
         return result;
     }
 
-    //RebuildCache 重建类型缓存
+    //RebuildCache rebuilds the per-type cache
     private void RebuildCache()
     {
         _byType.Clear();
@@ -103,8 +103,8 @@ public sealed class ResourceManager
         }
     }
 
-    //Reload 重建缓存并触发 Reloaded 事件通知监听器重新加载
-    //AddPack/RemovePack 后调用方显式调此方法触发 Tags 等数据驱动重载
+    //Reload rebuilds the cache and fires the Reloaded event so listeners reload
+    //The caller calls this explicitly after AddPack/RemovePack to trigger data-driven reloads such as Tags
     public void Reload()
     {
         RebuildCache();
@@ -112,7 +112,7 @@ public sealed class ResourceManager
     }
 }
 
-//ReloadEventArgs 资源重载事件参数携带时间戳供监听器日志
+//ReloadEventArgs, resource reload event args carrying a timestamp for listener logs
 public sealed class ReloadEventArgs : EventArgs
 {
     public DateTime Timestamp { get; }

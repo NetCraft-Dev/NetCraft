@@ -1,18 +1,18 @@
 namespace NetCraft.Commands.Execution;
 
-//FrameControl 帧废弃回调对应原版 Frame.FrameControl
+//FrameControl frame discard callback, maps to vanilla Frame.FrameControl
 public delegate void FrameControl();
 
-//Frame 执行帧对应原版 net.minecraft.commands.execution.Frame
-//深度决定出错时废弃到哪一层 返回值消费者接 /return 的值
+//Frame execution frame, maps to vanilla net.minecraft.commands.execution.Frame
+//The depth decides how far to discard on error; the return value consumer receives the value of /return
 public sealed record Frame(int Depth, CommandResultCallback ReturnValueConsumer, FrameControl FrameControl)
 {
-    //ReturnSuccess 回成功值
+    //ReturnSuccess reports the success value
     public void ReturnSuccess(int value) => ReturnValueConsumer.OnSuccess(value);
 
-    //ReturnFailure 回失败
+    //ReturnFailure reports failure
     public void ReturnFailure() => ReturnValueConsumer.OnFailure();
 
-    //Discard 废弃本帧及更深的队列项
+    //Discard discards queue entries at this frame and deeper
     public void Discard() => FrameControl();
 }

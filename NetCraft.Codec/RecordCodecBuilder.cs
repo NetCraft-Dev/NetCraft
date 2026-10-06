@@ -1,8 +1,8 @@
 namespace NetCraft.Codec;
 
-//RecordCodecBuilder对应原版com.mojang.serialization.codecs.RecordCodecBuilder
-//用N-ary重载模拟原版group(...).apply(instance, ctor)链式调用
-//覆盖Of2..Of16常见record字段数
+//RecordCodecBuilder, mirroring vanilla com.mojang.serialization.codecs.RecordCodecBuilder
+//N-ary overloads emulate the vanilla group(...).apply(instance, ctor) chain
+//Covers Of2..Of16, the usual record field counts
 public static class RecordCodecBuilder
 {
     public static Codec<T> Of1<T, F1>(FieldCodec<T, F1> f1, Func<F1, T> ctor)
@@ -103,7 +103,7 @@ public static class RecordCodecBuilder
         => new RecordCodec16<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16>(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, ctor);
 }
 
-//1字段record codec
+//1-field record codec
 internal sealed class RecordCodec1<T, F1> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -124,8 +124,8 @@ internal sealed class RecordCodec1<T, F1> : AbstractMapCodec<T>
     }
 }
 
-//2字段record codec
-//decode逐字段Decode后用FlatMap组合调构造函数encode遍历字段EncodeTo写入builder
+//2-field record codec
+//decode Decodes field by field and combines them with FlatMap to call the constructor; encode walks the fields with EncodeTo into the builder
 internal sealed class RecordCodec2<T, F1, F2> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -151,7 +151,7 @@ internal sealed class RecordCodec2<T, F1, F2> : AbstractMapCodec<T>
     }
 }
 
-//3字段record codec
+//3-field record codec
 internal sealed class RecordCodec3<T, F1, F2, F3> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -181,7 +181,7 @@ internal sealed class RecordCodec3<T, F1, F2, F3> : AbstractMapCodec<T>
     }
 }
 
-//4字段record codec
+//4-field record codec
 internal sealed class RecordCodec4<T, F1, F2, F3, F4> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -214,7 +214,7 @@ internal sealed class RecordCodec4<T, F1, F2, F3, F4> : AbstractMapCodec<T>
     }
 }
 
-//5字段record codec
+//5-field record codec
 internal sealed class RecordCodec5<T, F1, F2, F3, F4, F5> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -250,7 +250,7 @@ internal sealed class RecordCodec5<T, F1, F2, F3, F4, F5> : AbstractMapCodec<T>
     }
 }
 
-//6字段record codec
+//6-field record codec
 internal sealed class RecordCodec6<T, F1, F2, F3, F4, F5, F6> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -290,7 +290,7 @@ internal sealed class RecordCodec6<T, F1, F2, F3, F4, F5, F6> : AbstractMapCodec
     }
 }
 
-//7字段record codec
+//7-field record codec
 internal sealed class RecordCodec7<T, F1, F2, F3, F4, F5, F6, F7> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -333,7 +333,7 @@ internal sealed class RecordCodec7<T, F1, F2, F3, F4, F5, F6, F7> : AbstractMapC
     }
 }
 
-//8字段record codec
+//8-field record codec
 internal sealed class RecordCodec8<T, F1, F2, F3, F4, F5, F6, F7, F8> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -379,7 +379,7 @@ internal sealed class RecordCodec8<T, F1, F2, F3, F4, F5, F6, F7, F8> : Abstract
     }
 }
 
-//9字段record codec
+//9-field record codec
 internal sealed class RecordCodec9<T, F1, F2, F3, F4, F5, F6, F7, F8, F9> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -428,7 +428,7 @@ internal sealed class RecordCodec9<T, F1, F2, F3, F4, F5, F6, F7, F8, F9> : Abst
     }
 }
 
-//10字段record codec
+//10-field record codec
 internal sealed class RecordCodec10<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -481,7 +481,7 @@ internal sealed class RecordCodec10<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10> 
     }
 }
 
-//11字段record codec
+//11-field record codec
 internal sealed class RecordCodec11<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -537,7 +537,7 @@ internal sealed class RecordCodec11<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, 
     }
 }
 
-//12字段record codec
+//12-field record codec
 internal sealed class RecordCodec12<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -596,7 +596,7 @@ internal sealed class RecordCodec12<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, 
     }
 }
 
-//13字段record codec
+//13-field record codec
 internal sealed class RecordCodec13<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -659,7 +659,7 @@ internal sealed class RecordCodec13<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, 
     }
 }
 
-//14字段record codec
+//14-field record codec
 internal sealed class RecordCodec14<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -725,7 +725,7 @@ internal sealed class RecordCodec14<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, 
     }
 }
 
-//15字段record codec
+//15-field record codec
 internal sealed class RecordCodec15<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;
@@ -794,7 +794,7 @@ internal sealed class RecordCodec15<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, 
     }
 }
 
-//16字段record codec
+//16-field record codec
 internal sealed class RecordCodec16<T, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16> : AbstractMapCodec<T>
 {
     private readonly FieldCodec<T, F1> _f1;

@@ -3,11 +3,11 @@ using System.Text;
 
 namespace NetCraft.Nbt;
 
-//ListTag（TAG_List，ID=9）。对应原版 net.minecraft.nbt.ListTag。
-//存储同类型 Tag 列表。二进制格式：
-//  [1 byte: 元素类型 ID][4 bytes: 长度][... 元素数据（无类型前缀，无名字）]
-//内部允许异构元素对应原版ListTag直接存List<Tag>
-//写出时动态判定类型混合时统一包装为单字段"" CompoundTag读入时AddAndUnwrap解包
+//ListTag (TAG_List, ID=9). Mirrors vanilla net.minecraft.nbt.ListTag.
+//Stores a list of same-type Tags. Binary format:
+//  [1 byte: element type ID][4 bytes: length][... element data (no type prefix, no name)]
+//Heterogeneous elements are allowed internally, mirroring vanilla ListTag holding a plain List<Tag>
+//The type is decided when writing: mixed types are wrapped into a single-field "" CompoundTag and unwrapped by AddAndUnwrap when reading
 public sealed class ListTag : Tag, IEnumerable<Tag>
 {
     private List<Tag> _list = new();
@@ -35,8 +35,8 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
 
     public void Add(Tag tag) => _list.Add(tag);
 
-    //AddAndUnwrap添加元素并尝试解包单字段"" CompoundTag
-    //对应原版ListTag.addAndUnwrap tag是CompoundTag时tryUnwrap取内部值
+    //AddAndUnwrap adds an element and tries to unwrap a single-field "" CompoundTag
+    //Mirrors vanilla ListTag.addAndUnwrap: when tag is a CompoundTag, tryUnwrap takes the inner value
     public void AddAndUnwrap(Tag tag)
     {
         if (tag is CompoundTag compound)
@@ -49,7 +49,7 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
         }
     }
 
-    //TryUnwrap只含单字段""时返回内部值否则原样返回
+    //TryUnwrap returns the inner value for a single-field "" tag, otherwise the tag unchanged
     private static Tag TryUnwrap(CompoundTag tag)
     {
         if (tag.Count == 1 && tag.TryGetTag("", out var inner))
@@ -64,14 +64,14 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
         _list.Clear();
     }
 
-    //RemoveLast 移除末尾元素对应原版 ListTag.removeLast
+    //RemoveLast drops the last element, mirroring vanilla ListTag.removeLast
     public void RemoveLast()
     {
         if (_list.Count > 0) _list.RemoveAt(_list.Count - 1);
     }
 
-    //TryInsert 在指定位置插入元素 越界不动作返回 false 对应原版 ListTag.addTag
-    //NbtPath 的 insert 要按位置插入且以越界返回 false 表示未改动
+    //TryInsert inserts at the given position and does nothing, returning false, when out of range. Mirrors vanilla ListTag.addTag
+    //NbtPath insert needs positional insertion and uses a false return to signal that nothing changed
     public bool TryInsert(int index, Tag tag)
     {
         if (index < 0 || index > _list.Count) return false;
@@ -79,7 +79,7 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
         return true;
     }
 
-    //TrySet 替换指定位置元素 越界不动作返回 false 对应原版 ListTag.setTag
+    //TrySet replaces the element at the given position and does nothing, returning false, when out of range. Mirrors vanilla ListTag.setTag
     public bool TrySet(int index, Tag tag)
     {
         if (index < 0 || index >= _list.Count) return false;
@@ -87,7 +87,7 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
         return true;
     }
 
-    //TryRemoveAt 移除指定位置元素 越界不动作返回 false 对应原版 ListTag.remove
+    //TryRemoveAt removes the element at the given position and does nothing, returning false, when out of range. Mirrors vanilla ListTag.remove
     public bool TryRemoveAt(int index)
     {
         if (index < 0 || index >= _list.Count) return false;
@@ -95,8 +95,8 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
         return true;
     }
 
-    //写出时动态判定元素类型混合列表统一包装为单字段"" CompoundTag
-    //对应原版ListTag.write的identifyRawElementType+wrapIfNeeded
+    //Element type is decided when writing: mixed lists are wrapped into a single-field "" CompoundTag
+    //Mirrors identifyRawElementType + wrapIfNeeded in vanilla ListTag.write
     public void Write(INbtWriter output)
     {
         var elementType = IdentifyRawElementType();
@@ -106,7 +106,7 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
             WrapIfNeeded(elementType, tag).Write(output);
     }
 
-    //全同类型返回该类型混合返回CompoundTag(10)空列表返回EndTag(0)
+    //All the same type returns that type, mixed returns CompoundTag(10) and an empty list returns EndTag(0)
     private byte IdentifyRawElementType()
     {
         var homogeneousType = Tag.TagEnd;
@@ -121,7 +121,7 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
         return homogeneousType;
     }
 
-    //元素类型与目标不一致时包装为{"":element}已是包装结构的不重复包
+    //Wrap as {"":element} when the element type differs from the target; already wrapped elements are not wrapped again
     private static Tag WrapIfNeeded(byte elementType, Tag tag)
     {
         if (elementType != Tag.TagCompound)
@@ -133,11 +133,11 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
         return wrapped;
     }
 
-    //单字段""视为包装结构
+    //A single "" field counts as a wrapped structure
     private static bool IsWrapper(CompoundTag tag)
         => tag.Count == 1 && tag.Contains("");
 
-    //判等按元素顺序逐个比较 对应原版 ListTag.equals
+    //Equality compares elements in order, mirroring vanilla ListTag.equals
     public override bool Equals(object? obj)
     {
         if (ReferenceEquals(this, obj)) return true;
@@ -147,7 +147,7 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
         return true;
     }
 
-    //哈希与判等一致 按顺序聚合元素哈希 对应原版 List.hashCode
+    //Hash matches equality by folding element hashes in order, mirroring vanilla List.hashCode
     public override int GetHashCode()
     {
         var hash = 1;
@@ -210,12 +210,12 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
 
     public new ListTag? AsList() => this;
 
-    //按索引枚举元素。对应原版 ListTag 继承 java.util.AbstractList 的迭代能力。
+    //Enumerates elements by index. Mirrors the iteration vanilla ListTag inherits from java.util.AbstractList.
     public IEnumerator<Tag> GetEnumerator() => _list.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-    // ============ 类型化访问辅助 ============
+    // ============ typed access helpers ============
 
     public ByteTag? GetByte(int i) => _list[i] as ByteTag;
     public ShortTag? GetShort(int i) => _list[i] as ShortTag;
@@ -282,7 +282,7 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
                     type.Skip(input, length, accounter);
                     return output.VisitContainerEnd();
                 }
-                // Continue: 逐元素访问
+                // Continue: visit element by element
                 accounter.AccountBytes(4L * length);
 
                 var i = 0;
@@ -315,7 +315,7 @@ public sealed class ListTag : Tag, IEnumerable<Tag>
                     }
                     if (exit) break;
                 }
-                // 跳过剩余未访问的元素（对齐读取位置）
+                // Skip the remaining unvisited elements (realign the read position)
                 var amountToSkip = (length - 1) - i;
                 if (amountToSkip > 0)
                     type.Skip(input, amountToSkip, accounter);

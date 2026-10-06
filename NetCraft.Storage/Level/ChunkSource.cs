@@ -4,29 +4,29 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage;
 
-//ChunkSource 区块源抽象基类对应原版 net.minecraft.world.level.chunk.ChunkSource
-//提供按 ChunkPos 与 ChunkStatus 获取区块的接口子类实现异步调度
-//阶段 11.48 引入替代 PersistentServerLevel.GetChunk 同步等待
+//ChunkSource, chunk source abstract base class, maps to vanilla net.minecraft.world.level.chunk.ChunkSource
+//Provides interfaces to get chunks by ChunkPos and ChunkStatus; subclasses implement async scheduling
+//Introduced in stage 11.48 to replace the synchronous wait in PersistentServerLevel.GetChunk
 public abstract class ChunkSource : IDisposable
 {
     private bool _disposed;
 
-    //GetChunk 按 chunkX/chunkZ 获取完整区块对应原版 getChunk
-    //未加载返回 null
+    //GetChunk gets the full chunk by chunkX/chunkZ, maps to vanilla getChunk
+    //Returns null when not loaded
     public abstract ChunkAccess? GetChunk(int x, int z);
 
-    //GetChunk 按 chunkX/chunkZ 与 ChunkStatus 获取区块对应原版 getChunk
-    //require 为 true 时未加载抛 UnloadedChunkException false 时返回 null
+    //GetChunk gets the chunk by chunkX/chunkZ and ChunkStatus, maps to vanilla getChunk
+    //When require is true, throws UnloadedChunkException if not loaded; when false, returns null
     public abstract ChunkAccess? GetChunk(int x, int z, ChunkStatus status, bool require);
 
-    //HasChunk 判断区块是否已加载对应原版 hasChunk
+    //HasChunk reports whether the chunk is loaded, maps to vanilla hasChunk
     public abstract bool HasChunk(int x, int z);
 
-    //Tick 推进区块调度对应原版 tick
-    //推进 ChunkHolder 完成的区块移入缓存回收空闲 holder
+    //Tick advances chunk scheduling, maps to vanilla tick
+    //Advances ChunkHolders; finished chunks move into the cache and idle holders are reclaimed
     public abstract void Tick();
 
-    //Close 释放资源对应原版 close
+    //Close releases resources, maps to vanilla close
     public virtual void Close() { }
 
     public void Dispose()
@@ -40,7 +40,7 @@ public abstract class ChunkSource : IDisposable
         Dispose(true);
         _disposed = true;
         GC.SuppressFinalize(this);
-        //Log.Debug($"Dispose 出口");
+        //Log.Debug($"Dispose exit");
     }
 
     protected virtual void Dispose(bool disposing) { }

@@ -5,15 +5,15 @@ using NetCraft.ModLoader;
 
 namespace NetCraft.ClientExe;
 
-//Program 客户端独立启动入口
-//只做进程入口与模组引导 真正的客户端实现留在 NetCraft.Client 类库里
+//Program standalone client entry point
+//Only handles the process entry and mod bootstrap; the real client implementation stays in the NetCraft.Client class library
 public static class Program
 {
-    //Main 进程入口
-    //第一件事注册内核程序集解析回调：内核程序集已挪出 deps.json，
-    //运行时靠回调从 kernel 目录与主库内嵌资源取字节 必须早于任何内核类型被解析。
-    //JIT 会解析方法体里出现的全部类型 所以下面两层都禁止内联，
-    //否则 ClientMain 会被提前解析 直接绕过改写把未注入的 NetCraft.Client 拉起来。
+    //Main process entry
+    //First thing is registering the kernel assembly resolution callback: kernel assemblies were moved out of deps.json,
+    //so at runtime the callback fetches their bytes from the kernel directory and the main library's embedded resources. This must run before any kernel type is resolved.
+    //The JIT resolves every type appearing in a method body, so the two layers below are marked no-inline,
+    //otherwise ClientMain gets resolved early and bypasses the rewrite, bringing up an un-injected NetCraft.Client.
     public static int Main(string[] args)
     {
         EmbeddedAssemblyLoader.Initialize();
@@ -21,11 +21,11 @@ public static class Program
         return Launch(args);
     }
 
-    //BootMods 模组引导 这一层只碰加载器 不碰客户端类型
+    //BootMods mod bootstrap; this layer only touches the loader, not client types
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void BootMods() => ModBootstrap.Run(ModEnvironment.Client);
 
-    //Launch 客户端启动流程 到这层才允许解析 NetCraft.Client
+    //Launch client startup flow; only at this layer is resolving NetCraft.Client allowed
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static int Launch(string[] args)
     {

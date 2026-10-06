@@ -1,8 +1,8 @@
 namespace NetCraft.Primitives;
 
-//区块坐标对应原版ChunkPos
-//原版为record此处用readonly struct值类型减少分配
-//仅实现存档IO需要的pack和region相关方法，BlockPos与SectionPos及Codec等延后
+//Chunk position, maps to vanilla ChunkPos
+//Vanilla is a record, here a readonly struct to reduce allocations
+//Only implements the pack and region methods needed by save IO, BlockPos, SectionPos and Codec are deferred
 public readonly struct ChunkPos : IEquatable<ChunkPos>
 {
     private const int CoordBits = 32;
@@ -21,7 +21,7 @@ public readonly struct ChunkPos : IEquatable<ChunkPos>
     public int X { get; }
     public int Z { get; }
 
-    //区块覆盖的方块坐标范围对应原版 getMinBlockX/getMaxBlockX/getMinBlockZ/getMaxBlockZ
+    //Block coordinate range covered by the chunk, maps to vanilla getMinBlockX/getMaxBlockX/getMinBlockZ/getMaxBlockZ
     public int MinBlockX => X * 16;
     public int MaxBlockX => MinBlockX + 15;
     public int MinBlockZ => Z * 16;
@@ -80,7 +80,7 @@ public readonly struct ChunkPos : IEquatable<ChunkPos>
 
     public override string ToString() => $"[{X}, {Z}]";
 
-    //按行优先枚举from到to范围内的所有区块坐标
+    //Enumerates every chunk position from to, row-major
     public static IEnumerable<ChunkPos> RangeClosed(ChunkPos from, ChunkPos to)
     {
         int xDiff = from.X < to.X ? 1 : -1;

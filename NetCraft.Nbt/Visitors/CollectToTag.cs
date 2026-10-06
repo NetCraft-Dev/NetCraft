@@ -2,8 +2,8 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Nbt.Visitors;
 
-//流式访问者，将 NBT 流构建为完整 Tag 树。对应原版 net.minecraft.nbt.visitors.CollectToTag。
-//子类 SkipFields / CollectFields 在其基础上增加字段过滤逻辑。
+//Streaming visitor that builds an NBT stream into a full Tag tree. Mirrors vanilla net.minecraft.nbt.visitors.CollectToTag.
+//Subclasses SkipFields and CollectFields add field filtering on top of it.
 public class CollectToTag : StreamTagVisitor
 {
     private readonly Stack<ContainerBuilder> _containerStack = new();
@@ -13,10 +13,10 @@ public class CollectToTag : StreamTagVisitor
         _containerStack.Push(new RootBuilder());
     }
 
-    //获取构建结果（最外层 Tag）。
+    //Get the build result (the outermost Tag).
     public Tag GetResult() => _containerStack.First().Build()!;
 
-    //当前容器嵌套深度（栈大小 - 1）。
+    //Current container nesting depth (stack size - 1).
     protected int Depth => _containerStack.Count - 1;
 
     private void AppendEntry(Tag instance)
@@ -24,7 +24,7 @@ public class CollectToTag : StreamTagVisitor
         _containerStack.Peek().AcceptValue(instance);
     }
 
-    // ============ 标量值 ============
+    // ============ scalar values ============
 
     public virtual StreamTagVisitor.ValueResult VisitEnd()
     {
@@ -92,7 +92,7 @@ public class CollectToTag : StreamTagVisitor
         return StreamTagVisitor.ValueResult.Continue;
     }
 
-    // ============ 容器 ============
+    // ============ containers ============
 
     public virtual StreamTagVisitor.ValueResult VisitList(TagType elementType, int size)
         => StreamTagVisitor.ValueResult.Continue;
@@ -136,7 +136,7 @@ public class CollectToTag : StreamTagVisitor
         return StreamTagVisitor.ValueResult.Continue;
     }
 
-    // ============ 容器构建器 ============
+    // ============ container builders ============
 
     private interface ContainerBuilder
     {

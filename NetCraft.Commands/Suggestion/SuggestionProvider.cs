@@ -2,6 +2,6 @@ using NetCraft.Commands.Context;
 
 namespace NetCraft.Commands.Suggestion;
 
-//SuggestionProvider 建议提供者委托对应原版com.mojang.brigadier.suggestion.SuggestionProvider
-//参数节点持有此委托实现自定义补全
+//SuggestionProvider delegate maps to vanilla com.mojang.brigadier.suggestion.SuggestionProvider
+//An argument node holds this delegate to implement custom completions
 public delegate Task<Suggestions> SuggestionProvider<S>(CommandContext<S> context, SuggestionsBuilder builder);

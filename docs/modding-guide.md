@@ -142,7 +142,13 @@ The differences from Fabric remain:
 
 **Which layer handles annotations**: the annotation type (`InjectAttribute`) is provided by `NetCraft.ModApi.Extension`, and it is resolved by `NetCraft.ModLoader` — when scanning mods it statically reads the `CustomAttribute` table with `MetadataReader`, without loading assemblies. **`Lead.Hook` does not recognize annotations**; it only sees the merged rule table, and the native injection layer recognizes only the description bytes compiled on the managed side, not even reading `ncmod.json`.
 
-This determines what annotations can express: what you can write depends entirely on which fields `InjectAttribute` has. Currently there are ten — target type, method name, `HookType`, `Label`, `Environment`, `PatchMode`, `Ordinal`, `ArgumentIndex`, `SliceFrom`, `SliceTo` — and `InType`/`InMethod`/`Placement` from [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) and `LocalIndex`/`ConstantValue` from [2.5](#25-in-method-body-anchors-local-variables-and-constants) **cannot be written in annotations**. The manifest accepts the same set, so those five are reachable only through the C# API.
+This determines what annotations can express: what you can write depends entirely on which fields `InjectAttribute` has. Currently there are fifteen — target type, method name, `HookType`, `PatchMode`, `Label`, `Environment`, `Ordinal`, `ArgumentIndex`, `SliceFrom`, `SliceTo`, and the five covered in [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) and [2.5](#25-in-method-body-anchors-local-variables-and-constants): `InType`, `InMethod`, `Placement`, `LocalIndex`, `ConstantValue`. The manifest carries the same set plus `replaceType` / `replaceMethod`, which an annotation takes from the method it sits on.
+
+**Where a rule goes, and when it lands.** A mod never hands a rule to anyone. `ncmod.json` is read as an embedded resource and annotations as rows of the `CustomAttribute` metadata table, both **statically**, without loading a single assembly. The loader merges the two lists into one rule table, rewrites the kernel assemblies with it, and preloads the results — and only after that are mods loaded and each entry class's `public Task Init()` called.
+
+So registering a rule from `Init()` is not merely late: by then every target assembly has been rewritten and is already in memory, and the loader accepts no rule submission from mod code in the first place. The C# spellings that appear in this document — `new HookRule(...)`, `HookBuilder` — are `Lead.Hook`'s own API, which NC's loader never calls; they are used below to explain what the fields mean. In a mod the same rule is always a `hooks` entry or an `[Inject]` annotation.
+
+One caveat on the annotation side: `Placement` is written as a **string** (`"Replace"` / `"Before"` / `"After"`), not an enum — the scanner decodes the metadata table by name, and an enum-typed argument makes it skip the whole rule. In the manifest, `constantValue` has no type tag either: a whole number is taken as `int` while it fits, then `long`, and a fractional one as `double`, so matching a `long` constant on `ldc.i8` needs the annotation spelling `ConstantValue = 5L`.
 
 For the fourteen injection forms see the [modding-guide appendix](#appendix-hooktype-overview) and [mod-api.md](mod-api.md).
 
@@ -188,6 +194,8 @@ A few details about carrying this out:
 
 ### 2.4 Narrowing to one site: host scoping and placement
 
+**Insert mode changes what the callback receives.** With `Placement` at `Before` or `After`, the replacement is called with the **host method's** parameters (`this` included for an instance host), not the arguments of the anchored call; the anchored call itself still runs and never has to be restored. That also makes insertion a per-host affair: two call sites in two different host methods would need two callbacks with two different signatures, so pair it with `InType` / `InMethod` when the anchor appears in more than one host.
+
 An instruction-level rule's default scope is **the entire assembly** — every place that calls the target method or reads/writes the target field matches. To narrow to one site, use two optional parameters:
 
 | Parameter | Effect |
@@ -217,9 +225,11 @@ A few boundaries:
 - `Placement` only applies to instruction-level forms (`CallSite`, `NewObj`, field read/write, `TypeCheck`, `Box`, `FunctionPointer`, and the three kinds in [2.5](#25-in-method-body-anchors-local-variables-and-constants)); `MethodBody` always replaces the whole thing.
 - `Ordinal` counts the **order of matches**, regardless of whether that site is ultimately modified; if the rule does not occur enough times in the host method, the rule does not land. Same idea as Mixin's `@At(ordinal)`.
 - `SliceFrom` / `SliceTo` fence the search instead of counting it, corresponding to Mixin's `@Slice`. Occurrences outside the fence are not even counted, so `Ordinal` numbers from inside the slice. Prefer a fence when the host calls the same anchor several times: a count shifts as soon as someone edits the method above the anchor, a fence does not. An end whose anchor is missing anywhere in the method makes the rule land nowhere — it fails silently rather than widening back to the whole body.
-- `InType` / `InMethod` / `Placement` / `LocalIndex` / `ConstantValue` are currently available only on the C# API; neither `ncmod.json` nor `[Inject]` supports them (the manifest accepts `ordinal`), so manifest-based mods cannot use the first few.
+- `InType` / `InMethod` / `Placement` / `LocalIndex` / `ConstantValue` are available from `ncmod.json` and `[Inject]` alike ([2.1](#21-injection-styles-annotations-or-manifest-pick-one)); `placement` is the only one whose annotation spelling is a string rather than an enum.
 
 ### 2.5 In-method-body anchors: local variables and constants
+
+`LocalIndex` and `ConstantValue` come from the rule on both routes ([2.1](#21-injection-styles-annotations-or-manifest-pick-one)); without one of them the three forms below have no position to anchor to, so any rule using them has to carry it.
 
 The previous kinds anchor to a **referenced entity** (a method, field, or constructor), whereas `LocalRead` / `LocalWrite` / `Constant` anchor to **a position inside the host method body**, corresponding to Mixin's `@ModifyVariable` and `@ModifyConstant`. For these three, `OriginalType` / `OriginalMethod` name the **host method**, not a referenced entity.
 
@@ -256,7 +266,7 @@ A slot is the compiled local variable index; the same source may change it under
 
 The injection discussed so far all happens **before assembly load** — bytes are rewritten first, then handed to the runtime. The premise is that the target assembly has not been loaded yet.
 
-`Lead.Hook` has another route: using the CLR's Profiler interface (ReJIT) to modify code that is **already loaded, or whose methods have already run**. Both share the same `HookRule`, and the parameters from [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) and [2.5](#25-in-method-body-anchors-local-variables-and-constants) remain available:
+`Lead.Hook` has another route: using the CLR's Profiler interface (ReJIT) to modify code that is **already loaded, or whose methods have already run**. Both share the same `HookRule`, and the parameters from [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) and [2.5](#25-in-method-body-anchors-local-variables-and-constants) remain available. The snippet below drives `Lead.Hook` directly, which is not the route a mod takes ([2.1](#21-injection-styles-annotations-or-manifest-pick-one)); the manifest form is right after the table.
 
 ```csharp
 var engine = new HookEngine();
@@ -330,7 +340,7 @@ We hit a pitfall on this route once, worth recording: in an early implementation
 Mod injection conflict mod my-mod-b's injection NetCraft.Game.Server.DedicatedServer::Tick[CallSite/ILRewrite] is already taken by mod my-mod-a; this rule will not take effect
 ```
 
-The detection key is "target type + method + injection form + patch mode". **Host scoping is not distinguished** — neither the manifest nor annotations can write `InType`/`InMethod`, so rules coming from mods are naturally whole-assembly in scope, and the same key means a collision. Rules added directly via the C# API bypass this check, since in that case two rules may each hit a different host and are inherently non-conflicting.
+The detection key is "target type + method + injection form + patch mode". **Host scoping is not distinguished** — neither the manifest nor annotations can write `InType`/`InMethod`, so rules coming from mods are naturally whole-assembly in scope, and the same key means a collision. Rules added through `Lead.Hook`'s own C# API skip this check, since those may each hit a different host and are inherently non-conflicting; no mod rule reaches the loader that way, however ([2.1](#21-injection-styles-annotations-or-manifest-pick-one)).
 
 **Runtime injection goes through this check too**: it enters the same assembly entry point, and the patch mode in the detection key keeps it separate from load-time rewriting; when both types land on the same target assembly there is a separate overwrite notice (see [6.4](#64-two-mods-injecting-the-same-target)).
 
@@ -399,6 +409,8 @@ new HookRule("TargetLib.Host", "Sum", typeof(MyProbe), nameof(MyProbe.OnBump),
 public static int OnBump(object self, int value, int original) => original * 10;
 ```
 
+`ArgumentIndex` and the scoping fields are all available from `ncmod.json` and `[Inject]` ([2.1](#21-injection-styles-annotations-or-manifest-pick-one)), so the rule above is written as a `hooks` entry with `"type": "CallArg"` and `"argumentIndex": 1` exactly as it reads.
+
 | Parameter | Meaning |
 | --- | --- |
 | `OriginalType` / `OriginalMethod` | the **called** method, same as `CallSite` |
@@ -446,7 +458,7 @@ One more boundary to call out: **the wrapper layer does not shield injection**. 
 | `@ModifyConstant` | `Constant`, see [2.5](#25-in-method-body-anchors-local-variables-and-constants); not writable as an annotation |
 | `@ModifyArg` | `CallArg`, see [2.9](#29-modifying-a-single-call-argument); `@ModifyArgs` (all arguments in one callback) has no equivalent |
 | `@Slice` | `SliceFrom` / `SliceTo`, see [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) |
-| `@Accessor` | no equivalent yet (`private` members need no visibility widening; just write a rule) |
+| `@Accessor` / `@Invoker` | `NcAccess`, reflective handles with caching, see [mod-api.md 4.3](mod-api.md#43-private-member-access); `private` members also need no visibility widening when writing a rule |
 | `Registry.register(...)` | the kernel registry (`BuiltInRegistries`) |
 | `ServerLifecycleEvents.SERVER_STARTED` | `ServerEvents.Started` |
 | `ServerTickEvents.END_SERVER_TICK` | `ServerEvents.Tick` |
@@ -626,9 +638,13 @@ The judgment basis is the `version` field in the depended-on mod's manifest. So 
 | `method` | target method name; same-name overloads all match |
 | `type` | injection form, see the appendix |
 | `patchMode` | landing method, `ILRewrite` (default) or `RuntimeInject`, see [2.6](#26-runtime-injection-modifying-already-running-code) |
+| `placement` | how the anchor lands, `Replace` (default) / `Before` / `After`; insertion keeps the original call, see [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) |
 | `ordinal` | when the same anchor matches multiple places in the host method, pick which, 0-based, see [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) |
 | `argumentIndex` | which argument `CallArg` rewrites, 0-based; for instance calls `this` counts as 0, see [2.9](#29-modifying-a-single-call-argument) |
 | `sliceFrom` / `sliceTo` | fence the match, written as `"TypeFullName::MethodName"`; see [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) |
+| `inType` / `inMethod` | match the anchor only inside that host method body; see [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) |
+| `localIndex` | which local slot `LocalRead` / `LocalWrite` targets, 0-based, see [2.5](#25-in-method-body-anchors-local-variables-and-constants) |
+| `constantValue` | which constant `Constant` matches, compared by boxed type, see [2.5](#25-in-method-body-anchors-local-variables-and-constants) |
 | `replaceType` | full name of the class containing the replacement method |
 | `replaceMethod` | replacement method name |
 | `label` | probe label, used only by `Mark` and `Probe` |
@@ -648,9 +664,13 @@ public static void OnSomeMethod(object self) { }
 | `method` | the second constructor parameter, preferably `nameof(...)` |
 | `type` | named parameter `HookType`, default `CallSite` |
 | `patchMode` | named parameter `PatchMode`, default `ILRewrite` |
+| `placement` | named parameter `Placement`, **written as a string**: `"Replace"` / `"Before"` / `"After"` |
 | `ordinal` | named parameter `Ordinal` |
 | `argumentIndex` | named parameter `ArgumentIndex` |
 | `sliceFrom` / `sliceTo` | named parameters `SliceFrom` / `SliceTo` |
+| `inType` / `inMethod` | named parameters `InType` / `InMethod` |
+| `localIndex` | named parameter `LocalIndex` |
+| `constantValue` | named parameter `ConstantValue`, e.g. `ConstantValue = 5L` |
 | `label` | named parameter `Label` |
 | `environment` | named parameter `Environment`, default `both` |
 | `replaceType` | not written; taken automatically from the class it annotates |
@@ -669,6 +689,7 @@ Cannot be hooked:
 - the main library `NetCraft.dll`
 - the loader `NetCraft.ModLoader.dll`
 - entry assemblies (`NetCraft.ServerExe.dll`, etc.)
+- `NetCraft.Util.dll` — the loader's own logging has already loaded it by the time rewriting starts, so the startup log reports "Assembly NetCraft.Util was already loaded early, its injection rules are too late". Everything in it is out of reach, `Log` and `CrashHandler` / `CrashReport` included; to react to a crash, anchor on a caller that does live in a rewriteable assembly, such as the `Stop()` call inside `MinecraftServer.Run`'s catch block.
 
 Every hook's `target` must be findable in the kernel or in some mod assembly, otherwise assembly reports "the injection target is not in any known assembly". Note that **a namespace does not imply an assembly** — `NetCraft.Game.Server.DedicatedServer` actually lives in `NetCraft.Server.dll`; the loader looks it up by an index built from metadata tables, so just write the full name.
 
@@ -763,7 +784,7 @@ Mods that failed to load or were skipped are also in the list, marked in the sta
 - **The main library and loader cannot be hooked**; this is a design constraint preventing mods from changing the loading process itself.
 - **Mismatched `environment` means the whole mod is not loaded**, not "some rules fail".
 - **Runtime injection requires the native library**: rules using `RuntimeInject` require `lead_hook_native` to be attached at process start, and the loader restarts itself to do so; if the library is not found or the restart fails, this batch of rules is downgraded to a warning and startup is not blocked. For capability boundaries and cost see [2.6](#26-runtime-injection-modifying-already-running-code).
-- **Annotations have fewer fields than the C# API**: `InType` / `InMethod` / `Placement` / `LocalIndex` / `ConstantValue` cannot be written in `[Inject]` (`PatchMode` and `Ordinal` are supported), see [2.1](#21-injection-styles-annotations-or-manifest-pick-one).
+- **`Placement` is a string in `[Inject]`**, not an enum: write `Placement = "Before"`. The scanner decodes the metadata table by type name and skips any rule carrying an enum argument, so this one field is spelled out; `ncmod.json` carries `placement` the same way, see [2.1](#21-injection-styles-annotations-or-manifest-pick-one).
 - **A slice whose end anchor is missing makes the rule land nowhere**, silently. `SliceFrom` / `SliceTo` never widen back to the whole method when an end cannot be resolved, see [2.4](#24-narrowing-to-one-site-host-scoping-and-placement).
 - **Mixins apply only to load-time rewriting**, and members in the source class are moved rather than copied; nested types and generic methods in the source class are outside coverage, and methods mixed in with an interface are marked virtual. See [2.8](#28-mixins-adding-members-to-a-target-type).
 - When testing and debugging, if language tables or model resources are used, an `assets` directory (extracted from the vanilla jar) is required, otherwise the related features degrade to translation keys or placeholder textures.

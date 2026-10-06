@@ -3,10 +3,10 @@ using NetCraft.Game.World.Level.LevelGen;
 
 namespace NetCraft.Game.Util;
 
-//CubicSpline 三次样条插值对应原版 net.minecraft.util.CubicSpline<I>
-//原版用泛型 I extends BoundedFloatFunction<?> 此处简化直接持有 DensityFunction 作为坐标
-//TerrainProvider 用 builder 模式构造层级 spline 树每个节点 Sample 按 FunctionContext 取坐标值
-//区间内 Hermite 三次插值端点用 linearExtend 外推对齐原版 Multipoint.sample
+//CubicSpline cubic spline interpolation, maps to vanilla net.minecraft.util.CubicSpline<I>
+//Vanilla uses a generic I extends BoundedFloatFunction<?>; simplified here to hold DensityFunction directly as the coordinate
+//TerrainProvider builds the hierarchical spline tree with the builder pattern; each node's Sample reads the coordinate from FunctionContext
+//Hermite cubic interpolation within an interval; endpoints are extrapolated with linearExtend to align with vanilla Multipoint.sample
 public interface CubicSpline
 {
     float Sample(FunctionContext context);
@@ -14,21 +14,21 @@ public interface CubicSpline
     float MaxValue { get; }
     CubicSpline MapCoordinates(Func<DensityFunction, DensityFunction> mapper);
 
-    //Constant 工厂对应原版 CubicSpline.constant
+    //Constant factory, maps to vanilla CubicSpline.constant
     static CubicSpline Constant(float value) => new CubicSplineConstant(value);
 
-    //Builder 工厂对应原版 CubicSpline.builder(coordinate)
+    //Builder factory, maps to vanilla CubicSpline.builder(coordinate)
     static CubicSplineBuilder Builder(DensityFunction coordinate)
         => new(coordinate, v => v);
 
-    //Builder 工厂带 valueTransformer 对应原版 CubicSpline.builder(coordinate, valueTransformer)
-    //valueTransformer 对 addPoint 的 value 做变换amplified 模式用此放大 offset
+    //Builder factory with valueTransformer, maps to vanilla CubicSpline.builder(coordinate, valueTransformer)
+    //valueTransformer transforms the value passed to addPoint; amplified mode uses it to scale the offset
     static CubicSplineBuilder Builder(DensityFunction coordinate, Func<float, float> valueTransformer)
         => new(coordinate, valueTransformer);
 }
 
-//Multipoint 多点样条对应原版 CubicSpline.Multipoint
-//持有 coordinate/locations/values/derivatives 构造时计算 min/max 边界
+//Multipoint multi-point spline, maps to vanilla CubicSpline.Multipoint
+//Holds coordinate/locations/values/derivatives; computes the min/max bounds on construction
 public sealed class CubicSplineMultipoint : CubicSpline
 {
     private readonly DensityFunction _coordinate;
@@ -71,7 +71,7 @@ public sealed class CubicSplineMultipoint : CubicSpline
             minValue = Math.Min(minValue, value.MinValue);
             maxValue = Math.Max(maxValue, value.MaxValue);
         }
-        //区间内 d1/d2 非零时考虑 Hermite 三次项的极值边界对齐原版
+        //Within the interval, when d1/d2 are non-zero, accounts for the Hermite cubic extremum bound to align with vanilla
         for (var i = 0; i < lastIndex; i++)
         {
             var x1 = locations[i];
@@ -132,7 +132,7 @@ public sealed class CubicSplineMultipoint : CubicSpline
     public float MinValue => _minValue;
     public float MaxValue => _maxValue;
 
-    //Coordinate/Points 暴露节点数据供 Codec 序列化
+    //Coordinate/Points expose node data for Codec serialization
     public DensityFunction Coordinate => _coordinate;
     public float[] Locations => _locations;
     public IReadOnlyList<CubicSpline> Values => _values;
@@ -145,8 +145,8 @@ public sealed class CubicSplineMultipoint : CubicSpline
         return new CubicSplineMultipoint(newCoordinate, _locations, newValues, _derivatives);
     }
 
-    //LinearExtend 端点线性外推对应原版 Multipoint.linearExtend
-    //derivative 为 0 时返回原值否则按斜率外推
+    //LinearExtend endpoint linear extrapolation, maps to vanilla Multipoint.linearExtend
+    //Returns the value itself when derivative is 0, otherwise extrapolates along the slope
     private static float LinearExtend(float input, float[] locations, float value, float[] derivatives, int index)
     {
         var derivative = derivatives[index];
@@ -155,10 +155,10 @@ public sealed class CubicSplineMultipoint : CubicSpline
         return value + derivative * (input - locations[index]);
     }
 
-    //FindIntervalStart 二分查找 input 所属区间起点对应原版 findIntervalStart
-    //返回 -1 表示 input 小于所有 locations返回 lastIndex 表示 input 大于等于最后一个
-    //原版写的是 lambda 但 Java 的 lambda 能内联 .NET 的 Func<int,bool> 每次调用要分配捕获闭包
-    //二分过程还每轮走一次委托调用 逐格采样的路径上这是纯开销 这里直接展开成循环
+    //FindIntervalStart binary-searches the start of the interval containing input, maps to vanilla findIntervalStart
+    //Returns -1 when input is smaller than all locations; returns lastIndex when input is greater than or equal to the last one
+    //Vanilla uses a lambda, but Java lambdas inline while a .NET Func<int,bool> allocates a capturing closure on every call
+    //The binary search would also make a delegate call every round; pure overhead on the per-cell sampling path, so it is unrolled into a loop here
     private static int FindIntervalStart(float[] locations, float input)
     {
         var from = 0;
@@ -189,8 +189,8 @@ public sealed class CubicSplineMultipoint : CubicSpline
     }
 }
 
-//CubicSplineConstant 常量样条对应原版 CubicSpline.Constant
-//所有坐标返回固定 value min/max 等于 value
+//CubicSplineConstant constant spline, maps to vanilla CubicSpline.Constant
+//Every coordinate returns the fixed value; min/max equal value
 public sealed class CubicSplineConstant : CubicSpline
 {
     private readonly float _value;
@@ -199,14 +199,14 @@ public sealed class CubicSplineConstant : CubicSpline
     public float MinValue => _value;
     public float MaxValue => _value;
 
-    //Value 暴露常量值供 Codec 序列化
+    //Value exposes the constant value for Codec serialization
     public float Value => _value;
 
     public CubicSpline MapCoordinates(Func<DensityFunction, DensityFunction> mapper) => this;
 }
 
-//CubicSplineBuilder 样条构造器对应原版 CubicSpline.Builder
-//addPoint 必须升序注册 build 时构造 Multipoint
+//CubicSplineBuilder spline builder, maps to vanilla CubicSpline.Builder
+//addPoint must be registered in ascending order; build constructs the Multipoint
 public sealed class CubicSplineBuilder
 {
     private readonly DensityFunction _coordinate;
@@ -230,7 +230,7 @@ public sealed class CubicSplineBuilder
     public CubicSplineBuilder AddPoint(float location, CubicSpline sampler)
         => AddPoint(location, sampler, 0.0f);
 
-    //AddPoint 带斜率重载供 Codec 还原 JSON 里的 derivative
+    //AddPoint overload with a slope, for Codec to restore the derivative from JSON
     public CubicSplineBuilder AddPoint(float location, CubicSpline sampler, float derivative)
         => AddPointInternal(location, sampler, derivative);
 

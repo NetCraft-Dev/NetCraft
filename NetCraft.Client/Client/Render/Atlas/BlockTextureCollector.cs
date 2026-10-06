@@ -6,11 +6,11 @@ using StbImageSharp;
 
 namespace NetCraft.Game.Client.Render.Atlas;
 
-//BlockTextureCollector 方块纹理收集器
-//扫描 assets 资源收集方块纹理 sprite 列表喂给 Gpu 层 BlockTextureAtlas 拼接
-//首版简化策略直接扫描 textures/block/*.png 收集全部方块纹理
-//后续 W1 模型解析就绪后改为按 blockstates/models JSON 引用精确收集
-//属 Game 层依赖 ResourceManager 读 assets + StbImageSharp 解码 PNG + Gpu 的 SpriteInput
+//BlockTextureCollector block texture collector
+//Scans assets resources to collect the block texture sprite list and feeds it to the Gpu layer's BlockTextureAtlas for stitching
+//The first version's simplified strategy scans textures/block/*.png directly to collect all block textures
+//Later, once W1 model parsing is ready, switch to collecting precisely from blockstates/models JSON references
+//Belongs to the Game layer; depends on ResourceManager to read assets + StbImageSharp to decode PNG + Gpu's SpriteInput
 public sealed class BlockTextureCollector
 {
     private readonly ResourceManager _resourceManager;
@@ -20,9 +20,9 @@ public sealed class BlockTextureCollector
         _resourceManager = resourceManager;
     }
 
-    //Collect 收集所有方块纹理 sprite 输入列表
-    //扫描所有 namespace 的 textures/block 目录
-    //PNG 解码失败跳过不阻断返回已成功收集的列表
+    //Collect collects the sprite input list for all block textures
+    //Scans the textures/block directory of all namespaces
+    //Failed PNG decodes are skipped without aborting; returns the successfully collected list
     public List<TextureStitcher.SpriteInput> Collect()
     {
         var result = new List<TextureStitcher.SpriteInput>();
@@ -30,7 +30,7 @@ public sealed class BlockTextureCollector
         {
             foreach (var resource in _resourceManager.ListResources(PackType.ClientResources, ns, "textures/block"))
             {
-                //只收 .png 排除 .png.mcmeta
+                //Only collect .png, excluding .png.mcmeta
                 if (!resource.Location.Path.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
                     continue;
                 var spriteName = PathToSpriteName(ns, resource.Location.Path);
@@ -42,9 +42,9 @@ public sealed class BlockTextureCollector
         return result;
     }
 
-    //PathToSpriteName 把资源路径转 sprite name
+    //PathToSpriteName converts a resource path to a sprite name
     //path=textures/block/stone.png → minecraft:block/stone
-    //去掉 textures/ 前缀和 .png 后缀
+    //Strips the textures/ prefix and .png suffix
     private static string PathToSpriteName(string ns, string path)
     {
         var p = path;
@@ -55,8 +55,8 @@ public sealed class BlockTextureCollector
         return $"{ns}:{p}";
     }
 
-    //LoadPng 从 Resource 流解码 PNG
-    //返回 (width, height, data) data 为 null 表示解码失败
+    //LoadPng decodes a PNG from a Resource stream
+    //Returns (width, height, data); data is null when decoding fails
     private static (int width, int height, byte[]? data) LoadPng(Resource resource)
     {
         try

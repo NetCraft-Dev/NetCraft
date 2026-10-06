@@ -4,9 +4,9 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetDefaultSpawnPositionPacket 默认出生点包对应原版 ClientboundSetDefaultSpawnPositionPacket
-//S4 26.2 用 LevelData.RespawnData = GlobalPos(dimension + BlockPos) + yaw(float) + pitch(float)
-//Angle 字段作为 yaw 使用 pitch 固定 0
+//ClientboundSetDefaultSpawnPositionPacket default spawn position packet, maps to vanilla ClientboundSetDefaultSpawnPositionPacket
+//S4 26.2 uses LevelData.RespawnData = GlobalPos(dimension + BlockPos) + yaw(float) + pitch(float)
+//The Angle field is used as yaw; pitch is fixed at 0
 public sealed record ClientboundSetDefaultSpawnPositionPacket(BlockPos Pos, float Angle) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetDefaultSpawnPositionPacket> StreamCodec { get; } = new SetDefaultSpawnPositionCodec();

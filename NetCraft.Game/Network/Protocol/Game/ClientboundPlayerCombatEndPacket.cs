@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundPlayerCombatEndPacket 战斗结束包对应原版 ClientboundPlayerCombatEndPacket
-//字段 Duration(int)
+//ClientboundPlayerCombatEndPacket combat end packet, maps to vanilla ClientboundPlayerCombatEndPacket
+//Field: Duration(int)
 public sealed record ClientboundPlayerCombatEndPacket(int Duration) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundPlayerCombatEndPacket> StreamCodec { get; } = new PlayerCombatEndCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundPlayerCombatEndPacket(int Duration) : Packet<Cli
     private sealed class PlayerCombatEndCodec : StreamCodec<FriendlyByteBuf, ClientboundPlayerCombatEndPacket>
     {
         public ClientboundPlayerCombatEndPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundPlayerCombatEndPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

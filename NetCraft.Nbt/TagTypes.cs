@@ -1,8 +1,8 @@
 namespace NetCraft.Nbt;
 
-//NBT Tag 类型注册表。对应原版 net.minecraft.nbt.TagTypes。
-//按 Tag ID（0-12）索引到对应的 TagType。
-//顺序严格对应原版，影响 Tag ID 分配和网络/存档字节兼容性。
+//NBT Tag type registry. Mirrors vanilla net.minecraft.nbt.TagTypes.
+//Indexes Tag IDs (0-12) to the matching TagType.
+//The order matches vanilla exactly, affecting Tag ID assignment and network/save byte compatibility.
 public static class TagTypes
 {
     private static readonly TagType[] Types =
@@ -22,7 +22,7 @@ public static class TagTypes
         LongArrayTag.LongArrayTagType.Instance, // 12 TAG_Long_Array
     };
 
-    //按 Tag ID 获取类型描述。无效 ID 返回 InvalidTagType。
+    //Get the type description by Tag ID. Invalid IDs return InvalidTagType.
     public static TagType GetType(byte id)
     {
         if (id >= 0 && id < Types.Length)
@@ -30,10 +30,10 @@ public static class TagTypes
         return TagType.CreateInvalid(id);
     }
 
-    //按 Tag ID 获取类型描述（int 重载）。
+    //Get the type description by Tag ID (int overload).
     public static TagType GetType(int id) => GetType((byte)id);
 
-    //所有支持的 Tag 类型数量。
+    //Number of supported Tag types.
     public static int Count => Types.Length;
 }
 

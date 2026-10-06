@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundBlockChangedAckPacket 方块变更确认包对应原版 ClientboundBlockChangedAckPacket
-//字段 Sequence(int)
+//ClientboundBlockChangedAckPacket block changed ack packet, maps to vanilla ClientboundBlockChangedAckPacket
+//Field: Sequence(int)
 public sealed record ClientboundBlockChangedAckPacket(int Sequence) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundBlockChangedAckPacket> StreamCodec { get; } = new BlockChangedAckCodec();
@@ -10,7 +10,7 @@ public sealed record ClientboundBlockChangedAckPacket(int Sequence) : Packet<Cli
 
     public void Handle(ClientGamePacketListener handler) => handler.HandleBlockChangedAck(this);
 
-    //原版 sequence 是 VarInt
+    //Vanilla sequence is a VarInt
     private sealed class BlockChangedAckCodec : StreamCodec<FriendlyByteBuf, ClientboundBlockChangedAckPacket>
     {
         public ClientboundBlockChangedAckPacket Decode(FriendlyByteBuf buf)

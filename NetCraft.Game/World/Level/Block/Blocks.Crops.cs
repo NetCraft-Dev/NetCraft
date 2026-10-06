@@ -7,9 +7,9 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//V-8 作物类方块按原版逐个移植形状 生长与骨粉行为留后续批次
-//属性一律取内嵌方块表注入的那份 这里不重复声明
-//命名空间段名 Block 与 Registry.Block 类型同名 形状助手要写完全限定名
+//V-8 crop blocks ported shape by shape from vanilla; growth and bone meal behavior left for a later batch
+//Properties always come from the ones injected by the embedded block table; not redeclared here
+//The namespace segment Block clashes with the Registry.Block type, so shape helpers must be fully qualified
 public static partial class Blocks
 {
     public static readonly WheatBlock WHEAT = new("wheat");
@@ -19,15 +19,15 @@ public static partial class Blocks
     public static readonly TorchflowerCropBlock TORCHFLOWER_CROP = new("torchflower_crop");
     public static readonly NetherWartBlock NETHER_WART = new("nether_wart");
 
-    //RegisterCrops 作物类方块登记进真实方块表
+    //RegisterCrops registers crop blocks into the real block table
     private static void RegisterCrops(Dictionary<string, BlockBehaviour> real)
     {
         BlockBehaviour[] blocks = { WHEAT, CARROTS, POTATOES, BEETROOTS, TORCHFLOWER_CROP, NETHER_WART };
         foreach (var block in blocks) real[block.Id.Path] = block;
     }
 
-    //CropBlock 作物基类 形状按成熟度逐级长高 各作物给各自的形状表与年龄属性
-    //落脚面走 supports_crops 标签 支撑没了自己消失 对应原版 CropBlock 继承 VegetationBlock
+    //CropBlock crop base class; shapes grow taller with each maturity level, each crop supplies its own shape table and age property
+    //The support face uses the supports_crops tag and the block disappears when support is lost, maps to vanilla CropBlock extending VegetationBlock
     public abstract class CropBlock : VegetationBlock
     {
         protected CropBlock(string name) : base(name) { }
@@ -45,7 +45,7 @@ public static partial class Blocks
             => Shapes[Age(state)];
     }
 
-    //WheatBlock 小麦 每升一级长高两像素
+    //WheatBlock wheat; grows two pixels taller per level
     public sealed class WheatBlock : CropBlock
     {
         private static readonly VoxelShape[] ShapeTable =
@@ -58,7 +58,7 @@ public static partial class Blocks
         protected override VoxelShape[] Shapes => ShapeTable;
     }
 
-    //CarrotBlock 胡萝卜 每升一级只长一像素 与小麦不同
+    //CarrotBlock carrots; grows only one pixel per level, unlike wheat
     public sealed class CarrotBlock : CropBlock
     {
         private static readonly VoxelShape[] ShapeTable =
@@ -71,7 +71,7 @@ public static partial class Blocks
         protected override VoxelShape[] Shapes => ShapeTable;
     }
 
-    //PotatoBlock 马铃薯 与胡萝卜同高
+    //PotatoBlock potatoes; same height as carrots
     public sealed class PotatoBlock : CropBlock
     {
         private static readonly VoxelShape[] ShapeTable =
@@ -84,7 +84,7 @@ public static partial class Blocks
         protected override VoxelShape[] Shapes => ShapeTable;
     }
 
-    //BeetrootBlock 甜菜根 只有四级 每级长高两像素
+    //BeetrootBlock beetroots; only four levels, two pixels taller per level
     public sealed class BeetrootBlock : CropBlock
     {
         private static readonly VoxelShape[] ShapeTable =
@@ -97,7 +97,7 @@ public static partial class Blocks
         protected override VoxelShape[] Shapes => ShapeTable;
     }
 
-    //TorchflowerCropBlock 火把花作物 只有两级 成熟后长成六像素宽的柱
+    //TorchflowerCropBlock torchflower crop; only two levels, maturing into a six-pixel-wide column
     public sealed class TorchflowerCropBlock : CropBlock
     {
         private static readonly VoxelShape[] ShapeTable =
@@ -110,7 +110,7 @@ public static partial class Blocks
         protected override VoxelShape[] Shapes => ShapeTable;
     }
 
-    //NetherWartBlock 下界疣 原版继承植被类不是作物类 形状自成一档 落脚面走它自己那条标签
+    //NetherWartBlock nether wart; vanilla extends the vegetation class rather than the crop class, has its own shape tier, and uses its own support tag
     public sealed class NetherWartBlock : VegetationBlock
     {
         private static readonly VoxelShape[] ShapeTable =

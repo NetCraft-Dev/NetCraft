@@ -2,29 +2,29 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Util.Collection;
 
-//随机集合工具对应原版net.minecraft.util.Util中随机相关集合方法
-//移植GetRandom/GetRandomSafe/ToShuffledList/ShuffledCopy/Shuffle
+//Random collection helpers, map to the random-related collection methods in vanilla net.minecraft.util.Util
+//Ports GetRandom/GetRandomSafe/ToShuffledList/ShuffledCopy/Shuffle
 public static class RandomCollections
 {
-    //getRandom按随机数选数组元素对应原版Util.getRandom(T[])
-    //空数组抛IndexOutOfRange对齐原版ArrayIndexOutOfBounds
+    //getRandom picks an array element at random, maps to vanilla Util.getRandom(T[])
+    //Empty array throws IndexOutOfRange, aligning with vanilla ArrayIndexOutOfBounds
     public static T GetRandom<T>(IReadOnlyList<T> array, RandomSource random)
         => array[random.NextInt(array.Count)];
 
-    //getRandom按随机数选int数组元素对应原版Util.getRandom(int[])
+    //getRandom picks an int array element at random, maps to vanilla Util.getRandom(int[])
     public static int GetRandom(int[] array, RandomSource random)
         => array[random.NextInt(array.Length)];
 
-    //getRandom按随机数选列表元素对应原版Util.getRandom(List)
+    //getRandom picks a list element at random, maps to vanilla Util.getRandom(List)
     public static T GetRandom<T>(T[] array, RandomSource random)
         => array[random.NextInt(array.Length)];
 
-    //getRandomSafe空列表返回None否则返回Some对应原版Util.getRandomSafe
+    //getRandomSafe returns None for an empty list, otherwise Some, maps to vanilla Util.getRandomSafe
     public static Option<T> GetRandomSafe<T>(IReadOnlyList<T> list, RandomSource random)
         => list.Count == 0 ? Option<T>.None() : Option<T>.Some(GetRandom(list, random));
 
-    //shuffle原位洗牌对应原版Util.shuffle
-    //Fisher-Yates反向遍历交换i-1与swapTo
+    //shuffle in-place shuffle, maps to vanilla Util.shuffle
+    //Fisher-Yates reverse traversal swapping i-1 with swapTo
     public static void Shuffle<T>(IList<T> list, RandomSource random)
     {
         var size = list.Count;
@@ -35,7 +35,7 @@ public static class RandomCollections
         }
     }
 
-    //toShuffledList收集流到列表后洗牌对应原版Util.toShuffledList(Stream)
+    //toShuffledList collects a stream into a list then shuffles, maps to vanilla Util.toShuffledList(Stream)
     public static List<T> ToShuffledList<T>(IEnumerable<T> source, RandomSource random)
     {
         var result = source.ToList();
@@ -43,8 +43,8 @@ public static class RandomCollections
         return result;
     }
 
-    //toShuffledList收集int流到数组后洗牌对应原版Util.toShuffledList(IntStream)
-    //重命名ToShuffledIntArray避免与泛型版ToShuffledList<int>重载冲突
+    //toShuffledList collects an int stream into an array then shuffles, maps to vanilla Util.toShuffledList(IntStream)
+    //Renamed ToShuffledIntArray to avoid overload conflict with the generic ToShuffledList<int>
     public static int[] ToShuffledIntArray(IEnumerable<int> source, RandomSource random)
     {
         var result = source.ToArray();
@@ -57,7 +57,7 @@ public static class RandomCollections
         return result;
     }
 
-    //shuffledCopy复制数组后洗牌对应原版Util.shuffledCopy(T[])
+    //shuffledCopy copies an array then shuffles, maps to vanilla Util.shuffledCopy(T[])
     public static List<T> ShuffledCopy<T>(T[] array, RandomSource random)
     {
         var copy = new List<T>(array);
@@ -65,7 +65,7 @@ public static class RandomCollections
         return copy;
     }
 
-    //shuffledCopy复制列表后洗牌对应原版Util.shuffledCopy(ObjectArrayList)
+    //shuffledCopy copies a list then shuffles, maps to vanilla Util.shuffledCopy(ObjectArrayList)
     public static List<T> ShuffledCopy<T>(IReadOnlyList<T> list, RandomSource random)
     {
         var copy = new List<T>(list);

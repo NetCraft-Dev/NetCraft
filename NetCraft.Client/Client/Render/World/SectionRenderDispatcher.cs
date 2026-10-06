@@ -7,21 +7,21 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Client.Render.World;
 
-//SectionRenderDispatcher 异步调度器对标原版 SectionRenderDispatcher
-//后台线程编译 chunk mesh + mesh 缓存 + 脏标记 Render 线程只做 Upload+Draw
-//_sections 持所有 RenderSection _compileQueue 后台线程消费 _uploadQueue Render 线程消费
-//_mesh 用 Interlocked.Exchange 原子发布编译线程写 Render 线程读
-//_syncRoot 粗粒度锁只保护 Render 线程 Upload+Draw 复合操作编译线程不持锁
-//GpuBufferPool 跨帧复用 buffer 重编译/unload 时 ReturnBuffer 不调 EndFrame
+//SectionRenderDispatcher async dispatcher, maps to vanilla SectionRenderDispatcher
+//Background threads compile chunk meshes + mesh cache + dirty marking; the Render thread only does Upload+Draw
+//_sections holds all RenderSections; _compileQueue is consumed by background threads, _uploadQueue by the Render thread
+//_mesh is published atomically with Interlocked.Exchange; the compile thread writes and the Render thread reads
+//_syncRoot is a coarse lock protecting only the Render thread's combined Upload+Draw; compile threads do not take the lock
+//GpuBufferPool reuses buffers across frames; ReturnBuffer is called on recompile/unload without EndFrame
 public sealed class SectionRenderDispatcher : IDisposable
 {
     private readonly ClientLevel _level;
     private readonly ChunkMeshBuilder _meshBuilder;
     private readonly GpuBufferPool _bufferPool;
     private readonly ConcurrentDictionary<long, RenderSection> _sections = new();
-    //_compileQueue 后台线程 BlockingCollection.GetConsumingEnumerable 阻塞等
+    //_compileQueue background threads block on BlockingCollection.GetConsumingEnumerable
     private readonly BlockingCollection<RenderSection> _compileQueue = new(new ConcurrentQueue<RenderSection>());
-    //_uploadQueue 编译线程 Enqueue Render 线程 Lock 内 TryDequeue
+    //_uploadQueue the compile thread Enqueues, the Render thread TryDequeues inside the Lock
     private readonly ConcurrentQueue<RenderSection> _uploadQueue = new();
     private readonly Thread[] _workers;
     private readonly object _syncRoot = new();
@@ -33,9 +33,9 @@ public sealed class SectionRenderDispatcher : IDisposable
     public int SectionCount => _sections.Count;
     public int PendingUploadCount => _uploadQueue.Count;
     public int VisibleSectionCount => _viewArea.VisibleCount;
-    //BufferPoolInUseCount 当前借出的 GPU buffer 数供测试验证无泄漏 应 == UploadedSectionCount * 2
+    //BufferPoolInUseCount currently borrowed GPU buffer count, for tests to verify no leaks; should == UploadedSectionCount * 2
     public int BufferPoolInUseCount => _bufferPool.InUseCount;
-    //UploadedSectionCount 已上传 section 数遍历 _sections 计数 Uploaded 状态供测试验证 buffer 数
+    //UploadedSectionCount number of uploaded sections; iterates _sections counting Uploaded state, for tests to verify buffer counts
     public int UploadedSectionCount
     {
         get
@@ -47,7 +47,7 @@ public sealed class SectionRenderDispatcher : IDisposable
         }
     }
 
-    //workerCount 默认 max(1, ProcessorCount-1) CPU 密集型用专用线程不走 ThreadPool
+    //workerCount defaults to max(1, ProcessorCount-1); CPU-bound work uses dedicated threads, not the ThreadPool
     public SectionRenderDispatcher(ClientLevel level, ChunkMeshBuilder meshBuilder, GpuBufferPool bufferPool, int? workerCount = null)
     {
         _level = level;
@@ -68,7 +68,7 @@ public sealed class SectionRenderDispatcher : IDisposable
         }
     }
 
-    //Stop CompleteAdding 让 worker 退出 GetConsumingEnumerable Join 等线程结束
+    //Stop calls CompleteAdding so workers exit GetConsumingEnumerable, then Join waits for the threads to end
     public void Stop()
     {
         if (!_running) return;
@@ -78,15 +78,15 @@ public sealed class SectionRenderDispatcher : IDisposable
             worker?.Join();
     }
 
-    //SetCameraPosition Render 线程调 ViewArea.Update 视锥 diff 新可见 section 调 MarkDirty 编译
-    //camera 参数首版未用留未来按 position 范围遍历优化当前遍历所有 loaded chunks
+    //SetCameraPosition called on the Render thread; ViewArea.Update diffs the frustum and calls MarkDirty for newly visible sections to compile
+    //The camera parameter is unused in the first version, reserved for a future position-range traversal optimization; currently it iterates all loaded chunks
     public void SetCameraPosition(Camera camera, Frustum frustum)
     {
         _viewArea.Update(frustum, _level, pos => MarkDirty(pos));
     }
 
-    //MarkDirty 标脏入队 自身+6 邻居跨 section 边界面剔除需重算
-    //未加载的邻居 section 跳过不创建 RenderSection 避免 _sections 膨胀
+    //MarkDirty marks dirty and enqueues the section + 6 neighbors; cross-section boundary face culling must be recomputed
+    //Unloaded neighbor sections are skipped without creating a RenderSection, to avoid _sections bloat
     public void MarkDirty(SectionPos pos)
     {
         MarkDirtySingle(pos);
@@ -105,27 +105,27 @@ public sealed class SectionRenderDispatcher : IDisposable
         if (section.TryMarkDirty())
         {
             try { _compileQueue.Add(section); }
-            catch (InvalidOperationException) { } //CompleteAdding 后 Add 抛忽略
+            catch (InvalidOperationException) { } //Add throws after CompleteAdding; ignore
         }
     }
 
-    //Lock/Unlock Render 线程持锁期间 Upload+Draw 编译线程不持锁只原子发布 mesh
+    //Lock/Unlock the Render thread holds the lock during Upload+Draw; compile threads do not take the lock and only publish mesh atomically
     public void Lock() => Monitor.Enter(_syncRoot);
     public void Unlock() => Monitor.Exit(_syncRoot);
 
-    //UploadTerrainBuffers Render 线程 Lock 内调取 _uploadQueue 全部借 buffer 上传
-    //重编译时旧 buffer 先 ReturnBuffer 再借新每 section 一个 vb+ib 含所有 layer
-    //各 layer 顶点拼接索引偏移 baseVertex 记录 UploadedSlice 供 GetSectionSlice
+    //UploadTerrainBuffers called inside the Render thread's Lock; dequeues everything from _uploadQueue, borrows buffers, and uploads
+    //On recompile, return old buffers first then borrow new; one vb+ib per section covering all layers
+    //Layer vertices are concatenated and indices offset by baseVertex; UploadedSlice is recorded for GetSectionSlice
     public void UploadTerrainBuffers()
     {
         while (_uploadQueue.TryDequeue(out var section))
         {
-            //已卸载 section 跳过不借 buffer UnloadSection 已归还旧 buffer
+            //Skip unloaded sections without borrowing buffers; UnloadSection already returned the old buffers
             if (section.IsRemoved) continue;
             var mesh = section.Mesh;
             if (mesh is null || mesh.TotalVertexCount == 0)
             {
-                //空 mesh 释放旧 buffer 标记 Uploaded 但 Slices 全 null Draw 跳过
+                //Empty mesh: release old buffers and mark Uploaded, but Slices are all null so Draw skips
                 if (section.HasUploadedBuffers) section.ReleaseBuffers(_bufferPool);
                 section.SetUploadedBuffers(_bufferPool.GetBuffer(4, GpuBufferUsage.VertexBuffer), _bufferPool.GetBuffer(4, GpuBufferUsage.IndexBuffer));
                 continue;
@@ -160,8 +160,8 @@ public sealed class SectionRenderDispatcher : IDisposable
         }
     }
 
-    //GetSectionSlice Render 线程 Lock 内调取 section 的 UploadedSlice + buffer 引用
-    //State!=Uploaded 或 layer 无顶点返回 null Draw 跳过
+    //GetSectionSlice called inside the Render thread's Lock; returns the section's UploadedSlice + buffer references
+    //Returns null when State!=Uploaded or the layer has no vertices; Draw skips
     public SectionSlice? GetSectionSlice(SectionPos pos, RenderLayer layer)
     {
         if (!_sections.TryGetValue(pos.AsLong(), out var section)) return null;
@@ -171,9 +171,9 @@ public sealed class SectionRenderDispatcher : IDisposable
         return new SectionSlice(section.VertexBuffer!, section.IndexBuffer!, slice.Value.BaseVertex, slice.Value.FirstIndex, slice.Value.IndexCount);
     }
 
-    //EnumerateVisibleSections Render 线程 Lock 内调遍历已上传 section 测 frustum
-    //加 _viewArea.IsVisible 过滤避免渲染已卸载 chunk 的 section chunk 卸载后 ViewArea 下帧刷新不再可见
-    //ConcurrentDictionary.Values 返回快照遍历安全 yield 在 Lock 内 foreach 立即消费
+    //EnumerateVisibleSections called inside the Render thread's Lock; iterates uploaded sections and tests the frustum
+    //Also filters by _viewArea.IsVisible to avoid rendering sections of unloaded chunks; after a chunk unloads, ViewArea refreshes next frame so it is no longer visible
+    //ConcurrentDictionary.Values returns a snapshot so traversal is safe; the yield is consumed immediately by the foreach inside the Lock
     public IEnumerable<RenderSection> EnumerateVisibleSections(Frustum frustum)
     {
         foreach (var section in _sections.Values)
@@ -184,8 +184,8 @@ public sealed class SectionRenderDispatcher : IDisposable
         }
     }
 
-    //UnloadSection chunk 卸载时调 Render 线程 Lock 内归还 buffer 移除 section
-    //MarkRemoved 防竞态：编译线程 PublishMesh 前检查跳过 上传线程 dequeue 后检查跳过不借 buffer
+    //UnloadSection called on chunk unload inside the Render thread's Lock; returns buffers and removes the section
+    //MarkRemoved prevents races: the compile thread checks before PublishMesh and skips; the upload thread checks after dequeue and skips without borrowing
     public void UnloadSection(SectionPos pos)
     {
         if (_sections.TryRemove(pos.AsLong(), out var section))
@@ -195,9 +195,9 @@ public sealed class SectionRenderDispatcher : IDisposable
         }
     }
 
-    //WorkerLoop 后台线程主循环 GetConsumingEnumerable 阻塞等编译完成后入 _uploadQueue
-    //持 ClientLevel 读锁调 GetSection+Snapshot+Build 防 SetBlockState 修改 section 内部 PalettedContainer
-    //读锁内 PublishMesh+Enqueue 锁外做 减少锁持有时间 chunk 卸载 rawSection null 跳过留 Compiling
+    //WorkerLoop background thread main loop; blocks on GetConsumingEnumerable, and after compiling enqueues into _uploadQueue
+    //Holds ClientLevel's read lock while calling GetSection+Snapshot+Build, preventing SetBlockState from modifying the section's internal PalettedContainer
+    //PublishMesh+Enqueue happen outside the read lock to reduce lock hold time; if the chunk is unloaded and rawSection is null, skip and leave it in Compiling
     private void WorkerLoop()
     {
         foreach (var section in _compileQueue.GetConsumingEnumerable())
@@ -214,7 +214,7 @@ public sealed class SectionRenderDispatcher : IDisposable
                     var rawSection = _level.GetSection(section.Pos.X, section.Pos.Y, section.Pos.Z);
                     if (rawSection is null)
                     {
-                        //chunk 已卸载 section 卡 Compiling 等 UnloadSection 清理首版不处理
+                        //Chunk already unloaded; the section is stuck in Compiling until UnloadSection cleans it up, not handled in the first version
                         compileSuccess = false;
                     }
                     else if (rawSection.HasOnlyAir())
@@ -234,7 +234,7 @@ public sealed class SectionRenderDispatcher : IDisposable
                     }
                 }
                 finally { _level.ExitReadLock(); }
-                //编译期间 section 被卸载跳过发布 UnloadSection 已清理 buffer
+                //The section was unloaded during compilation; skip publishing, UnloadSection already cleaned the buffers
                 if (compileSuccess && mesh is not null && !section.IsRemoved)
                 {
                     section.PublishMesh(mesh);
@@ -267,6 +267,6 @@ public sealed class SectionRenderDispatcher : IDisposable
     }
 }
 
-//SectionSlice dispatcher.GetSectionSlice 返回的渲染切片供 LevelRenderer.Draw 提交
-//VertexBuffer/IndexBuffer 共享每 section 一个 buffer BaseVertex/FirstIndex 定位 layer 偏移
+//SectionSlice the render slice returned by dispatcher.GetSectionSlice for LevelRenderer.Draw to submit
+//VertexBuffer/IndexBuffer shared, one buffer per section; BaseVertex/FirstIndex locate the layer offset
 public readonly record struct SectionSlice(GpuBuffer VertexBuffer, GpuBuffer IndexBuffer, int BaseVertex, int FirstIndex, int IndexCount);

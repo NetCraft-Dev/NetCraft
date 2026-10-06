@@ -6,15 +6,15 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Advancements.Predicates;
 
-//BlockPredicate 方块谓词 判定方块类型 状态属性 方块实体数据
-//对应原版 net.minecraft.advancements.predicates.BlockPredicate
+//BlockPredicate block predicate, checks block type, state properties and block entity data
+//maps to vanilla net.minecraft.advancements.predicates.BlockPredicate
 public sealed record BlockPredicate(
     Optional<HolderSet<NetCraft.Registry.Block>> Blocks,
     Optional<StatePropertiesPredicate> Properties,
     Optional<NbtPredicate> Nbt,
     DataComponentMatchers Components)
 {
-    //Codec 持久化编解码 字段名 blocks 与 state 与 nbt 与 components 对应原版 CODEC
+    //Codec persistence codec, field names blocks/state/nbt/components, maps to vanilla CODEC
     public static readonly Codec<BlockPredicate> Codec = RecordCodecBuilder.Of4(
         HolderSetCodecs.BlockSet.OptionalFieldOf("blocks")
             .ForGetter((BlockPredicate predicate) => predicate.Blocks),
@@ -26,10 +26,10 @@ public sealed record BlockPredicate(
             .ForGetter((BlockPredicate predicate) => predicate.Components),
         (blocks, properties, nbt, components) => new BlockPredicate(blocks, properties, nbt, components));
 
-    //RequiresNbt 该谓词是否要求读方块实体数据 对应原版 requiresNbt
+    //RequiresNbt whether this predicate needs block entity data, maps to vanilla requiresNbt
     public bool RequiresNbt => Nbt.IsPresent;
 
-    //MatchesState 方块集合与状态属性都要命中 对应原版 matchesState
+    //MatchesState both the block set and the state properties must hit, maps to vanilla matchesState
     public bool MatchesState(BlockState state)
     {
         if (Blocks.IsPresent && !Blocks.Get().Contains(BuiltInRegistries.BLOCK.WrapAsHolder(state.Owner)))
@@ -38,8 +38,8 @@ public sealed record BlockPredicate(
         return true;
     }
 
-    //Matches 位置已加载且状态命中 对应原版 matches
-    //nbt 与组件匹配要读方块实体 方块实体体系未接通 有这类要求时按无法验证处理
+    //Matches the position is loaded and the state hits, maps to vanilla matches
+    //nbt and component matching need block entities; the block entity system is not wired up, so such requirements are treated as unverifiable
     public bool Matches(ILevelReader level, BlockPos pos)
     {
         if (!level.IsLoaded(pos)) return false;

@@ -5,9 +5,9 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Storage.Light;
 
-//LightEngine 光照引擎基类对应原版 net.minecraft.world.level.lighting.LightEngine
-//传播机制内嵌在本类 由 checkNode/propagateIncrease/propagateDecrease 三个抽象方法落到具体层
-//每个待处理项按顺序入队两个 long(节点 + 打包的层级与方向) 分别构成 decrease/increase 双 FIFO
+//LightEngine, light engine base class, maps to vanilla net.minecraft.world.level.lighting.LightEngine
+//The propagation mechanism is embedded here, with three abstract methods checkNode/propagateIncrease/propagateDecrease landing it on the concrete layer
+//Each pending entry enqueues two longs in order (the node + the packed level and direction), forming the decrease/increase FIFOs
 public abstract class LightEngine<TSelf, TStorage> : LayerLightEventListener
     where TSelf : DataLayerStorageMap<TSelf>
     where TStorage : LayerLightSectionStorage<TSelf>
@@ -16,15 +16,15 @@ public abstract class LightEngine<TSelf, TStorage> : LayerLightEventListener
     protected const int MinOpacity = 1;
 
     private const int MinQueueSize = 512;
-    //ChunkCacheMask 区块缓存的坐标掩码 缓存 8x8 个区块
-    //光照 BFS 在相邻区块之间来回跳 原版那两格 LRU 在地形一穿插时几乎每步都落空
-    //这里改成按坐标掩码直接映射 一个槽只认一个坐标 点到的就是相邻区块 也省掉 LRU 的搬运
+    //ChunkCacheMask, the coordinate mask of the chunk cache, caching 8x8 chunks
+    //Light BFS bounces between adjacent chunks; vanilla's two-entry LRU misses on almost every step once terrain interleaves
+    //Here it maps directly by coordinate mask, one slot per coordinate, which is exactly the adjacent chunk and also drops the LRU shuffling
     private const int ChunkCacheMask = 7;
     private const int ChunkCacheSize = ChunkCacheMask + 1;
 
     protected readonly LightChunkGetter ChunkSource;
 
-    //storage 除子类外 LevelLightEngine 也要访问 故放开到同程序集
+    //storage is also accessed by LevelLightEngine besides subclasses, so it is opened to the same assembly
     protected internal readonly TStorage Storage;
 
     protected static readonly long PullLightInEntry = QueueEntry.DecreaseAllDirections(1);
@@ -36,13 +36,13 @@ public abstract class LightEngine<TSelf, TStorage> : LayerLightEventListener
     private readonly long[] _lastChunkPos = new long[ChunkCacheSize * ChunkCacheSize];
     private readonly LightChunk?[] _lastChunk = new LightChunk?[ChunkCacheSize * ChunkCacheSize];
 
-    //checkNode 重新评估单个方块节点的光照来源
+    //checkNode re-evaluates the light source of a single block node
     protected abstract void CheckNode(long blockNode);
 
-    //propagateIncrease 向六邻接推高光照
+    //propagateIncrease raises light across the six neighbors
     protected abstract void PropagateIncrease(long fromNode, long increaseData, int fromLevel);
 
-    //propagateDecrease 向六邻接回落光照
+    //propagateDecrease lowers light across the six neighbors
     protected abstract void PropagateDecrease(long fromNode, long decreaseData);
 
     protected LightEngine(LightChunkGetter chunkSource, TStorage storage)
@@ -52,8 +52,8 @@ public abstract class LightEngine<TSelf, TStorage> : LayerLightEventListener
         ClearChunkCache();
     }
 
-    //hasDifferentLightProperties 方块变化是否影响光照
-    //原版还比较 useShapeForLightOcclusion 形状体系未实现故不比较
+    //hasDifferentLightProperties, whether a block change affects lighting
+    //Vanilla also compares useShapeForLightOcclusion; not compared since the shape system is not implemented
     public static bool HasDifferentLightProperties(BlockState oldState, BlockState newState)
     {
         if (newState == oldState) return false;
@@ -61,25 +61,25 @@ public abstract class LightEngine<TSelf, TStorage> : LayerLightEventListener
                || newState.GetLightEmission() != oldState.GetLightEmission();
     }
 
-    //IsEmptyShape 该状态是否按空形状参与遮挡比较 对应原版 isEmptyShape
-    //只有既遮挡光线又声明按形状遮挡的方块才不按空形状处理
+    //IsEmptyShape, whether the state takes part in occlusion comparison as an empty shape, maps to vanilla isEmptyShape
+    //Only blocks that both occlude light and declare shape-based occlusion are not treated as an empty shape
     protected static bool IsEmptyShape(BlockState? state)
         => state is not { } value || !value.Owner.CanOcclude || !value.Owner.UseShapeForLightOcclusion;
 
-    //GetFaceOcclusionShape 某面上用于遮挡比较的形状 对应原版 getOcclusionShape
+    //GetFaceOcclusionShape, the shape used for occlusion comparison on a face, maps to vanilla getOcclusionShape
     private static VoxelShape GetFaceOcclusionShape(BlockState? state, Direction direction)
     {
         if (state is not { } value || IsEmptyShape(value)) return Shapes.Empty();
         return value.Owner.GetOcclusionShape(value).GetFaceShape(direction);
     }
 
-    //ShapeOccludes 两个相接面是否合起来遮住该方向 对应原版 shapeOccludes
-    //遮住时该方向不再传播 这是不完整方块之间不漏光的关键
+    //ShapeOccludes, whether two touching faces together occlude that direction, maps to vanilla shapeOccludes
+    //When occluded, propagation stops in that direction; this is key to no light leaking between non-full blocks
     protected static bool ShapeOccludes(BlockState? fromState, BlockState? toState, Direction direction)
         => Shapes.FaceShapeOccludes(GetFaceOcclusionShape(fromState, direction),
             GetFaceOcclusionShape(toState, direction.Opposite));
 
-    //getState 按坐标取方块状态 区块未加载返回 null
+    //getState takes the block state by coords; returns null when the chunk is not loaded
     protected BlockState? GetState(int x, int y, int z)
     {
         var chunkX = SectionPos.BlockToSectionCoord(x);
@@ -88,12 +88,12 @@ public abstract class LightEngine<TSelf, TStorage> : LayerLightEventListener
         return chunk?.GetBlockState(x, y, z);
     }
 
-    //getOpacity 取方块减光值 未加载位置按完全不透明处理 对应原版取基岩默认状态
+    //getOpacity takes the block's light dampening; an unloaded position counts as fully opaque, matching vanilla using the bedrock default state
     protected int GetOpacity(BlockState? state)
         => state is null ? MaxLevel : Math.Max(MinOpacity, state.Value.GetLightDampening());
 
-    //getChunk 带缓存的区块查询 光照传播大量重复访问同一区块
-    //槽位由坐标低位掩码定 相邻区块各占各的槽 不会互相踢
+    //getChunk, cached chunk lookup; light propagation revisits the same chunks heavily
+    //The slot is fixed by the coordinate low-bit mask, so adjacent chunks take their own slots and do not evict each other
     protected LightChunk? GetChunk(int chunkX, int chunkZ)
     {
         var index = (chunkX & ChunkCacheMask) * ChunkCacheSize + (chunkZ & ChunkCacheMask);
@@ -125,15 +125,15 @@ public abstract class LightEngine<TSelf, TStorage> : LayerLightEventListener
     public virtual void SetLightEnabled(ChunkPos pos, bool enable)
         => Storage.SetLightEnabled(SectionPos.GetZeroNode(pos.X, pos.Z), enable);
 
-    //propagateLightSources 传播该区块内的全部光源
+    //propagateLightSources propagates all light sources in the chunk
     public abstract void PropagateLightSources(ChunkPos pos);
 
-    //RunLightUpdates 无预算推进 把光照队列彻底跑空对应接口默认语义
+    //RunLightUpdates advances without a budget, draining the light queue fully, matching the default interface semantics
     public int RunLightUpdates() => RunLightUpdates(0);
 
-    //RunLightUpdates 推进光照更新队列
-    //budget 大于 0 时本轮最多处理这么多条 剩下的留到下一轮
-    //原版光照每次 tick 只跑有限任务 这里同样分批 免得单次持锁从几毫秒变成几百毫秒
+    //RunLightUpdates advances the light update queue
+    //When budget is above 0, at most that many are processed this round, the rest wait for the next
+    //Vanilla lighting runs only a limited amount per tick; this batches the same way so a single lock hold does not go from milliseconds to hundreds of milliseconds
     public int RunLightUpdates(int budget)
     {
         foreach (var node in _blockNodesToCheck) CheckNode(node);
@@ -143,7 +143,7 @@ public abstract class LightEngine<TSelf, TStorage> : LayerLightEventListener
         var remaining = budget <= 0 ? 0 : Math.Max(0, budget - count);
         count += PropagateIncreases(remaining);
 
-        //队列彻底跑空才收尾 中间批次提前收尾会把待移除的区段数据提前丢掉
+        //Only finish once the queue is fully drained; finishing mid-batch would drop pending-removal section data early
         if (_decreaseQueue.Count == 0 && _increaseQueue.Count == 0)
         {
             ClearChunkCache();
@@ -210,8 +210,8 @@ public abstract class LightEngine<TSelf, TStorage> : LayerLightEventListener
 
     public SectionType GetDebugSectionType(long sectionNode) => Storage.GetDebugSectionType(sectionNode);
 
-    //QueueEntry 队列打包格式对应原版 QueueEntry
-    //低 4 位是来源层级 第 4..9 位是六方向掩码 第 10/11 位分别是空形状与发光来源标志
+    //QueueEntry, the queue packing format, maps to vanilla QueueEntry
+    //The low 4 bits are the source level, bits 4..9 are the six-direction mask, and bits 10/11 are the empty-shape and emission-source flags
     public static class QueueEntry
     {
         private const int FromLevelBits = 4;

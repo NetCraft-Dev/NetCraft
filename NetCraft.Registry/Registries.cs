@@ -4,13 +4,13 @@ using NetCraft.Registry.Environment;
 
 namespace NetCraft.Registry;
 
-//所有注册表的 ResourceKey 常量集合，对应原版 net.minecraft.core.registries.Registries
+//Collection of ResourceKey constants for all registries, maps to vanilla net.minecraft.core.registries.Registries
 public static class Registries
 {
-    //根注册表名 minecraft:root
+    //Root registry name, minecraft:root
     public static readonly Identifier RootRegistryName = Identifier.WithDefaultNamespace("root");
     public static readonly ResourceKey<Registry<Activity>> ACTIVITY = CreateRegistryKey<Activity>("activity");
-    //实体属性注册表键 条目类型在 NetCraft.Registry.EntityAttribute 下
+    //Entity attribute registry key; entry type lives under NetCraft.Registry.EntityAttribute
     public static readonly ResourceKey<Registry<EntityAttribute.Attribute>> ATTRIBUTE =
         CreateRegistryKey<EntityAttribute.Attribute>("attribute");
     public static readonly ResourceKey<Registry<MapCodec<BiomeSource>>> BIOME_SOURCE = CreateRegistryKey<MapCodec<BiomeSource>>("worldgen/biome_source");
@@ -107,7 +107,7 @@ public static class Registries
     public static readonly ResourceKey<Registry<MapCodec<PermissionCheck>>> PERMISSION_CHECK_TYPE = CreateRegistryKey<MapCodec<PermissionCheck>>("permission_check_type");
     public static readonly ResourceKey<Registry<BannerPattern>> BANNER_PATTERN = CreateRegistryKey<BannerPattern>("banner_pattern");
     public static readonly ResourceKey<Registry<Biome>> BIOME = CreateRegistryKey<Biome>("worldgen/biome");
-    //clock_time_marker 仅作 ResourceKey 命名空间不建 BuiltInRegistries 注册表
+    //clock_time_marker serves only as a ResourceKey namespace; no BuiltInRegistries registry is built
     public static readonly ResourceKey<Registry<ClockTimeMarker>> CLOCK_TIME_MARKER = CreateRegistryKey<ClockTimeMarker>("clock_time_marker");
     public static readonly ResourceKey<Registry<CatSoundVariant>> CAT_SOUND_VARIANT = CreateRegistryKey<CatSoundVariant>("cat_sound_variant");
     public static readonly ResourceKey<Registry<CatVariant>> CAT_VARIANT = CreateRegistryKey<CatVariant>("cat_variant");
@@ -161,7 +161,7 @@ public static class Registries
     public static readonly ResourceKey<Registry<LootItemCondition>> PREDICATE = CreateRegistryKey<LootItemCondition>("predicate");
     public static readonly ResourceKey<Registry<Advancement>> ADVANCEMENT = CreateRegistryKey<Advancement>("advancement");
     public static readonly ResourceKey<Registry<Recipe<object>>> RECIPE = CreateRegistryKey<Recipe<object>>("recipe");
-    //由注册表名构造对应注册表的 ResourceKey
+    //Build a registry's ResourceKey from its registry name
     private static ResourceKey<Registry<T>> CreateRegistryKey<T>(string name) where T : class
         => ResourceKeys.CreateRegistryKey<T>(Identifier.WithDefaultNamespace(name));
 }

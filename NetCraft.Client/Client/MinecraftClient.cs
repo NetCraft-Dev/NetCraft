@@ -20,80 +20,80 @@ using NetCraft.Resources;
 
 namespace NetCraft.Game.Client;
 
-//MinecraftClient 客户端主循环对应原版 net.minecraft.client.Minecraft
-//持有 GameConfig 与运行状态提供 Run 与 Stop 主循环骨架
-//阶段 11.35 接入循环空壳 11.46 加帧率控制 11.49 接入双模式 + Tick 四件套
-//双模式有 gpuApp 走窗口驱动 Tick 挂 FrameUpdate 无 gpuApp 走 while+sleep 供测试
-//S3 持 ClientLevel/LevelRenderer 世界渲染链路 ConnectServer 建立网络连接收区块显示地形
+//MinecraftClient client main loop, maps to vanilla net.minecraft.client.Minecraft
+//Holds GameConfig and runtime state, providing the Run and Stop main loop skeleton
+//Phase 11.35 added the empty loop shell, 11.46 added frame rate control, 11.49 added dual modes + the Tick quartet
+//Dual mode: with gpuApp it runs window-driven with Tick on FrameUpdate; without gpuApp it runs while+sleep for tests
+//S3 holds the ClientLevel/LevelRenderer world render chain; ConnectServer establishes a network connection, receives chunks, and displays terrain
 public sealed class MinecraftClient : IDisposable
 {
-    //TargetFps 目标每秒帧数对齐 60 FPS
+    //TargetFps target frames per second, aligned to 60 FPS
     public const int TargetFps = 60;
-    //TargetFrameMillis 单帧目标时长约 16.67ms
+    //TargetFrameMillis target per-frame duration, about 16.67ms
     public const int TargetFrameMillis = 1000 / TargetFps;
 
     private volatile bool _running;
     private long _frameCount;
     private readonly CancellationTokenSource _shutdownCts = new();
-    //SleepBudgetMillis 单帧 sleep 预算测试场景设 0 加速跑测生产用默认 16ms
+    //SleepBudgetMillis per-frame sleep budget; tests set 0 to speed up, production uses the 16ms default
     private int _sleepBudgetMillis = TargetFrameMillis;
-    //GpuApp 可空 null 时走 Headless 模式供服务器集成和无 GPU 测试
+    //GpuApp nullable; null runs Headless mode for server integration and GPU-less tests
     private readonly VulkanGuiApp? _gpuApp;
-    //Connection 可空 null 时跳过网络包处理供单机或测试场景
+    //Connection nullable; null skips network packet processing for singleplayer or test scenarios
     private Connection? _connection;
-    //ScreenManager 可空 null 时跳过屏幕逻辑供 Headless 测试
+    //ScreenManager nullable; null skips screen logic for Headless tests
     private readonly ScreenManager? _screens;
-    //ServerResources 可空 null 时跳过 Tags 等数据驱动查询供 Headless 测试
+    //ServerResources nullable; null skips data-driven queries such as Tags for Headless tests
     private readonly ReloadableServerResources? _rsr;
-    //ResourceManager 资源管理器供方块模型加载与纹理收集
+    //ResourceManager resource manager for block model loading and texture collection
     private readonly ResourceManager? _resourceManager;
-    //Language 客户端语言表 可空 null 时没有语言切换能力供 Headless 测试
+    //Language client language table; nullable, null means no language switching, for Headless tests
     private readonly ClientLanguage? _language;
-    //ClientLevel 客户端世界装网络区块 ConnectServer 后由监听器填充
+    //ClientLevel client world holding network chunks, filled by the listener after ConnectServer
     private readonly ClientLevel _level = new();
-    //Camera 世界渲染相机 Tick 按本地玩家状态更新
+    //Camera world render camera, updated each Tick from the local player state
     private readonly Camera _camera = new();
-    //世界渲染链路 swapchain 首帧就绪后创建注入 gpuApp
+    //World render chain created once the swapchain is ready on the first frame and injected into gpuApp
     private SectionRenderDispatcher? _worldDispatcher;
     private LevelRenderer? _worldRenderer;
     private bool _worldRendererInitialized;
-    //Lightmap 光照贴图 Tick 按 Level.SkyBrightness 刷新 内部脏检查不重复上传
+    //Lightmap light texture refreshed each Tick from Level.SkyBrightness; internal dirtiness check avoids re-upload
     private LightTexture? _lightTexture;
 
-    //GameConfig 客户端配置 options.txt 加载结果
+    //GameConfig client config, the options.txt load result
     public GameConfig Config { get; }
 
-    //Player 本地玩家实体 HUD 和业务读取 Health/Food/Pos 等状态
+    //Player local player entity; HUD and game logic read Health/Food/Pos etc.
     public Player Player { get; } = new();
 
-    //GpuApp 持有的 Vulkan GUI 应用窗口驱动模式非空
+    //GpuApp held Vulkan GUI app, non-null in window-driven mode
     public VulkanGuiApp? GpuApp => _gpuApp;
 
-    //Connection 持有的网络连接非空时 Tick 调其 Tick 处理入站包
+    //Connection held network connection; when non-null, Tick calls its Tick to process inbound packets
     public Connection? Connection => _connection;
 
-    //Screens 屏幕管理器非空时驱动屏幕生命周期
+    //Screens screen manager; when non-null it drives the screen lifecycle
     public ScreenManager? Screens => _screens;
 
-    //ServerResources 服务端可重载资源集合非空时供客户端 Tags 等数据驱动查询
+    //ServerResources server reloadable resource set; when non-null it serves client data-driven queries such as Tags
     public ReloadableServerResources? ServerResources => _rsr;
 
-    //Resources 资源管理器非空时语言选择界面切完语言调 Reload 重跑重载链
+    //Resources resource manager; when non-null, the language screen calls Reload after switching language to rerun the reload chain
     public ResourceManager? Resources => _resourceManager;
 
-    //Language 客户端语言表非空时语言选择界面读写当前语言码与可选清单
+    //Language client language table; when non-null, the language screen reads/writes the current code and available list
     public ClientLanguage? Language => _language;
 
-    //Level 客户端世界区块数据源供诊断
+    //Level client world chunk data source, for diagnostics
     public ClientLevel Level => _level;
 
-    //SetScreen 切换屏幕委托给 ScreenManager null 表示关闭当前屏幕
+    //SetScreen switches screens, delegated to ScreenManager; null means close the current screen
     public void SetScreen(Screen? screen) => _screens?.SetScreen(screen);
 
-    //PushScreen 压栈当前屏幕进子菜单 Esc 可回上一级
+    //PushScreen pushes the current screen onto the stack for submenus; Esc pops back
     public void PushScreen(Screen screen) => _screens?.PushScreen(screen);
 
-    //PopScreen 弹栈回上一级栈空关闭当前屏幕
+    //PopScreen pops back to the previous level; if empty, closes the current screen
     public void PopScreen() => _screens?.PopScreen();
 
     public MinecraftClient(GameConfig config, VulkanGuiApp? gpuApp = null, Connection? connection = null, ReloadableServerResources? rsr = null, ResourceManager? resourceManager = null, ClientLanguage? language = null)
@@ -104,25 +104,25 @@ public sealed class MinecraftClient : IDisposable
         _rsr = rsr;
         _resourceManager = resourceManager;
         _language = language;
-        //有 GpuApp 时创建 ScreenManager 接管窗口控件树
+        //With a GpuApp, create a ScreenManager to own the window control tree
         _screens = gpuApp is not null ? new ScreenManager(this, gpuApp.Window) : null;
         if (gpuApp is not null && _screens is not null)
         {
-            //订阅 swapchain 重建事件窗口 resize 时让 ScreenManager 重布局当前 Screen
+            //Subscribe to the swapchain-recreated event so on window resize ScreenManager re-layouts the current Screen
             gpuApp.SwapchainRecreated += () => _screens.Resized();
-            //按键与鼠标原始事件必须接到屏幕管理器 漏订阅会让 Esc/F3/数字键/Q 与鼠标点击都到不了 Screen
+            //Raw key and mouse events must reach the screen manager; a missed subscription would prevent Esc/F3/number keys/Q and mouse clicks from reaching a Screen
             gpuApp.RawKeyDown += _screens.HandleRawKeyDown;
             gpuApp.RawMouseDown += _screens.HandleRawMouseDown;
             gpuApp.RawMouseUp += _screens.HandleRawMouseUp;
             gpuApp.RawMouseMove += _screens.HandleRawMouseMove;
         }
-        //S3 swapchain 就绪后构建方块图集注入 gpuApp 并创建世界渲染链路
+        //S3 once the swapchain is ready, build the block atlas into gpuApp and create the world render chain
         if (gpuApp is not null)
             gpuApp.SwapchainRecreated += EnsureWorldRenderer;
     }
 
-    //EnsureWorldRenderer 首次 swapchain 就绪时构建方块图集与 LevelRenderer 注入 gpuApp
-    //图集构建失败保持占位纹理世界渲染仍可用 mesh 纹理走占位色
+    //EnsureWorldRenderer builds the block atlas and LevelRenderer into gpuApp the first time the swapchain is ready
+    //If atlas building fails, the placeholder texture remains and world rendering still works; mesh textures use the placeholder color
     private void EnsureWorldRenderer()
     {
         if (_worldRendererInitialized) return;
@@ -157,19 +157,19 @@ public sealed class MinecraftClient : IDisposable
             var loader = new BlockModelLoader(_resourceManager);
             var baker = new BlockModelBaker(atlas ?? PlaceholderAtlas);
             var mapper = new BlockStateModelMapper(_resourceManager, loader, baker);
-            //注入光照采样器 mesh 顶点 light 属性从 ClientLevel 取区块光照
+            //Inject the light sampler; mesh vertex light attributes fetch chunk light from ClientLevel
             var builder = new ChunkMeshBuilder(mapper, new ChunkLightSampler(_level));
             var pool = new GpuBufferPool((size, usage) => _gpuApp.Device.CreateHostVisibleBuffer(size, usage));
             _worldDispatcher = new SectionRenderDispatcher(_level, builder, pool, workerCount: 2);
             _worldDispatcher.Start();
             _worldRenderer = new LevelRenderer(_level, _camera, _worldDispatcher);
-            //实体渲染调度器随世界渲染一起建
-            //掉落物单独持一个模型映射实例 后台网格构建线程已在用同一个 mapper 缓存字典 共用会并发读写
+            //The entity render dispatcher is created along with world rendering
+            //Dropped items hold their own model mapper instance; the background mesh-building thread already uses that mapper's cache dictionary, and sharing it would cause concurrent reads/writes
             var entityDispatcher = new EntityRenderDispatcher(pool);
             entityDispatcher.Register(EntityTypes.ITEM.Id.ToString(),
                 new ItemEntityRenderer(new BlockStateModelMapper(_resourceManager, loader, baker)));
             _worldRenderer.EntityDispatcher = entityDispatcher;
-            //移动方块通道单独持一份模型映射与网格生成器 后台网格构建线程已在用同一个 mapper 缓存字典
+            //The moving block pass holds its own model mapper and mesh builder; the background mesh-building thread already uses that mapper's cache dictionary
             _worldRenderer.MovingBlocks = new MovingBlockRenderer(_level,
                 new ChunkMeshBuilder(new BlockStateModelMapper(_resourceManager, loader, baker),
                     new ChunkLightSampler(_level)), pool);
@@ -182,22 +182,22 @@ public sealed class MinecraftClient : IDisposable
         }
     }
 
-    //PlaceholderAtlas 图集缺位时的占位实现避免 BlockModelBaker 空引用
-    //sprite UV 覆盖 [0,1] 全图 mesh 采样占位纹理单色
+    //PlaceholderAtlas placeholder used when the atlas is absent, avoiding a null reference in BlockModelBaker
+    //sprite UV covers the whole [0,1] image; the mesh samples the placeholder texture as a solid color
     private static ITextureAtlas PlaceholderAtlas => new PlaceholderTextureAtlas();
 
-    //PlaceholderTextureAtlas 占位图集所有纹理名映射到同一 16x16 sprite
+    //PlaceholderTextureAtlas placeholder atlas mapping all texture names to the same 16x16 sprite
     private sealed class PlaceholderTextureAtlas : ITextureAtlas
     {
-        //16x16 sprite 在 16x16 图集 UV 全覆盖
+        //16x16 sprite covers the full UV of a 16x16 atlas
         private static readonly TextureAtlasSprite s_sprite =
             new("placeholder", 0, 0, 16, 16, 16, 16, null);
 
         public TextureAtlasSprite? GetSprite(string name) => s_sprite;
     }
 
-    //ConnectServer 后台线程连接服务器成功后持 Connection 走 Login->Configuration->Play
-    //进入世界时切 GameScreen 网络区块经 ClientGamePacketListenerImpl 装载 ClientLevel
+    //ConnectServer: a background thread connects to the server; on success it holds the Connection and goes Login->Configuration->Play
+    //On entering the world it switches to GameScreen; network chunks load into ClientLevel via ClientGamePacketListenerImpl
     public void ConnectServer(string host, int port)
     {
         Log.Info($"Connecting to server {host}:{port}");
@@ -212,8 +212,8 @@ public sealed class MinecraftClient : IDisposable
                 _connection = conn;
                 if (conn.Listener is ClientGamePacketListenerImpl listener)
                 {
-                    //容器界面在网络回调里切 网络层不认识 GUI 层 行数由菜单类型决定
-                    //只有箱式类型有现成界面 工作台那类界面还没做 不认识的类型不开屏免得错开成箱子
+                    //The container screen is switched in a network callback; the network layer does not know the GUI layer, and the row count is decided by the menu type
+                    //Only chest types have a ready screen; crafting-table-style screens are not done yet, so unrecognized types do not open a screen to avoid wrongly opening a chest
                     listener.OnOpenScreen = packet =>
                     {
                         if (ChestScreen.IsChestKind(packet.Kind))
@@ -228,23 +228,23 @@ public sealed class MinecraftClient : IDisposable
             onFailed: reason => Log.Error($"Failed to connect to server {reason}"));
     }
 
-    //Running 是否在主循环中
+    //Running whether currently in the main loop
     public bool Running => _running;
 
-    //FrameCount 累计帧数用于诊断
+    //FrameCount accumulated frame count, for diagnostics
     public long FrameCount => _frameCount;
 
-    //SleepBudgetMillis 单帧 sleep 预算测试场景设 0 加速跑测生产用默认 16ms
-    //仅 Headless 模式生效窗口驱动模式由 vsync 控制帧率
+    //SleepBudgetMillis per-frame sleep budget; tests set 0 to speed up, production uses the 16ms default
+    //Only effective in Headless mode; window-driven mode controls frame rate via vsync
     public int SleepBudgetMillis
     {
         get => _sleepBudgetMillis;
         set => _sleepBudgetMillis = Math.Max(0, value);
     }
 
-    //Run 主循环入口阻塞调用线程直到 Stop 被调用
-    //有 gpuApp 时 Render 走窗口循环 Tick 由 gpuApp 内部 Tick 线程驱动 FrameTick 派发
-    //无 gpuApp 时走 while+sleep 保持 60 FPS 供 Headless 测试
+    //Run main loop entry; blocks the calling thread until Stop is called
+    //With gpuApp, Render goes through the window loop and Tick is dispatched by FrameTick from gpuApp's internal Tick thread
+    //Without gpuApp it runs while+sleep at 60 FPS for Headless tests
     public void Run()
     {
         if (_running) return;
@@ -289,20 +289,20 @@ public sealed class MinecraftClient : IDisposable
         }
     }
 
-    //OnFrameTick VulkanGuiApp.Tick 线程 20tps 触发本回调做业务四件套
-    //阶段7 Tick/Render 解耦后业务全在 Tick 线程 SubmitFrame 由 VulkanGuiApp 自动调
+    //OnFrameTick VulkanGuiApp's Tick thread triggers this callback at 20tps to run the game's Tick quartet
+    //After phase 7 decoupled Tick/Render, all game logic is on the Tick thread; SubmitFrame is called automatically by VulkanGuiApp
     private void OnFrameTick(double delta)
     {
         Tick(delta);
     }
 
-    //Tick 单帧逻辑四件套
-    //Input.Poll 有 GPU 时从队列派发输入到 GuiWindow
-    //Layout 处理 resize 后的脏标记独占控件树无竞争
-    //Gui.Update 调 Window.Update 推进控件动画状态
-    //Network.ProcessPackets 处理入站包区块装载 Player 同步在此发生
-    //Camera 按本地 Player 状态更新世界渲染相机
-    //Gpu.Render 由 VulkanGuiApp 在 FrameTick 后自动调 SubmitFrame 发布快照
+    //Tick single-frame logic quartet
+    //Input.Poll dispatches input from the queue to GuiWindow when there is a GPU
+    //Layout handles the post-resize dirty flag, exclusively owning the control tree with no contention
+    //Gui.Update calls Window.Update to advance control animation state
+    //Network.ProcessPackets processes inbound packets; chunk loading and Player sync happen here
+    //Camera updates the world render camera from the local Player state
+    //Gpu.Render: VulkanGuiApp automatically calls SubmitFrame after FrameTick to publish the snapshot
     private void Tick(double delta)
     {
         _gpuApp?.PollInput();
@@ -310,17 +310,17 @@ public sealed class MinecraftClient : IDisposable
         _gpuApp?.Window.Update(delta);
         _screens?.Tick();
         _connection?.Tick();
-        //本地世界在包处理之后推进一帧 按服务端下发的刻率折算本帧该走几刻
-        //服务端冻结时它不涨刻 实体动画随之停住
+        //The local world advances one frame after packet processing, converting this frame to a number of ticks by the server-sent tick rate
+        //When the server is frozen it does not advance ticks, so entity animation stops
         _level.Tick(delta);
-        //天光亮度当前无客户端时间源 恒定正午 接入时间同步后改为按时间计算
+        //Sky brightness currently has no client time source, constant noon; it will be computed from time once time sync is added
         _lightTexture?.Update(1.0f);
         UpdateCamera();
         _frameCount++;
     }
 
-    //UpdateCamera 按本地玩家位置朝向更新相机透视为 Config.Fov/RenderDistance
-    //玩家未同步位置前默认出生点俯视角保证开局有画面
+    //UpdateCamera updates the camera from the local player position/orientation and the perspective from Config.Fov/RenderDistance
+    //Before the player position is synced, uses a default spawn-point top-down view so there is something on screen at start
     private void UpdateCamera()
     {
         if (_worldRenderer is null) return;
@@ -334,8 +334,8 @@ public sealed class MinecraftClient : IDisposable
         _camera.UpdatePerspective(fov, width, height, 0.05f, zFar);
     }
 
-    //Stop 触发主循环退出由窗口关闭或 ShutdownHook 调用
-    //窗口驱动模式下调 gpuApp.RequestClose 让 _window.Run 退出
+    //Stop triggers main loop exit, called by window close or a ShutdownHook
+    //In window-driven mode calls gpuApp.RequestClose so _window.Run exits
     public void Stop()
     {
         Log.Info("MinecraftClient received stop signal");

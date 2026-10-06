@@ -2,19 +2,19 @@ using System.IO.MemoryMappedFiles;
 
 namespace NetCraft.Interop;
 
-//MemoryMappedFileAccessor 跨平台内存映射文件访问器
-//对应原版 .NET MemoryMappedFile 封装统一访问接口
-//禁止平台特定 P/Invoke 用 .NET 跨平台 MemoryMappedFile API
+//MemoryMappedFileAccessor cross-platform memory-mapped file accessor
+//Wraps the vanilla .NET MemoryMappedFile to provide a unified access interface
+//Platform-specific P/Invoke is forbidden, use the .NET cross-platform MemoryMappedFile API
 public sealed class MemoryMappedFileAccessor : IDisposable
 {
-    //底层 MMF 句柄
+    //Underlying MMF handle
     private readonly MemoryMappedFile _mmf;
-    //底层文件流（如果持有则随 Dispose 关闭）
+    //Underlying file stream (closed on Dispose if held)
     private readonly FileStream? _fileStream;
-    //是否已释放
+    //Whether already disposed
     private bool _disposed;
 
-    //FromFile 从文件路径创建内存映射
+    //FromFile creates a memory mapping from a file path
     public static MemoryMappedFileAccessor FromFile(string path, long capacity, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite)
     {
         var fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
@@ -26,7 +26,7 @@ public sealed class MemoryMappedFileAccessor : IDisposable
         return new MemoryMappedFileAccessor(mmf, fs);
     }
 
-    //CreateNew 创建非持久化内存映射（不与磁盘文件关联）
+    //CreateNew creates a non-persistent memory mapping (not backed by a file on disk)
     public static MemoryMappedFileAccessor CreateNew(string? mapName, long capacity)
     {
         var mmf = MemoryMappedFile.CreateNew(mapName, capacity);
@@ -39,15 +39,15 @@ public sealed class MemoryMappedFileAccessor : IDisposable
         _fileStream = fileStream;
     }
 
-    //CreateViewStream 创建指定偏移和长度的视图流
+    //CreateViewStream creates a view stream for the given offset and length
     public MemoryMappedViewStream CreateViewStream(long offset, long size, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite)
         => _mmf.CreateViewStream(offset, size, access);
 
-    //CreateViewAccessor 创建指定偏移和长度的视图访问器
+    //CreateViewAccessor creates a view accessor for the given offset and length
     public MemoryMappedViewAccessor CreateViewAccessor(long offset, long size, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite)
         => _mmf.CreateViewAccessor(offset, size, access);
 
-    //CreateViewSpan 创建可读写的 Span 视图
+    //CreateViewSpan creates a readable/writable Span view
     public unsafe Span<byte> CreateViewSpan(long offset, int size, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite)
     {
         var accessor = _mmf.CreateViewAccessor(offset, size, access);

@@ -1,13 +1,13 @@
 namespace NetCraft.Game.World;
 
-//MobEffect 药水效果枚举对标原版 net.minecraft.world.effect.MobEffect
-//P1 仅定义 forPlayer 检测所需的最小集后续按需扩展
+//MobEffect mob effect enum, mirrors vanilla net.minecraft.world.effect.MobEffect
+//P1 only defines the minimal set needed by forPlayer detection; extend as needed later
 public enum MobEffect
 {
-    //Poison 中毒 POISONED 心（原版拼写 POISIONED）
+    //Poison poison, the POISONED heart (vanilla misspells it POISIONED)
     Poison,
-    //Wither 凋零 WITHERED 心
+    //Wither wither, the WITHERED heart
     Wither,
-    //Regeneration 再生驱动心跳上跳动画 heartOffsetIndex
+    //Regeneration regeneration drives the heartbeat jump animation heartOffsetIndex
     Regeneration,
 }

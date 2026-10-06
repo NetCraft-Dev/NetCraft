@@ -7,25 +7,25 @@ using NetCraft.Gpu;
 
 namespace NetCraft.Game.Gui.Screens;
 
-//InventoryScreen 背包界面对应原版 InventoryScreen
-//槽位编号与坐标跟服务端 InventoryMenu 一致 点击与 Q 丢弃发 container_click 由服务端裁定
-//物品图标走 ItemItemAtlas 的 cube 占位模型 数量叠在槽位右下角
+//InventoryScreen inventory screen, maps to vanilla InventoryScreen
+//Slot numbers and coordinates match the server's InventoryMenu; clicks and Q drops send container_click and the server decides
+//Item icons use ItemItemAtlas's cube placeholder model; the count overlays the slot's bottom-right corner
 public sealed class InventoryScreen : Screen
 {
-    //PanelWidth/PanelHeight 原版背包面板尺寸 176x166
+    //PanelWidth/PanelHeight vanilla inventory panel size 176x166
     private const int PanelWidth = 176;
     private const int PanelHeight = 166;
 
-    //SlotSize 槽位边长 18 含 1 像素边框 与原版一致
+    //SlotSize slot edge length 18 including a 1-pixel border, matching vanilla
     private const int SlotSize = 18;
 
-    //_slots 槽位号到面板内坐标 顺序与服务端 InventoryMenu 的 AddSlot 次序一致
+    //_slots slot number to panel coordinates; order matches the server InventoryMenu's AddSlot sequence
     private static readonly IReadOnlyList<(int Index, int X, int Y)> Slots = BuildSlotLayout();
 
     private int _panelX;
     private int _panelY;
 
-    public override string Title => "背包";
+    public override string Title => "Inventory";
 
     public override void Init()
     {
@@ -33,49 +33,49 @@ public sealed class InventoryScreen : Screen
         _panelY = (GuiHeight - PanelHeight) / 2;
     }
 
-    //BuildSlotLayout 槽位布局与服务端 InventoryMenu 完全对齐 槽号即发往服务端的 slotNum
+    //BuildSlotLayout slot layout fully aligned with the server's InventoryMenu; the slot number is the slotNum sent to the server
     private static IReadOnlyList<(int Index, int X, int Y)> BuildSlotLayout()
     {
         var slots = new List<(int, int, int)> { (InventoryMenu.ResultSlotIndex, 154, 28) };
-        //1-4 合成格 2x2
+        //1-4 crafting grid 2x2
         for (var i = 0; i < 4; i++)
             slots.Add((InventoryMenu.CraftSlotStart + i, 98 + i % 2 * 18, 18 + i / 2 * 18));
-        //5-8 护甲
+        //5-8 armor
         for (var i = 0; i < 4; i++)
             slots.Add((InventoryMenu.ArmorSlotStart + i, 8, 8 + i * 18));
-        //9-35 主物品栏 3x9
+        //9-35 main inventory 3x9
         for (var i = 0; i < 27; i++)
             slots.Add((InventoryMenu.InvSlotStart + i, 8 + i % 9 * 18, 84 + i / 9 * 18));
-        //36-44 快捷栏
+        //36-44 hotbar
         for (var i = 0; i < 9; i++)
             slots.Add((InventoryMenu.UseRowSlotStart + i, 8 + i * 18, 142));
-        //45 副手
+        //45 offhand
         slots.Add((InventoryMenu.ShieldSlotIndex, 77, 62));
         return slots;
     }
 
-    //Inventory 客户端物品栏镜像 由服务端容器包填充
+    //Inventory client inventory mirror, filled by server container packets
     private ClientInventory? Inventory
         => (Minecraft.Connection?.Listener as ClientGamePacketListenerImpl)?.Inventory;
 
-    //RenderBackground 画面板底与全部槽位框
+    //RenderBackground draws the panel background and all slot frames
     public override void RenderBackground(IGuiRenderContext context)
     {
         context.DrawQuad(_panelX - 2, _panelY - 2, PanelWidth + 4, PanelHeight + 4, GuiColor.FromRgb(60, 60, 60));
         context.DrawQuad(_panelX, _panelY, PanelWidth, PanelHeight, GuiColor.FromRgb(198, 198, 198));
         foreach (var (_, x, y) in Slots)
             DrawSlotFrame(context, _panelX + x, _panelY + y);
-        context.DrawText(_panelX + 8, _panelY + 6, "背包", GuiColor.FromRgb(64, 64, 64));
+        context.DrawText(_panelX + 8, _panelY + 6, "Inventory", GuiColor.FromRgb(64, 64, 64));
     }
 
-    //DrawSlotFrame 单个槽位框 外框深色内底浅色
+    //DrawSlotFrame a single slot frame: dark outer border, light inner base
     private static void DrawSlotFrame(IGuiRenderContext context, int x, int y)
     {
         context.DrawQuad(x, y, SlotSize, SlotSize, GuiColor.FromRgb(139, 139, 139));
         context.DrawQuad(x + 1, y + 1, SlotSize - 2, SlotSize - 2, GuiColor.FromRgb(55, 55, 55));
     }
 
-    //RenderForeground 画槽内物品图标与数量 图标走物品图集 cube 占位模型
+    //RenderForeground draws item icons and counts in slots; icons use the item atlas's cube placeholder model
     public override void RenderForeground(IGuiRenderContext context)
     {
         var gpu = Minecraft.GpuApp;
@@ -90,7 +90,7 @@ public sealed class InventoryScreen : Screen
             var stack = GetStack(inventory, index);
             if (stack.IsEmpty()) continue;
             var identity = stack.GetItem().Id.ToString();
-            //RegisterItem 幂等 首次见到该物品时建占位模型
+            //RegisterItem is idempotent; builds the placeholder model the first time the item is seen
             atlas.RegisterItem(identity);
             var slot = atlas.GetOrUpdate(identity, isAnimated: false);
             if (slot is null) continue;
@@ -105,11 +105,11 @@ public sealed class InventoryScreen : Screen
         }
     }
 
-    //GetStack 取菜单槽位物品 内容包未到时返回空栈
+    //GetStack gets the menu slot item; returns an empty stack before the content packet arrives
     private static ItemStack GetStack(ClientInventory inventory, int slot)
         => slot < inventory.MenuSlots.Count ? inventory.MenuSlots[slot] : ItemStack.Empty;
 
-    //OnMouseDown 左键取放右键取一半 槽号与点击类型照原版发给服务端
+    //OnMouseDown left click picks up/places, right click takes half; slot number and click type are sent to the server as in vanilla
     public override void OnMouseDown(GuiMouseButton button, int x, int y)
     {
         if (button is not (GuiMouseButton.Left or GuiMouseButton.Right)) return;
@@ -119,8 +119,8 @@ public sealed class InventoryScreen : Screen
         SendClick(slot, button == GuiMouseButton.Right ? (byte)1 : (byte)0, ContainerInput.Pickup);
     }
 
-    //OnKeyPressed Q 丢弃悬停槽的物品 对应原版背包装口里按 Q 丢鼠标指着的槽
-    //本作拿不到修饰键 Ctrl+Q 丢整叠暂未接 一次只丢一个
+    //OnKeyPressed Q drops the item in the hovered slot, maps to vanilla pressing Q in the inventory to drop the slot under the cursor
+    //This build cannot get modifier keys; Ctrl+Q to drop a whole stack is not wired up, it drops one at a time
     public override void OnKeyPressed(int key)
     {
         if (key != GameKeys.Q) return;
@@ -129,7 +129,7 @@ public sealed class InventoryScreen : Screen
         SendClick(slot, 0, ContainerInput.Throw);
     }
 
-    //HitTest 面板内坐标命中哪个槽位 未命中返回 -1
+    //HitTest which slot the panel coordinates hit; returns -1 when none
     private int HitTest(int x, int y)
     {
         foreach (var (index, sx, sy) in Slots)
@@ -141,7 +141,7 @@ public sealed class InventoryScreen : Screen
         return -1;
     }
 
-    //SendClick 发容器点击包 服务端按槽号与点击类型裁定结果并回发槽位变更
+    //SendClick sends the container click packet; the server decides by slot number and click type and sends back slot changes
     private void SendClick(int slot, byte button, ContainerInput input)
     {
         var connection = Minecraft.Connection;

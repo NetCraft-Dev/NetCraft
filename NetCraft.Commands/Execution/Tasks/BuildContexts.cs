@@ -4,12 +4,12 @@ using NetCraft.Registry;
 
 namespace NetCraft.Commands.Execution.Tasks;
 
-//BuildContexts 把解析好的上下文链逐段展开成可执行命令对应原版 net.minecraft.commands.execution.tasks.BuildContexts
-//修饰器阶段逐级换源 fork 修饰翻标记 遇自定义修饰器/执行器把控制权交出去
-//到 EXECUTE 段后普通命令排 ExecuteCommand 动作由 ContinuationTask 逐源续跑
+//BuildContexts expands the parsed context chain stage by stage into an executable command; maps to vanilla net.minecraft.commands.execution.tasks.BuildContexts
+//The modifier stage swaps sources level by level, fork modifiers flip the flag, and a custom modifier/executor hands control over
+//Once at the EXECUTE stage, an ordinary command queues an ExecuteCommand action and ContinuationTask continues source by source
 public class BuildContexts<T>
 {
-    //ErrorForkLimitReached 分叉超限
+    //ErrorForkLimitReached fork limit exceeded
     public static readonly DynamicCommandExceptionType ErrorForkLimitReached =
         new(limit => new LiteralMessage($"Command fork limit of {limit} has been reached"));
 
@@ -22,7 +22,7 @@ public class BuildContexts<T>
         _command = command;
     }
 
-    //Execute 逐段展开修饰器到 EXECUTE 再派发
+    //Execute expands modifiers stage by stage down to EXECUTE, then dispatches
     protected void Execute(T originalSource, List<T> initialSources, ExecutionContext<T> context, Frame frame,
         ChainModifiers initialModifiers)
     {
@@ -113,12 +113,12 @@ public class BuildContexts<T>
         }
     }
 
-    //AsCore 执行引擎无约束泛型下访问源核心成员的显式转换
-    //引擎与 brigadier 的无约束 S 共存 T 在真实调用侧都是实现 ExecutionSourceCore 的源类型
+    //AsCore explicit cast used to access the source's core members under the engine's unconstrained generic
+    //The engine coexists with brigadier's unconstrained S; on the real call side T is always a source type implementing ExecutionSourceCore
     private static ExecutionSourceCore AsCore(T source)
         => (ExecutionSourceCore)(object)source!;
 
-    //TraceCommandStart 命令开始追踪
+    //TraceCommandStart trace command start
     protected void TraceCommandStart(ExecutionContext<T> context, Frame frame)
     {
         if (context.Tracer() is { } tracer)
@@ -129,7 +129,7 @@ public class BuildContexts<T>
 
     public override string ToString() => _commandInput;
 
-    //TopLevel 顶层入口 一条玩家或控制台命令的起点
+    //TopLevel top-level entry, the starting point of a player or console command
     public sealed class TopLevel(string commandInput, ContextChain<T> command, T source)
         : BuildContexts<T>(commandInput, command)
     {
@@ -140,7 +140,7 @@ public class BuildContexts<T>
         }
     }
 
-    //Continuation 修饰器续跑入口 源集合已展开
+    //Continuation continuation entry after the modifier stage; the source collection is already expanded
     public sealed class Continuation(string commandInput, ContextChain<T> command, ChainModifiers modifiers,
         T originalSource, List<T> sources)
         : BuildContexts<T>(commandInput, command)
@@ -151,7 +151,7 @@ public class BuildContexts<T>
         }
     }
 
-    //Unbound 函数条目用的未绑定入口
+    //Unbound unbound entry used by function entries
     public sealed class Unbound(string commandInput, ContextChain<T> command)
         : BuildContexts<T>(commandInput, command)
     {
@@ -161,7 +161,7 @@ public class BuildContexts<T>
             Execute(sender, [sender], context, frame, ChainModifiers.Default);
         }
 
-        //Bind 包装成未绑定动作委托 对应原版 Unbound 实现 UnboundEntryAction
+        //Bind wraps it into an unbound action delegate, mirroring how vanilla Unbound implements UnboundEntryAction
         public UnboundEntryAction<T> ToUnboundAction()
             => (sender, context, frame) => Execute(sender, context, frame);
     }

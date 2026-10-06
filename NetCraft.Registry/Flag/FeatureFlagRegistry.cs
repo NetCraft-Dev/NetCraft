@@ -4,8 +4,8 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry.Flag;
 
-//特性开关注册表对应原版FeatureFlagRegistry
-//把Identifier映射到开关，并给出全量集合
+//Feature flag registry, maps to vanilla FeatureFlagRegistry
+//Maps an Identifier to a flag and provides the full set
 public sealed class FeatureFlagRegistry
 {
     private readonly FeatureFlagUniverse _universe;
@@ -25,7 +25,7 @@ public sealed class FeatureFlagRegistry
 
     public FeatureFlagSet AllFlags() => _allFlags;
 
-    //名字认不出来的按警告放过
+    //Unknown names are let through with a warning
     public FeatureFlagSet FromNames(IEnumerable<Identifier> flagIds)
         => FromNames(flagIds, flagId => Log.Warning($"Unknown feature flag: {flagId}"));
 
@@ -56,7 +56,7 @@ public sealed class FeatureFlagRegistry
         return result;
     }
 
-    //名字列表与集合互转，名字认不出来算解码失败
+    //Converts between a name list and a set; unknown names count as a decode failure
     public Codec<FeatureFlagSet> Codec()
         => IdentifierCodec.Instance.ListOf().ComapFlatMap(
             ids =>
@@ -69,7 +69,7 @@ public sealed class FeatureFlagRegistry
             },
             set => [.. ToNames(set)]);
 
-    //注册表构造器对应原版FeatureFlagRegistry.Builder
+    //Registry builder, maps to vanilla FeatureFlagRegistry.Builder
     public sealed class Builder
     {
         private readonly FeatureFlagUniverse _universe;

@@ -4,10 +4,10 @@ using System.Text;
 
 namespace NetCraft.Network.Component;
 
-//PatchedDataComponentMap 应用 patch 的可读组件映射对应原版 net.minecraft.core.component.PatchedDataComponentMap
-//prototype 提供基础值 patch 覆盖或移除 get 时先查 patch 再回退 prototype
-//keySet 为 prototype 全集减 patch 移除加 patch 新增
-//改写走不可变 patch 每次重建一份 与原版的 copyOnWrite 可变补丁等价
+//PatchedDataComponentMap readable component map that applies a patch, maps to vanilla net.minecraft.core.component.PatchedDataComponentMap
+//prototype provides the base values, the patch overrides or removes them, and get checks the patch first before falling back to prototype
+//keySet is the prototype set minus patch removals plus patch additions
+//Mutations go through an immutable patch, rebuilt each time, equivalent to vanilla's copyOnWrite mutable patch
 public sealed class PatchedDataComponentMap : DataComponentMap
 {
     private readonly DataComponentMap _prototype;
@@ -24,7 +24,7 @@ public sealed class PatchedDataComponentMap : DataComponentMap
         _patch = patch;
     }
 
-    //FromPatch 从原型与补丁构造 补丁里与原型等值的项会被清掉 对应原版 fromPatch
+    //FromPatch constructs from a prototype and patch, clearing patch entries equal to the prototype, maps to vanilla fromPatch
     public static PatchedDataComponentMap FromPatch(DataComponentMap prototype, DataComponentPatch patch)
     {
         var map = new PatchedDataComponentMap(prototype);
@@ -32,19 +32,19 @@ public sealed class PatchedDataComponentMap : DataComponentMap
         return map;
     }
 
-    //Prototype 基础映射
+    //Prototype base map
     public DataComponentMap Prototype => _prototype;
 
-    //Patch 当前应用的补丁
+    //Patch the currently applied patch
     public DataComponentPatch Patch => _patch;
 
-    //Get 先查 patch present 返回值 empty 返回 null 移除 不在 patch 回退 prototype
+    //Get checks the patch first: present returns the value, empty returns null for removal, and absence falls back to prototype
     public T? Get<T>(DataComponentType<T> type) where T : class => _patch.GetFrom(_prototype, type);
 
-    //HasNonDefault 该项在补丁里被显式改过 对应原版 hasNonDefault
+    //HasNonDefault indicates the entry was explicitly changed in the patch, maps to vanilla hasNonDefault
     public bool HasNonDefault<T>(DataComponentType<T> type) where T : class => _patch.Get(type) is not null;
 
-    //KeySet prototype 全集减 patch 移除加 patch 新增
+    //KeySet prototype set minus patch removals plus patch additions
     public IEnumerable<object> KeySet
     {
         get
@@ -70,7 +70,7 @@ public sealed class PatchedDataComponentMap : DataComponentMap
         }
     }
 
-    //Set 覆写一个组件值 写回原型同值等价于撤销该项 返回改写前的值 对应原版 set
+    //Set overrides a component value; writing back the prototype's same value is equivalent to undoing it and returns the previous value, maps to vanilla set
     public T? Set<T>(DataComponentType<T> type, T value) where T : class
     {
         var previous = Get(type);
@@ -81,10 +81,10 @@ public sealed class PatchedDataComponentMap : DataComponentMap
         return previous;
     }
 
-    //Set 按带类型的组件条目写入
+    //Set writes a typed component entry
     public T? Set<T>(TypedDataComponent<T> component) where T : class => Set(component.Type, component.Value);
 
-    //Remove 移除一个组件 原型里没有该项时不往补丁里留痕迹 返回移除前的值 对应原版 remove
+    //Remove removes a component; when the prototype lacks it no trace is left in the patch, and the previous value is returned, maps to vanilla remove
     public T? Remove<T>(DataComponentType<T> type) where T : class
     {
         var previous = Get(type);
@@ -95,7 +95,7 @@ public sealed class PatchedDataComponentMap : DataComponentMap
         return previous;
     }
 
-    //ApplyPatch 逐项应用补丁 与原型等值的项不留在补丁里 对应原版 applyPatch
+    //ApplyPatch applies the patch entry by entry; entries equal to the prototype are not kept in the patch, maps to vanilla applyPatch
     public void ApplyPatch(DataComponentPatch patch)
     {
         if (patch.IsEmpty) return;
@@ -117,13 +117,13 @@ public sealed class PatchedDataComponentMap : DataComponentMap
         _patch = map.Count == 0 ? DataComponentPatch.Empty : new DataComponentPatch(map);
     }
 
-    //RestorePatch 丢弃当前补丁整体换成给定补丁 对应原版 restorePatch
+    //RestorePatch discards the current patch and replaces it wholesale with the given patch, maps to vanilla restorePatch
     public void RestorePatch(DataComponentPatch patch) => _patch = patch;
 
-    //ClearPatch 清空补丁回到纯原型 对应原版 clearPatch
+    //ClearPatch clears the patch and returns to a pure prototype, maps to vanilla clearPatch
     public void ClearPatch() => _patch = DataComponentPatch.Empty;
 
-    //SetAll 把另一份映射的组件逐个盖上来 对应原版 setAll
+    //SetAll overlays every component of another map one by one, maps to vanilla setAll
     public void SetAll(DataComponentMap components)
     {
         foreach (var key in components.KeySet)
@@ -131,23 +131,23 @@ public sealed class PatchedDataComponentMap : DataComponentMap
                 Set(type, value);
     }
 
-    //AsPatch 返回 patch 供 ItemStack.STREAM_CODEC 编码
+    //AsPatch returns the patch for ItemStack.STREAM_CODEC to encode
     public DataComponentPatch AsPatch() => _patch;
 
-    //Copy 复制一份本映射 补丁是不可变的直接共用
+    //Copy duplicates this map; the patch is immutable and shared directly
     public PatchedDataComponentMap Copy() => new(_prototype, _patch);
 
-    //ToImmutableMap 无补丁时原型本身即结果 对应原版 toImmutableMap
+    //ToImmutableMap without a patch the prototype is the result, maps to vanilla toImmutableMap
     public DataComponentMap ToImmutableMap() => _patch.IsEmpty ? _prototype : Copy();
 
-    //判等要求原型与补丁都相同 对应原版 equals
+    //Equality requires both prototype and patch to match, maps to vanilla equals
     public override bool Equals(object? obj)
         => ReferenceEquals(this, obj)
             || (obj is PatchedDataComponentMap other
                 && Equals(_prototype, other._prototype)
                 && _patch.Equals(other._patch));
 
-    //哈希与判等一致
+    //The hash is consistent with equality
     public override int GetHashCode() => _prototype.GetHashCode() + (_patch.GetHashCode() * 31);
 
     public override string ToString()

@@ -8,8 +8,8 @@ using T = NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Families;
 using NetCraft.DataFixer.Types.Templates;
 
-//Fold递归折叠对应原版com.mojang.datafixers.functions.Fold
-//按代数把RecursivePointType<A>折叠为RecursivePointType<B>
+//Fold recursive fold maps to vanilla com.mojang.datafixers.functions.Fold
+//folds RecursivePointType<A> into RecursivePointType<B> using an algebra
 public sealed class Fold<A, B> : PointFree<Func<A, B>>
 {
     private readonly RecursivePoint.RecursivePointType<A> _aType;
@@ -30,11 +30,11 @@ public sealed class Fold<A, B> : PointFree<Func<A, B>>
     public Algebra Algebra => _algebra;
     public int Index => _index;
 
-    //type返回aType->bType的函数类型对应DSL.func(aType, bType)
+    //type returns the aType->bType function type, maps to DSL.func(aType, bType)
     public override T.Type<Func<A, B>> Type()
         => DSL.Func(_aType, _bType);
 
-    //all对algebra中每个index的function应用规则任一变化则重建Fold
+    //all applies the rule to the function at each index of the algebra; rebuilds Fold if any changes
     public override Optional<PointFree<Func<A, B>>> All(PointFreeRule rule)
     {
         var familySize = _aType.Family().Size();
@@ -63,14 +63,14 @@ public sealed class Fold<A, B> : PointFree<Func<A, B>>
         return Optional<PointFree<Func<A, B>>>.Empty();
     }
 
-    //cap保留recData把rewrite包装为View构造新RewriteResult
+    //cap preserves recData and wraps rewrite into a View to build a new RewriteResult
     private static RewriteResult<object, object> Cap(
         RewriteResult<object, object> view,
         PointFree<Func<object, object>> rewrite)
         => RewriteResult<object, object>.Create(new View<object, object>(rewrite, view.View().Type(), view.View().NewType()), view.RecData());
 
-    //eval通过family.template.hmap与fold构造index对应的rewrite函数与原代数组合后求值
-    //HMAP_CACHE缓存template.hmap结果避免每次Eval重新构造Comp链导致evalCached缓存失效无限递归
+    //eval builds the rewrite function for the index via family.template.hmap and fold, composes it with the original algebra, then evaluates
+    //HMAP_CACHE caches the template.hmap result so each Eval does not rebuild the Comp chain, which would invalidate the evalCached cache and recurse forever
     public override Func<DynamicOps<object>, Func<A, B>> Eval()
         => ops => a =>
         {
@@ -100,14 +100,14 @@ public sealed class Fold<A, B> : PointFree<Func<A, B>>
             return eval.EvalCached()(ops)(a!);
         };
 
-    //HmapCacheKey按family+newFamily+algebra结构比较缓存template.hmap结果
+    //HmapCacheKey compares by family+newFamily+algebra structure to cache the template.hmap result
     private readonly record struct HmapCacheKey(RecursiveTypeFamily Family, RecursiveTypeFamily NewFamily, Algebra Algebra);
-    //HmapApplyKey按hmapped+index缓存hmapped(index)结果
+    //HmapApplyKey caches hmapped(index) by hmapped+index
     private readonly record struct HmapApplyKey(Func<int, RewriteResult<object, object>> Hmapped, int Index);
     private static readonly Dictionary<HmapCacheKey, Func<int, RewriteResult<object, object>>> HMAP_CACHE = new();
     private static readonly Dictionary<HmapApplyKey, RewriteResult<object, object>> HMAP_APPLY_CACHE = new();
 
-    //capResult把中间RewriteResult与原代数index处结果复合
+    //capResult composes the intermediate RewriteResult with the result at the algebra index
     private PointFree<Func<A, B>> CapResult(RewriteResult<object, object> resResult)
     {
         var applied = _algebra!.Apply(_index);
@@ -116,7 +116,7 @@ public sealed class Fold<A, B> : PointFree<Func<A, B>>
         var resFunc = resResult.View().Function;
         if (opFunc is null || resFunc is null)
         {
-            //nop短路任一为null直接返回另一侧对齐原版fold语义
+            //nop short-circuit: if either is null, return the other, aligning with vanilla fold semantics
             if (opFunc is null)
             {
                 var resObj = (object)resFunc!;
@@ -125,8 +125,8 @@ public sealed class Fold<A, B> : PointFree<Func<A, B>>
             var opObj = (object)opFunc!;
             return System.Runtime.CompilerServices.Unsafe.As<object, PointFree<Func<A, B>>>(ref opObj);
         }
-        //opFunc/resFunc实际可能是Apply等PointFree子类强转PointFree<Func<...>>失败
-        //用Unsafe.As绕过运行时类型检查对齐Java类型擦除
+        //opFunc/resFunc may actually be a PointFree subclass such as Apply, so casting to PointFree<Func<...>> fails
+        //use Unsafe.As to bypass the runtime type check and align with Java type erasure
         var opFuncObj = (object)opFunc;
         var opFuncCasted = System.Runtime.CompilerServices.Unsafe.As<object, PointFree<Func<object, B>>>(ref opFuncObj);
         var resFuncObj = (object)resFunc;

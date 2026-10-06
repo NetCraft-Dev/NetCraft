@@ -1,13 +1,13 @@
 namespace NetCraft.Network.Protocol.Login;
 
-//LoginProtocols login 协议对应原版 net.minecraft.network.protocol.login.LoginProtocols
-//注册 SERVERBOUND 和 CLIENTBOUND 协议模板顺序对齐原版
-//SERVERBOUND 含 hello/key/custom_query_answer/login_acknowledged
-//CLIENTBOUND 含 login_disconnect/hello/login_finished/login_compression/custom_query
-//简化版不注册 cookie 子协议包
+//LoginProtocols login protocol, maps to vanilla net.minecraft.network.protocol.login.LoginProtocols
+//Registers the SERVERBOUND and CLIENTBOUND protocol templates in vanilla order
+//SERVERBOUND contains hello/key/custom_query_answer/login_acknowledged
+//CLIENTBOUND contains login_disconnect/hello/login_finished/login_compression/custom_query
+//The simplified form does not register cookie subprotocol packets
 public static class LoginProtocols
 {
-    //ServerboundTemplate SERVERBOUND login 协议模板
+    //ServerboundTemplate SERVERBOUND login protocol template
     public static readonly SimpleUnboundProtocol<ServerLoginPacketListener> ServerboundTemplate =
         new ProtocolInfoBuilder<ServerLoginPacketListener>(
             ConnectionProtocol.Login, FlowDirection.Serverbound)
@@ -17,11 +17,11 @@ public static class LoginProtocols
             .AddPacket(LoginPacketTypes.ServerboundLoginAcknowledged, ServerboundLoginAcknowledgedPacket.StreamCodec)
             .BuildUnbound();
 
-    //Serverbound 绑定后的 SERVERBOUND ProtocolInfo
+    //Serverbound the bound SERVERBOUND ProtocolInfo
     public static readonly ProtocolInfo<ServerLoginPacketListener> Serverbound =
         ServerboundTemplate.Bind();
 
-    //ClientboundTemplate CLIENTBOUND login 协议模板
+    //ClientboundTemplate CLIENTBOUND login protocol template
     public static readonly SimpleUnboundProtocol<ClientLoginPacketListener> ClientboundTemplate =
         new ProtocolInfoBuilder<ClientLoginPacketListener>(
             ConnectionProtocol.Login, FlowDirection.Clientbound)
@@ -32,7 +32,7 @@ public static class LoginProtocols
             .AddPacket(LoginPacketTypes.ClientboundCustomQuery, ClientboundCustomQueryPacket.StreamCodec)
             .BuildUnbound();
 
-    //Clientbound 绑定后的 CLIENTBOUND ProtocolInfo
+    //Clientbound the bound CLIENTBOUND ProtocolInfo
     public static readonly ProtocolInfo<ClientLoginPacketListener> Clientbound =
         ClientboundTemplate.Bind();
 }

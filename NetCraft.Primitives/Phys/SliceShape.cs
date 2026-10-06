@@ -1,10 +1,10 @@
 namespace NetCraft.Primitives.Phys;
 
-//SliceShape 切片形状 对应原版 SliceShape
-//沿某一轴取一层薄片 贴面遮挡判定只看那一层 比拿整个形状算便宜
+//SliceShape slice shape, maps to vanilla SliceShape
+//Takes one thin layer along an axis, face-occlusion tests only look at that layer, cheaper than computing the whole shape
 public class SliceShape : VoxelShape
 {
-    //切片被压成一格厚 该轴只剩 0 与 1 两个坐标
+    //The slice is flattened to one cell thick, that axis has only the two coordinates 0 and 1
     private static readonly IReadOnlyList<double> SliceCoords = new CubePointRange(1);
 
     private readonly VoxelShape _source;
@@ -17,7 +17,7 @@ public class SliceShape : VoxelShape
         _axis = axis;
     }
 
-    //MakeSlice 按轴挑出第 point 层 其余两轴保持原范围 对应原版 makeSlice
+    //MakeSlice picks the point-th layer along the axis, the other two axes keep their original range, maps to vanilla makeSlice
     private static DiscreteVoxelShape MakeSlice(DiscreteVoxelShape source, Direction.Axis axis, int point)
         => new SubShape(source,
             axis.Choose(point, 0, 0),

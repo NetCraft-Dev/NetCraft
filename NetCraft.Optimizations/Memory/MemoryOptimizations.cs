@@ -2,38 +2,38 @@ using NetCraft.Config;
 
 namespace NetCraft.Optimizations.Memory;
 
-//Memory 优化模块借鉴 FerriteCore mrl/threaddetec/datacomponents 三个子模块
-//对应 OptimizationFlags 中 ModelResourceLocationIntern/VoxelShapeShared/ThreadingDetectorLightweight/PatchedDataComponentMapCompact
-//跨子系统优化待对应子系统就绪后集成
+//Memory optimization module, borrows from the three FerriteCore submodules mrl/threaddetec/datacomponents
+//Maps to OptimizationFlags ModelResourceLocationIntern/VoxelShapeShared/ThreadingDetectorLightweight/PatchedDataComponentMapCompact
+//Cross-subsystem optimizations land once the corresponding subsystems are ready
 public static class MemoryOptimizations
 {
     public const string ModuleName = "Memory Optimization";
     public const string TargetSubsystem = "cross-cutting (Util/Registry/Network/...)";
 
-    //对应 FerriteCore mrl 模块模型资源路径用 string.Intern 池化
-    //开关启用表示资源路径访问将走 string.Intern 路径节省重复字符串内存
+    //The FerriteCore mrl module, model resource paths are interned with string.Intern
+    //When the toggle is on, resource path access goes through the string.Intern path and saves duplicate string memory
     public static bool IsModelResourceLocationInternEnabled => OptimizationFlags.ModelResourceLocationIntern;
 
-    //对应 FerriteCore VoxelShape 缓存相同形状共用实例
-    //开关启用表示 VoxelShape 创建将走共享缓存路径
+    //The FerriteCore approach, the VoxelShape cache shares instances for identical shapes
+    //When the toggle is on, VoxelShape creation goes through the shared cache path
     public static bool IsVoxelShapeSharedEnabled => OptimizationFlags.VoxelShapeShared;
 
-    //对应 FerriteCore threaddetec 模块 ThreadingDetector 轻量化
-    //开关启用表示 PalettedContainer 内存优化走轻量 ThreadingDetector 路径
+    //The FerriteCore threaddetec module, a lightweight ThreadingDetector
+    //When the toggle is on, the PalettedContainer memory optimization goes through the lightweight ThreadingDetector path
     public static bool IsThreadingDetectorLightweightEnabled => OptimizationFlags.ThreadingDetectorLightweight;
 
-    //对应 FerriteCore datacomponents 模块 PatchedDataComponentMap 紧凑存储
-    //开关启用表示组件映射走紧凑存储路径
+    //The FerriteCore datacomponents module, compact storage for PatchedDataComponentMap
+    //When the toggle is on, the component map goes through the compact storage path
     public static bool IsPatchedDataComponentMapCompactEnabled => OptimizationFlags.PatchedDataComponentMapCompact;
 
-    //IsOptimized 检查四开关是否全开判断 Memory 优化是否启用
+    //IsOptimized checks whether all four toggles are on to decide if Memory optimization is enabled
     public static bool IsOptimized =>
         IsModelResourceLocationInternEnabled
         && IsVoxelShapeSharedEnabled
         && IsThreadingDetectorLightweightEnabled
         && IsPatchedDataComponentMapCompactEnabled;
 
-    //GetStats 返回 Memory 优化统计信息用于诊断
+    //GetStats returns the Memory optimization stats for diagnostics
     public static MemoryOptimizationStats GetStats() => new(
         ModelResourceLocationIntern: IsModelResourceLocationInternEnabled,
         VoxelShapeShared: IsVoxelShapeSharedEnabled,
@@ -42,7 +42,7 @@ public static class MemoryOptimizations
         IsOptimized: IsOptimized);
 }
 
-//Memory 优化统计快照
+//Memory optimization stats snapshot
 public readonly record struct MemoryOptimizationStats(
     bool ModelResourceLocationIntern,
     bool VoxelShapeShared,

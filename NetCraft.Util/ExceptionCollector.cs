@@ -1,7 +1,7 @@
 namespace NetCraft.Util;
 
-//异常收集器对应原版ExceptionCollector
-//收集多个异常后统一抛出，用于close等多资源清理场景
+//Exception collector, maps to vanilla ExceptionCollector
+//Collects multiple exceptions and throws them together, for multi-resource cleanup such as close
 public sealed class ExceptionCollector<T> where T : Exception
 {
     private List<T>? _exceptions;
@@ -14,7 +14,7 @@ public sealed class ExceptionCollector<T> where T : Exception
         _exceptions.Add(exception);
     }
 
-    //单个异常直接抛，多个聚合为AggregateException
+    //A single exception is thrown directly, multiple are aggregated into AggregateException
     public void ThrowIfPresent()
     {
         if (_exceptions == null || _exceptions.Count == 0) return;

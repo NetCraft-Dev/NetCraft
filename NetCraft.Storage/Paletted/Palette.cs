@@ -1,19 +1,19 @@
 namespace NetCraft.Storage.Paletted;
 
-//调色板接口对应原版net.minecraft.world.level.chunk.Palette
-//管理storage的int id与T值的映射
+//Palette interface, maps to vanilla net.minecraft.world.level.chunk.Palette
+//Manages the mapping between storage int ids and T values
 public interface Palette<T>
 {
-    //返回value对应的id不存在则通过resizeHandler扩容对应原版idFor
+    //Return the id for value; if absent, grow via resizeHandler, maps to vanilla idFor
     int IdFor(T value, PaletteResize<T> resizeHandler);
 
-    //是否存在满足predicate的值对应原版maybeHas
+    //Whether a value satisfying predicate exists, maps to vanilla maybeHas
     bool MaybeHas(Predicate<T> predicate);
 
-    //根据id获取值对应原版valueFor
+    //Get the value for an id, maps to vanilla valueFor
     T ValueFor(int index);
 
-    //palette中实际条目数对应原版getSize
+    //Actual entry count in the palette, maps to vanilla getSize
     int Size { get; }
 
     Palette<T> Copy();

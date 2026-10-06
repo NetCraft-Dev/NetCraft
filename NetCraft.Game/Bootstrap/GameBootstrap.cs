@@ -19,94 +19,94 @@ using WorldCarverBootstrap = NetCraft.Game.World.Level.LevelGen.Carver.WorldCarv
 
 namespace NetCraft.Game.Bootstrap;
 
-//GameBootstrap Game 层引导入口对应原版 net.minecraft.server.Bootstrap 的 Game 层扩展
-//在 BootstrapClass.BootStrap 之前调用触发 Game 层内置注册表填充方块/物品/实体等
-//确保 NoiseBasedChunkGenerator.FillFromNoise 等业务流程可访问已注册的 BlockState
+//GameBootstrap Game-layer bootstrap entry, maps to the Game-layer extension of vanilla net.minecraft.server.Bootstrap
+//Called before BootstrapClass.BootStrap to trigger Game-layer built-in registry population for blocks/items/entities
+//Ensures business flows such as NoiseBasedChunkGenerator.FillFromNoise can access registered BlockState
 public static class GameBootstrap
 {
-    //原版 Bootstrap 只有启动线程会调 一个 volatile 标志就够了
-    //这里区块包构造在连接线程调 区块生成在 ThreadPool 调 必须靠锁保证只跑一次
-    //后来的线程要等引导真正跑完再返回 不能只看标志就返回 否则会读到半成品注册表
+    //Vanilla Bootstrap is only called from the startup thread, so a single volatile flag suffices
+    //Here chunk packet construction runs on connection threads and chunk generation on the ThreadPool, so a lock is required to run only once
+    //Later threads must wait until bootstrap truly finishes before returning; returning on the flag alone would read a half-built registry
     private static readonly object _gate = new();
     private static bool _bootstrapped;
     private static bool _preDataBootstrapped;
-    //_ready 引导完整完成的快路径标志 生成链路每区块要调三次 Bootstrap 靠它绕开锁
-    //与上面两个分开: 那两个必须先置位防重入 提前置位不代表真的做完了
+    //_ready fast-path flag for a fully finished bootstrap; the generation path calls Bootstrap three times per chunk, so it uses this to bypass the lock
+    //Kept separate from the two above: those must be set first to prevent reentrancy, but setting them early does not mean the work is done
     private static volatile bool _ready;
 
     static GameBootstrap() => Log.SetClassSource(typeof(GameBootstrap));
 
-    //Bootstrap Game 层引导入口触发方块/物品等内置注册表填充
-    //重复调用幂等直接返回避免重复注册
-    //幂等分支不打日志 区块包序列化每个包都会调一次 开了 debug 会刷爆日志文件
+    //Bootstrap Game-layer bootstrap entry, triggers built-in registry population for blocks/items
+    //Repeated calls are idempotent and return immediately to avoid re-registration
+    //The idempotent branch logs nothing; chunk packet serialization calls it once per packet and debug logging would flood the log file
     public static void Bootstrap()
     {
-        //引导完整做完后走这条无锁快路径 生成热路径上的调用全都停在这里
+        //Once bootstrap is fully done this lock-free fast path is taken; calls on the generation hot path all stop here
         if (_ready) return;
         BootstrapBeforeDataLoad();
         BootstrapAfterDataLoad();
     }
 
-    //BootstrapBeforeDataLoad 数据驱动注册表加载前的引导
-    //元素 JSON 的 codec 会引用方块/密度函数类型/群系 这些必须先就位才能解码
-    //不带数据驱动加载的调用方直接用 Bootstrap 一次跑完
+    //BootstrapBeforeDataLoad bootstrap before the data-driven registry load
+    //Element JSON codecs reference blocks/density function types/biomes; these must be in place before decoding
+    //Callers that skip the data-driven load just run Bootstrap once
     public static void BootstrapBeforeDataLoad()
     {
         lock (_gate)
         {
             if (_preDataBootstrapped) return;
-            //先置位再执行 注册过程里若有重入 Monitor 可重入不会死锁 置位后重入直接返回
+            //Set the flag before running; if registration reenters, Monitor is reentrant so there is no deadlock, and a reentry after the flag is set returns immediately
             _preDataBootstrapped = true;
-            //Log.Debug("BootstrapBeforeDataLoad 入口");
+            //Log.Debug("BootstrapBeforeDataLoad enter");
             Log.Info("Game layer bootstrap started");
             Blocks.Bootstrap();
             RegisterFluids();
-            //票类型要先于注册表冻结登记 存档里的 chunk_tickets.dat 按注册名还原票
+            //Ticket types must be registered before the registry freezes; chunk_tickets.dat restores tickets by registry name
             NetCraft.Storage.TicketType.Bootstrap();
             WorldCarverBootstrap.RegisterAll();
-            //特征与放置修饰器注册表必须先于数据加载填好 否则 configured_feature/placed_feature 整批解不出来
+            //Feature and placement modifier registries must be filled before data load, otherwise the whole configured_feature/placed_feature batch fails to decode
             NetCraft.Game.World.Level.LevelGen.Features.FeatureBootstrap.RegisterAll();
             NetCraft.Game.World.Level.LevelGen.Placement.PlacementModifierBootstrap.RegisterAll();
-            //结构放置类型必须先于 worldgen/structure_set 装载就位 否则 placement 的 type 派发找不到目标
+            //Structure placement types must be in place before worldgen/structure_set loads, otherwise placement type dispatch finds no target
             NetCraft.Game.World.Level.LevelGen.Structure.StructureBootstrap.RegisterAll();
-            //片段类型必须先于结构读档就位 否则片段落盘的 id 查不到还原实现
+            //Piece types must be in place before structure loading, otherwise a serialized piece id resolves to no implementation
             NetCraft.Game.World.Level.LevelGen.Structure.StructurePieceBootstrap.RegisterAll();
-            //处理器类型与规则测试/位置判定/方块实体修改器必须先于 processor_list 装载就位
+            //Processor types plus rule tests/pos rules/block entity modifiers must be in place before processor_list loads
             NetCraft.Game.World.Level.LevelGen.Structure.StructureProcessorBootstrap.RegisterAll();
-            //池元素类型必须先于 worldgen/template_pool 装载就位 否则 element_type 派发找不到目标
+            //Pool element types must be in place before worldgen/template_pool loads, otherwise element_type dispatch finds no target
             NetCraft.Game.World.Level.LevelGen.Structure.StructurePoolBootstrap.RegisterAll();
             Items.Bootstrap();
-            //发射行为表按物品实例登记 必须在物品填好之后
+            //The dispense behavior table is registered per item instance, so it must come after items are filled
             NetCraft.Game.World.Level.Block.Dispenser.DispenseBehaviors.Bootstrap();
             GameRules.Bootstrap();
-            //粒子类型按原版声明顺序登记 命令与粒子包都按注册表 id 编码
+            //Particle types are registered in vanilla declaration order; commands and particle packets both encode by registry id
             NetCraft.Game.World.Particle.ParticleTypes.Bootstrap();
-            //药水效果按原版声明顺序登记 命令与效果包都按注册表 id 编码
+            //Mob effects are registered in vanilla declaration order; commands and effect packets both encode by registry id
             NetCraft.Game.World.Effect.MobEffects.Bootstrap();
             ArgumentTypeInfos.Bootstrap();
-            //实体属性先于实体类型登记 实体构造按属性建表 也要早于注册表冻结
+            //Entity attributes are registered before entity types; entity construction builds its table from attributes, and this must also precede registry freeze
             NetCraft.Registry.EntityAttribute.Attributes.Bootstrap();
             EntityTypes.Bootstrap();
-            //实体子谓词按注册名登记 供实体谓词组合体按类型名分派
+            //Entity sub-predicates are registered by name, for the entity predicate composite to dispatch by type name
             NetCraft.Game.Advancements.Predicates.Entity.EntitySubPredicates.Bootstrap();
-            //伤害类型按原版声明顺序登记 伤害来源与死亡消息都按注册表查
+            //Damage types are registered in vanilla declaration order; damage sources and death messages both look up by registry
             NetCraft.Registry.DamageTypes.Bootstrap();
-            //实体类型的属性默认表要在任何实体构造之前装配好
+            //The default attribute table for entity types must be assembled before any entity is constructed
             NetCraft.Game.World.Entity.DefaultAttributes.Bootstrap();
             BlockEntityTypes.Bootstrap();
             MenuTypes.Bootstrap();
             WorldClocks.Bootstrap();
             Timelines.Bootstrap();
             DensityFunctionBootstrap.RegisterAll();
-            //权限与判定类型登记进各自的 MapCodec 注册表 分派编解码靠它们
+            //Permission and predicate types are registered into their own MapCodec registries, used to dispatch encoding/decoding
             PermissionTypes.Bootstrap(BuiltInRegistries.PERMISSION_TYPE);
             PermissionCheckTypes.Bootstrap(BuiltInRegistries.PERMISSION_CHECK_TYPE);
-            //Log.Debug("BootstrapBeforeDataLoad 出口");
+            //Log.Debug("BootstrapBeforeDataLoad exit");
         }
     }
 
-    //BootstrapAfterDataLoad 数据驱动注册表加载后的补全
-    //Noises.Bootstrap 与 RegisterBiomes 都对已被数据驱动填充的键跳过 保证 JSON 里的原版真值优先
+    //BootstrapAfterDataLoad completion after the data-driven registry load
+    //Noises.Bootstrap and RegisterBiomes both skip keys already filled by data-driven loading, so the vanilla truth from JSON wins
     public static void BootstrapAfterDataLoad()
     {
         lock (_gate)
@@ -116,19 +116,19 @@ public static class GameBootstrap
             Noises.Bootstrap();
             RegisterBiomes();
             Log.Debug("Game layer bootstrap finished, blocks registered");
-            //Log.Debug("BootstrapAfterDataLoad 出口");
-            //置位放最后: 快路径读到 true 时必须保证引导真的做完了 提前置位会让别的线程读到半成品
+            //Log.Debug("BootstrapAfterDataLoad exit");
+            //Set the flag last: when the fast path reads true the bootstrap must truly be done; setting it early would let other threads read a half-built state
             _ready = true;
         }
     }
 
-    //StructureTemplates 世界装配注入的结构模板管理器
-    //读档还原池元素片段时上下文要从这里取 没注入时读档的结构片段放不下东西
+    //StructureTemplates structure template manager injected by world assembly
+    //Loading a pool element piece takes its context from here; without injection, loaded structure pieces cannot place anything
     public static StructureTemplateManager? StructureTemplates { get; private set; }
 
-    //InjectStructureTemplates 数据加载完成后把结构模板管理器注入需要读模板的内容
-    //jigsaw 结构装配与化石/模板特征都要按注册名读 data/<ns>/structure/<path>.nbt
-    //没注入时这些内容按原版消耗完随机数后直接返回 false 表现为世界里一个 jigsaw 结构都没有
+    //InjectStructureTemplates injects the structure template manager into content that reads templates, after data load
+    //Jigsaw structure assembly and fossil/template features both read data/<ns>/structure/<path>.nbt by registry name
+    //Without injection these consume random numbers like vanilla then return false, so the world ends up with no jigsaw structure at all
     public static void InjectStructureTemplates(ResourceManager resources)
     {
         var manager = new StructureTemplateManager(resources);
@@ -141,15 +141,15 @@ public static class GameBootstrap
         TemplateFeature.TemplateManager = manager;
     }
 
-    //RegisterFluids 登记五个内置流体
-    //雕刻器的 matching_fluids 与湖特征的 fluid 字段都按注册名引用 缺一个整条配置就解不出来
-    //实现在 Material/Fluids 那一份里 这里只触发它的静态初始化按序登记
+    //RegisterFluids registers the five built-in fluids
+    //The carver's matching_fluids and the lake feature's fluid field both reference by registry name; missing one breaks the whole config decode
+    //The implementation lives in Material/Fluids; this only triggers its static initialization to register in order
     private static void RegisterFluids() => _ = Fluids.Empty;
 
-    //RegisterBiomes 注册兜底生物群系到 BuiltInRegistries.BIOME 并把全部群系同步进容器工厂
-    //真实群系由第 8 步数据驱动装载 这里只在 BIOME 里没有 plains 时补占位(无数据包场景)
-    //容器工厂必须拿到全部群系: GlobalPalette.IdFor 对未注册值返回 0 只注册 plains 时
-    //区段的群系调色板一旦溢出转全局 除 plains 外的群系会被静默写成 id 0 读回来全变平原
+    //RegisterBiomes registers fallback biomes into BuiltInRegistries.BIOME and syncs every biome into the container factory
+    //Real biomes are loaded by the data-driven step 8; this only adds a placeholder when BIOME has no plains (no-datapack case)
+    //The container factory must see every biome: GlobalPalette.IdFor returns 0 for unregistered values, so when only plains is registered
+    //Once a section's biome palette overflows to the global palette, biomes other than plains get silently written as id 0 and read back as plains
     private static void RegisterBiomes()
     {
         var plainsId = Identifier.WithDefaultNamespace("plains");
@@ -158,8 +158,8 @@ public static class GameBootstrap
             var plainsKey = ResourceKey<Biome>.Create(Registries.BIOME, plainsId);
             BuiltInRegistries.BIOME.Register(plainsKey, Biome.Plains, RegistrationInfo.BuiltIn);
         }
-        //注册顺序即容器工厂里的全局 id 顺序 遍历注册表保持两边一致
-        //RegisterBiome 内部走 IdMap 的幂等 Add 重复注册返回已有 id 不会打乱顺序
+        //Registration order is the global id order in the container factory; iterating the registry keeps both sides consistent
+        //RegisterBiome goes through IdMap's idempotent Add; re-registration returns the existing id and does not disturb order
         var factory = PalettedContainerFactory.Default;
         foreach (var key in BuiltInRegistries.BIOME.RegistryKeySet)
         {

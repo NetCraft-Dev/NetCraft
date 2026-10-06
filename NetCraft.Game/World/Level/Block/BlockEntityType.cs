@@ -3,17 +3,17 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//BlockEntityType 方块实体类型对应原版 net.minecraft.world.level.block.entity.BlockEntityType
-//每个单例承载三件事: 注册表键(落盘 id 字段) 网络序号(同步包与客户端分派) 实例工厂(放置与读档还原)
-//实现 Registry 层的 BlockEntityType<object> 标记接口 注册表按弱类型持有 与实体类型同一套方案
+//BlockEntityType block entity type, maps to vanilla net.minecraft.world.level.block.entity.BlockEntityType
+//Each singleton carries three things: registry key (persisted id field), network id (sync packets and client dispatch), instance factory (placement and load restore)
+//Implements the Registry-layer BlockEntityType<object> marker interface; the registry holds it weakly typed, same scheme as entity types
 public abstract class BlockEntityType : BlockEntityType<object>
 {
-    //Id 注册表键 存档写进 id 字段原版按它反查类型
+    //Id registry key written to the id field on save; vanilla looks up the type by it
     public abstract Identifier Id { get; }
 
-    //RawId 网络序号 对齐原版 BlockEntityTypes 的静态声明序 客户端按序号分派
+    //RawId network id, aligns with the static declaration order of vanilla BlockEntityTypes; the client dispatches by it
     public abstract int RawId { get; }
 
-    //Create 按位置造实例 方块放置与读档还原都走这条
+    //Create builds an instance at a position; both block placement and load restore go through here
     public abstract BlockEntity Create(BlockPos pos);
 }

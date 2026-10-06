@@ -1,7 +1,7 @@
 namespace NetCraft.Codec;
 
-//抽象map视图对应原版com.mojang.serialization.MapLike
-//提供按key或string key查找与entries枚举
+//Abstract map view, mirroring vanilla com.mojang.serialization.MapLike
+//Provides lookup by key or string key plus entry enumeration
 public interface MapLike<T>
 {
     Optional<T> Get(T key);

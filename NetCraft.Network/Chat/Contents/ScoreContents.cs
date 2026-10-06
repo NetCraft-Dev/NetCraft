@@ -2,8 +2,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Network.Chat.Contents;
 
-//计分板内容对应原版net.minecraft.network.chat.contents.ScoreContents
-//Name 持有者 Objective 计分项名运行时从 Scoreboard 取值
+//Scoreboard contents, maps to vanilla net.minecraft.network.chat.contents.ScoreContents
+//Name is the holder, Objective the score name, with values read from the Scoreboard at runtime
 public sealed class ScoreContents : ComponentContents
 {
     public string Name { get; }

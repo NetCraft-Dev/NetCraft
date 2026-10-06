@@ -1,8 +1,8 @@
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientboundUpdateTagsPacket 更新标签包对应原版 net.minecraft.network.protocol.common.ClientboundUpdateTagsPacket
-//两层 map: 注册表 Identifier → (tag 名 → 该注册表 int id 数组) 对应 TagNetworkSerialization.NetworkPayload
-//int id 是注册表条目序号(与 registry_data 网络顺序一致)客户端按序号查回 Holder
+//ClientboundUpdateTagsPacket update tags packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundUpdateTagsPacket
+//Two-level map: registry Identifier → (tag name → array of that registry's int ids), maps to TagNetworkSerialization.NetworkPayload
+//The int id is the registry entry index (matching the registry_data network order); the client looks the Holder back up by index
 public sealed record ClientboundUpdateTagsPacket(
     Dictionary<NetCraft.Registry.Identifier, Dictionary<NetCraft.Registry.Identifier, int[]>> Tags)
     : Packet<ClientCommonPacketListener>
@@ -12,8 +12,8 @@ public sealed record ClientboundUpdateTagsPacket(
 
     public static StreamCodec<FriendlyByteBuf, ClientboundUpdateTagsPacket> StreamCodec { get; } = new UpdateTagsCodec();
 
-    //Type 包类型标识 只作标识不再决定网络 ID
-    //本包在 Configuration 与 Play 都注册(13/134) 编码时由当前协议表按包类反查
+    //Type packet type identity, used only as an identity and no longer determines the network ID
+    //This packet is registered in both Configuration and Play (13/134); on encode the current protocol table looks it up by packet class
     public PacketType<ClientCommonPacketListener> Type => CommonPacketTypes.ClientboundUpdateTags;
 
     public void Handle(ClientCommonPacketListener handler) => handler.HandleUpdateTags(this);

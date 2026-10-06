@@ -2,7 +2,7 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry;
 
-//DeathMessageType 死亡消息类型 对应原版 net.minecraft.world.damagesource.DeathMessageType
+//DeathMessageType death message type, maps to vanilla net.minecraft.world.damagesource.DeathMessageType
 public enum DeathMessageType
 {
     DEFAULT,
@@ -10,10 +10,10 @@ public enum DeathMessageType
     INTENTIONAL_GAME_DESIGN
 }
 
-//DeathMessageTypeCodecs 死亡消息类型的序列化名与编解码
+//DeathMessageTypeCodecs serialized names and codecs for the death message type
 public static class DeathMessageTypeCodecs
 {
-    //GetName 序列化名 对应原版 getSerializedName
+    //GetName serialized name, maps to vanilla getSerializedName
     public static string GetName(this DeathMessageType type) => type switch
     {
         DeathMessageType.DEFAULT => "default",
@@ -21,14 +21,14 @@ public static class DeathMessageTypeCodecs
         _ => "intentional_game_design"
     };
 
-    //Codec 持久化编解码 按序列化名 对应原版 CODEC
+    //Codec persistence codec by serialized name, maps to vanilla CODEC
     public static readonly Codec<DeathMessageType> Codec = Codecs.String.ComapFlatMap(
         name => name switch
         {
             "default" => DataResult<DeathMessageType>.Success(DeathMessageType.DEFAULT),
             "fall_variants" => DataResult<DeathMessageType>.Success(DeathMessageType.FALL_VARIANTS),
             "intentional_game_design" => DataResult<DeathMessageType>.Success(DeathMessageType.INTENTIONAL_GAME_DESIGN),
-            _ => DataResult<DeathMessageType>.Error(() => $"未知死亡消息类型 {name}")
+            _ => DataResult<DeathMessageType>.Error(() => $"Unknown death message type {name}")
         },
         type => type.GetName());
 }

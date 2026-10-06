@@ -1,7 +1,7 @@
 namespace NetCraft.Primitives.Phys;
 
-//DiscreteCubeMerger 两个离散立方网格的归并 对应原版 DiscreteCubeMerger
-//按最小公倍数把两侧网格对齐 用 gcd 化简两侧索引步长
+//DiscreteCubeMerger merging of two discrete cube grids, maps to vanilla DiscreteCubeMerger
+//Aligns the two grids by the least common multiple, uses gcd to simplify the index steps on both sides
 public sealed class DiscreteCubeMerger : IIndexMerger
 {
     private readonly CubePointRange _result;

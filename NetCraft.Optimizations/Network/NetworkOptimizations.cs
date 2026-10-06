@@ -2,32 +2,32 @@ using NetCraft.Config;
 
 namespace NetCraft.Optimizations.Network;
 
-//Network 优化模块对应核心优化点 2.6 / 2.7
-//2.6 StreamCodec 静态分发集成于 NetCraft.Network/StreamCodec.cs 的 sealed FuncCodec
-//.NET JIT 对 sealed 类的虚方法调用做去虚化等价静态分发效果
-//2.7 VarInt BitOperations Span 批量写入集成于 NetCraft.Network/FriendlyByteBuf.cs
+//Network optimization module, covers core optimization points 2.6 / 2.7
+//2.6 StreamCodec static dispatch is integrated in the sealed FuncCodec in NetCraft.Network/StreamCodec.cs
+//The .NET JIT devirtualizes virtual calls on sealed classes, equivalent to static dispatch
+//2.7 VarInt BitOperations Span bulk writes are integrated in NetCraft.Network/FriendlyByteBuf.cs
 public static class NetworkOptimizations
 {
     public const string ModuleName = "Network Optimization";
     public const string TargetSubsystem = "NetCraft.Network";
 
-    //对应优化点 2.6 StreamCodec 用 sealed 类 + JIT 去虚化等价静态分发
-    //开关启用表示 FuncCodec 已 sealed 化触发 JIT devirtualization
+    //Optimization point 2.6, StreamCodec uses a sealed class + JIT devirtualization as a static dispatch equivalent
+    //When the toggle is on, FuncCodec is sealed and triggers JIT devirtualization
     public static bool IsStreamCodecStaticDispatchEnabled => OptimizationFlags.StreamCodecStaticDispatch;
 
-    //对应优化点 2.7 VarInt 写入用 Span 批量写入避免多次 _writer.Write 调用
-    //开关启用表示 FriendlyByteBuf.WriteVarInt/WriteVarLong 已 Span 化
+    //Optimization point 2.7, VarInt writes use Span bulk writes to avoid repeated _writer.Write calls
+    //When the toggle is on, FriendlyByteBuf.WriteVarInt/WriteVarLong are Span based
     public static bool IsVarIntBitOperationsEnabled => OptimizationFlags.VarIntBitOperations;
 
-    //对应优化点 2.6 packet 字节缓冲用 ArrayPool 池化
-    //开关启用表示 FriendlyByteBuf 底层 MemoryStream 可走 ArrayPool 池化路径
+    //Optimization point 2.6, packet byte buffers are pooled with ArrayPool
+    //When the toggle is on, the underlying MemoryStream of FriendlyByteBuf can go through the ArrayPool path
     public static bool IsPacketBufferPooledEnabled => OptimizationFlags.PacketBufferPooled;
 
-    //IsOptimized 检查三开关是否全开判断 Network 优化是否启用
+    //IsOptimized checks whether all three toggles are on to decide if Network optimization is enabled
     public static bool IsOptimized =>
         IsStreamCodecStaticDispatchEnabled && IsVarIntBitOperationsEnabled && IsPacketBufferPooledEnabled;
 
-    //GetStats 返回 Network 优化统计信息用于诊断
+    //GetStats returns the Network optimization stats for diagnostics
     public static NetworkOptimizationStats GetStats() => new(
         StreamCodecStaticDispatch: IsStreamCodecStaticDispatchEnabled,
         VarIntBitOperations: IsVarIntBitOperationsEnabled,
@@ -35,7 +35,7 @@ public static class NetworkOptimizations
         IsOptimized: IsOptimized);
 }
 
-//Network 优化统计快照
+//Network optimization stats snapshot
 public readonly record struct NetworkOptimizationStats(
     bool StreamCodecStaticDispatch,
     bool VarIntBitOperations,

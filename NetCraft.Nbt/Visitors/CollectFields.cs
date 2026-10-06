@@ -3,9 +3,9 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Nbt.Visitors;
 
-//收集指定字段的 StreamTagVisitor。对应原版 net.minecraft.nbt.visitors.CollectFields。
-//仅构建被 FieldSelector 选中的字段（及其递归子树），其余字段跳过。
-//收集完所有目标字段后会立即 BREAK（停止后续解析）。
+//StreamTagVisitor that collects the given fields. Mirrors vanilla net.minecraft.nbt.visitors.CollectFields.
+//Only builds the fields selected by FieldSelector (and their recursive subtrees); other fields are skipped.
+//BREAKs as soon as all target fields are collected (stopping the rest of the parse).
 public class CollectFields : CollectToTag
 {
     private int _fieldsToGetCount;
@@ -23,7 +23,7 @@ public class CollectFields : CollectToTag
             _wantedTypes.Add(wantedField.Type);
         }
         _stack.Push(rootFrame);
-        //始终需要CompoundTag类型才能递归进入子树
+        //A CompoundTag type is always required to recurse into a subtree
         _wantedTypes.Add(CompoundTag.CompoundTagType.Instance);
     }
 
@@ -72,10 +72,10 @@ public class CollectFields : CollectToTag
         return base.VisitContainerEnd();
     }
 
-    //仍未收集到的目标字段数。</summary>
+    //Number of target fields still not collected.</summary>
     public int GetMissingFieldCount() => _fieldsToGetCount;
 
-    //条件删除：仅当 key 存在且 value 相等时删除。对应 Java Map.remove(key, value)。</summary>
+    //Conditional removal: delete only when the key exists and the value is equal. Mirrors Java Map.remove(key, value).</summary>
     private static bool RemoveSelected(Dictionary<string, TagType> dict, string key, TagType value)
     {
         if (dict.TryGetValue(key, out var v) && ReferenceEquals(v, value))

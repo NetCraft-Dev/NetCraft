@@ -1,7 +1,7 @@
 namespace NetCraft.Commands;
 
-//LiteralMessage 字面消息对应原版com.mojang.brigadier.LiteralMessage
-//包装固定字符串作为IMessage的简单实现
+//LiteralMessage maps to vanilla com.mojang.brigadier.LiteralMessage
+//Wraps a fixed string as a simple IMessage implementation
 public sealed class LiteralMessage : IMessage
 {
     private readonly string _string;

@@ -2,8 +2,8 @@ using NetCraft.Commands;
 
 namespace NetCraft.Commands.Exceptions;
 
-//Dynamic3CommandExceptionType 三参动态异常类型对应原版Dynamic3CommandExceptionType
-//按三个参数通过Func生成Message创建CommandSyntaxException
+//Dynamic3CommandExceptionType three-argument dynamic exception type, maps to vanilla Dynamic3CommandExceptionType
+//Produces a Message from three arguments via a Func and creates a CommandSyntaxException
 public sealed class Dynamic3CommandExceptionType : ICommandExceptionType
 {
     private readonly Func<object, object, object, IMessage> _function;

@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetBorderLerpSizePacket 边界大小插值包对应原版 ClientboundSetBorderLerpSizePacket
-//字段 OldSize(double) NewSize(double) LerpTime(long)
+//ClientboundSetBorderLerpSizePacket border lerp size packet, maps to vanilla ClientboundSetBorderLerpSizePacket
+//Fields: OldSize(double), NewSize(double), LerpTime(long)
 public sealed record ClientboundSetBorderLerpSizePacket(double OldSize, double NewSize, long LerpTime) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetBorderLerpSizePacket> StreamCodec { get; } = new SetBorderLerpSizeCodec();

@@ -2,8 +2,8 @@ using NetCraft.Commands;
 
 namespace NetCraft.Commands.Exceptions;
 
-//SimpleCommandExceptionType 简单异常类型对应原版SimpleCommandExceptionType
-//持有固定Message创建无参数或带reader上下文的CommandSyntaxException
+//SimpleCommandExceptionType maps to vanilla SimpleCommandExceptionType
+//Holds a fixed Message and creates a CommandSyntaxException with no arguments or with reader context
 public sealed class SimpleCommandExceptionType : ICommandExceptionType
 {
     private readonly IMessage _message;

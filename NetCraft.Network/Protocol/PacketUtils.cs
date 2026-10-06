@@ -2,13 +2,13 @@ using NetCraft.Logging;
 
 namespace NetCraft.Network.Protocol;
 
-//PacketUtils 包工具类对应原版 net.minecraft.network.protocol.PacketUtils
-//简化版省略 ServerLevel/CrashReport 依赖只保留 EnsureRunningOnSameThread 核心逻辑
+//PacketUtils packet utilities, maps to vanilla net.minecraft.network.protocol.PacketUtils
+//The simplified form omits ServerLevel/CrashReport dependencies and keeps only the EnsureRunningOnSameThread core logic
 public static class PacketUtils
 {
-    //EnsureRunningOnSameThread 检查当前线程是否与处理器相同
-    //不同则调度到主线程并抛异常中断当前处理
-    //对齐原版 ensureRunningOnSameThread 但抛 InvalidOperationException 替代 RunningOnDifferentThreadException
+    //EnsureRunningOnSameThread checks whether the current thread is the same as the handler's
+    //When different it schedules to the main thread and throws to interrupt the current handling
+    //Aligns with vanilla ensureRunningOnSameThread but throws InvalidOperationException instead of RunningOnDifferentThreadException
     public static void EnsureRunningOnSameThread<THandler>(
         Packet<THandler> packet,
         THandler listener,
@@ -18,27 +18,27 @@ public static class PacketUtils
         if (!processor.IsSameThread)
         {
             processor.ScheduleIfPossible(listener, packet);
-            throw new InvalidOperationException("包调度到主线程处理");
+            throw new InvalidOperationException("packet scheduled for main-thread handling");
         }
     }
 
-    //MakeReportedException 包装异常为 InvalidOperationException 对齐原版 makeReportedException
-    //简化版不构造完整 CrashReport 只保留异常链
+    //MakeReportedException wraps an exception as InvalidOperationException, aligns with vanilla makeReportedException
+    //The simplified form does not build a full CrashReport and only keeps the exception chain
     public static Exception MakeReportedException<THandler>(
         Exception cause,
         Packet<THandler> packet,
         THandler listener)
         where THandler : class
     {
-        //原版包装为 ReportedException 含完整 CrashReport
-        //简化版用 InvalidOperationException 包装保留原异常
+        //Vanilla wraps into ReportedException with a full CrashReport
+        //The simplified form wraps with InvalidOperationException, preserving the original exception
         return new InvalidOperationException(
-            $"包处理失败 listener={typeof(THandler).Name} packet={packet.GetType().Name}",
+            $"packet handling failed listener={typeof(THandler).Name} packet={packet.GetType().Name}",
             cause);
     }
 
-    //FillCrashReport 填充崩溃报告对齐原版 fillCrashReport
-    //简化版只记录日志不构造完整 CrashReport
+    //FillCrashReport fills the crash report, aligns with vanilla fillCrashReport
+    //The simplified form only logs and does not build a full CrashReport
     public static void FillCrashReport<THandler>(
         Exception report,
         THandler listener,

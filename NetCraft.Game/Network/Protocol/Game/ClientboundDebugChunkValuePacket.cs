@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundDebugChunkValuePacket 调试区块值包对应原版 ClientboundDebugChunkValuePacket
-//字段 ChunkPos(ChunkPos) Update(DebugSubscription.Update<?>)
+//ClientboundDebugChunkValuePacket debug chunk value packet, maps to vanilla ClientboundDebugChunkValuePacket
+//Fields: ChunkPos(ChunkPos), Update(DebugSubscription.Update<?>)
 public sealed record ClientboundDebugChunkValuePacket(object ChunkPos, object Update) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundDebugChunkValuePacket> StreamCodec { get; } = new DebugChunkValueCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundDebugChunkValuePacket(object ChunkPos, object Up
     private sealed class DebugChunkValueCodec : StreamCodec<FriendlyByteBuf, ClientboundDebugChunkValuePacket>
     {
         public ClientboundDebugChunkValuePacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundDebugChunkValuePacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

@@ -1,7 +1,7 @@
 namespace NetCraft.Registry.Flag;
 
-//特性开关对应原版FeatureFlag
-//掩码是位图里的一位，只在同一个宇宙内有意义
+//Feature flag, maps to vanilla FeatureFlag
+//The mask is one bit in a bitmap and is only meaningful within the same universe
 public sealed class FeatureFlag
 {
     internal readonly FeatureFlagUniverse Universe;

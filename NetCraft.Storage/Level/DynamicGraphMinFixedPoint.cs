@@ -1,44 +1,44 @@
 namespace NetCraft.Storage;
 
-//DynamicGraphMinFixedPoint 距离图最小定点传播对应原版 net.minecraft.world.level.lighting.DynamicGraphMinFixedPoint
-//节点等级取邻居等级加一的最小值 值一变就把节点按优先级入队 主循环按等级从小到大依次收敛
-//光照与区块票共用这套抽象 子类只需给出取等级、写等级、邻居代价三条规则
+//DynamicGraphMinFixedPoint, distance graph min fixed-point propagation, maps to vanilla net.minecraft.world.level.lighting.DynamicGraphMinFixedPoint
+//A node's level is the minimum of neighbor level plus one; when a value changes the node is enqueued by priority, and the main loop converges by ascending level
+//Lighting and chunk tickets share this abstraction; subclasses only supply the three rules: read level, write level, and neighbor cost
 public abstract class DynamicGraphMinFixedPoint
 {
-    //Source 源节点哨兵对应原版 SOURCE 取值与原版 ChunkPos.INVALID_CHUNK_POS 相同
+    //Source, the source node sentinel, maps to vanilla SOURCE; the value equals vanilla ChunkPos.INVALID_CHUNK_POS
     public const long Source = long.MaxValue;
 
-    //NoComputedLevel 未记录计算等级的哨兵对应原版 NO_COMPUTED_LEVEL
+    //NoComputedLevel, sentinel for an unrecorded computed level, maps to vanilla NO_COMPUTED_LEVEL
     private const int NoComputedLevel = 255;
 
     protected readonly int LevelCount;
     private readonly LeveledPriorityQueue _priorityQueue;
-    //_computedLevels 待收敛的计算等级 不存在即视为与当前等级一致
+    //_computedLevels, computed levels pending convergence; absent means it is consistent with the current level
     private readonly Dictionary<long, int> _computedLevels;
     private bool _hasWork;
 
     protected DynamicGraphMinFixedPoint(int levelCount, int minQueueSize, int minMapSize)
     {
-        if (levelCount >= 254) throw new ArgumentException("等级数必须小于 254", nameof(levelCount));
+        if (levelCount >= 254) throw new ArgumentException("Level count must be less than 254", nameof(levelCount));
         LevelCount = levelCount;
         _priorityQueue = new LeveledPriorityQueue(levelCount, minQueueSize);
         _computedLevels = new Dictionary<long, int>(minMapSize);
     }
 
-    //GetComputedLevel 由邻居推该节点应有的等级 对应原版 getComputedLevel
+    //GetComputedLevel derives the node's level from neighbors, maps to vanilla getComputedLevel
     protected abstract int GetComputedLevel(long node, long knownParent, int knownLevelFromParent);
-    //CheckNeighborsAfterUpdate 等级变化后把影响传给邻居 对应原版 checkNeighborsAfterUpdate
+    //CheckNeighborsAfterUpdate propagates the effect to neighbors after a level change, maps to vanilla checkNeighborsAfterUpdate
     protected abstract void CheckNeighborsAfterUpdate(long node, int level, bool onlyDecrease);
-    //GetLevel 读节点当前等级
+    //GetLevel reads the node's current level
     protected abstract int GetLevel(long node);
-    //SetLevel 写节点等级
+    //SetLevel writes the node's level
     protected abstract void SetLevel(long node, int level);
-    //ComputeLevelFromNeighbor 由邻居等级算本节点代价
+    //ComputeLevelFromNeighbor computes this node's cost from a neighbor's level
     protected abstract int ComputeLevelFromNeighbor(long from, long to, int fromLevel);
 
     protected virtual bool IsSource(long node) => node == Source;
 
-    //RemoveFromQueue 把节点从队列摘掉 对应原版 removeFromQueue
+    //RemoveFromQueue removes the node from the queue, maps to vanilla removeFromQueue
     protected void RemoveFromQueue(long node)
     {
         if (!_computedLevels.Remove(node, out var computedLevel)) return;
@@ -47,7 +47,7 @@ public abstract class DynamicGraphMinFixedPoint
         _hasWork = !_priorityQueue.IsEmpty;
     }
 
-    //RemoveIf 按谓词批量摘除 对应原版 removeIf
+    //RemoveIf removes in bulk by predicate, maps to vanilla removeIf
     public void RemoveIf(Func<long, bool> predicate)
     {
         List<long>? removed = null;
@@ -57,7 +57,7 @@ public abstract class DynamicGraphMinFixedPoint
         foreach (var node in removed) RemoveFromQueue(node);
     }
 
-    //CheckNode 重新评估该节点 对应原版 checkNode
+    //CheckNode re-evaluates the node, maps to vanilla checkNode
     protected void CheckNode(long node) => CheckEdge(node, node, LevelCount - 1, false);
 
     protected void CheckEdge(long from, long to, int newLevelFrom, bool onlyDecreased)
@@ -79,7 +79,7 @@ public abstract class DynamicGraphMinFixedPoint
         var oldPriority = CalculatePriority(clampedTo, oldComputedLevel);
         if (clampedTo == newComputedLevel)
         {
-            //本来一致又不需要变就清掉记录 免得队列里留着同一个值
+            //If it was already consistent and needs no change, clear the record so the queue does not keep the same value
             if (!wasConsistent)
             {
                 _priorityQueue.Dequeue(to, oldPriority, LevelCount);
@@ -106,7 +106,7 @@ public abstract class DynamicGraphMinFixedPoint
         var oldComputedLevel = wasConsistent
             ? Math.Clamp(GetLevel(to), 0, LevelCount - 1)
             : storedOldComputedLevel;
-        //邻居推出来的等级和已知的一致时用最宽松的起点重算一次 让它有机会往更低收敛
+        //When the neighbor-derived level equals the known one, recompute from the loosest starting point so it gets a chance to converge lower
         if (levelFrom == oldComputedLevel)
             CheckEdge(from, to, LevelCount - 1,
                 wasConsistent ? oldComputedLevel : GetLevel(to), storedOldComputedLevel, false);
@@ -114,8 +114,8 @@ public abstract class DynamicGraphMinFixedPoint
 
     protected bool HasWork => _hasWork;
 
-    //RunUpdates 主循环 每次取队首节点收敛其等级再传播给邻居 对应原版 runUpdates
-    //返回剩余配额 配额耗完或队列空即停
+    //RunUpdates main loop: take the head node, converge its level, then propagate to neighbors, maps to vanilla runUpdates
+    //Returns the remaining budget; stops when the budget is used up or the queue is empty
     protected int RunUpdates(int count)
     {
         if (_priorityQueue.IsEmpty) return count;
@@ -132,7 +132,7 @@ public abstract class DynamicGraphMinFixedPoint
             }
             else if (computedLevel > level)
             {
-                //算出来的比当前高 先把当前降回最宽松等级再让邻居重算
+                //When the computed level is higher than current, first lower the current to the loosest level, then let neighbors recompute
                 SetLevel(node, LevelCount - 1);
                 if (computedLevel != LevelCount - 1)
                 {
@@ -151,11 +151,11 @@ public abstract class DynamicGraphMinFixedPoint
     private int CalculatePriority(int level, int computedLevel)
         => Math.Min(Math.Min(level, computedLevel), LevelCount - 1);
 
-    //ComputedLevelAt 未记录时返回 255 与原版 defaultReturnValue(-1) 按位与的结果一致
+    //ComputedLevelAt returns 255 when unrecorded, matching the vanilla defaultReturnValue(-1) after a bitwise and
     private int ComputedLevelAt(long node)
         => _computedLevels.TryGetValue(node, out var level) ? level : NoComputedLevel;
 
-    //TakeComputedLevel 取出并移除计算等级 对应原版 computedLevels.remove(node) & 255
+    //TakeComputedLevel takes and removes the computed level, maps to vanilla computedLevels.remove(node) & 255
     private int TakeComputedLevel(long node)
         => _computedLevels.Remove(node, out var level) ? level : NoComputedLevel;
 }

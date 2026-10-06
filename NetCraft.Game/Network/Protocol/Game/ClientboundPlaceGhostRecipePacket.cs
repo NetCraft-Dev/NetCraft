@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundPlaceGhostRecipePacket 占位配方包对应原版 ClientboundPlaceGhostRecipePacket
-//字段 ContainerId(int) RecipeDisplay(RecipeDisplay)
+//ClientboundPlaceGhostRecipePacket place ghost recipe packet, maps to vanilla ClientboundPlaceGhostRecipePacket
+//Fields: ContainerId(int), RecipeDisplay(RecipeDisplay)
 public sealed record ClientboundPlaceGhostRecipePacket(int ContainerId, object RecipeDisplay) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundPlaceGhostRecipePacket> StreamCodec { get; } = new PlaceGhostRecipeCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundPlaceGhostRecipePacket(int ContainerId, object R
     private sealed class PlaceGhostRecipeCodec : StreamCodec<FriendlyByteBuf, ClientboundPlaceGhostRecipePacket>
     {
         public ClientboundPlaceGhostRecipePacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundPlaceGhostRecipePacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

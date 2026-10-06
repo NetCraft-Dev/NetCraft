@@ -1,8 +1,8 @@
 namespace NetCraft.Network.Protocol.Configuration;
 
-//ClientboundSelectKnownPacks 服务端询问客户端已加载的资源包
-//对应原版 net.minecraft.network.protocol.configuration.ClientboundSelectKnownPacks
-//含 List<KnownPack> 已知资源包列表客户端回传已加载的部分
+//ClientboundSelectKnownPacks the server asks the client which resource packs are loaded
+//Maps to vanilla net.minecraft.network.protocol.configuration.ClientboundSelectKnownPacks
+//Contains List<KnownPack>, the known pack list; the client returns the ones it has loaded
 public sealed record ClientboundSelectKnownPacks(List<KnownPack> KnownPacks) : Packet<ClientConfigurationPacketListener>
 {
     public const int MaxPacks = 32;

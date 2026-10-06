@@ -3,41 +3,41 @@ using System.Text;
 
 namespace NetCraft.Nbt;
 
-//NBT 二进制读取器抽象。对应原版 java.io.DataInput。
-//NBT 使用大端字节序（big-endian），本接口所有方法均按大端读写。
-//C# 优化：用 ReadOnlySpan{Byte} + BinaryPrimitives 替代 Java 的逐字节读取。
+//NBT binary reader abstraction. Mirrors vanilla java.io.DataInput.
+//NBT uses big-endian byte order; every method here reads and writes big-endian.
+//C# optimization: ReadOnlySpan{Byte} + BinaryPrimitives replace Java's byte-by-byte reads.
 public interface INbtReader
 {
-    //读取 1 字节（byte）。
+    //Reads 1 byte.
     byte ReadByte();
 
-    //读取 2 字节大端 short。
+    //Reads a 2-byte big-endian short.
     short ReadShort();
 
-    //读取 4 字节大端 int。
+    //Reads a 4-byte big-endian int.
     int ReadInt();
 
-    //读取 8 字节大端 long。
+    //Reads an 8-byte big-endian long.
     long ReadLong();
 
-    //读取 4 字节大端 float。
+    //Reads a 4-byte big-endian float.
     float ReadFloat();
 
-    //读取 8 字节大端 double。
+    //Reads an 8-byte big-endian double.
     long ReadDoubleBits();
 
-    //读取 UTF 字符串（Java modified UTF-8 格式）。
+    //Reads a UTF string (Java modified UTF-8).
     string ReadUtf();
 
-    //跳过 n 个字节。
+    //Skips n bytes.
     void SkipBytes(int n);
 
-    //读取剩余字节到 buffer。
+    //Reads the remaining bytes into buffer.
     void ReadBytes(Span<byte> buffer);
 }
 
-//NBT 二进制写入器抽象。对应原版 java.io.DataOutput。
-//NBT 使用大端字节序。
+//NBT binary writer abstraction. Mirrors vanilla java.io.DataOutput.
+//NBT uses big-endian byte order.
 public interface INbtWriter
 {
     void WriteByte(byte v);
@@ -47,14 +47,14 @@ public interface INbtWriter
     void WriteFloat(float v);
     void WriteDouble(double v);
 
-    //写入 Java modified UTF-8 字符串（2 字节长度前缀 + modified UTF-8 内容）。
+    //Writes a Java modified UTF-8 string (2-byte length prefix + modified UTF-8 payload).
     void WriteUtf(string s);
 
     void WriteBytes(ReadOnlySpan<byte> buffer);
 }
 
-//基于 BinaryReader 的 NBT 读取器实现。
-//大端字节序。
+//NBT reader implementation backed by BinaryReader.
+//Big-endian byte order.
 public sealed class BinaryNbtReader(BinaryReader reader) : INbtReader
 {
     private readonly BinaryReader _reader = reader;
@@ -75,18 +75,18 @@ public sealed class BinaryNbtReader(BinaryReader reader) : INbtReader
 
     public string ReadUtf()
     {
-        // Java modified UTF-8 格式：2 字节长度前缀（unsigned short）+ modified UTF-8 内容
+        // Java modified UTF-8: 2-byte length prefix (unsigned short) + modified UTF-8 payload
         var length = (ushort)ReadShort();
         Span<byte> bytes = length <= 256 ? stackalloc byte[length] : new byte[length];
-        // 走 ReadBytes 而非直接 Read 流可能分块返回 超长字符串会被静默读成残缺数据
+        // Uses ReadBytes instead of Read: a stream may return partial chunks, which would silently truncate long strings
         ReadBytes(bytes);
         return ModifiedUtf8Decoder.Decode(bytes);
     }
 
     public void SkipBytes(int n)
     {
-        // 不能用 BaseStream.Seek：GZipStream 等不支持 Seek 的流会抛 NotSupportedException
-        // 实际读取并丢弃 n 个字节，保证对所有流都可用
+        // BaseStream.Seek is not an option: streams without seek support such as GZipStream throw NotSupportedException
+        // Actually reads and discards n bytes, which works for every stream
         Span<byte> buf = n <= 256 ? stackalloc byte[n] : new byte[n];
         var left = n;
         while (left > 0)
@@ -99,7 +99,7 @@ public sealed class BinaryNbtReader(BinaryReader reader) : INbtReader
 
     public void ReadBytes(Span<byte> buffer)
     {
-        // Stream.Read 单次不保证读满 GZipStream 一类流会分块返回 必须循环到读满为止
+        // A single Stream.Read need not fill the buffer; streams like GZipStream return chunks, so loop until it is full
         var left = buffer.Length;
         while (left > 0)
         {
@@ -111,8 +111,8 @@ public sealed class BinaryNbtReader(BinaryReader reader) : INbtReader
     }
 }
 
-//基于 BinaryWriter 的 NBT 写入器实现。
-//大端字节序。
+//NBT writer implementation backed by BinaryWriter.
+//Big-endian byte order.
 public sealed class BinaryNbtWriter(BinaryWriter writer) : INbtWriter
 {
     private readonly BinaryWriter _writer = writer;
@@ -152,7 +152,7 @@ public sealed class BinaryNbtWriter(BinaryWriter writer) : INbtWriter
 
     public void WriteUtf(string s)
     {
-        // Java modified UTF-8 编码
+        // Java modified UTF-8 encoding
         var bytes = ModifiedUtf8Encoder.Encode(s);
         WriteShort((short)bytes.Length);
         _writer.Write(bytes);
@@ -161,15 +161,15 @@ public sealed class BinaryNbtWriter(BinaryWriter writer) : INbtWriter
     public void WriteBytes(ReadOnlySpan<byte> buffer) => _writer.Write(buffer);
 }
 
-//Java modified UTF-8 解码器。
-//与标准 UTF-8 的差异：
-//- null 字符 (U+0000) 编码为 2 字节 (0xC0 0x80)
-//- 辅助平面字符用代理对编码（CESU-8）
+//Java modified UTF-8 decoder.
+//Differences from standard UTF-8:
+//- the null character (U+0000) is encoded as 2 bytes (0xC0 0x80)
+//- supplementary plane characters are encoded as surrogate pairs (CESU-8)
 internal static class ModifiedUtf8Decoder
 {
     public static string Decode(ReadOnlySpan<byte> bytes)
     {
-        // 大部分情况下是 ASCII，快速路径
+        // Mostly ASCII, so a fast path
         var hasNonAscii = false;
         foreach (var b in bytes)
         {
@@ -180,7 +180,7 @@ internal static class ModifiedUtf8Decoder
             return Encoding.ASCII.GetString(bytes);
         }
 
-        // 慢路径：modified UTF-8 解码
+        // Slow path: modified UTF-8 decoding
         var sb = new StringBuilder(bytes.Length);
         var i = 0;
         while (i < bytes.Length)
@@ -200,7 +200,7 @@ internal static class ModifiedUtf8Decoder
                 var b2 = bytes[i++];
                 var b3 = bytes[i++];
                 var cp = ((b & 0x0F) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F);
-                // CESU-8 代理对处理
+                // CESU-8 surrogate pair handling
                 if (cp is >= 0xD800 and <= 0xDBFF && i + 5 <= bytes.Length)
                 {
                     var nextB = bytes[i++];
@@ -232,14 +232,14 @@ internal static class ModifiedUtf8Encoder
 {
     public static byte[] Encode(string s)
     {
-        // 估算最大长度：每个 char 最多 3 字节（modified UTF-8）
+        // Estimate the maximum length: at most 3 bytes per char (modified UTF-8)
         var bytes = new byte[s.Length * 3];
         var pos = 0;
         foreach (var c in s)
         {
             if (c == 0)
             {
-                // null 编码为 0xC0 0x80
+                // null is encoded as 0xC0 0x80
                 bytes[pos++] = 0xC0;
                 bytes[pos++] = 0x80;
             }
@@ -254,7 +254,7 @@ internal static class ModifiedUtf8Encoder
             }
             else if (char.IsSurrogate(c))
             {
-                // CESU-8 代理对：保持原样编码为两个 3 字节序列
+                // CESU-8 surrogate pairs: encoded as-is into two 3-byte sequences
                 bytes[pos++] = (byte)(0xE0 | (c >> 12));
                 bytes[pos++] = (byte)(0x80 | ((c >> 6) & 0x3F));
                 bytes[pos++] = (byte)(0x80 | (c & 0x3F));

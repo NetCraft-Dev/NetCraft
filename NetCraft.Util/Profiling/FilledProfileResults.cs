@@ -5,8 +5,8 @@ using NetCraft.Logging;
 
 namespace NetCraft.Util.Profiling;
 
-//填充profiler结果对应原版net.minecraft.util.profiling.FilledProfileResults
-//基于entries map生成ResultField列表与文本输出/CSV保存
+//Filled profiler results, maps to vanilla net.minecraft.util.profiling.FilledProfileResults
+//Builds a ResultField list from the entries map plus text output/CSV saving
 public sealed class FilledProfileResults : ProfileResults
 {
     private static readonly ProfilerPathEntry EmptyEntry = new EmptyProfilerPathEntry();
@@ -69,7 +69,7 @@ public sealed class FilledProfileResults : ProfileResults
         return result;
     }
 
-    //直接子路径判断对应原版isDirectChild
+    //Direct child path test, maps to vanilla isDirectChild
     private static bool IsDirectChild(string path, string test)
         => test.Length > path.Length
             && test.StartsWith(path, StringComparison.Ordinal)
@@ -98,8 +98,8 @@ public sealed class FilledProfileResults : ProfileResults
         }
     }
 
-    //完整结果文本对应原版getProfilerResults(timespan, tickspan)
-    //包含header/version/time span/tick span/profile dump/counter dump
+    //Full result text, maps to vanilla getProfilerResults(timespan, tickspan)
+    //Contains header/version/time span/tick span/profile dump/counter dump
     public string GetProfilerResults(long timespan, int tickspan)
     {
         var builder = new StringBuilder();
@@ -189,7 +189,7 @@ public sealed class FilledProfileResults : ProfileResults
         }
     }
 
-    //收集所有counter按名字聚合到树对应原版getCounterValues
+    //Collects all counters aggregating by name into a tree, maps to vanilla getCounterValues
     private IReadOnlyDictionary<string, CounterCollector> GetCounterValues()
     {
         var result = new SortedDictionary<string, CounterCollector>();
@@ -210,7 +210,7 @@ public sealed class FilledProfileResults : ProfileResults
         return result;
     }
 
-    //空PathEntry单例对应原版EMPTY
+    //Empty PathEntry singleton, maps to vanilla EMPTY
     private sealed class EmptyProfilerPathEntry : ProfilerPathEntry
     {
         public long Duration => 0L;
@@ -219,8 +219,8 @@ public sealed class FilledProfileResults : ProfileResults
         public IReadOnlyDictionary<string, long> Counters => new Dictionary<string, long>();
     }
 
-    //counter聚合器对应原版CounterCollector
-    //按路径段构造树selfValue为叶子totalValue为子树和
+    //Counter aggregator, maps to vanilla CounterCollector
+    //Builds a tree by path segment, selfValue is the leaf, totalValue is the subtree sum
     private sealed class CounterCollector
     {
         public long SelfValue;

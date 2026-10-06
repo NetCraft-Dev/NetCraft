@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundLowDiskSpaceWarningPacket 磁盘空间不足警告包对应原版 ClientboundLowDiskSpaceWarningPacket
-//字段 
+//ClientboundLowDiskSpaceWarningPacket low disk space warning packet, maps to vanilla ClientboundLowDiskSpaceWarningPacket
+//Fields:
 public sealed record ClientboundLowDiskSpaceWarningPacket() : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundLowDiskSpaceWarningPacket> StreamCodec { get; } = new LowDiskSpaceWarningCodec();

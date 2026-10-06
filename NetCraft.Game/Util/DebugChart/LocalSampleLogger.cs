@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Util.DebugChart;
 
-//LocalSampleLogger 服务端本地采样环形缓冲 对应原版 net.minecraft.util.debugchart.LocalSampleLogger
-//固定保留最近 240 帧 写满从头覆盖 供 /debug 图表读取
+//LocalSampleLogger server-side local sampling ring buffer, maps to vanilla net.minecraft.util.debugchart.LocalSampleLogger
+//Keeps the latest 240 frames; overwrites from the start when full; read by the /debug chart
 public class LocalSampleLogger : AbstractSampleLogger, SampleStorage
 {
     public const int CapacityLimit = 240;

@@ -2,11 +2,11 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Protocol.Cookie;
 
-//ServerboundCookieResponsePacket 客户端 cookie 响应包对应原版 net.minecraft.network.protocol.cookie.ServerboundCookieResponsePacket
-//含 Identifier key 和 byte[] payload 客户端回传服务端请求的 cookie 值
+//ServerboundCookieResponsePacket client cookie response packet, maps to vanilla net.minecraft.network.protocol.cookie.ServerboundCookieResponsePacket
+//Contains Identifier key and byte[] payload; the client returns the cookie value the server requested
 public sealed record ServerboundCookieResponsePacket(Identifier Key, byte[] Payload) : Packet<ServerCookiePacketListener>
 {
-    //MaxPayloadLength payload 最大长度 1024 对齐原版 MAX_PAYLOAD_LENGTH
+    //MaxPayloadLength maximum payload length 1024, aligns with vanilla MAX_PAYLOAD_LENGTH
     public const int MaxPayloadLength = 1024;
 
     public static StreamCodec<FriendlyByteBuf, ServerboundCookieResponsePacket> StreamCodec { get; } = new CookieResponseCodec();

@@ -2,7 +2,7 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.Environment;
 
-//AttributeModifier 属性修饰符，把 argument 应用到主体值上对应原版 AttributeModifier
+//AttributeModifier attribute modifier applying an argument to the subject value, maps to vanilla AttributeModifier
 public interface AttributeModifier<Subject, Argument>
 {
     Subject Apply(Subject subject, Argument argument);
@@ -10,10 +10,10 @@ public interface AttributeModifier<Subject, Argument>
     Codec<Argument> ArgumentCodec(EnvironmentAttribute<Subject> attribute);
 }
 
-//AttributeModifier 静态入口，提供 override 与各值类型的修饰符库对应原版 AttributeModifier
+//AttributeModifier static entry point providing override and the modifier library for each value type, maps to vanilla AttributeModifier
 public static class AttributeModifier
 {
-    //OperationId 修饰符操作标识对应原版 AttributeModifier.OperationId
+    //OperationId modifier operation id, maps to vanilla AttributeModifier.OperationId
     public enum OperationId
     {
         Override,
@@ -32,7 +32,7 @@ public static class AttributeModifier
         Xnor
     }
 
-    //OperationIdCodec 按字符串名编解码操作标识
+    //OperationIdCodec encodes/decodes the operation id by string name
     public static readonly Codec<OperationId> OperationIdCodec = new OperationIdCodecImpl();
 
     private static readonly Dictionary<string, OperationId> NameToOperation = new()
@@ -53,7 +53,7 @@ public static class AttributeModifier
         ["xnor"] = OperationId.Xnor
     };
 
-    //GetSerializedName 取操作标识的存档名
+    //GetSerializedName gets the operation id's save name
     public static string GetSerializedName(OperationId id) => id switch
     {
         OperationId.Override => "override",
@@ -75,7 +75,7 @@ public static class AttributeModifier
 
     public static bool TryFromName(string name, out OperationId id) => NameToOperation.TryGetValue(name, out id);
 
-    //Override 直接用参数覆盖主体值
+    //Override directly replaces the subject value with the argument
     public static AttributeModifier<Value, object> Override<Value>() => OverrideModifier<Value>.Instance;
 
     public static readonly IReadOnlyDictionary<OperationId, AttributeModifier<bool, object>> BooleanLibrary =
@@ -131,7 +131,7 @@ public static class AttributeModifier
         };
 }
 
-//OverrideModifier 恒返回参数的修饰符对应原版 AttributeModifier.OverrideModifier
+//OverrideModifier a modifier that always returns the argument, maps to vanilla AttributeModifier.OverrideModifier
 internal sealed class OverrideModifier<Value> : AttributeModifier<Value, object>
 {
     public static readonly OverrideModifier<Value> Instance = new();
@@ -142,7 +142,7 @@ internal sealed class OverrideModifier<Value> : AttributeModifier<Value, object>
         => new ObjectValueCodec<Value>(attribute.ValueCodec);
 }
 
-//ObjectArgumentModifier 把具体 Argument 类型擦除为 object 以便放进修饰符库
+//ObjectArgumentModifier erases the concrete Argument type to object so it can go into the modifier library
 internal sealed class ObjectArgumentModifier<Subject, Argument> : AttributeModifier<Subject, object>
 {
     private readonly AttributeModifier<Subject, Argument> _inner;
@@ -155,7 +155,7 @@ internal sealed class ObjectArgumentModifier<Subject, Argument> : AttributeModif
         => new ObjectValueCodec<Argument>(_inner.ArgumentCodec(attribute));
 }
 
-//OperationIdCodecImpl 操作标识的字符串编解码
+//OperationIdCodecImpl string encoding/decoding for the operation id
 internal sealed class OperationIdCodecImpl : ScalarCodec<AttributeModifier.OperationId>
 {
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, AttributeModifier.OperationId value)

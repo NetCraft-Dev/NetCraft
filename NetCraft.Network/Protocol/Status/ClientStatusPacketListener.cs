@@ -2,14 +2,14 @@ using NetCraft.Network.Protocol.Ping;
 
 namespace NetCraft.Network.Protocol.Status;
 
-//ClientStatusPacketListener 客户端 status 监听器对应原版 net.minecraft.network.protocol.status.ClientStatusPacketListener
-//继承 ClientboundPacketListener 和 ClientPongPacketListener
-//Protocol 固定 STATUS
+//ClientStatusPacketListener client status listener, maps to vanilla net.minecraft.network.protocol.status.ClientStatusPacketListener
+//Inherits ClientboundPacketListener and ClientPongPacketListener
+//Protocol is fixed to STATUS
 public interface ClientStatusPacketListener : ClientboundPacketListener, ClientPongPacketListener
 {
-    //HandleStatusResponse 处理 status 响应包
+    //HandleStatusResponse handles the status response packet
     void HandleStatusResponse(ClientboundStatusResponsePacket packet);
 
-    //Protocol 固定为 STATUS
+    //Protocol is fixed to STATUS
     ConnectionProtocol PacketListener.Protocol => ConnectionProtocol.Status;
 }

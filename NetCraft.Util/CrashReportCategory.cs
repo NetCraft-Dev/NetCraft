@@ -3,8 +3,8 @@ using System.Text;
 
 namespace NetCraft.Util;
 
-//崩溃报告分类对应原版net.minecraft.CrashReportCategory
-//包含标题键值对详情与堆栈
+//Crash report category, maps to vanilla net.minecraft.CrashReportCategory
+//Holds a title, key-value details and stack
 public sealed class CrashReportCategory
 {
     private static readonly string NewLine = Environment.NewLine;
@@ -14,15 +14,15 @@ public sealed class CrashReportCategory
 
     public CrashReportCategory(string title) => _title = title;
 
-    //设置详情键值对对应原版setDetail
+    //Sets a detail key-value pair, maps to vanilla setDetail
     public CrashReportCategory SetDetail(string key, object? value)
     {
         _entries.Add(new Entry(key, value));
         return this;
     }
 
-    //填充当前调用栈对应原版fillInStackTrace
-    //nestedOffset跳过外层调用栈帧
+    //Fills in the current call stack, maps to vanilla fillInStackTrace
+    //nestedOffset skips outer call stack frames
     public int FillInStackTrace(int nestedOffset)
     {
         _stackTrace = new StackTrace(nestedOffset + 1, fNeedFileInfo: true);
@@ -50,7 +50,7 @@ public sealed class CrashReportCategory
 
     public StackTrace GetStackTrace() => _stackTrace;
 
-    //详情条目对应原版CrashReportCategory.Entry
+    //Detail entry, maps to vanilla CrashReportCategory.Entry
     private sealed class Entry
     {
         public string Key { get; }
@@ -62,7 +62,7 @@ public sealed class CrashReportCategory
             Value = FormatValue(rawValue);
         }
 
-        //对应原版Entry构造对null与Throwable的特殊格式化
+        //Maps to vanilla Entry construction with special formatting for null and Throwable
         private static string FormatValue(object? rawValue)
         {
             if (rawValue is null) return "~~NULL~~";

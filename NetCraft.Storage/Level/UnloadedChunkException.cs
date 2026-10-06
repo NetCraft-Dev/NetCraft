@@ -2,8 +2,8 @@ using System;
 
 namespace NetCraft.Storage;
 
-//UnloadedChunkException 区块未加载异常对应原版 net.minecraft.world.level.chunk.ChunkLoadingFailure
-//ChunkResult 的 Either 右侧用于包装加载失败场景供调度链传递而非抛异常中断
+//UnloadedChunkException, chunk-not-loaded exception, maps to vanilla net.minecraft.world.level.chunk.ChunkLoadingFailure
+//Used as the right side of ChunkResult's Either to wrap a load failure for the scheduling chain, instead of throwing and aborting
 public sealed class UnloadedChunkException : Exception
 {
     public UnloadedChunkException() : base("Chunk is not loaded") { }

@@ -1,14 +1,14 @@
 namespace NetCraft.Registry.EntityAttribute;
 
-//Attributes 实体属性条目 对应原版 net.minecraft.world.entity.ai.attributes.Attributes
-//原版字段是 Holder<Attribute> 这里直接用属性实例 注册表里 id 与实例一一对应
-//字段只是属性实例 归属注册表的登记动作在 Bootstrap 里做 必须早于注册表冻结
+//Attributes entity attribute entries, maps to vanilla net.minecraft.world.entity.ai.attributes.Attributes
+//Vanilla fields are Holder<Attribute>; here the attribute instance is used directly since ids and instances map one-to-one in the registry
+//The fields are just attribute instances; registering them into the registry happens in Bootstrap and must precede the registry freeze
 public static class Attributes
 {
-    //DefaultAttackSpeed 默认攻击速度 对应原版同名常量
+    //DefaultAttackSpeed default attack speed, maps to the vanilla constant of the same name
     public const double DefaultAttackSpeed = 4.0;
 
-    //Pending 待登记项 静态字段按声明顺序灌进来 Bootstrap 统一写注册表
+    //Pending entries to register; static fields are filled in declaration order and Bootstrap writes them to the registry in one pass
     private static readonly List<(string Id, Attribute Attribute)> Pending = new();
 
     private static bool _bootstrapped;
@@ -61,8 +61,8 @@ public static class Attributes
     public static readonly Attribute WaypointReceiveRange =
         Ranged("waypoint_receive_range", 0.0, 0.0, 6.0E7, false, Attribute.Sentiment.Neutral);
 
-    //Bootstrap 把全部属性登记进注册表 对应原版 Attributes.bootstrap
-    //访问本方法会先触发静态构造 全部字段按声明顺序灌进 Pending 再统一注册
+    //Bootstrap registers all attributes into the registry, maps to vanilla Attributes.bootstrap
+    //Calling this method first triggers static construction, filling Pending in declaration order before registering them all
     public static void Bootstrap()
     {
         if (_bootstrapped) return;
@@ -71,7 +71,7 @@ public static class Attributes
             Registry<Attribute>.Register(BuiltInRegistries.ATTRIBUTE, Identifier.WithDefaultNamespace(id), attribute);
     }
 
-    //Ranged 建一条带区间的属性 描述键按原版拼 attribute.name.<id>
+    //Ranged builds a ranged attribute; the description key is built as vanilla attribute.name.<id>
     private static Attribute Ranged(string id, double defaultValue, double minValue, double maxValue,
         bool syncable = false, Attribute.Sentiment sentiment = Attribute.Sentiment.Positive)
     {

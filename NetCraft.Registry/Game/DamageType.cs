@@ -2,8 +2,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry;
 
-//DamageType 伤害类型 对应原版 net.minecraft.world.damagesource.DamageType
-//记录伤害的消息键 缩放规则 饥饿消耗 受伤表现与死亡消息类型
+//DamageType damage type, maps to vanilla net.minecraft.world.damagesource.DamageType
+//Records the damage message key, scaling rule, exhaustion, hurt effect and death message type
 public sealed record DamageType(
     string MessageId,
     DamageScaling Scaling,
@@ -11,8 +11,8 @@ public sealed record DamageType(
     DamageEffects Effects,
     DeathMessageType DeathMessageType)
 {
-    //Codec 持久化编解码 字段名 message_id scaling exhaustion effects death_message_type
-    //effects 默认 HURT 死亡消息类型默认 DEFAULT 对应原版 DIRECT_CODEC
+    //Codec persistence codec with fields message_id scaling exhaustion effects death_message_type
+    //effects defaults to HURT and the death message type to DEFAULT, maps to vanilla DIRECT_CODEC
     public static readonly Codec<DamageType> Codec = RecordCodecBuilder.Of5(
         Codecs.String.FieldOf("message_id").ForGetter((DamageType type) => type.MessageId),
         DamageScalingCodecs.Codec.FieldOf("scaling").ForGetter((DamageType type) => type.Scaling),
@@ -24,19 +24,19 @@ public sealed record DamageType(
         (messageId, scaling, exhaustion, effects, deathMessageType) =>
             new DamageType(messageId, scaling, exhaustion, effects, deathMessageType));
 
-    //只给缩放规则与消耗 对应原版三参构造
+    //Only scaling rule and exhaustion, maps to the vanilla three-argument constructor
     public DamageType(string messageId, DamageScaling scaling, float exhaustion)
         : this(messageId, scaling, exhaustion, DamageEffects.HURT, DeathMessageType.DEFAULT) { }
 
-    //再给受伤表现 对应原版四参构造
+    //Also provides the hurt effect, maps to the vanilla four-argument constructor
     public DamageType(string messageId, DamageScaling scaling, float exhaustion, DamageEffects effects)
         : this(messageId, scaling, exhaustion, effects, DeathMessageType.DEFAULT) { }
 
-    //只给消耗与表现 缩放取 WHEN_CAUSED_BY_LIVING_NON_PLAYER 对应原版三参重载
+    //Only exhaustion and effect, with scaling set to WHEN_CAUSED_BY_LIVING_NON_PLAYER, maps to the vanilla three-argument overload
     public DamageType(string messageId, float exhaustion, DamageEffects effects)
         : this(messageId, DamageScaling.WHEN_CAUSED_BY_LIVING_NON_PLAYER, exhaustion, effects) { }
 
-    //只给消耗 对应原版两参构造
+    //Only exhaustion, maps to the vanilla two-argument constructor
     public DamageType(string messageId, float exhaustion)
         : this(messageId, DamageScaling.WHEN_CAUSED_BY_LIVING_NON_PLAYER, exhaustion) { }
 }

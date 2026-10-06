@@ -1,60 +1,60 @@
 namespace NetCraft.Network;
 
-//StreamCodec 流式编解码器接口对应原版 net.minecraft.network.codec.StreamCodec
-//B 是 buffer 类型V 是 value 类型encode/decode 实现具体编解码
-//B 标记 in 逆变让 StreamCodec<FriendlyByteBuf, V> 可隐式转 StreamCodec<RegistryFriendlyByteBuf, V>
+//StreamCodec streaming codec interface, maps to vanilla net.minecraft.network.codec.StreamCodec
+//B is the buffer type and V is the value type; encode/decode implement the actual coding
+//B is marked in (contravariant) so StreamCodec<FriendlyByteBuf, V> implicitly converts to StreamCodec<RegistryFriendlyByteBuf, V>
 public interface StreamCodec<in B, V>
 {
-    //decode 从 buffer 反序列化为 value
+    //decode deserializes from buffer to value
     V Decode(B buf);
 
-    //encode 把 value 序列化到 buffer
+    //encode serializes value into buffer
     void Encode(B buf, V value);
 }
 
-//IObjectEncodable 支持以 object 编码的非泛型编解码器接口
-//common 包静态类型是 Packet<父监听器> 无法强转 Packet<子监听器> 编码链需按 object 传递
+//IObjectEncodable non-generic codec interface supporting encoding as object
+//common packets have the static type Packet<parent listener> and cannot be cast to Packet<child listener>, so the encode chain must pass them as object
 internal interface IObjectEncodable
 {
-    //EncodeObject 以 object 形式编码包实现内部按实际类型提取
+    //EncodeObject encodes a packet as object, extracting by its actual type inside the implementation
     void EncodeObject(RegistryFriendlyByteBuf buf, object packet);
 }
 
-//StreamCodecs 静态工厂类提供基础编解码器
+//StreamCodecs static factory class providing basic codecs
 public static class StreamCodecs
 {
-    //Bool bool 编解码器读 1 字节布尔
+    //Bool bool codec reading a 1-byte boolean
     public static StreamCodec<T, bool> Bool<T>(Func<T, bool> reader, Action<T, bool> writer)
         where T : class
         => new FuncCodec<T, bool>(reader, writer);
 
-    //Byte byte 编解码器读 1 字节
+    //Byte byte codec reading 1 byte
     public static StreamCodec<T, byte> Byte<T>(Func<T, byte> reader, Action<T, byte> writer)
         where T : class
         => new FuncCodec<T, byte>(reader, writer);
 
-    //Int int 编解码器大端 4 字节
+    //Int int codec, big-endian 4 bytes
     public static StreamCodec<T, int> Int<T>(Func<T, int> reader, Action<T, int> writer)
         where T : class
         => new FuncCodec<T, int>(reader, writer);
 
-    //VarInt 可变长度 int 编解码器
+    //VarInt variable-length int codec
     public static StreamCodec<T, int> VarInt<T>(Func<T, int> reader, Action<T, int> writer)
         where T : class
         => new FuncCodec<T, int>(reader, writer);
 
-    //Long long 编解码器大端 8 字节
+    //Long long codec, big-endian 8 bytes
     public static StreamCodec<T, long> Long<T>(Func<T, long> reader, Action<T, long> writer)
         where T : class
         => new FuncCodec<T, long>(reader, writer);
 
-    //String UTF-8 字符串编解码器前置长度前缀
+    //String UTF-8 string codec with a leading length prefix
     public static StreamCodec<T, string> String<T>(Func<T, string> reader, Action<T, string> writer)
         where T : class
         => new FuncCodec<T, string>(reader, writer);
 }
 
-//FuncCodec 函数式编解码器实现把 reader/writer 委托包装为 StreamCodec
+//FuncCodec functional codec implementation wrapping reader/writer delegates as a StreamCodec
 internal sealed class FuncCodec<B, V> : StreamCodec<B, V> where B : class
 {
     private readonly Func<B, V> _reader;

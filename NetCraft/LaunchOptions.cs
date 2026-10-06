@@ -1,8 +1,8 @@
 namespace NetCraft;
 
-//LaunchArgEventArgs 单个未识别启动参数事件数据
-//Token 是原始参数字符串如 --game-dir 或 /path/to/dir
-//Index 是在 args 数组中的位置供订阅者定位关联参数
+//LaunchArgEventArgs data for a single unhandled launch argument event
+//Token is the raw argument string, such as --game-dir or /path/to/dir
+//Index is the position in the args array, for subscribers to locate related arguments
 public sealed class LaunchArgEventArgs : EventArgs
 {
     public string Token { get; }
@@ -15,39 +15,39 @@ public sealed class LaunchArgEventArgs : EventArgs
     }
 }
 
-//LaunchOptions 启动参数事件驱动解析器
-//内核识别的参数直接消化不发出 未识别的通过 UnhandledArgument 事件广播
-//Game 等业务模块订阅事件自行解析累积到自己的配置容器
-//DeclareKernelFlag/DeclareKernelOption 内核子模块在 Initialize 前声明自己消费的参数
+//LaunchOptions event-driven launch argument parser
+//Arguments the kernel recognizes are consumed directly and not emitted; unhandled ones are broadcast through the UnhandledArgument event
+//Business modules such as Game subscribe to the event and parse them into their own config containers
+//DeclareKernelFlag/DeclareKernelOption let kernel sub-modules declare the arguments they consume before Initialize
 public static class LaunchOptions
 {
     private static readonly HashSet<string> _kernelFlags = new(StringComparer.Ordinal);
     private static readonly HashSet<string> _kernelOptions = new(StringComparer.Ordinal);
     private static int _parsed;
 
-    //UnhandledArgument 未识别参数事件
-    //订阅者按需解析累积到自己的配置容器
+    //UnhandledArgument unhandled argument event
+    //Subscribers parse on demand and accumulate into their own config containers
     public static event EventHandler<LaunchArgEventArgs>? UnhandledArgument;
 
-    //DeclareKernelFlag 声明内核消费的布尔 flag
-    //解析时遇到 --{name} 内核直接吞掉不发出
+    //DeclareKernelFlag declares a boolean flag consumed by the kernel
+    //When parsing, on --{name} the kernel swallows it directly without emitting
     public static void DeclareKernelFlag(string name)
     {
         ThrowIfAlreadyParsed();
         _kernelFlags.Add(name);
     }
 
-    //DeclareKernelOption 声明内核消费的带值参数
-    //解析时遇到 --{name} value 或 --{name}=value 内核直接吞掉不发出
+    //DeclareKernelOption declares a valued argument consumed by the kernel
+    //When parsing, on --{name} value or --{name}=value the kernel swallows it directly without emitting
     public static void DeclareKernelOption(string name)
     {
         ThrowIfAlreadyParsed();
         _kernelOptions.Add(name);
     }
 
-    //Parse 解析 args 数组
-    //内核识别的 flag/option 消费 未识别的 token 通过 UnhandledArgument 逐个发出
-    //幂等：多次调用只生效一次
+    //Parse parses the args array
+    //Flag/option arguments the kernel recognizes are consumed; unhandled tokens are emitted one by one via UnhandledArgument
+    //Idempotent: multiple calls take effect only once
     public static void Parse(string[] args)
     {
         if (Interlocked.Exchange(ref _parsed, 1) == 1) return;
@@ -93,7 +93,7 @@ public static class LaunchOptions
         }
     }
 
-    //Reset 重置内部状态仅测试用
+    //Reset resets internal state; for testing only
     public static void Reset()
     {
         _kernelFlags.Clear();
@@ -110,6 +110,6 @@ public static class LaunchOptions
     private static void ThrowIfAlreadyParsed()
     {
         if (_parsed != 0)
-            throw new InvalidOperationException("LaunchOptions 已解析不能再声明内核参数");
+            throw new InvalidOperationException("LaunchOptions already parsed; cannot declare kernel arguments");
     }
 }

@@ -2,35 +2,35 @@ using NetCraft.Config;
 
 namespace NetCraft.Optimizations.Commands;
 
-//Commands 优化模块对应核心优化点 2.9
-//实际优化待 NetCraft.Commands 子系统重构后集成
-//CommandNode 当前是 abstract class 形态保持兼容现有 LiteralCommandNode/ArgumentCommandNode 派生类
-//开关启用表示采用 string.Intern + List 查询等价优化方案
+//Commands optimization module, covers core optimization point 2.9
+//The actual optimization lands after the NetCraft.Commands subsystem refactor
+//CommandNode is currently an abstract class to stay compatible with the existing LiteralCommandNode/ArgumentCommandNode derived types
+//When the toggle is on, it uses the string.Intern + List lookup equivalent approach
 public static class CommandsOptimizations
 {
     public const string ModuleName = "Commands Optimization";
     public const string TargetSubsystem = "NetCraft.Commands";
 
-    //对应优化点 2.9 brigadier CommandNode 用 readonly struct + ImmutableArray
-    //开关启用表示 CommandNode 子节点查询走 List 线性查找等价 struct 索引语义
-    //CommandNode 保持 class 形态避免破坏 LiteralCommandNode/ArgumentCommandNode 派生类
+    //Optimization point 2.9, brigadier CommandNode as readonly struct + ImmutableArray
+    //When the toggle is on, CommandNode child lookups go through a List linear scan as struct indexing equivalent
+    //CommandNode stays a class to avoid breaking the LiteralCommandNode/ArgumentCommandNode derived types
     public static bool IsCommandNodeStructEnabled => OptimizationFlags.CommandNodeStruct;
 
-    //对应优化点 2.9 命令字符串 key 用 string.Intern 池化
-    //开关启用表示 GetChild 按 name 查找将走 string.Intern 池化路径
+    //Optimization point 2.9, command string keys are interned with string.Intern
+    //When the toggle is on, GetChild lookups by name go through the string.Intern path
     public static bool IsCommandStringInternEnabled => OptimizationFlags.CommandStringIntern;
 
-    //IsOptimized 检查两开关是否全开判断 Commands 优化是否启用
+    //IsOptimized checks whether both toggles are on to decide if Commands optimization is enabled
     public static bool IsOptimized => IsCommandNodeStructEnabled && IsCommandStringInternEnabled;
 
-    //GetStats 返回 Commands 优化统计信息用于诊断
+    //GetStats returns the Commands optimization stats for diagnostics
     public static CommandsOptimizationStats GetStats() => new(
         CommandNodeStruct: IsCommandNodeStructEnabled,
         CommandStringIntern: IsCommandStringInternEnabled,
         IsOptimized: IsOptimized);
 }
 
-//Commands 优化统计快照
+//Commands optimization stats snapshot
 public readonly record struct CommandsOptimizationStats(
     bool CommandNodeStruct,
     bool CommandStringIntern,

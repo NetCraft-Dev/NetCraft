@@ -1,22 +1,22 @@
 namespace NetCraft.Network.Protocol.Login;
 
-//ClientboundLoginFinishedPacket 服务端登录完成包对应原版 net.minecraft.network.protocol.login.ClientboundLoginFinishedPacket
-//含 GameProfile 和 sessionId UUID
-//IsTerminal true 表示登录完成切换到 CONFIGURATION
+//ClientboundLoginFinishedPacket server login finished packet, maps to vanilla net.minecraft.network.protocol.login.ClientboundLoginFinishedPacket
+//Contains GameProfile and sessionId UUID
+//IsTerminal true means login is complete and it switches to CONFIGURATION
 public sealed record ClientboundLoginFinishedPacket(GameProfile GameProfile, Guid SessionId) : Packet<ClientLoginPacketListener>
 {
-    //StreamCodec 包编解码器
+    //StreamCodec packet codec
     public static StreamCodec<FriendlyByteBuf, ClientboundLoginFinishedPacket> StreamCodec { get; } = new FinishedCodec();
 
     public PacketType<ClientLoginPacketListener> Type => LoginPacketTypes.ClientboundLoginFinished;
 
-    //IsTerminal 登录完成后切换到 CONFIGURATION
+    //IsTerminal switches to CONFIGURATION after login completes
     public bool IsTerminal => true;
 
     public void Handle(ClientLoginPacketListener handler) => handler.HandleLoginFinished(this);
 
-    //FinishedCodec 编解码器读写 GameProfile(uuid+name+properties) + sessionId UUID
-    //S4 对齐原版 ByteBufCodecs.GAME_PROFILE = UUID + PLAYER_NAME + GAME_PROFILE_PROPERTIES
+    //FinishedCodec codec reading and writing GameProfile(uuid+name+properties) + sessionId UUID
+    //S4 aligns with vanilla ByteBufCodecs.GAME_PROFILE = UUID + PLAYER_NAME + GAME_PROFILE_PROPERTIES
     private sealed class FinishedCodec : StreamCodec<FriendlyByteBuf, ClientboundLoginFinishedPacket>
     {
         public ClientboundLoginFinishedPacket Decode(FriendlyByteBuf buf)
@@ -38,7 +38,7 @@ public sealed record ClientboundLoginFinishedPacket(GameProfile GameProfile, Gui
         {
             buf.WriteUuid(value.GameProfile.Id);
             buf.WriteString(value.GameProfile.Name, 16);
-            //properties 空列表 0 个 S4 不实现签名属性
+            //properties an empty list, 0 entries; S4 does not implement signed properties
             buf.WriteVarInt(0);
             buf.WriteUuid(value.SessionId);
         }

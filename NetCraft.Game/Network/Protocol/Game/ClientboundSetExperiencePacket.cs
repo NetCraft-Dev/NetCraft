@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetExperiencePacket 经验值包对应原版 ClientboundSetExperiencePacket
-//字段 ExperienceProgress(float) TotalExperience(int) ExperienceLevel(int)
+//ClientboundSetExperiencePacket experience packet, maps to vanilla ClientboundSetExperiencePacket
+//Fields: ExperienceProgress(float), TotalExperience(int), ExperienceLevel(int)
 public sealed record ClientboundSetExperiencePacket(float ExperienceProgress, int TotalExperience, int ExperienceLevel) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetExperiencePacket> StreamCodec { get; } = new SetExperienceCodec();
@@ -12,7 +12,7 @@ public sealed record ClientboundSetExperiencePacket(float ExperienceProgress, in
 
     private sealed class SetExperienceCodec : StreamCodec<FriendlyByteBuf, ClientboundSetExperiencePacket>
     {
-        //S4 原版顺序 progress(float) level(varint) total(varint) 非 total 在前
+        //S4 vanilla order: progress(float) level(varint) total(varint); note total is not first
         public ClientboundSetExperiencePacket Decode(FriendlyByteBuf buf)
         {
             var progress = buf.ReadFloat();

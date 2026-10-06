@@ -1,6 +1,6 @@
 namespace NetCraft.Registry;
 
-//FluidIds 流体注册键 对应原版 net.minecraft.world.level.material.FluidIds
+//FluidIds fluid registry keys, maps to vanilla net.minecraft.world.level.material.FluidIds
 public static class FluidIds
 {
     public static readonly ResourceKey<Fluid> Empty = Key("empty");

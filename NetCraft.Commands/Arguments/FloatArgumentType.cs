@@ -3,8 +3,8 @@ using NetCraft.Commands.Exceptions;
 
 namespace NetCraft.Commands.Arguments;
 
-//FloatArgumentType 单精度参数类型对应原版com.mojang.brigadier.arguments.FloatArgumentType
-//限定min/max范围并解析float值越界抛FloatTooLow/High
+//FloatArgumentType float argument type, maps to vanilla com.mojang.brigadier.arguments.FloatArgumentType
+//Constrains the value to min/max, parsing a float and throwing FloatTooLow/High when out of range
 public sealed class FloatArgumentType : ArgumentType<float>
 {
     private static readonly IReadOnlyList<string> _examples = new[] { "0", "1.2", ".5", "-1", "-.5", "-1234.56" };

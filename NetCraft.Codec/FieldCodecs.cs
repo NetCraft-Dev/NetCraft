@@ -1,7 +1,7 @@
 namespace NetCraft.Codec;
 
-//fieldOf(name)实现对应原版FieldCodec
-//Decode从MapLike取name字段EncodeTo把字段值Add到builder
+//fieldOf(name) implementation, mirroring vanilla FieldCodec
+//Decode takes the name field from the MapLike and EncodeTo Adds the field value to the builder
 internal sealed class FieldMapCodec<T> : AbstractMapCodec<T>
 {
     private readonly string _name;
@@ -13,7 +13,7 @@ internal sealed class FieldMapCodec<T> : AbstractMapCodec<T>
         _elementCodec = elementCodec;
     }
 
-    //字段缺失返回Error对应原版必填字段行为
+    //A missing field returns an Error, matching the vanilla required-field behavior
     public override DataResult<T> Decode<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var value = input.Get(_name);
@@ -29,8 +29,8 @@ internal sealed class FieldMapCodec<T> : AbstractMapCodec<T>
     }
 }
 
-//optionalFieldOf(name, default)对应原版OptionalFieldCodec带默认值
-//字段缺失用defaultEncodeTo总是写入
+//optionalFieldOf(name, default), mirroring vanilla OptionalFieldCodec with a default value
+//A missing field uses default and EncodeTo always writes
 internal sealed class OptionalFieldMapCodec<T> : AbstractMapCodec<T>
 {
     private readonly string _name;
@@ -59,8 +59,8 @@ internal sealed class OptionalFieldMapCodec<T> : AbstractMapCodec<T>
     }
 }
 
-//optionalFieldOf(name)无default返回Optional<T>对应原版OptionalFieldCodec
-//字段缺失返回Optional.Empty
+//optionalFieldOf(name) without a default returns Optional<T>, mirroring vanilla OptionalFieldCodec
+//A missing field returns Optional.Empty
 internal sealed class OptionalFieldMapCodecOptional<T> : AbstractMapCodec<Optional<T>>
 {
     private readonly string _name;
@@ -80,7 +80,7 @@ internal sealed class OptionalFieldMapCodecOptional<T> : AbstractMapCodec<Option
             : DataResult<Optional<T>>.Success(Optional<T>.Empty());
     }
 
-    //空Optional不写字段对应原版忽略空值
+    //An empty Optional writes no field, matching vanilla's ignoring of empty values
     public override RecordBuilder<U> EncodeTo<U>(DynamicOps<U> ops, Optional<T> value, RecordBuilder<U> builder)
     {
         if (value.IsPresent)

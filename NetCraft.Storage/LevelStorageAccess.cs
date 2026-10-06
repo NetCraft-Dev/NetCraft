@@ -4,7 +4,7 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage;
 
-//预定义维度 ResourceKey<Level> 对应原版 net.minecraft.world.level.Level.OVERWORLD/NETHER/END
+//Predefined dimension ResourceKey<Level>, maps to vanilla net.minecraft.world.level.Level.OVERWORLD/NETHER/END
 public static class LevelKeys
 {
     public static readonly ResourceKey<Level> OVERWORLD =
@@ -17,30 +17,30 @@ public static class LevelKeys
         ResourceKey<Level>.Create(Registries.DIMENSION, Identifier.WithDefaultNamespace("the_end"));
 }
 
-//LevelStorageAccess 单个世界的存储访问入口
-//对应原版 net.minecraft.world.level.storage.LevelStorageSource.LevelStorageAccess
-//持有 worldDir 与 DirectoryLock，提供按维度获取路径和创建 SimpleRegionStorage 的能力
-//DirectoryLock 防止多进程同时打开同一世界
+//LevelStorageAccess, the storage access entry point for one world
+//Maps to vanilla net.minecraft.world.level.storage.LevelStorageSource.LevelStorageAccess
+//Holds the worldDir and DirectoryLock, providing per-dimension path lookup and SimpleRegionStorage creation
+//DirectoryLock prevents multiple processes opening the same world
 public sealed class LevelStorageAccess : IDisposable
 {
     private readonly string _worldDir;
     private readonly string _worldName;
-    //每个维度一个 SimpleRegionStorage 缓存避免重复创建
+    //One SimpleRegionStorage per dimension, cached to avoid recreating
     private readonly Dictionary<ResourceKey<Level>, SimpleRegionStorage> _dimensionStorages = new();
-    //DirectoryLock 独占 session.lock 防止多进程同时操作同一世界
+    //DirectoryLock exclusively holds session.lock, preventing multiple processes operating the same world
     private readonly DirectoryLock? _directoryLock;
     private bool _disposed;
 
     public string WorldName => _worldName;
     public string WorldDir => _worldDir;
 
-    //LevelDataPath 世界元数据文件路径对应原版 level.dat
+    //LevelDataPath, the world metadata file path, matches vanilla level.dat
     public string LevelDataPath => Path.Combine(_worldDir, "level.dat");
 
-    //LevelDataOldPath 备份文件路径
+    //LevelDataOldPath, the backup file path
     public string LevelDataOldPath => Path.Combine(_worldDir, "level.dat_old");
 
-    //HasLock 指示是否持有目录锁无锁场景下为 false
+    //HasLock reports whether the directory lock is held; false in no-lock scenarios
     public bool HasLock => _directoryLock is not null;
 
     internal LevelStorageAccess(string worldDir, string worldName, bool acquireLock = true)
@@ -51,8 +51,8 @@ public sealed class LevelStorageAccess : IDisposable
             _directoryLock = DirectoryLock.Acquire(worldDir);
     }
 
-    //GetDimensionPath 获取维度数据目录路径
-    //overworld 直接是 worldDir，其他维度在 worldDir/dim_<name>
+    //GetDimensionPath gets the dimension data directory path
+    //overworld is worldDir directly; other dimensions are under worldDir/dim_<name>
     public string GetDimensionPath(ResourceKey<Level> levelKey)
     {
         Log.Debug($"GetDimensionPath entry levelKey={levelKey}");
@@ -66,13 +66,13 @@ public sealed class LevelStorageAccess : IDisposable
         return result;
     }
 
-    //GetRegionPath 获取维度下 region 目录路径
+    //GetRegionPath gets the region directory path under the dimension
     public string GetRegionPath(ResourceKey<Level> levelKey)
         => Path.Combine(GetDimensionPath(levelKey), "region");
 
-    //CreateRegionStorage 为指定维度创建或复用 SimpleRegionStorage
-    //fixer DataFixer 实例用于升级旧版本 chunk
-    //dataFixType DataFixTypes 标识升级类型
+    //CreateRegionStorage creates or reuses the SimpleRegionStorage for the given dimension
+    //fixer, the DataFixer instance used to upgrade older chunks
+    //dataFixType, the DataFixTypes identifying the upgrade kind
     public SimpleRegionStorage CreateRegionStorage(
         ResourceKey<Level> levelKey,
         NetCraft.DataFixer.DataFixer fixer,
@@ -95,16 +95,16 @@ public sealed class LevelStorageAccess : IDisposable
         return storage;
     }
 
-    //GetExistingRegionStorage 获取已创建的维度存储不存在返回 null
+    //GetExistingRegionStorage gets an already-created dimension storage, or null when absent
     public SimpleRegionStorage? GetExistingRegionStorage(ResourceKey<Level> levelKey)
         => _dimensionStorages.TryGetValue(levelKey, out var storage) ? storage : null;
 
     public void Dispose()
     {
-        //Log.Debug($"Dispose 入口");
+        //Log.Debug($"Dispose entry");
         if (_disposed)
         {
-            //Log.Debug($"Dispose 出口");
+            //Log.Debug($"Dispose exit");
             return;
         }
         foreach (var storage in _dimensionStorages.Values)
@@ -112,6 +112,6 @@ public sealed class LevelStorageAccess : IDisposable
         _dimensionStorages.Clear();
         _directoryLock?.Dispose();
         _disposed = true;
-        //Log.Debug($"Dispose 出口");
+        //Log.Debug($"Dispose exit");
     }
 }

@@ -1,18 +1,18 @@
 namespace NetCraft.Util.Parsing.Packrat;
 
-//规则接口对应原版net.minecraft.util.parsing.packrat.Rule
-//parse消费ParseState返回T或null表示失败
+//Rule interface, maps to vanilla net.minecraft.util.parsing.packrat.Rule
+//parse consumes ParseState and returns T, or null to indicate failure
 public interface Rule<S, T>
 {
     T Parse(ParseState<S> state);
 }
 
-//规则动作对应原版Rule.RuleAction
-//在子项解析成功后调用产出T
+//Rule action, maps to vanilla Rule.RuleAction
+//Called after a sub-item parses successfully to produce T
 public delegate T RuleAction<S, out T>(ParseState<S> state);
 
-//简单规则动作对应原版Rule.SimpleRuleAction
-//只依赖Scope不直接访问state
+//Simple rule action, maps to vanilla Rule.SimpleRuleAction
+//Depends only on Scope, no direct access to state
 public delegate T SimpleRuleAction<S, out T>(Scope ruleScope);
 
 public sealed class WrappedTerm<S, T> : Rule<S, T>
@@ -47,11 +47,11 @@ public sealed class WrappedTerm<S, T> : Rule<S, T>
 
 public static class Rules
 {
-    //fromTerm用child作为子项action作为成功后动作构造Rule
+    //fromTerm builds a Rule using child as the sub-item and action as the success action
     public static Rule<S, T> FromTerm<S, T>(Term<S> child, RuleAction<S, T> action)
         => new WrappedTerm<S, T>(action, child);
 
-    //fromTerm重载接受SimpleRuleAction内部转RuleAction
+    //fromTerm overload accepts a SimpleRuleAction, converting to RuleAction internally
     public static Rule<S, T> FromTerm<S, T>(Term<S> child, SimpleRuleAction<S, T> action)
         => new WrappedTerm<S, T>(state => action(state.Scope), child);
 }

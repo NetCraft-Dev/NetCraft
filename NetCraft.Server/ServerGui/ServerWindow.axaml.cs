@@ -4,16 +4,16 @@ using NetCraft.Game.Server;
 
 namespace NetCraft.Server.Gui;
 
-//ServerWindow 服务端主窗口 对应原版 MinecraftServerGui 的 854x480 布局
-//标签页与卡片的位置在 axaml 里 这里只管把面板装进去与 500ms 一拍的状态轮询
+//ServerWindow, the server main window, maps to the 854x480 layout of vanilla MinecraftServerGui
+//Tab and card positions are in the axaml, this only hosts the panels and polls state every 500ms
 public sealed partial class ServerWindow : Window
 {
     private const string ShutdownTitle = "Minecraft server - shutting down!";
-    //原版统计与玩家列表都是 500ms 一拍
+    //Vanilla stats and player list both tick every 500ms
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(500);
 
     private readonly MinecraftServer _server;
-    //_store 两个日志视图共用的一份缓冲 先建它再建面板 面板构造时要拿历史快照
+    //_store a buffer shared by the two log views, built before the panels since they take a history snapshot at construction
     private readonly LogStore _store;
     private readonly ServerStatsPanel _stats;
     private readonly ServerPlayerListPanel _players;
@@ -21,7 +21,7 @@ public sealed partial class ServerWindow : Window
     private readonly ServerLogPage _logPage;
     private readonly ServerChunkPage _chunkPage;
     private readonly DispatcherTimer _poll;
-    //服务端跑起来过才算数 启动阶段 Running 还是假 不能据此关窗
+    //Only counts once the server has actually run, Running is still false during startup and the window must not close on that
     private bool _sawRunning;
 
     public ServerWindow(MinecraftServer server)
@@ -46,7 +46,7 @@ public sealed partial class ServerWindow : Window
         _poll.Tick += (_, _) => Poll();
         _poll.Start();
 
-        //切页时立刻刷一次 否则要等下一拍才有内容
+        //Refresh immediately on tab switch, otherwise content only appears on the next tick
         Tabs.SelectionChanged += (_, _) => RefreshNow();
         RefreshNow();
     }
@@ -54,7 +54,7 @@ public sealed partial class ServerWindow : Window
     private void Poll()
     {
         RefreshNow();
-        //服务端主循环退出(例如控制台 Ctrl+C)时窗口自行收尾 对应原版 halt 后的收尾
+        //When the server main loop exits (for example console Ctrl+C) the window wraps up by itself, maps to the cleanup after vanilla halt
         if (_server.Running)
         {
             _sawRunning = true;
@@ -71,12 +71,12 @@ public sealed partial class ServerWindow : Window
 
     private void RefreshNow()
     {
-        //区块页只遍历几百个持有器 开销小 不按当前页过滤
-        //按 SelectedItem 比对一旦对不上就成了"明明在看却一直不刷"的哑火 不值得为这点开销冒险
+        //The chunk page only walks a few hundred holders, cheap enough to not filter by current page
+        //Comparing SelectedItem can misfire and become "watching but never refreshing", not worth the risk for this little cost
         _chunkPage.Refresh();
         _stats.Refresh();
         _players.Refresh();
-        //主循环没起来就说明 InitServer 还没跑完 这时命令框不能收输入
+        //If the main loop is not up, InitServer has not finished, and the command box must not accept input
         _log.SetInputEnabled(_server.Running);
     }
 }

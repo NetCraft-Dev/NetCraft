@@ -158,6 +158,12 @@ public sealed class ModHooks
             return;
         }
 
+        if (!Enum.TryParse<HookPlacement>(hook.PlacementName, ignoreCase: true, out var placement))
+        {
+            errors.Add($"模组 {mod.Manifest.Id} 的落位方式 {hook.PlacementName} 无法识别");
+            return;
+        }
+
         if (!declared.Add($"{hook.Target}|{hook.Method}|{hookType}"))
             return;
 
@@ -171,6 +177,8 @@ public sealed class ModHooks
             hook.Target, hook.Method,
             mod.AssemblyName, hook.ReplaceType, hook.ReplaceMethod,
             hookType, patchMode, null, hook.Label, ordinal: hook.Ordinal,
+            localIndex: hook.LocalIndex, constantValue: hook.ConstantValueObject,
+            inType: hook.InType, inMethod: hook.InMethod, placement: placement,
             argumentIndex: hook.ArgumentIndex, sliceFrom: hook.SliceFrom, sliceTo: hook.SliceTo));
 
         //两类落地方式分开记 静态那条走加载前改写 运行时那条等目标加载完再提交

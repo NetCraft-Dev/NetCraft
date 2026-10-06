@@ -5,10 +5,10 @@ using NetCraft.Network.Protocol;
 
 namespace NetCraft.Network;
 
-//ConnectionAcceptor 服务端 TCP 监听接受器
-//替代原版 netty ServerBootstrap 用 TcpListener 后台线程循环 AcceptTcpClient
-//每个客户端构造 Connection 回调 OnNewConnection 由 DedicatedServer 装初始握手监听器
-//异常隔离单个 accept 失败不退出循环记 Log.Error 后继续
+//ConnectionAcceptor is the server-side TCP listen acceptor
+//Replaces vanilla netty ServerBootstrap with a TcpListener and a background thread looping on AcceptTcpClient
+//Each client builds a Connection and calls back OnNewConnection, where DedicatedServer installs the initial handshake listener
+//Fault isolation: a single failed accept does not exit the loop but logs Log.Error and continues
 public sealed class ConnectionAcceptor : IDisposable
 {
     private readonly TcpListener _listener;
@@ -18,10 +18,10 @@ public sealed class ConnectionAcceptor : IDisposable
     private bool _running;
     private bool _disposed;
 
-    //ConnectionAcceptor 构造监听指定地址端口
-    //addr 监听地址 IPAddress.Any 表示 0.0.0.0
-    //port 监听端口
-    //onNewConnection 新连接回调由 DedicatedServer 装初始监听器
+    //The ConnectionAcceptor constructor listens on the given address and port
+    //addr is the listen address; IPAddress.Any means 0.0.0.0
+    //port is the listen port
+    //onNewConnection is the new-connection callback, where DedicatedServer installs the initial listener
     public ConnectionAcceptor(IPAddress addr, int port, Action<Connection> onNewConnection)
     {
         _listener = new TcpListener(addr, port);
@@ -29,7 +29,7 @@ public sealed class ConnectionAcceptor : IDisposable
         _acceptThread = new Thread(AcceptLoop) { IsBackground = true, Name = "ConnectionAcceptor" };
     }
 
-    //Start 启动监听线程
+    //Start starts the listen thread
     public void Start()
     {
         if (_running) return;
@@ -38,7 +38,7 @@ public sealed class ConnectionAcceptor : IDisposable
         _acceptThread.Start();
     }
 
-    //Stop 停止监听并等待线程退出
+    //Stop stops listening and waits for the thread to exit
     public void Stop()
     {
         if (!_running) return;
@@ -48,9 +48,9 @@ public sealed class ConnectionAcceptor : IDisposable
         try { _acceptThread.Join(2000); } catch { }
     }
 
-    //AcceptLoop 后台线程循环接受新连接
-    //每个 TcpClient 构造 Connection 用 NetworkStream 双向流回调 OnNewConnection
-    //异常隔离单次失败不退出循环
+    //AcceptLoop is the background thread looping to accept new connections
+    //Each TcpClient builds a Connection with a bidirectional NetworkStream and calls back OnNewConnection
+    //Fault isolation: a single failure does not exit the loop
     private void AcceptLoop()
     {
         while (_running && !_cts.IsCancellationRequested)
@@ -71,18 +71,18 @@ public sealed class ConnectionAcceptor : IDisposable
             }
             try
             {
-                //NoDelay 禁用 Nagle 减少小包延迟对齐原版 TCP_NODELAY
+                //NoDelay disables Nagle to cut small-packet latency, aligns with vanilla TCP_NODELAY
                 client.NoDelay = true;
                 var stream = client.GetStream();
-                //服务端 inbound 是 Serverbound 方向客户端发来的包都是 serverbound
+                //The server inbound direction is Serverbound, since all packets from clients are serverbound
                 var conn = new Connection(stream, stream, PacketFlow.Serverbound);
-                //记录客户端 IP 供 IP 封禁检查 IPv4 映射地址统一还原成 IPv4 文本
+                //Records the client IP for the IP ban check; IPv4-mapped addresses are normalized back to IPv4 text
                 conn.RemoteAddress = NormalizeAddress(client);
-                //Transport 传入 TcpClient 供 Dispose 时关闭触发读循环退出
+                //Transport takes the TcpClient, closed on Dispose to make the read loop exit
                 conn.SetTransport(client);
-                //先装初始握手监听器再启动读循环避免读循环无监听器空转
+                //Installs the initial handshake listener before starting the read loop to avoid the read loop spinning with no listener
                 _onNewConnection(conn);
-                //后台读循环阻塞 Receive 包入队 PacketProcessor 由 DedicatedServer.Tick 处理
+                //The background read loop blocks on Receive and enqueues packets, which PacketProcessor handles from DedicatedServer.Tick
                 conn.StartReadLoop();
             }
             catch (Exception e)
@@ -93,7 +93,7 @@ public sealed class ConnectionAcceptor : IDisposable
         }
     }
 
-    //NormalizeAddress 取客户端 IP 文本 双栈监听下 IPv4 客户端是映射地址统一还原
+    //NormalizeAddress gets the client IP text; under dual-stack listening IPv4 clients appear as mapped addresses and are normalized
     private static string? NormalizeAddress(TcpClient client)
     {
         if (client.Client.RemoteEndPoint is not IPEndPoint endpoint) return null;

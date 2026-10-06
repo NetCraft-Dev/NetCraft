@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Profiling.Metrics;
 
-//指标分类枚举对应原版net.minecraft.util.profiling.metrics.MetricCategory
-//profiler采样器按此分类聚合
+//Metric category enum, maps to vanilla net.minecraft.util.profiling.metrics.MetricCategory
+//Profiler samplers aggregate by this category
 public enum MetricCategory
 {
     PathFinding,
@@ -15,7 +15,7 @@ public enum MetricCategory
     Gpu
 }
 
-//MetricCategory扩展对应原版getDescription
+//MetricCategory extension, maps to vanilla getDescription
 public static class MetricCategoryExtensions
 {
     public static string GetDescription(this MetricCategory category) => category switch

@@ -3,15 +3,15 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Storage.Ticks;
 
-//ScheduledTick 调度刻 对应原版 net.minecraft.world.tick.ScheduledTick
-//存绝对触发刻而不是延迟 延迟在创建时就换算掉了
+//ScheduledTick, a scheduled tick, maps to vanilla net.minecraft.world.tick.ScheduledTick
+//Stores the absolute trigger tick rather than a delay; the delay is converted at creation
 public sealed class ScheduledTick<T> where T : class
 {
     public T Type { get; }
     public BlockPos Pos { get; }
     public long TriggerTick { get; }
     public TickPriority Priority { get; }
-    //SubTickOrder 同一刻内的排入序号 决定同优先级下的先后
+    //SubTickOrder, the enqueue order within the same tick, deciding order of equal priority
     public long SubTickOrder { get; }
 
     public ScheduledTick(T type, BlockPos pos, long triggerTick, TickPriority priority, long subTickOrder)
@@ -23,7 +23,7 @@ public sealed class ScheduledTick<T> where T : class
         SubTickOrder = subTickOrder;
     }
 
-    //DrainOrder 容器内排序 触发刻然后优先级然后子序号 对应原版 DRAIN_ORDER
+    //DrainOrder, in-container ordering: trigger tick, then priority, then sub-order, maps to vanilla DRAIN_ORDER
     public static readonly IComparer<ScheduledTick<T>> DrainOrder = Comparer<ScheduledTick<T>>.Create(
         static (a, b) =>
         {
@@ -33,7 +33,7 @@ public sealed class ScheduledTick<T> where T : class
             return byPriority != 0 ? byPriority : a.SubTickOrder.CompareTo(b.SubTickOrder);
         });
 
-    //IntraTickDrainOrder 同刻内跨容器归并 优先级然后子序号 对应原版 INTRA_TICK_DRAIN_ORDER
+    //IntraTickDrainOrder, cross-container merge within a tick: priority then sub-order, maps to vanilla INTRA_TICK_DRAIN_ORDER
     public static readonly IComparer<ScheduledTick<T>> IntraTickDrainOrder = Comparer<ScheduledTick<T>>.Create(
         static (a, b) =>
         {
@@ -41,8 +41,8 @@ public sealed class ScheduledTick<T> where T : class
             return byPriority != 0 ? byPriority : a.SubTickOrder.CompareTo(b.SubTickOrder);
         });
 
-    //UniqueTickComparer 判重只看位置与类型 对应原版 UNIQUE_TICK_HASH
-    //同一位置同一类型只会有一个调度刻 后来的会被丢掉
+    //UniqueTickComparer dedups by pos and type only, maps to vanilla UNIQUE_TICK_HASH
+    //Only one scheduled tick per pos and type; later ones are dropped
     public sealed class UniqueTickComparer : IEqualityComparer<ScheduledTick<T>>
     {
         public bool Equals(ScheduledTick<T>? a, ScheduledTick<T>? b)
@@ -54,13 +54,13 @@ public sealed class ScheduledTick<T> where T : class
             => (31 * o.Pos.GetHashCode()) + o.Type.GetHashCode();
     }
 
-    //ToSavedTick 把绝对触发刻换算成相对当前刻的延迟 对应原版 toSavedTick
+    //ToSavedTick converts the absolute trigger tick into a delay relative to the current tick, maps to vanilla toSavedTick
     public SavedTick<T> ToSavedTick(long currentTick)
         => new(Type, Pos, (int)(TriggerTick - currentTick), Priority);
 }
 
-//SavedTick 存档形态的调度刻 对应原版 net.minecraft.world.tick.SavedTick
-//存的是延迟而不是绝对刻 读档时按当时的游戏刻重新换算
+//SavedTick, the saved form of a scheduled tick, maps to vanilla net.minecraft.world.tick.SavedTick
+//Stores a delay rather than an absolute tick; on load it is recomputed against the then-current game tick
 public sealed class SavedTick<T> where T : class
 {
     public T Type { get; }
@@ -76,12 +76,12 @@ public sealed class SavedTick<T> where T : class
         Priority = priority;
     }
 
-    //Unpack 换算成绝对触发刻 对应原版 unpack
+    //Unpack converts to an absolute trigger tick, maps to vanilla unpack
     public ScheduledTick<T> Unpack(long currentTick, long currentSubTick)
         => new(Type, Pos, currentTick + Delay, Priority, currentSubTick);
 
-    //ToCompoundTag 序列化成存档形态 对应原版 SavedTick codec 的编码
-    //字段名对齐原版 i 类型名 x y z 坐标 t 延迟 p 优先级
+    //ToCompoundTag serializes into save form, maps to the vanilla SavedTick codec encoding
+    //Field names align with vanilla: i type name, x y z coords, t delay, p priority
     public CompoundTag ToCompoundTag(string typeName)
     {
         var tag = new CompoundTag();
@@ -94,8 +94,8 @@ public sealed class SavedTick<T> where T : class
         return tag;
     }
 
-    //FromCompoundTag 从存档形态还原 类型名交给调用方按注册表找回
-    //类型名缺失或查不到类型返回 null 与原版读档解不出类型的刻直接丢弃一致
+    //FromCompoundTag restores from save form; the type name is resolved by the caller through the registry
+    //Returns null when the type name is missing or unresolvable, matching vanilla dropping ticks whose type cannot be resolved on load
     public static SavedTick<T>? FromCompoundTag(CompoundTag tag, Func<string, T?> resolveType)
     {
         var name = tag.GetStringValue("i");
@@ -107,7 +107,7 @@ public sealed class SavedTick<T> where T : class
             tag.GetIntValue("t"), TickPriorities.ByValue(tag.GetIntValue("p")));
     }
 
-    //UniqueTickComparer 与 ScheduledTick 判重规则一致
+    //UniqueTickComparer, same dedup rule as ScheduledTick
     public sealed class UniqueTickComparer : IEqualityComparer<SavedTick<T>>
     {
         public bool Equals(SavedTick<T>? a, SavedTick<T>? b)

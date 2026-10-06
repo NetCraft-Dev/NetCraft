@@ -8,11 +8,11 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//V-8 台阶类方块按原版移植形状 上半砖下半砖与双半砖三种 放置合并逻辑留后续批次
-//属性一律取内嵌方块表注入的那份 这里不重复声明
+//V-8 slab blocks ported shape from vanilla: top slab, bottom slab and double slab; placement/merging logic left for a later batch
+//Properties always come from the ones injected by the embedded block table; not redeclared here
 public static partial class Blocks
 {
-    //台阶有近七十个注册名 形状只随 type 三态变化 逐个声明太长 用注册名表循环建
+    //Slabs have nearly seventy registry names, and the shape only varies with the three type states; declaring each is too long, so build them by looping over a name table
     private static readonly string[] SlabNames =
     {
         "resin_brick_slab", "prismarine_slab", "prismarine_brick_slab", "dark_prismarine_slab",
@@ -35,13 +35,13 @@ public static partial class Blocks
         "cobbled_deepslate_slab", "polished_deepslate_slab", "deepslate_tile_slab", "deepslate_brick_slab",
     };
 
-    //RegisterSlabs 台阶类方块登记进真实方块表
+    //RegisterSlabs registers slab blocks into the real block table
     private static void RegisterSlabs(Dictionary<string, BlockBehaviour> real)
     {
         foreach (var name in SlabNames) real[name] = new SlabBlock(name);
     }
 
-    //SlabBlock 台阶 下半砖占 0-8 像素 上半砖占 8-16 像素 双半砖就是整块
+    //SlabBlock slab; bottom slab occupies 0-8 pixels, top slab 8-16 pixels, double slab the whole block
     public sealed class SlabBlock : NamedBlock
     {
         private static readonly VoxelShape ShapeBottom = NetCraft.Registry.Block.Column(16.0, 0.0, 8.0);

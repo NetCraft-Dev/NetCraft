@@ -3,41 +3,41 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//EntityDataSerializers 实体数据序列化器编号 对齐原版 EntityDataSerializers 的注册顺序
-//本作只实现用到的三种 新增类型时编号必须与注册顺序一致
+//EntityDataSerializers entity data serializer ids, aligns with the registration order of vanilla EntityDataSerializers
+//This project implements only the three used here; when adding a type the id must match the registration order
 public static class EntityDataSerializers
 {
-    //Byte 单字节 编号 0 玩家共享标志位走这个
+    //Byte single byte, id 0; the player shared flags use this
     public const int Byte = 0;
 
-    //ItemStackId 物品栈 编号 7 掉落物持有的物品走这个
+    //ItemStackId item stack, id 7; the item held by a dropped item uses this
     public const int ItemStackId = 7;
 
-    //Pose 姿态 编号 20 值是 Pose 枚举的 id
+    //Pose pose, id 20; the value is the id of the Pose enum
     public const int Pose = 20;
 }
 
-//EntityDataItem 实体数据条目对应原版 SynchedEntityData.DataValue
-//Index 数据索引(按实体类 defineId 顺序) SerializerId 序列化器编号 Value 按编号解释
+//EntityDataItem entity data item, maps to vanilla SynchedEntityData.DataValue
+//Index data index (in the order of the entity class's defineId), SerializerId serializer id, Value interpreted by that id
 public sealed record EntityDataItem(byte Index, int SerializerId, object Value)
 {
-    //Byte 构造 BYTE 数据项
+    //Byte constructs a BYTE data item
     public static EntityDataItem Byte(byte index, byte value) => new(index, EntityDataSerializers.Byte, value);
 
-    //Pose 构造 POSE 数据项
+    //Pose constructs a POSE data item
     public static EntityDataItem Pose(byte index, int poseId) => new(index, EntityDataSerializers.Pose, poseId);
 
-    //ItemStackData 构造 ITEM_STACK 数据项 掉落物持有的物品走这个
+    //ItemStackData constructs an ITEM_STACK data item; the item held by a dropped item uses this
     public static EntityDataItem ItemStackData(byte index, ItemStack value)
         => new(index, EntityDataSerializers.ItemStackId, value);
 }
 
-//ClientboundSetEntityDataPacket 实体数据包对应原版 ClientboundSetEntityDataPacket
-//字段 Id(int) PackedItems(List<SynchedEntityData.DataValue<?>>)
+//ClientboundSetEntityDataPacket entity data packet, maps to vanilla ClientboundSetEntityDataPacket
+//Fields: Id(int), PackedItems(List<SynchedEntityData.DataValue<?>>)
 public sealed record ClientboundSetEntityDataPacket(int Id, IReadOnlyList<EntityDataItem> PackedItems)
     : Packet<ClientGamePacketListener>
 {
-    //EofMarker 条目结束标记 对应原版 EOF_MARKER
+    //EofMarker entry end marker, maps to vanilla EOF_MARKER
     public const byte EofMarker = 255;
 
     public static StreamCodec<RegistryFriendlyByteBuf, ClientboundSetEntityDataPacket> StreamCodec { get; } = new SetEntityDataCodec();
@@ -48,7 +48,7 @@ public sealed record ClientboundSetEntityDataPacket(int Id, IReadOnlyList<Entity
 
     private sealed class SetEntityDataCodec : StreamCodec<RegistryFriendlyByteBuf, ClientboundSetEntityDataPacket>
     {
-        //原版 unpack 逐条读 index(单字节) + serializerId(VarInt) + 值 读到 255 结束
+        //Vanilla unpack reads index (single byte) + serializerId (VarInt) + value per entry, ending at 255
         public ClientboundSetEntityDataPacket Decode(RegistryFriendlyByteBuf buf)
         {
             var id = buf.ReadVarInt();
@@ -63,7 +63,7 @@ public sealed record ClientboundSetEntityDataPacket(int Id, IReadOnlyList<Entity
             return new ClientboundSetEntityDataPacket(id, items);
         }
 
-        //原版 pack 每条 index + serializerId + 值 末尾补 255
+        //Vanilla pack writes index + serializerId + value per entry and appends 255
         public void Encode(RegistryFriendlyByteBuf buf, ClientboundSetEntityDataPacket value)
         {
             buf.WriteVarInt(value.Id);
@@ -76,14 +76,14 @@ public sealed record ClientboundSetEntityDataPacket(int Id, IReadOnlyList<Entity
             buf.WriteByte(EofMarker);
         }
 
-        //ReadValue 按序列化器编号读取值 未实现的编号无法定位后续字节只能抛错
-        //BYTE 分支显式装箱 否则 switch 会把 byte 提升成 int 导致取出的值是 Int32
+        //ReadValue reads a value by serializer id; an unimplemented id cannot locate the following bytes, so it must throw
+        //The BYTE branch boxes explicitly; otherwise the switch would promote byte to int and the value would come out as Int32
         private static object ReadValue(RegistryFriendlyByteBuf buf, int serializerId) => serializerId switch
         {
             EntityDataSerializers.Byte => (object)buf.ReadByte(),
             EntityDataSerializers.ItemStackId => ItemStack.OptionalStreamCodec.Decode(buf),
             EntityDataSerializers.Pose => buf.ReadVarInt(),
-            _ => throw new NotSupportedException($"未实现的实体数据序列化器编号 {serializerId}"),
+            _ => throw new NotSupportedException($"Unimplemented entity data serializer id {serializerId}"),
         };
 
         private static void WriteValue(RegistryFriendlyByteBuf buf, EntityDataItem item)
@@ -100,7 +100,7 @@ public sealed record ClientboundSetEntityDataPacket(int Id, IReadOnlyList<Entity
                     buf.WriteVarInt((int)item.Value);
                     return;
                 default:
-                    throw new NotSupportedException($"未实现的实体数据序列化器编号 {item.SerializerId}");
+                    throw new NotSupportedException($"Unimplemented entity data serializer id {item.SerializerId}");
             }
         }
     }

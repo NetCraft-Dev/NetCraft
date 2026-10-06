@@ -3,24 +3,24 @@ using NetCraft.Gpu;
 
 namespace NetCraft.Game.Client.Render.Model;
 
-//ModelFace 模型面定义对标原版 BlockElementFace
-//记录面的纹理引用、cullface 方向、UV、tintindex
-//UV 默认 [0,0,16,16] 由 Baker 归一化到 [0,1] 再映射到图集 UV
-//Direction 复用 Gpu 层 Direction 枚举保持一致性
+//ModelFace model face definition, maps to vanilla BlockElementFace
+//Records the face's texture reference, cullface direction, UV, and tintindex
+//UV defaults to [0,0,16,16], normalized to [0,1] by the Baker and then mapped to atlas UV
+//Direction reuses the Gpu layer's Direction enum for consistency
 public sealed class ModelFace
 {
-    //Direction 面朝向复用 Gpu.Direction
+    //Direction face orientation, reuses Gpu.Direction
     public Direction Direction { get; set; }
-    //Texture 纹理变量引用以 # 开头如 #all 烘焙时解析为实际纹理路径
+    //Texture texture variable reference starting with #, such as #all, resolved to the actual texture path at bake time
     public string Texture { get; set; } = string.Empty;
-    //Cullface cullface 方向 null 表示不 cull
-    //面在邻居方块完整遮挡该方向时可剔除
+    //Cullface cullface direction; null means no culling
+    //A face can be culled when the neighbor block fully occludes that direction
     public Direction? Cullface { get; set; }
-    //UV [u0,v0,u1,v1] 像素坐标 0-16 范围默认 [0,0,16,16]
-    //烘焙时除以 16 归一化到 [0,1] 再用 TextureAtlasSprite.MapU/MapV 映射到图集 UV
+    //UV [u0,v0,u1,v1] in pixel coordinates, 0-16 range, default [0,0,16,16]
+    //At bake time divide by 16 to normalize to [0,1], then map to atlas UV via TextureAtlasSprite.MapU/MapV
     public Vector4 UV { get; set; } = new(0, 0, 16, 16);
-    //TintIndex 染色索引 -1 表示不染色如 grass_block 侧面用 tintindex=0 染绿色
-    //首版不支持染色保留字段
+    //TintIndex tint index; -1 means no tinting, e.g. the side of grass_block uses tintindex=0 to tint green
+    //The first version does not support tinting; field is preserved
     public int TintIndex { get; set; } = -1;
 
     public ModelFace(Direction direction)

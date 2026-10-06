@@ -8,10 +8,10 @@ using NetCraft.Util;
 
 namespace NetCraft.Game.Advancements.Predicates;
 
-//LocationPredicate 位置谓词 判定某坐标的群系 维度 烟柱 光照 方块与天空可见性
-//对应原版 net.minecraft.advancements.predicates.LocationPredicate
-//原版还有 structures 与 fluid 两个字段 前者依赖跨层的 StructureManager 后者依赖未实现的 FluidPredicate
-//本作先落其余七个字段 待那两个体系接通再补
+//LocationPredicate location predicate, checks a coordinate's biome, dimension, smokey, light, block and sky visibility
+//maps to vanilla net.minecraft.advancements.predicates.LocationPredicate
+//Vanilla also has the structures and fluid fields; the former depends on the cross-layer StructureManager and the latter on the unimplemented FluidPredicate
+//This project implements the other seven fields first and will add those two once the systems are wired up
 public sealed record LocationPredicate(
     Optional<PositionPredicate> Position,
     Optional<HolderSet<Biome>> Biomes,
@@ -21,7 +21,7 @@ public sealed record LocationPredicate(
     Optional<BlockPredicate> Block,
     Optional<bool> CanSeeSky)
 {
-    //Codec 持久化编解码 字段名 position biomes dimension smokey light block can_see_sky 对应原版 CODEC
+    //Codec persistence codec, field names position biomes dimension smokey light block can_see_sky, maps to vanilla CODEC
     public static readonly Codec<LocationPredicate> Codec = RecordCodecBuilder.Of7(
         PositionPredicate.Codec.OptionalFieldOf("position")
             .ForGetter((LocationPredicate predicate) => predicate.Position),
@@ -40,7 +40,7 @@ public sealed record LocationPredicate(
         (position, biomes, dimension, smokey, light, block, canSeeSky) =>
             new LocationPredicate(position, biomes, dimension, smokey, light, block, canSeeSky));
 
-    //Matches 坐标逐项比对 需要读世界的那几项统一先看区块在不在内存 对应原版 matches
+    //Matches coordinates checked item by item; items needing the world first check whether the chunk is in memory, maps to vanilla matches
     public bool Matches(ILevelReader level, double x, double y, double z)
     {
         if (Position.IsPresent && !Position.Get().Matches(x, y, z)) return false;
@@ -58,8 +58,8 @@ public sealed record LocationPredicate(
         return true;
     }
 
-    //PositionPredicate 坐标区间谓词 定义见文件末尾 主构造参数处直接引用顶层类型
-    //Builder 位置谓词构造器 对应原版 Builder
+    //PositionPredicate coordinate range predicate, defined at the end of the file; the primary constructor references the top-level type directly
+    //Builder location predicate builder, maps to vanilla Builder
     public sealed class Builder
     {
         private MinMaxBounds.Doubles _x = MinMaxBounds.Doubles.Any;
@@ -72,17 +72,17 @@ public sealed record LocationPredicate(
         private Optional<BlockPredicate> _block = Optional<BlockPredicate>.Empty();
         private Optional<bool> _canSeeSky = Optional<bool>.Empty();
 
-        //Location 空构造器 对应原版 location
+        //Location empty constructor, maps to vanilla location
         public static Builder Location() => new();
 
-        //AtYLocation 只约束纵向坐标 对应原版 atYLocation
+        //AtYLocation constrains only the vertical coordinate, maps to vanilla atYLocation
         public static Builder AtYLocation(MinMaxBounds.Doubles yLocation) => Location().SetY(yLocation);
 
-        //InBiome 只约束群系 对应原版 inBiome
+        //InBiome constrains only the biome, maps to vanilla inBiome
         public static Builder InBiome(Holder<Biome> biome)
             => Location().SetBiomes(new DirectHolderSet<Biome>(new[] { biome }));
 
-        //InDimension 只约束维度 对应原版 inDimension
+        //InDimension constrains only the dimension, maps to vanilla inDimension
         public static Builder InDimension(Identifier dimension) => Location().SetDimension(dimension);
 
         public Builder SetX(MinMaxBounds.Doubles x) { _x = x; return this; }
@@ -103,19 +103,19 @@ public sealed record LocationPredicate(
 
         public Builder SetCanSeeSky(bool canSeeSky) { _canSeeSky = Optional<bool>.Of(canSeeSky); return this; }
 
-        //Build 三轴都是任意区间时不带位置约束 对应原版 build
+        //Build omits the position constraint when all three axes are any-range, maps to vanilla build
         public LocationPredicate Build()
             => new(PositionPredicate.Of(_x, _y, _z), _biomes, _dimension, _smokey, _light, _block, _canSeeSky);
     }
 }
 
-//PositionPredicate 坐标区间谓词 三轴都命中才算通过 对应原版 LocationPredicate 内嵌的位置谓词
+//PositionPredicate coordinate range predicate, passes only when all three axes hit, maps to vanilla the position predicate nested in LocationPredicate
 public sealed record PositionPredicate(
     MinMaxBounds.Doubles X,
     MinMaxBounds.Doubles Y,
     MinMaxBounds.Doubles Z)
 {
-    //Codec 持久化编解码 字段名 x y z 对应原版 CODEC
+    //Codec persistence codec, field names x/y/z, maps to vanilla CODEC
     public static readonly Codec<PositionPredicate> Codec = RecordCodecBuilder.Of3(
         MinMaxBounds.Doubles.CODEC.OptionalFieldOf("x", MinMaxBounds.Doubles.Any)
             .ForGetter((PositionPredicate predicate) => predicate.X),
@@ -125,13 +125,13 @@ public sealed record PositionPredicate(
             .ForGetter((PositionPredicate predicate) => predicate.Z),
         (x, y, z) => new PositionPredicate(x, y, z));
 
-    //Of 三轴都是任意区间时不加位置约束 对应原版 of
+    //Of adds no position constraint when all three axes are any-range, maps to vanilla of
     public static Optional<PositionPredicate> Of(MinMaxBounds.Doubles x, MinMaxBounds.Doubles y,
         MinMaxBounds.Doubles z)
         => x.IsAny && y.IsAny && z.IsAny
             ? Optional<PositionPredicate>.Empty()
             : Optional<PositionPredicate>.Of(new PositionPredicate(x, y, z));
 
-    //Matches 三轴区间逐项判定 对应原版 matches
+    //Matches three-axis ranges checked item by item, maps to vanilla matches
     public bool Matches(double x, double y, double z) => X.Matches(x) && Y.Matches(y) && Z.Matches(z);
 }

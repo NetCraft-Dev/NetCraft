@@ -2,7 +2,7 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Storage.Ticks;
 
-//ITickContainerAccess 区块级调度刻容器接口 对应原版 TickContainerAccess
+//ITickContainerAccess, chunk-level scheduled tick container interface, maps to vanilla TickContainerAccess
 public interface ITickContainerAccess<T> where T : class
 {
     void Schedule(ScheduledTick<T> tick);
@@ -11,9 +11,9 @@ public interface ITickContainerAccess<T> where T : class
     int Count { get; }
 }
 
-//LevelChunkTicks 单区块的调度刻容器 对应原版 net.minecraft.world.tick.LevelChunkTicks
-//优先队列加去重集合 同一位置同一类型只留最先排入的那个
-//pendingTicks 是读档拿到但还没换算成绝对刻的那批 等区块开始 tick 时再展开
+//LevelChunkTicks, scheduled tick container for one chunk, maps to vanilla net.minecraft.world.tick.LevelChunkTicks
+//A priority queue plus a dedup set; the same pos and type keeps only the first scheduled one
+//pendingTicks is the batch read from disk but not yet converted to absolute ticks; it is expanded once the chunk starts ticking
 public sealed class LevelChunkTicks<T> : ITickContainerAccess<T> where T : class
 {
     private List<SavedTick<T>>? _pendingTicks;
@@ -27,7 +27,7 @@ public sealed class LevelChunkTicks<T> : ITickContainerAccess<T> where T : class
 
     public LevelChunkTicks(List<SavedTick<T>> pendingTicks) => _pendingTicks = pendingTicks;
 
-    //SetOnTickAdded 排入时回调 供 LevelTicks 维护容器索引
+    //SetOnTickAdded, called on scheduling, so LevelTicks can maintain the container index
     public void SetOnTickAdded(Action<LevelChunkTicks<T>, ScheduledTick<T>>? onTickAdded)
         => _onTickAdded = onTickAdded;
 
@@ -44,7 +44,7 @@ public sealed class LevelChunkTicks<T> : ITickContainerAccess<T> where T : class
         _onTickAdded?.Invoke(this, tick);
     }
 
-    //Poll 取出最早的一项并解除去重占位
+    //Poll takes the earliest entry and clears its dedup slot
     public ScheduledTick<T>? Poll()
     {
         if (!_tickQueue.TryDequeue(out var tick, out _)) return null;
@@ -55,8 +55,8 @@ public sealed class LevelChunkTicks<T> : ITickContainerAccess<T> where T : class
     public ScheduledTick<T>? Peek()
         => _tickQueue.TryPeek(out var tick, out _) ? tick : null;
 
-    //ScheduledTicks 已排队的全部刻 无序 供区域复制一类需要整表遍历的场合
-    //待展开那批还没换算成绝对刻 不算在内
+    //ScheduledTicks, all scheduled ticks, unordered, for cases needing a full table walk like area copying
+    //The unexpanded batch is not yet converted to absolute ticks and is not included
     public IEnumerable<ScheduledTick<T>> ScheduledTicks
     {
         get
@@ -68,10 +68,10 @@ public sealed class LevelChunkTicks<T> : ITickContainerAccess<T> where T : class
     public bool HasScheduledTick(BlockPos pos, T type)
         => _tickQueue.Count > 0 && _ticksPerPosition.Contains(Probe(type, pos));
 
-    //WillTickThisTick 容器本身答不了"本刻会不会跑" 那个由 LevelTicks 统一回答
+    //WillTickThisTick: the container cannot answer "will it run this tick"; LevelTicks answers that uniformly
     public bool WillTickThisTick(BlockPos pos, T type) => false;
 
-    //Pack 打包成存档形态 对应原版 pack
+    //Pack packs into save form, maps to vanilla pack
     public List<SavedTick<T>> Pack(long currentTick)
     {
         var result = new List<SavedTick<T>>(_tickQueue.Count + (_pendingTicks?.Count ?? 0));
@@ -83,8 +83,8 @@ public sealed class LevelChunkTicks<T> : ITickContainerAccess<T> where T : class
         return result;
     }
 
-    //Unpack 把待展开的那批换算成绝对刻并正式排入 对应原版 unpack
-    //子序号从负数往上递增 保证读档那批排在本次加载新排入的前面
+    //Unpack converts the pending batch into absolute ticks and schedules them, maps to vanilla unpack
+    //Sub-order increases from a negative base, ensuring the loaded batch sorts before newly scheduled ones
     public void Unpack(long currentTick)
     {
         if (_pendingTicks is null) return;
@@ -97,7 +97,7 @@ public sealed class LevelChunkTicks<T> : ITickContainerAccess<T> where T : class
         _pendingTicks = null;
     }
 
-    //Probe 造一个只用于查去重集合的哑对象 判重只看位置与类型
+    //Probe builds a dummy object only for the dedup set lookup; dedup considers only pos and type
     private static ScheduledTick<T> Probe(T type, BlockPos pos)
         => new(type, pos, 0L, TickPriority.Normal, 0L);
 }

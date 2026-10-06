@@ -1,11 +1,11 @@
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientboundKeepAlivePacket 客户端心跳包对应原版 net.minecraft.network.protocol.common.ClientboundKeepAlivePacket
-//含 long id 心跳标识符服务端发送客户端原样回传用于超时检测
+//ClientboundKeepAlivePacket client keep-alive packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundKeepAlivePacket
+//Contains a long id keep-alive identifier; the server sends it and the client returns it unchanged for timeout detection
 public sealed record ClientboundKeepAlivePacket(long Id) : Packet<ClientCommonPacketListener>
 {
-    //StreamCodec 包编解码器读写 long id
+    //StreamCodec packet codec reading and writing the long id
     public static StreamCodec<FriendlyByteBuf, ClientboundKeepAlivePacket> StreamCodec { get; } = new KeepAliveCodec();
 
     public PacketType<ClientCommonPacketListener> Type => CommonPacketTypes.ClientboundKeepAlive;

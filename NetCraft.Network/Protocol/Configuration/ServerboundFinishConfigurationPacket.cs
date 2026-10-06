@@ -1,8 +1,8 @@
 namespace NetCraft.Network.Protocol.Configuration;
 
-//ServerboundFinishConfigurationPacket 客户端通知服务端配置阶段完成
-//对应原版 net.minecraft.network.protocol.configuration.ServerboundFinishConfigurationPacket
-//无 payload 用单例 INSTANCE
+//ServerboundFinishConfigurationPacket the client notifies the server that the configuration phase is complete
+//Maps to vanilla net.minecraft.network.protocol.configuration.ServerboundFinishConfigurationPacket
+//No payload, using the INSTANCE singleton
 public sealed record ServerboundFinishConfigurationPacket : Packet<ServerConfigurationPacketListener>
 {
     public static readonly ServerboundFinishConfigurationPacket Instance = new();

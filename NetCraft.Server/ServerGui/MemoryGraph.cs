@@ -4,9 +4,9 @@ using Avalonia.Media;
 
 namespace NetCraft.Server.Gui;
 
-//MemoryGraph 内存占用柱状图
-//对应原版 StatsComponent.paint 里那 256 根柱子 保留最近 256 次采样的堆占用比例
-//柱色按占比从绿经黄到红 由 ServerStatsPanel 每 500ms 推一个采样进来
+//MemoryGraph, memory usage bar chart
+//Maps to the 256 bars in vanilla StatsComponent.paint, keeps the heap usage ratio of the last 256 samples
+//Bar color goes from green through yellow to red by ratio, ServerStatsPanel pushes one sample in every 500ms
 public sealed class MemoryGraph : Control
 {
     private const int Columns = 256;
@@ -14,25 +14,25 @@ public sealed class MemoryGraph : Control
     private static readonly Color LowColor = Color.Parse("#22C55E");
     private static readonly Color MidColor = Color.Parse("#F59E0B");
     private static readonly Color HighColor = Color.Parse("#EF4444");
-    //BreakBrush 上限变更处的截断线
-    //用亮蓝而不是红 柱色本身就是绿经黄到红 红线和满格柱会糊在一起分不出来
+    //BreakBrush, the cutoff line where the cap changes
+    //Uses bright blue instead of red, the bar color itself goes green through yellow to red and a red line would blur into a full bar
     private static readonly IBrush BreakBrush = new SolidColorBrush(Color.Parse("#2E9BFF"));
-    //GcMarkBrush 基线上的 GC 亮点
-    //用亮绿而不是红 柱色本身就经黄到红 红点会和预警柱糊在一起
+    //GcMarkBrush, GC dots on the baseline
+    //Uses bright green instead of red, the bar color itself goes through yellow to red and a red dot would blur into a warning bar
     private static readonly IBrush GcMarkBrush = new SolidColorBrush(Color.Parse("#00E676"));
-    //JitMarkBrush 基线上的 Tier1 重编译紫点
+    //JitMarkBrush, Tier1 recompile purple dots on the baseline
     private static readonly IBrush JitMarkBrush = new SolidColorBrush(Color.Parse("#A855F7"));
-    //Tier2MarkBrush 基线上的 Tier2 及以上重编译青点
+    //Tier2MarkBrush, Tier2+ recompile cyan dots on the baseline
     private static readonly IBrush Tier2MarkBrush = new SolidColorBrush(Color.Parse("#22D3EE"));
-    //MarkRadius 三层打点共用的半径 收小一档让它们挤得近些又不至于叠在一起
+    //MarkRadius shared by the three mark rows, shrunk a step so they pack closer without overlapping
     private const double MarkRadius = 1.8;
-    //MarkRowGap 相邻两行打点的中心距 比直径多出一点 边缘才留得住一条缝
+    //MarkRowGap center distance between adjacent mark rows, slightly more than the diameter so a gap remains at the edges
     private const double MarkRowGap = MarkRadius * 2 + 0.6;
-    //BackdropFallback 没注入底色时的兜底
+    //BackdropFallback used when no backdrop color is injected
     private static readonly IBrush BackdropFallback = new SolidColorBrush(Color.Parse("#F0F2F5"));
 
-    //BackdropBrush 柱图底色 由 axaml 用 DynamicResource 注入 主题切换时自动跟着换
-    //自绘控件自己查资源拿不到 ThemeDictionaries 里的条目 交给属性系统才是正路
+    //BackdropBrush, the chart backdrop color injected by axaml via DynamicResource, follows theme switches automatically
+    //A self-drawn control cannot reach ThemeDictionaries entries by looking up resources itself, going through the property system is the right way
     public static readonly StyledProperty<IBrush?> BackdropBrushProperty =
         AvaloniaProperty.Register<MemoryGraph, IBrush?>(nameof(BackdropBrush));
 
@@ -44,19 +44,19 @@ public sealed class MemoryGraph : Control
 
     private readonly double[] _values = new double[Columns];
     private readonly SolidColorBrush[] _brushes = new SolidColorBrush[Columns];
-    //_breaks 记录哪些列发生过上限变更 与 _values 同一套环形下标
+    //_breaks records which columns had a cap change, same ring indices as _values
     private readonly bool[] _breaks = new bool[Columns];
-    //_gcMarks 记录哪些列在这一拍里收到过 GC 事件
+    //_gcMarks records which columns received a GC event in this tick
     private readonly bool[] _gcMarks = new bool[Columns];
-    //_jitMarks 记录哪些列在这一拍里收到过 Tier1 重编译
+    //_jitMarks records which columns received a Tier1 recompile in this tick
     private readonly bool[] _jitMarks = new bool[Columns];
-    //_tier2Marks 记录哪些列在这一拍里收到过 Tier2 及以上重编译
+    //_tier2Marks records which columns received a Tier2+ recompile in this tick
     private readonly bool[] _tier2Marks = new bool[Columns];
     private int _head;
 
     public MemoryGraph()
     {
-        //柱色 256 档一次建好 绘制时不再分配
+        //Build all 256 bar colors once, no allocation during rendering
         for (var i = 0; i < Columns; i++)
         {
             var t = (double)i / (Columns - 1);
@@ -66,9 +66,9 @@ public sealed class MemoryGraph : Control
         }
     }
 
-    //Push 推入一次采样 ratio 为 0-1 的堆占用比例 柱高直接按它取 对应原版按占用百分比画柱高
-    //rescaled 表示这一次采样时上限换过挡 该列要标一条截断线 前后柱高不可直接比
-    //gcCount 是这一拍里发生的 GC 次数 tier1Count 与 tier2Count 是两级重编译次数 大于零就在底边各点一个点
+    //Push pushes one sample, ratio is the heap usage ratio in 0-1 and directly sets the bar height, mapping to vanilla drawing bar height by usage percentage
+    //rescaled means the cap changed on this sample, the column gets a cutoff line and bar heights before and after are not directly comparable
+    //gcCount is the number of GCs in this tick, tier1Count and tier2Count are the two recompile levels, a value above zero draws a dot on the baseline
     public void Push(double ratio, bool rescaled, int gcCount, int tier1Count, int tier2Count)
     {
         var index = _head++ & (Columns - 1);
@@ -102,13 +102,13 @@ public sealed class MemoryGraph : Control
             context.FillRectangle(_brushes[(int)(ratio * (Columns - 1))],
                 new Rect(x * step, height - barHeight, barWidth, barHeight));
         }
-        //截断线压在柱子之上 标出刻度在这里换过挡 两侧柱高不是一个量纲
+        //The cutoff line is drawn over the bars to mark where the scale changed, bar heights on either side are not the same unit
         for (var x = 0; x < Columns; x++)
         {
             if (!_breaks[(x + _head) & (Columns - 1)]) continue;
             context.FillRectangle(BreakBrush, new Rect(x * step, 0, barWidth, height));
         }
-        //底边上的三层打点 自下而上是 GC 红点 / Tier1 紫点 / Tier2 青点 共用同一条时间轴
+        //The three mark rows on the baseline, bottom to top are GC red dots / Tier1 purple dots / Tier2 cyan dots, sharing one time axis
         var markRow = height - MarkRadius;
         for (var x = 0; x < Columns; x++)
         {

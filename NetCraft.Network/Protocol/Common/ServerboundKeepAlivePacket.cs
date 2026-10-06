@@ -1,8 +1,8 @@
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ServerboundKeepAlivePacket 服务端心跳包对应原版 net.minecraft.network.protocol.common.ServerboundKeepAlivePacket
-//客户端回传服务端发的 keep alive id
+//ServerboundKeepAlivePacket server-side keep-alive packet, maps to vanilla net.minecraft.network.protocol.common.ServerboundKeepAlivePacket
+//The client returns the keep alive id sent by the server
 public sealed record ServerboundKeepAlivePacket(long Id) : Packet<ServerCommonPacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundKeepAlivePacket> StreamCodec { get; } = new KeepAliveCodec();

@@ -4,9 +4,9 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Client.Render.World;
 
-//RenderSectionState section 渲染状态机
-//Empty 未编译 Queued 已入编译队列 Compiling 后台编译中 Compiled 编译完待上传 Uploaded 已上传可 Draw
-//Dirty 已上传但需重编译旧 buffer 仍有效 Draw 跳过等重编译完成
+//RenderSectionState section render state machine
+//Empty not compiled, Queued in the compile queue, Compiling compiling in the background, Compiled done compiling awaiting upload, Uploaded uploaded and drawable
+//Dirty uploaded but needs recompiling; the old buffer is still valid, Draw is skipped until recompiling finishes
 public enum RenderSectionState : byte
 {
     Empty,
@@ -17,10 +17,10 @@ public enum RenderSectionState : byte
     Dirty
 }
 
-//RenderSection 单 section 渲染数据持有者+状态机
-//_mesh 用 Interlocked.Exchange 原子发布编译线程写 Render 线程读引用赋值本身原子 Exchange 提供发布屏障
-//VertexBuffer/IndexBuffer 只在 Render 线程 Lock 内读写不需同步原语
-//BoundingBox 按 Pos<<4 构造供 Frustum 剔除
+//RenderSection single-section render data holder + state machine
+//_mesh is published atomically with Interlocked.Exchange; the compile thread writes and the Render thread reads. Reference assignment is itself atomic and Exchange provides the publication barrier
+//VertexBuffer/IndexBuffer are only read/written inside the Render thread's Lock, so no synchronization primitives are needed
+//BoundingBox built from Pos<<4 for Frustum culling
 public sealed class RenderSection
 {
     public SectionPos Pos { get; }
@@ -35,13 +35,13 @@ public sealed class RenderSection
     public GpuBuffer? VertexBuffer { get; private set; }
     public GpuBuffer? IndexBuffer { get; private set; }
 
-    //Slices 每 layer 上传后的偏移信息供 dispatcher.GetSectionSlice 构造 SectionSlice
-    //null 表示该 layer 无顶点 Draw 时跳过
+    //Slices per-layer upload offset info, used by dispatcher.GetSectionSlice to build SectionSlice
+    //null means the layer has no vertices; skipped at Draw
     public UploadedSlice?[] Slices { get; } = new UploadedSlice?[3];
 
     public bool HasUploadedBuffers => VertexBuffer is not null && IndexBuffer is not null;
 
-    //IsRemoved chunk 卸载标记 UnloadSection 置 true 编译/上传线程检查跳过防竞态
+    //IsRemoved chunk unload flag set to true by UnloadSection; compile/upload threads check and skip to prevent races
     private volatile bool _removed;
     public bool IsRemoved => _removed;
 
@@ -54,13 +54,13 @@ public sealed class RenderSection
         BoundingBox = new AABB(minX, minY, minZ, minX + 16, minY + 16, minZ + 16);
     }
 
-    //MarkRemoved 标记已卸载 编译线程 PublishMesh 前检查避免已移除 section 继续入上传队列
+    //MarkRemoved marks as unloaded; the compile thread checks before PublishMesh to keep a removed section from entering the upload queue
     public void MarkRemoved() => _removed = true;
 
-    //TryMarkDirty 标脏入队 CAS 状态防重复
-    //Empty/Compiled → Queued 无旧 buffer 直接入队
-    //Uploaded → Dirty 旧 buffer 仍有效 Draw 跳过等重编译完成 UploadTerrainBuffers 检测旧 buffer 先 ReturnBuffer
-    //Queued/Compiling/Dirty 返回 false 已入队或编译中跳过
+    //TryMarkDirty marks dirty and enqueues; CAS on state prevents duplicates
+    //Empty/Compiled → Queued, no old buffer, enqueue directly
+    //Uploaded → Dirty, the old buffer is still valid, Draw is skipped until recompiling finishes; UploadTerrainBuffers detects the old buffer and calls ReturnBuffer first
+    //Queued/Compiling/Dirty return false; already queued or compiling, skip
     public bool TryMarkDirty()
     {
         while (true)
@@ -78,7 +78,7 @@ public sealed class RenderSection
         }
     }
 
-    //TryBeginCompile worker Take 后调 Queued/Dirty → Compiling
+    //TryBeginCompile called by a worker after Take; Queued/Dirty → Compiling
     public bool TryBeginCompile()
     {
         while (true)
@@ -91,14 +91,14 @@ public sealed class RenderSection
         }
     }
 
-    //PublishMesh 编译线程调原子替换 mesh + 转 Compiled 供 Render 线程 Upload
+    //PublishMesh called by the compile thread; atomically replaces mesh and transitions to Compiled for the Render thread to Upload
     public void PublishMesh(SectionMesh mesh)
     {
         Interlocked.Exchange(ref _mesh, mesh);
         Interlocked.Exchange(ref _state, RenderSectionState.Compiled);
     }
 
-    //SetUploadedBuffers Render 线程 Lock 内调上传完更新 buffer 引用 + 转 Uploaded
+    //SetUploadedBuffers called inside the Render thread's Lock after upload; updates buffer references and transitions to Uploaded
     public void SetUploadedBuffers(GpuBuffer vb, GpuBuffer ib)
     {
         VertexBuffer = vb;
@@ -106,7 +106,7 @@ public sealed class RenderSection
         _state = RenderSectionState.Uploaded;
     }
 
-    //ReleaseBuffers Render 线程 Lock 内调重编译前或 unload 时归还旧 buffer 到 pool
+    //ReleaseBuffers called inside the Render thread's Lock before recompiling or on unload; returns old buffers to the pool
     public void ReleaseBuffers(GpuBufferPool pool)
     {
         if (VertexBuffer is not null) pool.ReturnBuffer(VertexBuffer);
@@ -117,6 +117,6 @@ public sealed class RenderSection
     }
 }
 
-//UploadedSlice 单 layer 上传后的偏移信息存 RenderSection.Slices
-//BaseVertex 该 layer 顶点在 vertex buffer 的起始顶点索引 FirstIndex 索引起始 IndexCount 索引数
+//UploadedSlice per-layer upload offset info stored in RenderSection.Slices
+//BaseVertex the starting vertex index of the layer's vertices in the vertex buffer; FirstIndex index start; IndexCount index count
 public readonly record struct UploadedSlice(int BaseVertex, int FirstIndex, int IndexCount);

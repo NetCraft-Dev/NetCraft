@@ -2,8 +2,8 @@ using NetCraft.Util.Profiling;
 
 namespace NetCraft.Util.Profiling.Metrics;
 
-//采样器提供者接口对应原版net.minecraft.util.profiling.metrics.MetricsSamplerProvider
-//返回一组MetricSampler供MetricsRecorder使用
+//Sampler provider interface, maps to vanilla net.minecraft.util.profiling.metrics.MetricsSamplerProvider
+//Returns a set of MetricSampler for use by MetricsRecorder
 public interface MetricsSamplerProvider
 {
     ISet<MetricSampler> Samplers(Func<ProfileCollector> singleTickProfiler);

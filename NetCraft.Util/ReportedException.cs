@@ -1,7 +1,7 @@
 namespace NetCraft.Util;
 
-//包装CrashReport的异常对应原版net.minecraft.ReportedException
-//在需要抛出带上下文的错误时使用
+//Exception wrapping a CrashReport, maps to vanilla net.minecraft.ReportedException
+//Used when an error with context needs to be thrown
 public class ReportedException : Exception
 {
     public CrashReport Report { get; }

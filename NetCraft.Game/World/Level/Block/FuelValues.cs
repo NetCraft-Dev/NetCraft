@@ -4,32 +4,32 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//FuelValues 燃料燃烧时长表 对应原版 net.minecraft.world.level.block.entity.FuelValues
-//原版把物品与物品标签展开成一张 物品->燃烧刻数 的表 由数据包加载完成后的关卡持有
-//本作按 FuelValues.Active 静态持有 与 RecipeManager.Active 同一套做法
+//FuelValues fuel burn duration table, maps to vanilla net.minecraft.world.level.block.entity.FuelValues
+//Vanilla expands items and item tags into an item -> burn ticks table, held by the level after datapacks are loaded
+//Here it is held statically as FuelValues.Active, same approach as RecipeManager.Active
 public sealed class FuelValues
 {
-    //Active 当前生效的燃料表 数据重载后重建 熔炉烧燃料时读它
+    //Active currently effective fuel table, rebuilt after data reload, read by furnaces when burning fuel
     public static FuelValues? Active { get; set; }
 
     private readonly Dictionary<Item, int> _values = new();
 
     private FuelValues(Dictionary<Item, int> values) => _values = values;
 
-    //IsFuel 该物品能不能当燃料 对应原版 isFuel
+    //IsFuel whether the item can be used as fuel, maps to vanilla isFuel
     public bool IsFuel(ItemStack stack)
         => !stack.IsEmpty() && _values.ContainsKey(stack.GetItem());
 
-    //BurnDuration 该物品烧多少刻 非燃料返回 0 对应原版 burnDuration
+    //BurnDuration burn ticks for the item, 0 for non-fuel, maps to vanilla burnDuration
     public int BurnDuration(ItemStack stack)
         => stack.IsEmpty() ? 0 : _values.GetValueOrDefault(stack.GetItem());
 
-    //FuelItemCount 表内燃料种类数 供诊断与测试
+    //FuelItemCount number of fuel kinds in the table, for diagnostics and tests
     public int FuelItemCount => _values.Count;
 
-    //VanillaBurnTimes 原版内置燃料表 逐项按原版 vanillaBurnTimes 的添加顺序对齐
-    //顺序有意义: 同一物品被多条规则命中时以最后一条为准 最后的 remove 也要在末尾执行
-    //baseUnit 原版默认 200 刻即一块木板烧一个物品的时间
+    //VanillaBurnTimes vanilla built-in fuel table, each entry aligned with the addition order of vanilla vanillaBurnTimes
+    //Order matters: when an item matches several rules the last one wins, and the final remove must also run last
+    //baseUnit defaults to 200 ticks in vanilla, the time one plank burns to smelt one item
     public static FuelValues VanillaBurnTimes(int baseUnit = 200)
     {
         var builder = new Builder();
@@ -101,18 +101,18 @@ public sealed class FuelValues
         return builder.Build();
     }
 
-    //Builder 燃料表构建器 物品 id 与标签写进来统一展开成物品->刻数
+    //Builder fuel table builder; item ids and tags are written in and uniformly expanded into item -> ticks
     private sealed class Builder
     {
         private readonly Dictionary<Item, int> _values = new();
 
-        //AddItem 单个物品入表 未注册的 id 直接跳过
+        //AddItem inserts a single item, unregistered ids are skipped
         public void AddItem(string name, int time)
         {
             if (LookupItem(name) is { } item) _values[item] = time;
         }
 
-        //AddTag 整个物品标签入表 标签未加载或未绑定则跳过
+        //AddTag inserts an entire item tag, skipped if the tag is not loaded or bound
         public void AddTag(string tagName, int time, bool remove = false)
         {
             var tag = TagKey<Item>.Create(Registries.ITEM, Identifier.WithDefaultNamespace(tagName));

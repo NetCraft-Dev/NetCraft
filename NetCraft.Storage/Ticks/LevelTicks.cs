@@ -3,14 +3,14 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Storage.Ticks;
 
-//LevelTicks 全关卡调度刻集合 对应原版 net.minecraft.world.tick.LevelTicks
-//两层结构 每区块一个容器 外加一个按容器头元素排序的最小堆
-//每 tick 分收集 执行 清理三步 收集数量受预算上限约束 收不满的留到下一 tick
+//LevelTicks, the whole-level scheduled tick collection, maps to vanilla net.minecraft.world.tick.LevelTicks
+//Two-layer structure: one container per chunk, plus a min-heap ordered by each container's head element
+//Each tick has three steps: collect, run, cleanup; the collected count is bounded by a budget and leftovers wait for the next tick
 public sealed class LevelTicks<T> where T : class
 {
     private readonly Func<long, bool> _tickCheck;
     private readonly Dictionary<long, LevelChunkTicks<T>> _allContainers = new();
-    //容器到它下一次该被检查的刻 用来跳过还没到点的容器
+    //Map from container to the next tick it should be checked, used to skip containers not yet due
     private readonly Dictionary<long, long> _nextTickForContainer = new();
     private readonly PriorityQueue<LevelChunkTicks<T>, LevelChunkTicks<T>> _containersToTick;
     private readonly Queue<ScheduledTick<T>> _toRunThisTick = new();
@@ -32,10 +32,10 @@ public sealed class LevelTicks<T> where T : class
         _toRunThisTickSet = new HashSet<ScheduledTick<T>>(new ScheduledTick<T>.UniqueTickComparer());
     }
 
-    //ContainerCount 已登记容器的区块数
+    //ContainerCount, the number of chunks with a registered container
     public int ContainerCount => _allContainers.Count;
 
-    //AddContainer 区块开始参与 tick 时登记容器 对应原版 addContainer
+    //AddContainer registers a container when a chunk starts ticking, maps to vanilla addContainer
     public void AddContainer(ChunkPos pos, LevelChunkTicks<T> container)
     {
         var key = ChunkPos.Pack(pos.X, pos.Z);
@@ -45,7 +45,7 @@ public sealed class LevelTicks<T> where T : class
         if (head is not null) _nextTickForContainer[key] = head.TriggerTick;
     }
 
-    //RemoveContainer 区块卸载时摘掉容器 对应原版 removeContainer
+    //RemoveContainer detaches a container on chunk unload, maps to vanilla removeContainer
     public void RemoveContainer(ChunkPos pos)
     {
         var key = ChunkPos.Pack(pos.X, pos.Z);
@@ -53,8 +53,8 @@ public sealed class LevelTicks<T> where T : class
         _nextTickForContainer.Remove(key);
     }
 
-    //Schedule 排入一个调度刻 对应原版 schedule
-    //目标区块没登记时丢弃并告警 原版在这里也是走 logAndPause
+    //Schedule schedules a tick, maps to vanilla schedule
+    //Dropped with a warning when the target chunk is not registered; vanilla also goes through logAndPause here
     public void Schedule(ScheduledTick<T> tick)
     {
         var key = ChunkPos.Pack(tick.Pos.X >> 4, tick.Pos.Z >> 4);
@@ -66,16 +66,16 @@ public sealed class LevelTicks<T> where T : class
         => _allContainers.TryGetValue(ChunkPos.Pack(pos.X >> 4, pos.Z >> 4), out var container)
             && container.HasScheduledTick(pos, type);
 
-    //WillTickThisTick 本刻是否已经收集了该位置的刻
+    //WillTickThisTick, whether this tick has already collected the tick at that pos
     public bool WillTickThisTick(BlockPos pos, T type)
     {
         CalculateTickSetIfNeeded();
         return _toRunThisTickSet.Contains(Probe(type, pos));
     }
 
-    //CopyAreaFrom 把另一份表里落在矩形内的刻按 offset 平移搬进本表 对应原版 copyAreaFrom
-    //clone 复制方块时要把源区正在跑的调度刻一并带过去 否则复制的红石与流体不会继续动
-    //触发刻与子序号原样保留 同一刻内的先后关系不会被打乱
+    //CopyAreaFrom copies ticks falling inside the rectangle from another table into this one, shifted by offset, maps to vanilla copyAreaFrom
+    //When clone copies blocks, the source area's running scheduled ticks must come along, or the copied redstone and fluids will not keep moving
+    //Trigger tick and sub-order are kept as is, so within-tick ordering is not disturbed
     public void CopyAreaFrom(LevelTicks<T> from, int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
         BlockPos offset)
     {
@@ -92,7 +92,7 @@ public sealed class LevelTicks<T> where T : class
         }
     }
 
-    //Tick 推进一刻 对应原版 LevelTicks.tick
+    //Tick advances one tick, maps to vanilla LevelTicks.tick
     public void Tick(long currentTick, int maxTicksToProcess, Action<BlockPos, T> output)
     {
         CollectTicks(currentTick, maxTicksToProcess);
@@ -100,7 +100,7 @@ public sealed class LevelTicks<T> where T : class
         CleanupAfterTick();
     }
 
-    //OnTickAdded 只有新刻成为容器头时才需要更新索引
+    //OnTickAdded: the index needs updating only when the new tick becomes the container head
     private void OnTickAdded(LevelChunkTicks<T> container, ScheduledTick<T> tick)
     {
         if (!ReferenceEquals(tick, container.Peek())) return;
@@ -109,7 +109,7 @@ public sealed class LevelTicks<T> where T : class
 
     private bool CanScheduleMoreTicks(int maxTicksToProcess) => _toRunThisTick.Count < maxTicksToProcess;
 
-    //CollectTicks 收集本刻该跑的刻 对应原版 collectTicks
+    //CollectTicks collects the ticks to run this tick, maps to vanilla collectTicks
     private void CollectTicks(long currentTick, int maxTicksToProcess)
     {
         SortContainersToTick(currentTick);
@@ -117,7 +117,7 @@ public sealed class LevelTicks<T> where T : class
         RescheduleLeftoverContainers();
     }
 
-    //SortContainersToTick 把已到点且允许 tick 的容器挑进待处理堆 对应原版同名方法
+    //SortContainersToTick picks due, tickable containers into the pending heap, maps to the vanilla same-named method
     private void SortContainersToTick(long currentTick)
     {
         List<long>? consumed = null;
@@ -137,11 +137,11 @@ public sealed class LevelTicks<T> where T : class
             }
             if (head.TriggerTick > currentTick)
             {
-                //容器还早 索引推到它真正的下一个点
+                //The container is not due yet; push the index to its real next point
                 _nextTickForContainer[key] = head.TriggerTick;
                 continue;
             }
-            //不在可 tick 范围的容器本刻跳过 索引留着下刻再看
+            //Containers outside the tickable range are skipped this tick; the index is kept for the next tick
             if (!_tickCheck(key)) continue;
             (consumed ??= new List<long>()).Add(key);
             _containersToTick.Enqueue(container, container);
@@ -151,7 +151,7 @@ public sealed class LevelTicks<T> where T : class
         foreach (var key in consumed) _nextTickForContainer.Remove(key);
     }
 
-    //DrainContainers 按容器头归并取出本刻该跑的刻 对应原版 drainContainers
+    //DrainContainers merges by container head and takes the ticks to run this tick, maps to vanilla drainContainers
     private void DrainContainers(long currentTick, int maxTicksToProcess)
     {
         while (CanScheduleMoreTicks(maxTicksToProcess)
@@ -169,7 +169,7 @@ public sealed class LevelTicks<T> where T : class
         }
     }
 
-    //DrainFromCurrentContainer 从一个容器连续取 每取一项都与其它容器头比一次 保证同刻全局序
+    //DrainFromCurrentContainer takes repeatedly from one container, comparing against other heads each time to keep the global within-tick order
     private void DrainFromCurrentContainer(LevelChunkTicks<T> container, long currentTick, int maxTicksToProcess)
     {
         if (!CanScheduleMoreTicks(maxTicksToProcess)) return;
@@ -185,7 +185,7 @@ public sealed class LevelTicks<T> where T : class
         }
     }
 
-    //RescheduleLeftoverContainers 本刻没轮到的容器重新登记索引 对应原版同名方法
+    //RescheduleLeftoverContainers re-registers indexes for containers not reached this tick, maps to the vanilla same-named method
     private void RescheduleLeftoverContainers()
     {
         while (_containersToTick.TryDequeue(out var container, out _))
@@ -202,7 +202,7 @@ public sealed class LevelTicks<T> where T : class
         _toRunThisTickSet.Add(tick);
     }
 
-    //RunCollectedTicks 执行收集到的刻 对应原版 runCollectedTicks
+    //RunCollectedTicks runs the collected ticks, maps to vanilla runCollectedTicks
     private void RunCollectedTicks(Action<BlockPos, T> output)
     {
         while (_toRunThisTick.Count > 0)

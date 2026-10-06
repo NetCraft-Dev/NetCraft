@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSoundPacket 声音包对应原版 ClientboundSoundPacket
-//声音写内联 holder 坐标按 8 倍精度 int 编解码
+//ClientboundSoundPacket sound packet, maps to vanilla ClientboundSoundPacket
+//The sound is written as an inline holder; coordinates are encoded as ints at 8x precision
 public sealed record ClientboundSoundPacket(SoundEvent Sound, SoundSource Source, double X, double Y, double Z, float Volume, float Pitch, long Seed) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSoundPacket> StreamCodec { get; } = new SoundCodec();
@@ -40,18 +40,18 @@ public sealed record ClientboundSoundPacket(SoundEvent Sound, SoundSource Source
             buf.WriteLong(value.Seed);
         }
 
-        //ReadSound 读声音 holder 本项目 sound_event 注册表为空只能识别内联形式
+        //ReadSound reads the sound holder; this project's sound_event registry is empty, so only the inline form can be recognized
         private static SoundEvent ReadSound(FriendlyByteBuf buf)
         {
             if (buf.ReadVarInt() != 0)
-                //非 0 是注册表项引用 空注册表无从解析原版 id
-                throw new NotSupportedException("sound_event 注册表项引用暂不支持");
+                //A non-zero value is a registry entry reference; an empty registry cannot resolve the vanilla id
+                throw new NotSupportedException("sound_event registry entry references are not supported yet");
             var location = buf.ReadIdentifier();
             float? fixedRange = buf.ReadBoolean() ? buf.ReadFloat() : null;
             return new SoundEvent(location, fixedRange);
         }
 
-        //WriteSound 写声音 holder 一律写内联
+        //WriteSound writes the sound holder, always in the inline form
         private static void WriteSound(FriendlyByteBuf buf, SoundEvent sound)
         {
             buf.WriteVarInt(0);

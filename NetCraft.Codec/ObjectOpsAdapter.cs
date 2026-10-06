@@ -4,10 +4,10 @@ namespace NetCraft.Codec;
 using System.Collections.Generic;
 using System.Linq;
 
-//通用DynamicOps<T>到DynamicOps<object>适配器对齐Java类型擦除下的DynamicOps<?>通配语义
-//C#泛型不变性禁止直接跨T转Object通过适配器包装委托调用
-//用于EmptyPartPassthrough等需要把任意ops当object ops使用的场景
-//要求T为引用类型值类型T不支持实际DFU仅用NbtOps T=Tag
+//Adapter from a generic DynamicOps<T> to DynamicOps<object>, matching the DynamicOps<?> wildcard semantics of Java type erasure
+//C# generic invariance forbids converting T to object directly, so the adapter wraps the calls in delegates
+//Used by EmptyPartPassthrough and similar places that need to treat any ops as object ops
+//Requires T to be a reference type; value types are unsupported. Real DFU only uses NbtOps with T=Tag
 public sealed class ObjectOpsAdapter<T> : DynamicOps<object>
 {
     private readonly DynamicOps<T> _inner;
@@ -93,11 +93,11 @@ public sealed class ObjectOpsAdapter<T> : DynamicOps<object>
     public RecordBuilder<object> MapBuilder()
         => new RecordBuilderTToObjectAdapter<T>(_inner.MapBuilder(), this);
 
-    //T是引用类型时直接cast T是值类型时InvalidCastException对齐Java类型擦除语义
+    //A direct cast when T is a reference type, InvalidCastException when it is a value type, matching Java type erasure
     private static T CastT(object o) => (T)o;
 }
 
-//MapLike<T>到MapLike<object>的适配器T侧委托转object侧
+//Adapter from MapLike<T> to MapLike<object>, delegating the T side to the object side
 internal sealed class MapLikeTToObjectAdapter<T> : MapLike<object>
 {
     private readonly MapLike<T> _inner;
@@ -113,8 +113,8 @@ internal sealed class MapLikeTToObjectAdapter<T> : MapLike<object>
         => _inner.Entries().Select(p => new Pair<object, object>(p.First, p.Second));
 }
 
-//MapLike<object>到MapLike<T>的适配器object侧委托转T侧
-//用于MergeToMap(MapLike<object>)反向委托
+//Adapter from MapLike<object> to MapLike<T>, delegating the object side to the T side
+//Used for the reverse delegation of MergeToMap(MapLike<object>)
 internal sealed class MapLikeObjectToTAdapter<T> : MapLike<T>
 {
     private readonly MapLike<object> _inner;
@@ -132,7 +132,7 @@ internal sealed class MapLikeObjectToTAdapter<T> : MapLike<T>
     private static T CastT(object o) => (T)o;
 }
 
-//RecordBuilder<T>到RecordBuilder<object>的适配器委托T侧累积
+//Adapter from RecordBuilder<T> to RecordBuilder<object>, delegating accumulation to the T side
 internal sealed class RecordBuilderTToObjectAdapter<T> : RecordBuilder<object>
 {
     private readonly RecordBuilder<T> _inner;

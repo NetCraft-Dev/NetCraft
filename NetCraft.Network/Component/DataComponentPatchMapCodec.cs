@@ -3,8 +3,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Component;
 
-//DataComponentPatchMapCodec 组件补丁的持久化编解码 对应原版 DataComponentPatch.CODEC
-//键是组件注册名 前缀 ! 表示移除 值是组件自身 Codec 的编解码结果
+//DataComponentPatchMapCodec persistence codec for component patches, maps to vanilla DataComponentPatch.CODEC
+//The key is the component registry name, a ! prefix means removal, and the value is the coding result of the component's own Codec
 internal sealed class DataComponentPatchMapCodec : AbstractMapCodec<DataComponentPatch>
 {
     private const string RemovedPrefix = "!";
@@ -15,22 +15,22 @@ internal sealed class DataComponentPatchMapCodec : AbstractMapCodec<DataComponen
         foreach (var entry in input.Entries())
         {
             var keyText = ops.GetStringValue(entry.First);
-            if (!keyText.Result().IsPresent) return DataResult<DataComponentPatch>.Error(() => "组件补丁的键必须是字符串");
+            if (!keyText.Result().IsPresent) return DataResult<DataComponentPatch>.Error(() => "component patch keys must be strings");
             var text = keyText.GetOrThrow();
             var removed = text.StartsWith(RemovedPrefix, StringComparison.Ordinal);
             var idText = removed ? text[RemovedPrefix.Length..] : text;
             var id = Identifier.TryParse(idText);
-            if (id is null) return DataResult<DataComponentPatch>.Error(() => $"未识别的组件名 {idText}");
+            if (id is null) return DataResult<DataComponentPatch>.Error(() => $"unrecognized component name {idText}");
             var holder = BuiltInRegistries.DATA_COMPONENT_TYPE.Get(id.Value);
             if (holder?.Value is not DataComponentType<object> type)
-                return DataResult<DataComponentPatch>.Error(() => $"组件尚未注册 {idText}");
+                return DataResult<DataComponentPatch>.Error(() => $"component not yet registered {idText}");
             if (removed)
             {
                 map[type] = Optional<object>.Empty();
                 continue;
             }
             var parsed = type.CodecOrThrow().Parse(ops, entry.Second);
-            if (!parsed.Result().IsPresent) return DataResult<DataComponentPatch>.Error(() => $"组件 {idText} 解析失败");
+            if (!parsed.Result().IsPresent) return DataResult<DataComponentPatch>.Error(() => $"failed to parse component {idText}");
             map[type] = Optional<object>.Of(parsed.GetOrThrow());
         }
         return DataResult<DataComponentPatch>.Success(map.Count == 0 ? DataComponentPatch.Empty : new DataComponentPatch(map));

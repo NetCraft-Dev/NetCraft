@@ -2,8 +2,8 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundBlockDestructionPacket 方块破坏进度包对应原版 ClientboundBlockDestructionPacket
-//字段 id VarInt pos BlockPos progress UnsignedByte
+//ClientboundBlockDestructionPacket block destruction progress packet, maps to vanilla ClientboundBlockDestructionPacket
+//Fields: id VarInt, pos BlockPos, progress UnsignedByte
 public sealed record ClientboundBlockDestructionPacket(int Id, BlockPos Pos, int Progress) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundBlockDestructionPacket> StreamCodec { get; } = new BlockDestructionCodec();

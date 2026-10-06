@@ -9,11 +9,11 @@ using NetCraft.Util.Thread;
 
 namespace NetCraft.Storage;
 
-//异步区块IO调度器对应原版IOWorker
-//通过PriorityConsecutiveExecutor串行调度RegionFileStorage同步IO
-//pendingWrites按ChunkPos合并多次store为最后一次写入
-//优化点2.11：开关IoWorkerChannels启用表示采用Channels等价实现（PriorityConsecutiveExecutor是无锁串行队列与Channels actor模型语义等价）
-//C2ME 重写 ChunkIoWorker 已验证此 actor 模型方案
+//Async chunk IO scheduler, maps to vanilla IOWorker
+//Serializes the synchronous IO of RegionFileStorage through a PriorityConsecutiveExecutor
+//pendingWrites merges multiple stores per ChunkPos into the last write
+//Optimization 2.11: when the IoWorkerChannels switch is enabled it uses the Channels equivalent (PriorityConsecutiveExecutor is a lock-free serial queue, semantically equivalent to the Channels actor model)
+//C2ME's rewrite of ChunkIoWorker has validated this actor-model approach
 public sealed class IOWorker : IDisposable, ChunkScanAccess
 {
     public const string IoWorkerNamePrefix = "IOWorker-";
@@ -23,13 +23,13 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
     private volatile bool _shutdownRequested;
     private readonly LinkedList<KeyValuePair<ChunkPos, PendingStore>> _pendingOrder = new();
     private readonly Dictionary<ChunkPos, LinkedListNode<KeyValuePair<ChunkPos, PendingStore>>> _pendingIndex = new();
-    //blending扫描用的region缓存对应原版regionCacheForBlender
-    //Long2ObjectLinkedOpenHashMap用LinkedList+Dictionary模拟LRU上限1024
+    //The region cache used for blending scans, maps to vanilla regionCacheForBlender
+    //Long2ObjectLinkedOpenHashMap is simulated with a LinkedList + Dictionary, LRU capped at 1024
     private readonly LinkedList<KeyValuePair<long, Task<BitSet>>> _regionBlenderOrder = new();
     private readonly Dictionary<long, LinkedListNode<KeyValuePair<long, Task<BitSet>>>> _regionBlenderIndex = new();
     private const int RegionBlenderCacheSize = 1024;
-    //旧区块判定阈值对应原版isOldChunk的4882硬编码
-    //DataVersion低于此值或包含blending_data字段视为旧区块
+    //The old-chunk threshold, maps to the 4882 hardcoded in vanilla isOldChunk
+    //A DataVersion below this or the presence of the blending_data field counts as an old chunk
     private const int OldChunkDataVersion = 4882;
 
     public IOWorker(RegionStorageInfo info, string dir, bool sync)
@@ -49,8 +49,8 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
         Shutdown
     }
 
-    //待写入缓存对应原版PendingStore
-    //合并同一chunk多次store为最后一次Data，Result在RunStore完成时触发
+    //Pending write cache, maps to vanilla PendingStore
+    //Merges multiple stores of the same chunk into the last Data; Result fires when RunStore completes
     private sealed class PendingStore
     {
         public CompoundTag? Data;
@@ -58,12 +58,12 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
 
         public PendingStore(CompoundTag? data) { Data = data; }
 
-        //复制数据避免外部修改影响待写入内容
+        //Copy the data so external modification does not affect the pending content
         public CompoundTag? CopyData() => Data?.Copy() as CompoundTag;
     }
 
-    //判断pos周围range范围内是否存在旧区块对应原版isOldChunkAround
-    //扫描所有覆盖region的BitSet若任一位置位即返回true
+    //Whether an old chunk exists within range around pos, maps to vanilla isOldChunkAround
+    //Scan all regions covering the area; if any bit is set, return true
     public bool IsOldChunkAround(ChunkPos pos, int range)
     {
         Log.Debug($"IsOldChunkAround entry pos={pos} range={range}");
@@ -100,8 +100,8 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
         return false;
     }
 
-    //获取或创建region级BitSet对应原版getOrCreateOldDataForRegion
-    //LRU缓存命中则提前返回否则异步创建并加入缓存
+    //Get or create the region-level BitSet, maps to vanilla getOrCreateOldDataForRegion
+    //An LRU cache hit returns early, otherwise it creates asynchronously and adds to the cache
     private Task<BitSet> GetOrCreateOldDataForRegion(int regionX, int regionZ)
     {
         long regionPos = ChunkPos.Pack(regionX, regionZ);
@@ -127,8 +127,8 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
         }
     }
 
-    //扫描region内1024个chunk构建旧区块BitSet对应原版createOldDataForRegion
-    //用CollectFields只取DataVersion与blending_data两字段降低IO成本
+    //Scan the 1024 chunks in the region to build the old-chunk BitSet, maps to vanilla createOldDataForRegion
+    //Uses CollectFields to take only DataVersion and blending_data, reducing IO cost
     private Task<BitSet> CreateOldDataForRegion(int regionX, int regionZ)
     {
         return Task.Run(() =>
@@ -160,8 +160,8 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
         });
     }
 
-    //旧区块判定对应原版isOldChunk
-    //DataVersion低于阈值或包含blending_data字段视为旧区块
+    //Old chunk test, maps to vanilla isOldChunk
+    //A DataVersion below the threshold or the presence of the blending_data field counts as an old chunk
     private bool IsOldChunk(CompoundTag tag)
     {
         if (NbtUtils.GetDataVersion(tag, 0) < OldChunkDataVersion) return true;
@@ -180,7 +180,7 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
             store.Data = data;
             return store.Result.Task;
         }));
-        //Log.Debug($"Store 出口 result={result}");
+        //Log.Debug($"Store exit result={result}");
         return result;
     }
 
@@ -199,7 +199,7 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
                 throw;
             }
         });
-        //Log.Debug($"LoadAsync 出口 result={result}");
+        //Log.Debug($"LoadAsync exit result={result}");
         return result;
     }
 
@@ -225,7 +225,7 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
                 }
             }).ConfigureAwait(false);
         }
-        //Log.Debug($"Synchronize 出口");
+        //Log.Debug($"Synchronize exit");
     }
 
     public Task ScanChunk(ChunkPos pos, StreamTagVisitor visitor)
@@ -251,11 +251,11 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
                 throw;
             }
         });
-        //Log.Debug($"ScanChunk 出口 result={result}");
+        //Log.Debug($"ScanChunk exit result={result}");
         return result;
     }
 
-    //提交会抛异常的任务异常通过TaskCompletionSource传给调用方
+    //Submit a task that may throw; the exception reaches the caller through the TaskCompletionSource
     private Task<T> SubmitThrowingTask<T>(Func<T> task)
         => _executor.ScheduleWithResult<T>((int)Priority.Foreground, tcs =>
         {
@@ -267,7 +267,7 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
             TellStorePending();
         });
 
-    //提交普通任务不捕获异常调用方负责
+    //Submit an ordinary task without catching exceptions; the caller is responsible
     private Task<T> SubmitTask<T>(Func<T> task)
         => _executor.ScheduleWithResult<T>((int)Priority.Foreground, tcs =>
         {
@@ -275,7 +275,7 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
             TellStorePending();
         });
 
-    //获取或创建PendingStore已存在则只更新Data不重排序
+    //Get or create the PendingStore; when it exists, only Data is updated without reordering
     private PendingStore GetOrCreatePendingStore(ChunkPos pos)
     {
         if (_pendingIndex.TryGetValue(pos, out var existing))
@@ -321,7 +321,7 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
 
     public RegionStorageInfo StorageInfo() => _storage.Info();
 
-    //解包Task<Task>为Task对应原版thenCompose(Function.identity())
+    //Unwrap a Task<Task> into a Task, maps to vanilla thenCompose(Function.identity())
     private static async Task UnwrapVoid(Task<Task> outer)
     {
         var inner = await outer.ConfigureAwait(false);
@@ -330,10 +330,10 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
 
     public void Dispose()
     {
-        //Log.Debug($"Dispose 入口");
+        //Log.Debug($"Dispose entry");
         if (Interlocked.CompareExchange(ref _shutdownRequested, true, false))
         {
-            //Log.Debug($"Dispose 出口");
+            //Log.Debug($"Dispose exit");
             return;
         }
         try { WaitForShutdown().Wait(); }
@@ -341,6 +341,6 @@ public sealed class IOWorker : IDisposable, ChunkScanAccess
         _executor.Close();
         try { _storage.Close(); }
         catch (Exception e) { Log.Exception(e, "Failed to close storage"); }
-        //Log.Debug($"Dispose 出口");
+        //Log.Debug($"Dispose exit");
     }
 }

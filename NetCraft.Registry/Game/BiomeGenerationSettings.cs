@@ -3,16 +3,16 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry;
 
-//BiomeGenerationSettings 群系生成设置对应原版 BiomeGenerationSettings
-//carvers 对应 ConfiguredWorldCarver.LIST_CODEC features 对应 PlacedFeature.LIST_OF_LISTS_CODEC
-//features 外层按 GenerationStep.Decoration 下标分组 内层是该 step 下本群系引用的已放置特征
+//BiomeGenerationSettings biome generation settings, maps to vanilla BiomeGenerationSettings
+//carvers maps to ConfiguredWorldCarver.LIST_CODEC and features maps to PlacedFeature.LIST_OF_LISTS_CODEC
+//The outer features array is grouped by GenerationStep.Decoration index and the inner array holds the placed features referenced by this biome under that step
 public sealed class BiomeGenerationSettings
 {
     public static readonly BiomeGenerationSettings Empty = new(
         new DirectHolderSet<ConfiguredWorldCarver>(Array.Empty<Holder<ConfiguredWorldCarver>>()),
         Array.Empty<HolderSet<PlacedFeature>>());
 
-    //FeaturesCodec 外层数组内层数组 codec 空内层数组保留占位步骤
+    //FeaturesCodec codec for the outer/inner arrays; an empty inner array preserves the placeholder step
     public static readonly Codec<IReadOnlyList<HolderSet<PlacedFeature>>> FeaturesCodec =
         HolderSetCodecs.PlacedFeatureSet.ListOf();
 
@@ -23,10 +23,10 @@ public sealed class BiomeGenerationSettings
             FeaturesCodec.FieldOf("features").ForGetter<BiomeGenerationSettings, IReadOnlyList<HolderSet<PlacedFeature>>>(s => s.Features),
             (carvers, features) => new BiomeGenerationSettings(carvers, features));
 
-    //Carvers 雕刻器集合 按配置化雕刻器注册表绑定
+    //Carvers carver set, bound to the configured carver registry
     public HolderSet<ConfiguredWorldCarver> Carvers { get; }
 
-    //Features 逐 step 的已放置特征集合 下标即 GenerationStep.Decoration 序数
+    //Features placed feature sets per step; the index is the GenerationStep.Decoration ordinal
     public IReadOnlyList<HolderSet<PlacedFeature>> Features { get; }
 
     public BiomeGenerationSettings(HolderSet<ConfiguredWorldCarver> carvers, IReadOnlyList<HolderSet<PlacedFeature>> features)

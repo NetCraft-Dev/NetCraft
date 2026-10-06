@@ -5,8 +5,8 @@ using System.Text;
 
 namespace NetCraft.Util;
 
-//控制台ANSI字符画
-//提供字符画打印和样式着色
+//Console ANSI art
+//Provides art printing and style coloring
 public class ConsoleAnsiArtist
 {
         private static readonly Dictionary<char, string[]> _ansiArtLibrary = new Dictionary<char, string[]>

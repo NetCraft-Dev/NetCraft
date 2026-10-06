@@ -2,7 +2,7 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.Environment;
 
-//ColorModifier 颜色修饰符对应原版 ColorModifier
+//ColorModifier color modifier, maps to vanilla ColorModifier
 public static class ColorModifier
 {
     public static readonly AttributeModifier<int, int> AlphaBlend = new AlphaBlendColorModifier();
@@ -17,7 +17,7 @@ public static class ColorModifier
 
     public static readonly AttributeModifier<int, BlendToGray> BlendToGray = new BlendToGrayColorModifier();
 
-    //AlphaBlendColorModifier 按参数的 alpha 叠加颜色
+    //AlphaBlendColorModifier composites color by the argument's alpha
     private sealed class AlphaBlendColorModifier : AttributeModifier<int, int>
     {
         public int Apply(int subject, int argument) => Argb.AlphaBlend(subject, argument);
@@ -25,7 +25,7 @@ public static class ColorModifier
         public Codec<int> ArgumentCodec(EnvironmentAttribute<int> attribute) => HexColorCodec.StringArgb;
     }
 
-    //RgbColorModifier 只动 rgb 通道的修饰符
+    //RgbColorModifier modifier that touches only rgb channels
     private sealed class RgbColorModifier : AttributeModifier<int, int>
     {
         private readonly Func<int, int, int> _function;
@@ -37,7 +37,7 @@ public static class ColorModifier
         public Codec<int> ArgumentCodec(EnvironmentAttribute<int> attribute) => HexColorCodec.StringRgb;
     }
 
-    //ArgbColorModifier 连 alpha 一起处理的修饰符
+    //ArgbColorModifier modifier that also handles alpha
     private sealed class ArgbColorModifier : AttributeModifier<int, int>
     {
         private readonly Func<int, int, int> _function;
@@ -49,7 +49,7 @@ public static class ColorModifier
         public Codec<int> ArgumentCodec(EnvironmentAttribute<int> attribute) => ArgbArgumentCodec.Instance;
     }
 
-    //BlendToGrayColorModifier 按亮度把颜色往灰度方向混
+    //BlendToGrayColorModifier blends color toward gray by brightness
     private sealed class BlendToGrayColorModifier : AttributeModifier<int, BlendToGray>
     {
         public int Apply(int subject, BlendToGray argument)
@@ -59,7 +59,7 @@ public static class ColorModifier
     }
 }
 
-//ArgbArgumentCodec alpha 满时不透明颜色走整数形态其余走 argb 串对应原版 ArgbModifier
+//ArgbArgumentCodec a fully opaque color uses the integer form and everything else the argb string, maps to vanilla ArgbModifier
 internal sealed class ArgbArgumentCodec : ScalarCodec<int>
 {
     public static readonly ArgbArgumentCodec Instance = new();
@@ -76,7 +76,7 @@ internal sealed class ArgbArgumentCodec : ScalarCodec<int>
             : HexColorCodec.StringArgb.EncodeStart(ops, value);
 }
 
-//BlendToGray 往灰度混合的参数对应原版 ColorModifier.BlendToGray
+//BlendToGray parameters for blending toward gray, maps to vanilla ColorModifier.BlendToGray
 public sealed class BlendToGray
 {
     private static readonly Codec<float> UnitFloatCodec = AttributeValueCodecs.UnitFloat;

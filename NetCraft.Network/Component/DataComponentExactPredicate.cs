@@ -3,11 +3,11 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Component;
 
-//DataComponentExactPredicate 精确组件谓词 期望的每项都要与目标值相等 对应原版 DataComponentExactPredicate
-//放 Network 层是因为 AsPatch 与流编解码都用这里的组件补丁设施
+//DataComponentExactPredicate exact component predicate, every expected entry must equal the target value, maps to vanilla DataComponentExactPredicate
+//Lives in the Network layer because both AsPatch and stream coding use the component patch facilities here
 public sealed class DataComponentExactPredicate
 {
-    //CODEC 持久化编解码 靠组件类型分派值的 codec 对应原版 CODEC
+    //CODEC persistence codec, dispatching the value codec by component type, maps to vanilla CODEC
     public static readonly Codec<DataComponentExactPredicate> CODEC =
         DataComponentType<object>.VALUE_MAP_CODEC.ComapFlatMap(
             map =>
@@ -18,11 +18,11 @@ public sealed class DataComponentExactPredicate
             },
             predicate => ToValueMap(predicate));
 
-    //StreamCodec 网络编解码 条目列表进出 对应原版 STREAM_CODEC
+    //StreamCodec network codec, entry list in and out, maps to vanilla STREAM_CODEC
     public static readonly StreamCodec<RegistryFriendlyByteBuf, DataComponentExactPredicate> StreamCodec
         = new DataComponentExactPredicateStreamCodec();
 
-    //Empty 空谓词 恒真
+    //Empty empty predicate, always true
     public static readonly DataComponentExactPredicate Empty = new(new List<TypedDataComponent<object>>());
 
     private readonly IReadOnlyList<TypedDataComponent<object>> _expected;
@@ -31,14 +31,14 @@ public sealed class DataComponentExactPredicate
 
     internal IReadOnlyList<TypedDataComponent<object>> Expected => _expected;
 
-    //NewBuilder 造谓词构造器 对应原版 builder
+    //NewBuilder creates a predicate builder, maps to vanilla builder
     public static Builder NewBuilder() => new();
 
-    //Expect 单项期望 对应原版 expect
+    //Expect is a single expectation, maps to vanilla expect
     public static DataComponentExactPredicate Expect(DataComponentType<object> type, object value)
         => new(new[] { new TypedDataComponent<object>(type, value) });
 
-    //AllOf 目标的全部组件都作为期望 对应原版 allOf
+    //AllOf takes all of the target's components as expectations, maps to vanilla allOf
     public static DataComponentExactPredicate AllOf(DataComponentMap components)
     {
         var list = new List<TypedDataComponent<object>>();
@@ -48,7 +48,7 @@ public sealed class DataComponentExactPredicate
         return new DataComponentExactPredicate(list);
     }
 
-    //SomeOf 只挑指定类型的组件作为期望 目标缺该项则跳过 对应原版 someOf
+    //SomeOf only picks components of the given types as expectations and skips when the target lacks one, maps to vanilla someOf
     public static DataComponentExactPredicate SomeOf(DataComponentMap components, params DataComponentType<object>[] types)
     {
         var builder = NewBuilder();
@@ -57,13 +57,13 @@ public sealed class DataComponentExactPredicate
         return builder.Build();
     }
 
-    //IsEmpty 没有任何期望
+    //IsEmpty has no expectations
     public bool IsEmpty => _expected.Count == 0;
 
-    //AlwaysMatches 空谓词恒真 对应原版 alwaysMatches
+    //AlwaysMatches an empty predicate is always true, maps to vanilla alwaysMatches
     public bool AlwaysMatches => _expected.Count == 0;
 
-    //Test 目标组件集是否满足全部期望 对应原版 test
+    //Test checks whether the target component set satisfies all expectations, maps to vanilla test
     public bool Test(DataComponentGetter components)
     {
         foreach (var expected in _expected)
@@ -71,7 +71,7 @@ public sealed class DataComponentExactPredicate
         return true;
     }
 
-    //AsPatch 把期望项转成补丁 对应原版 asPatch
+    //AsPatch turns the expectations into a patch, maps to vanilla asPatch
     public DataComponentPatch AsPatch()
     {
         var builder = DataComponentPatch.NewBuilder();
@@ -79,7 +79,7 @@ public sealed class DataComponentExactPredicate
         return builder.Build();
     }
 
-    //判等按期望项列表 对应原版 equals
+    //Equality is by the expectation list, maps to vanilla equals
     public override bool Equals(object? obj)
     {
         if (ReferenceEquals(this, obj)) return true;
@@ -98,7 +98,7 @@ public sealed class DataComponentExactPredicate
 
     public override string ToString() => "[" + string.Join(", ", _expected) + "]";
 
-    //ToValueMap 取可持久化的期望项 编码侧过滤 transient 对应原版 CODEC 的编码侧
+    //ToValueMap takes the persistable expectations, filtering out transient ones on the encode side, maps to the encode side of vanilla CODEC
     private static Dictionary<DataComponentType<object>, object> ToValueMap(DataComponentExactPredicate predicate)
     {
         var map = new Dictionary<DataComponentType<object>, object>();
@@ -107,17 +107,17 @@ public sealed class DataComponentExactPredicate
         return map;
     }
 
-    //Builder 谓词构造器 重复类型直接拒绝 对应原版 Builder
+    //Builder predicate builder, rejecting duplicate types outright, maps to vanilla Builder
     public sealed class Builder
     {
         private readonly List<TypedDataComponent<object>> _expected = new();
 
-        //Expect 追加一项期望
+        //Expect appends an expectation
         public Builder Expect(DataComponentType<object> type, object value)
         {
             foreach (var entry in _expected)
                 if (ReferenceEquals(entry.Type, type))
-                    throw new ArgumentException($"已经存在该类型的期望: {type}");
+                    throw new ArgumentException($"an expectation of this type already exists: {type}");
             _expected.Add(new TypedDataComponent<object>(type, value));
             return this;
         }
@@ -127,7 +127,7 @@ public sealed class DataComponentExactPredicate
     }
 }
 
-//DataComponentExactPredicateStreamCodec 期望项列表进出 对应原版 STREAM_CODEC
+//DataComponentExactPredicateStreamCodec expectation list in and out, maps to vanilla STREAM_CODEC
 internal sealed class DataComponentExactPredicateStreamCodec
     : StreamCodec<RegistryFriendlyByteBuf, DataComponentExactPredicate>
 {

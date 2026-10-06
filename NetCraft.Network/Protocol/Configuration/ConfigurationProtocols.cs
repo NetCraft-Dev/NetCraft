@@ -1,14 +1,14 @@
 namespace NetCraft.Network.Protocol.Configuration;
 
-//ConfigurationProtocols configuration 协议注册
-//对应原版 net.minecraft.network.protocol.configuration.ConfigurationProtocols
-//注册 ServerConfigurationPacketListener 直接对应的 3 个 Serverbound 包和
-//ClientConfigurationPacketListener 直接对应的 6 个 Clientbound 包外
-//common/cookie 子协议包用 AddPacketCommon 桥接注册保证真实客户端 config 阶段可解码
+//ConfigurationProtocols configuration protocol registration
+//Maps to vanilla net.minecraft.network.protocol.configuration.ConfigurationProtocols
+//Registers the 3 Serverbound packets that ServerConfigurationPacketListener directly corresponds to, and
+//besides the 6 Clientbound packets that ClientConfigurationPacketListener directly corresponds to
+//common/cookie subprotocol packets are registered via AddPacketCommon bridging to ensure a real client can decode them during the config phase
 public static class ConfigurationProtocols
 {
-    //ServerboundTemplate SERVERBOUND configuration 协议模板
-    //ID 由 ConfigurationPacketTypes 按原版顺序显式定义 注册顺序无关编解码
+    //ServerboundTemplate SERVERBOUND configuration protocol template
+    //IDs are explicitly defined by ConfigurationPacketTypes in vanilla order; registration order does not affect coding
     public static readonly SimpleUnboundProtocol<ServerConfigurationPacketListener> ServerboundTemplate =
         new ProtocolInfoBuilder<ServerConfigurationPacketListener>(
             ConnectionProtocol.Configuration, FlowDirection.Serverbound)
@@ -24,11 +24,11 @@ public static class ConfigurationProtocols
             .AddPacket(ConfigurationPacketTypes.ServerboundAcceptCodeOfConduct, ServerboundAcceptCodeOfConductPacket.StreamCodec)
             .BuildUnbound();
 
-    //Serverbound 绑定后的 SERVERBOUND ProtocolInfo
+    //Serverbound the bound SERVERBOUND ProtocolInfo
     public static readonly ProtocolInfo<ServerConfigurationPacketListener> Serverbound =
         ServerboundTemplate.Bind();
 
-    //ClientboundTemplate CLIENTBOUND configuration 协议模板
+    //ClientboundTemplate CLIENTBOUND configuration protocol template
     public static readonly SimpleUnboundProtocol<ClientConfigurationPacketListener> ClientboundTemplate =
         new ProtocolInfoBuilder<ClientConfigurationPacketListener>(
             ConnectionProtocol.Configuration, FlowDirection.Clientbound)
@@ -41,7 +41,7 @@ public static class ConfigurationProtocols
             .AddPacketCommon(ConfigurationPacketTypes.ClientboundUpdateTags, ClientboundUpdateTagsPacket.StreamCodec)
             .BuildUnbound();
 
-    //Clientbound 绑定后的 CLIENTBOUND ProtocolInfo
+    //Clientbound the bound CLIENTBOUND ProtocolInfo
     public static readonly ProtocolInfo<ClientConfigurationPacketListener> Clientbound =
         ClientboundTemplate.Bind();
 }

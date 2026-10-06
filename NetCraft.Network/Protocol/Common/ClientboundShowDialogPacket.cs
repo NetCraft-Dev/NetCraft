@@ -2,15 +2,15 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientboundShowDialogPacket 显示对话框包对应原版 net.minecraft.network.protocol.common.ClientboundShowDialogPacket
-//原版依赖 Dialog 辅助类型按 Identifier 分发简化版用 Identifier DialogType + byte[] Data 透传
-//位置参数用 DialogType 避免与 Packet.Type 接口属性冲突
-//CONTEXT_FREE_STREAM_CODEC 和 CONTEXTUAL_STREAM_CODEC 同义共享简化编解码
+//ClientboundShowDialogPacket show dialog packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundShowDialogPacket
+//Vanilla depends on the Dialog helper to dispatch by Identifier; the simplified form uses Identifier DialogType + byte[] Data to pass through
+//The positional parameter uses DialogType to avoid clashing with the Packet.Type interface property
+//CONTEXT_FREE_STREAM_CODEC and CONTEXTUAL_STREAM_CODEC are synonymous and share the simplified codec
 public sealed record ClientboundShowDialogPacket(Identifier DialogType, byte[] Data) : Packet<ClientCommonPacketListener>
 {
     public const int MaxDataLength = 32767;
 
-    //ContextFreeStreamCodec 上下文无关编解码器对应原版 CONTEXT_FREE_STREAM_CODEC
+    //ContextFreeStreamCodec context-free codec, maps to vanilla CONTEXT_FREE_STREAM_CODEC
     public static StreamCodec<FriendlyByteBuf, ClientboundShowDialogPacket> ContextFreeStreamCodec { get; } = new ShowDialogCodec();
 
     public PacketType<ClientCommonPacketListener> Type => CommonPacketTypes.ClientboundShowDialog;

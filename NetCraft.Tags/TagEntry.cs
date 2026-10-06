@@ -3,13 +3,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Tags;
 
-//TagEntry 标签条目对应原版 net.minecraft.tags.TagEntry
-//表示标签中的一个条目可以是元素引用或标签引用带 required 标志
-//序列化格式对齐原版字符串前缀编码
-//   #id 可选 tag    !#id 必选 tag    !id 必选 element    id 可选 element
+//TagEntry tag entry, maps to vanilla net.minecraft.tags.TagEntry
+//Represents an entry in a tag, either an element reference or a tag reference, each with a required flag
+//The serialized format aligns with the vanilla string prefix encoding
+//   #id optional tag    !#id required tag    !id required element    id optional element
 public sealed record TagEntry(Identifier EntryId, bool Required, bool IsTag)
 {
-    //FromString 按前缀解析字符串为 TagEntry
+    //FromString parses a string into a TagEntry by its prefix
     public static TagEntry FromString(string s)
     {
         if (s.StartsWith("!#"))
@@ -27,7 +27,7 @@ public sealed record TagEntry(Identifier EntryId, bool Required, bool IsTag)
         return new TagEntry(Identifier.Parse(s), false, false);
     }
 
-    //AsString 序列化为前缀字符串
+    //AsString serializes to the prefixed string form
     public string AsString()
     {
         var tagPrefix = IsTag ? "#" : "";
@@ -35,15 +35,15 @@ public sealed record TagEntry(Identifier EntryId, bool Required, bool IsTag)
         return requiredPrefix + tagPrefix + EntryId;
     }
 
-    //Element 工厂构造元素引用
+    //Element factory that builds an element reference
     public static TagEntry Element(Identifier id, bool required) => new(id, required, false);
 
-    //Tag 工厂构造标签引用
+    //Tag factory that builds a tag reference
     public static TagEntry Tag(Identifier id, bool required) => new(id, required, true);
 
-    //Build 把条目解析为元素加入 output 集合返回是否解析成功
-    //elementGetter 元素引用解析回调失败时若 Required 返回 false 否则忽略
-    //tagGetter 标签引用解析回调返回该标签的全部元素
+    //Build resolves the entry into elements, adds them to output and returns whether it succeeded
+    //elementGetter resolves an element reference, returns false on failure when Required, otherwise ignores it
+    //tagGetter resolves a tag reference and returns all of its elements
     public bool Build<T>(
         Func<Identifier, Optional<T>> elementGetter,
         Func<Identifier, Optional<IEnumerable<T>>> tagGetter,

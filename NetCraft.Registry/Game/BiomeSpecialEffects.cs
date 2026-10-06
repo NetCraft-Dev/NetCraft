@@ -4,7 +4,7 @@ using NetCraft.Registry.Environment;
 
 namespace NetCraft.Registry;
 
-//GrassColorModifier 草色修正对应原版 BiomeSpecialEffects.GrassColorModifier
+//GrassColorModifier grass color modifier, maps to vanilla BiomeSpecialEffects.GrassColorModifier
 public enum GrassColorModifier
 {
     None,
@@ -12,10 +12,10 @@ public enum GrassColorModifier
     Swamp
 }
 
-//BiomeSpecialEffects 群系视觉效果对应原版 BiomeSpecialEffects
+//BiomeSpecialEffects biome visual effects, maps to vanilla BiomeSpecialEffects
 public sealed class BiomeSpecialEffects
 {
-    //GrassColorModifierCodec 草色修正枚举 codec
+    //GrassColorModifierCodec grass color modifier enum codec
     public static readonly Codec<GrassColorModifier> GrassColorModifierCodec = new StringEnumCodec<GrassColorModifier>(
         (GrassColorModifier.None, "none"),
         (GrassColorModifier.DarkForest, "dark_forest"),
@@ -51,6 +51,6 @@ public sealed class BiomeSpecialEffects
         GrassColorModifier = grassColorModifier;
     }
 
-    //WaterColorHex 网络同步用的十六进制串对应原版 ExtraCodecs.STRING_RGB_COLOR 编码形态
+    //WaterColorHex hex string for network sync, maps to vanilla ExtraCodecs.STRING_RGB_COLOR encoded form
     public string WaterColorHex => "#" + (WaterColor & 0xFFFFFF).ToString("x6", CultureInfo.InvariantCulture);
 }

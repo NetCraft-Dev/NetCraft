@@ -5,29 +5,29 @@ using NetCraft.Logging;
 
 namespace NetCraft.Server.Gui;
 
-//LogStore 进程内的一份日志缓冲 主页与日志页共用同一个源
-//原先各面板自己订阅 Log.OnLogOutput 再各自去取 GetHistory 那份一次性缓存
-//那份缓存取一次就清 谁先构造谁拿到 后构造的页面整个启动阶段都是空的
-//所以把订阅与缓存收到这里 面板只从这拿快照与增量
+//LogStore, an in-process log buffer, shared by the main page and the log page as one source
+//Previously each panel subscribed to Log.OnLogOutput itself and then each fetched the one-shot GetHistory cache
+//That cache clears on first read, whoever constructs first gets it, and pages constructed later stay empty for the whole startup phase
+//So the subscription and cache are collected here, panels only take snapshots and increments from here
 public sealed class LogStore
 {
-    //缓存条数 与 Log 自己的历史缓存对齐 比面板显示上限略多一点余量
+    //Cache size, aligned with Log's own history cache and a little above the panel display cap for headroom
     private const int Capacity = 20000;
 
-    //Entry 一条日志 文本与级别一起存
-    //过滤要按级别筛 只存文本的话每个面板都要再解析一遍
+    //Entry, one log line, text and level stored together
+    //Filtering selects by level, storing only text would make every panel parse it again
     public readonly record struct Entry(string Text, LogLevel Level);
 
-    //Escape 着色序列的起始字符 认级别时要把整段序列跳过
+    //Escape, the start character of color sequences, the whole sequence must be skipped when detecting the level
     private const char Escape = '\u001B';
 
     private readonly object _lock = new();
     private readonly Queue<Entry> _lines = new();
 
-    //LineAdded 新日志 在输出线程上触发 订阅方自己往 UI 线程切
+    //LineAdded fires on the output thread for a new log line, subscribers switch to the UI thread themselves
     public event Action<Entry>? LineAdded;
 
-    //Attach 先补看订阅之前的历史再订阅 顺序与原先面板里的一致
+    //Attach first catches up on history before subscribing, same order as in the original panel
     public void Attach()
     {
         foreach (var line in Log.GetHistory()) Append(line);
@@ -35,16 +35,16 @@ public sealed class LogStore
         Log.OnLogOutput += Append;
     }
 
-    //Detach 解订阅 窗口关闭时调 否则这里会被日志系统一直引用着
+    //Detach unsubscribes, called when the window closes, otherwise the logging system keeps holding a reference here
     public void Detach() => Log.OnLogOutput -= Append;
 
-    //Snapshot 当前全部条目 按时间从旧到新
+    //Snapshot all current entries, oldest to newest
     public Entry[] Snapshot()
     {
         lock (_lock) return _lines.ToArray();
     }
 
-    //Append 入缓冲并通知 超出上限从头部丢
+    //Append adds to the buffer and notifies, drops from the head when over the cap
     private void Append(string line)
     {
         var entry = new Entry(line, ParseLevel(line));
@@ -56,10 +56,10 @@ public sealed class LogStore
         LineAdded?.Invoke(entry);
     }
 
-    //ParseLevel 取行里的级别
-    //不能只看行首那个方括号: 喂过来的文本带着 ANSI 着色码 行首其实是 ESC[33m 这种
-    //那样取到的会是 33m 全部行都会被当成 Info
-    //所以按整块级别标记去找 取位置最靠前的那个 消息体里就算出现同样的字面量也排不到标记前头
+    //ParseLevel reads the level from the line
+    //Cannot just look at the leading bracket: the fed text carries ANSI color codes, so the start is actually something like ESC[33m
+    //That would read 33m and every line would be treated as Info
+    //So it searches for whole level tags and takes the earliest one, even if the same literal appears in the message body it cannot come before the tag
     private static readonly (string Tag, LogLevel Level)[] LevelTags =
     {
         ("[DBG]", LogLevel.Debug),
@@ -69,9 +69,9 @@ public sealed class LogStore
         ("[CRIT]", LogLevel.Critical),
     };
 
-    //ParseLevel 认级别 找之前必须先把着色码剥掉
-    //控制台行只给等级标记上色 颜色码是插在级别名之前的 实际文本形如 [ESC[33mWARN ESC[0m]
-    //也就是方括号被颜色码拆开了 直接找 "[WARN]" 一个都匹配不上 整屏都会落到默认的 Info
+    //ParseLevel detects the level, color codes must be stripped before searching
+    //Console lines only color the level tag, and the color code is inserted before the level name, so the actual text looks like [ESC[33mWARN ESC[0m]
+    //The brackets are split by the color code, so searching directly for "[WARN]" matches nothing and the whole screen falls back to the default Info
     private static LogLevel ParseLevel(string line)
     {
         var plain = StripAnsi(line);
@@ -87,7 +87,7 @@ public sealed class LogStore
         return level;
     }
 
-    //StripAnsi 去掉 SGR 着色序列 行里没有着色码就原样返回 不额外分配
+    //StripAnsi removes SGR color sequences, returns the line as is when it has no color codes and does not allocate
     private static string StripAnsi(string line)
     {
         if (line.IndexOf(Escape) < 0) return line;

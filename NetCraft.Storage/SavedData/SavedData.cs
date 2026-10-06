@@ -2,23 +2,23 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Storage;
 
-//SavedData 持久化数据抽象基类对应原版 net.minecraft.world.level.storage.SavedData
-//子类实现 Save 把自身写入 CompoundTag 并标记 notDirty
-//SavedDataStorage.ComputeIfAbsent 用 SavedDataType 工厂创建实例
+//SavedData, persistent data abstract base class, maps to vanilla net.minecraft.world.level.storage.SavedData
+//Subclasses implement Save to write themselves into a CompoundTag and clear dirty
+//SavedDataStorage.ComputeIfAbsent creates an instance using the SavedDataType factory
 public abstract class SavedData
 {
-    //IsDirty 是否有未保存修改
+    //IsDirty, whether there are unsaved changes
     public bool IsDirty { get; protected set; }
 
-    //Id 数据文件名用于持久化定位
+    //Id, the data file name used for persisted lookup
     public abstract string Id { get; }
 
-    //Save 把自身写入 CompoundTag 返回
+    //Save writes itself into a CompoundTag and returns it
     public abstract CompoundTag Save(CompoundTag tag);
 
-    //SetDirty 标记有未保存修改
+    //SetDirty marks unsaved changes
     public virtual void SetDirty() => IsDirty = true;
 
-    //ClearDirty 保存完成后清除 dirty 标记
+    //ClearDirty clears the dirty flag after a save completes
     public void ClearDirty() => IsDirty = false;
 }

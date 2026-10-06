@@ -2,8 +2,8 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundForgetLevelChunkPacket 遗忘区块包对应原版 ClientboundForgetLevelChunkPacket
-//字段 Pos(ChunkPos) 网络格式为单个 long(x|z<<32)
+//ClientboundForgetLevelChunkPacket forget level chunk packet, maps to vanilla ClientboundForgetLevelChunkPacket
+//Field: Pos(ChunkPos); the network format is a single long (x|z<<32)
 public sealed record ClientboundForgetLevelChunkPacket(ChunkPos Pos) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundForgetLevelChunkPacket> StreamCodec { get; } = new ForgetLevelChunkCodec();

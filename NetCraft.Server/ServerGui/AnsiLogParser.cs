@@ -3,46 +3,46 @@ using Avalonia.Media;
 
 namespace NetCraft.Server.Gui;
 
-//AnsiLogParser 把日志里的 ANSI SGR 序列还原成带颜色的片段
-//日志系统按级别给整行着色 这里仍按通用 SGR 解析 将来出现行内分段着色也能照常显示
-//深底上本来那支黑色读不出来 基本色里的黑换成亮灰
+//AnsiLogParser turns ANSI SGR sequences in logs into colored spans
+//The logging system colors whole lines by level, this still parses generic SGR so future inline partial coloring also displays correctly
+//The original black is unreadable on a dark background, so the black in the basic colors is replaced with bright gray
 public static class AnsiLogParser
 {
-    //一段同色文本
+    //A run of same-colored text
     public readonly record struct LogSpan(string Text, IBrush Brush);
 
     private const char Escape = '\u001B';
 
-    //深底默认前景色
+    //Default foreground color on a dark background
     private static readonly IBrush DefaultBrush = new SolidColorBrush(Color.Parse("#C9D1D9"));
 
-    //30-37 基本色 下标与 SGR 码一一对应
+    //30-37 basic colors, indices map one-to-one to SGR codes
     private static readonly IBrush[] Basic =
     {
-        new SolidColorBrush(Color.Parse("#8B949E")), // 黑
-        new SolidColorBrush(Color.Parse("#F87171")), // 红
-        new SolidColorBrush(Color.Parse("#4ADE80")), // 绿
-        new SolidColorBrush(Color.Parse("#FACC15")), // 黄
-        new SolidColorBrush(Color.Parse("#60A5FA")), // 蓝
-        new SolidColorBrush(Color.Parse("#C084FC")), // 紫
-        new SolidColorBrush(Color.Parse("#22D3EE")), // 青
-        new SolidColorBrush(Color.Parse("#E6E6E6")), // 白
+        new SolidColorBrush(Color.Parse("#8B949E")), // black
+        new SolidColorBrush(Color.Parse("#F87171")), // red
+        new SolidColorBrush(Color.Parse("#4ADE80")), // green
+        new SolidColorBrush(Color.Parse("#FACC15")), // yellow
+        new SolidColorBrush(Color.Parse("#60A5FA")), // blue
+        new SolidColorBrush(Color.Parse("#C084FC")), // purple
+        new SolidColorBrush(Color.Parse("#22D3EE")), // cyan
+        new SolidColorBrush(Color.Parse("#E6E6E6")), // white
     };
 
-    //90-97 亮色
+    //90-97 bright colors
     private static readonly IBrush[] Bright =
     {
-        new SolidColorBrush(Color.Parse("#C9D1D9")), // 亮黑
-        new SolidColorBrush(Color.Parse("#FCA5A5")), // 亮红
-        new SolidColorBrush(Color.Parse("#86EFAC")), // 亮绿
-        new SolidColorBrush(Color.Parse("#FDE047")), // 亮黄
-        new SolidColorBrush(Color.Parse("#93C5FD")), // 亮蓝
-        new SolidColorBrush(Color.Parse("#D8B4FE")), // 亮紫
-        new SolidColorBrush(Color.Parse("#67E8F9")), // 亮青
-        new SolidColorBrush(Color.Parse("#FFFFFF")), // 亮白
+        new SolidColorBrush(Color.Parse("#C9D1D9")), // bright black
+        new SolidColorBrush(Color.Parse("#FCA5A5")), // bright red
+        new SolidColorBrush(Color.Parse("#86EFAC")), // bright green
+        new SolidColorBrush(Color.Parse("#FDE047")), // bright yellow
+        new SolidColorBrush(Color.Parse("#93C5FD")), // bright blue
+        new SolidColorBrush(Color.Parse("#D8B4FE")), // bright purple
+        new SolidColorBrush(Color.Parse("#67E8F9")), // bright cyan
+        new SolidColorBrush(Color.Parse("#FFFFFF")), // bright white
     };
 
-    //Parse 拆出一行的同色片段 没有颜色码时整行一段
+    //Parse splits a line into same-colored spans, one span for the whole line when there are no color codes
     public static List<LogSpan> Parse(string line)
     {
         var spans = new List<LogSpan>();
@@ -51,7 +51,7 @@ public static class AnsiLogParser
         var index = 0;
         while (index < line.Length)
         {
-            //只认 SGR(ESC[...m) 认不出的转义序列按普通字符留在文本里
+            //Only SGR (ESC[...m) is recognized, unrecognized escape sequences stay in the text as ordinary characters
             if (line[index] == Escape && index + 1 < line.Length && line[index + 1] == '[')
             {
                 var end = line.IndexOf('m', index + 2);
@@ -72,8 +72,8 @@ public static class AnsiLogParser
         return spans;
     }
 
-    //Resolve 逐个应用 SGR 参数 认不出的保持当前颜色
-    //38;2;r;g;b 是真彩 要连后面三段一起吃掉 不能按单参数逐个看
+    //Resolve applies SGR parameters one by one, unrecognized ones keep the current color
+    //38;2;r;g;b is truecolor and must consume the following three segments together, not be read one parameter at a time
     private static IBrush Resolve(string parameters, IBrush current)
     {
         var parts = parameters.Split(';');

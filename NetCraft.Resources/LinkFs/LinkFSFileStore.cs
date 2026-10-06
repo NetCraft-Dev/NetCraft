@@ -1,7 +1,7 @@
 namespace NetCraft.Resources;
 
-//LinkFSFileStore 链接文件系统的存储信息 对应原版 net.minecraft.server.packs.linkfs.LinkFSFileStore
-//虚拟只读存储 不占空间 只支持 basic 属性视图
+//LinkFSFileStore, storage info for the link file system, maps to vanilla net.minecraft.server.packs.linkfs.LinkFSFileStore
+//Virtual readonly storage, consumes no space, only supports the basic attribute view
 public sealed class LinkFSFileStore
 {
     public LinkFSFileStore(string name) => Name = name;

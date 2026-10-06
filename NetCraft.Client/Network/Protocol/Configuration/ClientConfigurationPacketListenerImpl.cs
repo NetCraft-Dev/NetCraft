@@ -6,10 +6,10 @@ using NetCraft.Network;
 
 namespace NetCraft.Network.Protocol.Configuration;
 
-//ClientConfigurationPacketListenerImpl 客户端 configuration 监听器实现
-//对应原版 ClientConfigurationPacketListenerImpl 简化版
-//服务器 Configuration 阶段不下发 registry/features 直接等客户端 FinishConfiguration
-//TransitionToPlay 发 FinishConfiguration 切 Play 协议挂 gameListener
+//ClientConfigurationPacketListenerImpl client configuration listener implementation
+//Simplified version of vanilla ClientConfigurationPacketListenerImpl
+//In the Configuration phase the server does not send registry/features; it waits directly for the client's FinishConfiguration
+//TransitionToPlay sends FinishConfiguration, switches to the Play protocol, and attaches gameListener
 public sealed class ClientConfigurationPacketListenerImpl : ClientConfigurationPacketListener
 {
     private readonly Connection _connection;
@@ -21,8 +21,8 @@ public sealed class ClientConfigurationPacketListenerImpl : ClientConfigurationP
         _gameListener = gameListener;
     }
 
-    //TransitionToPlay 发 FinishConfiguration 并切 Play 协议
-    //调用前提 inbound/outbound 已是 Configuration 协议
+    //TransitionToPlay sends FinishConfiguration and switches to the Play protocol
+    //Precondition: inbound/outbound are already on the Configuration protocol
     public void TransitionToPlay()
     {
         Log.Info("Configuration finished, sending FinishConfiguration and switching to Play phase");
@@ -31,16 +31,16 @@ public sealed class ClientConfigurationPacketListenerImpl : ClientConfigurationP
         _connection.SetupOutboundProtocol(GameProtocols.Serverbound);
     }
 
-    //HandleConfigurationFinished 服务器主动下发完成包对齐原版流程收包即切 Play
-    //当前服务端不下发此包由 TransitionToPlay 主动推进保留对齐入口
+    //HandleConfigurationFinished the server proactively sends the finish packet; aligns with vanilla flow, switching to Play on receipt
+    //Currently the server does not send this packet; TransitionToPlay advances proactively, keeping this entry for alignment
     public void HandleConfigurationFinished(ClientboundFinishConfigurationPacket packet)
         => TransitionToPlay();
 
     public void HandleRegistryData(ClientboundRegistryDataPacket packet) { }
     public void HandleEnabledFeatures(ClientboundUpdateEnabledFeaturesPacket packet) { }
 
-    //HandleSelectKnownPacks 回传客户端已加载的资源包 与服务端请求的 minecraft:core:26.2 一致
-    //回复后服务端才发 registry_data 与 finish_configuration 不回会停在配置阶段
+    //HandleSelectKnownPacks replies with the resource packs the client has loaded, matching the server's requested minecraft:core:26.2
+    //Only after replying does the server send registry_data and finish_configuration; without a reply it stalls in the configuration phase
     public void HandleSelectKnownPacks(ClientboundSelectKnownPacks packet)
     {
         var core = new KnownPack("minecraft", "core", "26.2");
@@ -50,7 +50,7 @@ public sealed class ClientConfigurationPacketListenerImpl : ClientConfigurationP
     public void HandleResetChat(ClientboundResetChatPacket packet) { }
     public void HandleCodeOfConduct(ClientboundCodeOfConductPacket packet) { }
 
-    //以下继承自 ClientCommonPacketListener 当前服务器不下发空实现
+    //The following are inherited from ClientCommonPacketListener; the current server does not send them, empty implementation
     public void HandleKeepAlive(ClientboundKeepAlivePacket packet) { }
     public void HandlePing(ClientboundPingPacket packet) { }
     public void HandleCustomPayload(ClientboundCustomPayloadPacket packet) { }
@@ -66,7 +66,7 @@ public sealed class ClientConfigurationPacketListenerImpl : ClientConfigurationP
     public void HandleClearDialog(ClientboundClearDialogPacket packet) { }
     public void HandleShowDialog(ClientboundShowDialogPacket packet) { }
 
-    //继承自 ClientCookiePacketListener
+    //Inherited from ClientCookiePacketListener
     public void HandleCookieRequest(ClientboundCookieRequestPacket packet) { }
 
     public void OnDisconnect(string reason)

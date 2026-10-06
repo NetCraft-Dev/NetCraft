@@ -1,7 +1,7 @@
 namespace NetCraft.Codec;
 
-//基础标量codec集合对应原版Codec的静态工厂
-//提供byte/short/int/long/float/double/bool/string的标量编解码
+//Collection of basic scalar codecs, mirroring vanilla Codec's static factories
+//Provides scalar codecs for byte/short/int/long/float/double/bool/string
 public static class Codecs
 {
     public static readonly Codec<byte> Byte = new ByteCodec();
@@ -20,27 +20,27 @@ public static class Codecs
 
     public static readonly Codec<string> String = new StringCodec();
 
-    //WithAlternative先尝试first失败用second对应原版Codec.withAlternative
+    //WithAlternative tries first and uses second on failure, mirroring vanilla Codec.withAlternative
     public static Codec<T> WithAlternative<T>(Codec<T> first, Codec<T> second)
         => new AlternativeCodec<T>(first, second);
 
-    //Either 先按 first 解析 失败退回 second 对应原版 Codec.either
+    //Either parses with first and falls back to second, mirroring vanilla Codec.either
     public static Codec<Alt<A, B>> Either<A, B>(Codec<A> first, Codec<B> second)
         => new EitherCodec<A, B>(first, second);
 
-    //DispatchedMap 键决定值编解码的映射对应原版Codec.dispatchedMap
-    //keyCodec解出键valueCodecGetter按该键给出值codec
+    //DispatchedMap is a map where the key decides the value codec, mirroring vanilla Codec.dispatchedMap
+    //keyCodec decodes the key and valueCodecGetter supplies the value codec for that key
     public static Codec<Dictionary<K, V>> DispatchedMap<K, V>(Codec<K> keyCodec, Func<K, Codec<V>> valueCodecGetter)
         where K : notnull
         => new DispatchedMapCodec<K, V>(keyCodec, valueCodecGetter);
 
-    //UnboundedMap 键值各自独立编解码的映射对应原版Codec.unboundedMap
+    //UnboundedMap is a map whose keys and values are encoded independently, mirroring vanilla Codec.unboundedMap
     public static Codec<Dictionary<K, V>> UnboundedMap<K, V>(Codec<K> keyCodec, Codec<V> valueCodec)
         where K : notnull
         => new UnboundedMapCodec<K, V>(keyCodec, valueCodec);
 }
 
-//UnboundedMapCodec 键值独立编解码的映射实现
+//UnboundedMapCodec is the map implementation with independent key and value codecs
 internal sealed class UnboundedMapCodec<K, V> : ScalarCodec<Dictionary<K, V>> where K : notnull
 {
     private readonly Codec<K> _keyCodec;
@@ -61,10 +61,10 @@ internal sealed class UnboundedMapCodec<K, V> : ScalarCodec<Dictionary<K, V>> wh
             {
                 var keyResult = _keyCodec.Parse(ops, entry.First);
                 if (!keyResult.Result().IsPresent)
-                    return DataResult<Dictionary<K, V>>.Error(() => "映射键解析失败");
+                    return DataResult<Dictionary<K, V>>.Error(() => "Map key failed to parse");
                 var valueResult = _valueCodec.Parse(ops, entry.Second);
                 if (!valueResult.Result().IsPresent)
-                    return DataResult<Dictionary<K, V>>.Error(() => "映射值解析失败");
+                    return DataResult<Dictionary<K, V>>.Error(() => "Map value failed to parse");
                 map[keyResult.GetOrThrow()] = valueResult.GetOrThrow();
             }
             return DataResult<Dictionary<K, V>>.Success(map);
@@ -78,18 +78,18 @@ internal sealed class UnboundedMapCodec<K, V> : ScalarCodec<Dictionary<K, V>> wh
         {
             var keyResult = _keyCodec.EncodeStart(ops, kv.Key);
             if (!keyResult.Result().IsPresent)
-                return DataResult<U>.Error(() => "映射键编码失败");
+                return DataResult<U>.Error(() => "Map key failed to encode");
             var valueResult = _valueCodec.EncodeStart(ops, kv.Value);
             if (!valueResult.Result().IsPresent)
-                return DataResult<U>.Error(() => "映射值编码失败");
+                return DataResult<U>.Error(() => "Map value failed to encode");
             pairs.Add(new Pair<U, U>(keyResult.GetOrThrow(), valueResult.GetOrThrow()));
         }
         return DataResult<U>.Success(ops.CreateMap(pairs));
     }
 }
 
-//DispatchedMapCodec 键分派映射编解码实现
-//解析按map逐项先解键再用该键的codec解值编码反向
+//DispatchedMapCodec is the key-dispatched map codec implementation
+//Decoding walks the map entry by entry, decoding the key first and then the value with that key's codec; encoding is the reverse
 internal sealed class DispatchedMapCodec<K, V> : ScalarCodec<Dictionary<K, V>> where K : notnull
 {
     private readonly Codec<K> _keyCodec;
@@ -110,11 +110,11 @@ internal sealed class DispatchedMapCodec<K, V> : ScalarCodec<Dictionary<K, V>> w
             {
                 var keyResult = _keyCodec.Parse(ops, entry.First);
                 if (!keyResult.Result().IsPresent)
-                    return DataResult<Dictionary<K, V>>.Error(() => "映射键解析失败");
+                    return DataResult<Dictionary<K, V>>.Error(() => "Map key failed to parse");
                 var key = keyResult.GetOrThrow();
                 var valueResult = _valueCodecGetter(key).Parse(ops, entry.Second);
                 if (!valueResult.Result().IsPresent)
-                    return DataResult<Dictionary<K, V>>.Error(() => $"映射值解析失败: {key}");
+                    return DataResult<Dictionary<K, V>>.Error(() => $"Map value failed to parse: {key}");
                 map[key] = valueResult.GetOrThrow();
             }
             return DataResult<Dictionary<K, V>>.Success(map);
@@ -128,19 +128,19 @@ internal sealed class DispatchedMapCodec<K, V> : ScalarCodec<Dictionary<K, V>> w
         {
             var keyResult = _keyCodec.EncodeStart(ops, kv.Key);
             if (!keyResult.Result().IsPresent)
-                return DataResult<U>.Error(() => $"映射键编码失败: {kv.Key}");
+                return DataResult<U>.Error(() => $"Map key failed to encode: {kv.Key}");
             var valueResult = _valueCodecGetter(kv.Key).EncodeStart(ops, kv.Value);
             if (!valueResult.Result().IsPresent)
-                return DataResult<U>.Error(() => $"映射值编码失败: {kv.Key}");
+                return DataResult<U>.Error(() => $"Map value failed to encode: {kv.Key}");
             pairs.Add(new Pair<U, U>(keyResult.GetOrThrow(), valueResult.GetOrThrow()));
         }
         return DataResult<U>.Success(ops.CreateMap(pairs));
     }
 }
 
-//Alternative codec对应原版Codec.AlternativeCodec
-//parse先试first成功返回失败试second
-//encode先试first成功返回失败试second
+//Alternative codec, mirroring vanilla Codec.AlternativeCodec
+//parse tries first and returns on success, otherwise tries second
+//encode tries first and returns on success, otherwise tries second
 internal sealed class AlternativeCodec<T> : ScalarCodec<T>
 {
     private readonly Codec<T> _first;

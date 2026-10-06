@@ -4,11 +4,11 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Effect;
 
-//MobEffectInstance 药水效果实例 对应原版 net.minecraft.world.effect.MobEffectInstance
-//一个实例描述某条效果在实体身上的剩余时长与等级 玩家侧按效果值存进效果表
+//MobEffectInstance mob effect instance, maps to vanilla net.minecraft.world.effect.MobEffectInstance
+//An instance describes a mob effect's remaining duration and level on an entity; the player side stores it in the effect table by effect value
 public sealed class MobEffectInstance
 {
-    //Codec 持久化编解码 效果引用加时长与等级与两个显示开关 对应原版 CODEC
+    //Codec persistence codec, effect reference plus duration and level and two display toggles, maps to vanilla CODEC
     public static readonly Codec<MobEffectInstance> Codec = RecordCodecBuilder.Of5(
         HolderSetCodecs.MobEffectRef.FieldOf("id").ForGetter((MobEffectInstance instance) => instance.Effect),
         Codecs.Int.OptionalFieldOf("duration", 0).ForGetter((MobEffectInstance instance) => instance.Duration),
@@ -18,7 +18,7 @@ public sealed class MobEffectInstance
         (effect, duration, amplifier, ambient, visible)
             => new MobEffectInstance(effect, duration, amplifier, ambient, visible));
 
-    //StreamCodec 网络编解码 效果 id 加时长与等级与标志位 对应原版 STREAM_CODEC
+    //StreamCodec network codec, effect id plus duration and level and flags, maps to vanilla STREAM_CODEC
     public static readonly StreamCodec<RegistryFriendlyByteBuf, MobEffectInstance> StreamCodec =
         new MobEffectInstanceStreamCodec();
 
@@ -29,46 +29,46 @@ public sealed class MobEffectInstance
         Amplifier = amplifier;
         IsAmbient = ambient;
         IsVisible = visible;
-        //showIcon 对齐原版取 visible
+        //showIcon takes visible like vanilla
         ShowIcon = visible;
     }
 
-    //Effect 效果注册表引用 网络编解码按它取注册表 id
+    //Effect effect registry reference; the network codec uses it to look up the registry id
     public Holder<NetCraft.Registry.MobEffect> Effect { get; }
 
-    //Duration 剩余刻数 -1 表示无限
+    //Duration remaining ticks; -1 means infinite
     public int Duration { get; private set; }
 
-    //Amplifier 效果等级 0 对应 I 级
+    //Amplifier effect level; 0 corresponds to level I
     public int Amplifier { get; }
 
-    //IsAmbient 是否环境效果 信标/潮涌核心施加的效果
+    //IsAmbient whether it is an ambient effect; effects applied by beacons/conduits
     public bool IsAmbient { get; }
 
-    //IsVisible 是否显示粒子
+    //IsVisible whether particles are shown
     public bool IsVisible { get; }
 
-    //ShowIcon 是否显示图标
+    //ShowIcon whether the icon is shown
     public bool ShowIcon { get; }
 
-    //Tick 每刻递减持续时间 -1 表示无限不减
+    //Tick decrements the duration every tick; -1 means infinite and does not decrement
     public void Tick()
     {
         if (Duration > 0) Duration--;
     }
 
-    //Expired 持续时间归零 对应原版效果到期
+    //Expired duration reached zero, maps to the vanilla effect expiring
     public bool Expired => Duration == 0;
 }
 
-//MobEffectInstanceStreamCodec 效果 id 加时长与等级与标志位 对应原版 STREAM_CODEC
+//MobEffectInstanceStreamCodec effect id plus duration and level and flags, maps to vanilla STREAM_CODEC
 internal sealed class MobEffectInstanceStreamCodec : StreamCodec<RegistryFriendlyByteBuf, MobEffectInstance>
 {
     public MobEffectInstance Decode(RegistryFriendlyByteBuf buf)
     {
         var effectId = buf.ReadVarInt();
         var effect = BuiltInRegistries.MOB_EFFECT.Get(effectId)
-            ?? throw new InvalidOperationException($"未知药水效果 id {effectId}");
+            ?? throw new InvalidOperationException($"unknown mob effect id {effectId}");
         var duration = buf.ReadVarInt();
         var amplifier = buf.ReadVarInt();
         var flags = buf.ReadByte();
@@ -80,7 +80,7 @@ internal sealed class MobEffectInstanceStreamCodec : StreamCodec<RegistryFriendl
     public void Encode(RegistryFriendlyByteBuf buf, MobEffectInstance value)
     {
         var id = BuiltInRegistries.MOB_EFFECT.GetId(value.Effect.Value);
-        if (id < 0) throw new InvalidOperationException($"药水效果未注册: {value.Effect.Value}");
+        if (id < 0) throw new InvalidOperationException($"mob effect not registered: {value.Effect.Value}");
         buf.WriteVarInt(id);
         buf.WriteVarInt(value.Duration);
         buf.WriteVarInt(value.Amplifier);

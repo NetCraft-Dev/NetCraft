@@ -1,8 +1,8 @@
 namespace NetCraft.Registry;
 
-//PermissionSetUnion 权限集合并集对应原版 net.minecraft.server.permissions.PermissionSetUnion
-//成员按引用去重保持插入顺序等价原版的 ReferenceArraySet
-//并集内不许再嵌并集构造时直接炸 对应原版 ensureNoUnionsWithinUnions
+//PermissionSetUnion permission set union, maps to vanilla net.minecraft.server.permissions.PermissionSetUnion
+//Members are deduplicated by reference while preserving insertion order, equivalent to vanilla's ReferenceArraySet
+//A union must not contain another union and it throws at construction, maps to vanilla ensureNoUnionsWithinUnions
 public class PermissionSetUnion : PermissionSet
 {
     private readonly List<PermissionSet> _permissions = [];
@@ -40,10 +40,10 @@ public class PermissionSetUnion : PermissionSet
             ? new PermissionSetUnion(_permissions, otherUnion._permissions)
             : new PermissionSetUnion(_permissions, other);
 
-    //GetPermissions 成员快照供测试对应原版 getPermissions
+    //GetPermissions member snapshot for tests, maps to vanilla getPermissions
     public IReadOnlyList<PermissionSet> GetPermissions() => _permissions.ToList();
 
-    //Add 按引用去重
+    //Add deduplicates by reference
     private void Add(PermissionSet set)
     {
         foreach (var existing in _permissions)

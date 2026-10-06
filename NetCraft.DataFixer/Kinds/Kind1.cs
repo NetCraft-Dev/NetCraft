@@ -2,16 +2,16 @@ namespace NetCraft.DataFixer.Kinds;
 
 using NetCraft.DataFixer;
 
-//一元类型构造器接口提供Unbox还原与group乘积组合
+//unary type constructor interface providing Unbox recovery and group product composition
 public interface Kind1<TF, TMu> : App<TMu, TF> where TF : K1 where TMu : IKind1Mu
 {
-    //类型类标记继承非泛型IKind1Mu
+    //typeclass marker inheriting the non-generic IKind1Mu
     interface Mu : K1, IKind1Mu { }
 
     static Kind1<TF2, TMu2> Unbox<TF2, TMu2>(App<TMu2, TF2> proofBox) where TF2 : K1 where TMu2 : IKind1Mu
         => (Kind1<TF2, TMu2>)(object)proofBox;
 
-    //group组合多个App为乘积默认实现委托Products
+    //group composes multiple Apps into a product; the default implementation delegates to Products
     Products.P1<TF, T1> Group<T1>(App<TF, T1> t1) => new(t1);
     Products.P2<TF, T1, T2> Group<T1, T2>(App<TF, T1> t1, App<TF, T2> t2) => new(t1, t2);
     Products.P3<TF, T1, T2, T3> Group<T1, T2, T3>(App<TF, T1> t1, App<TF, T2> t2, App<TF, T3> t3) => new(t1, t2, t3);

@@ -1,6 +1,6 @@
 namespace NetCraft.Game.Util.DebugChart;
 
-//TpsDebugDimensions TPS 采样维度 对应原版 net.minecraft.util.debugchart.TpsDebugDimensions
+//TpsDebugDimensions TPS sampling dimensions, maps to vanilla net.minecraft.util.debugchart.TpsDebugDimensions
 public enum TpsDebugDimensions
 {
     FullTick,

@@ -1,22 +1,22 @@
 namespace NetCraft.Nbt;
 
-//NBT 标签根接口。对应原版 net.minecraft.nbt.Tag。
-//NBT（Named Binary Tag）是 Minecraft 的二进制序列化格式，用于存档、区块、玩家数据等。
+//Root interface for NBT tags. Mirrors vanilla net.minecraft.nbt.Tag.
+//NBT (Named Binary Tag) is Minecraft's binary serialization format, used for saves, chunks, player data and more.
 public interface Tag
 {
-    //对象头开销（8 字节：对象头）。
+    //Object header overhead (8 bytes: the object header).
     public const int ObjectHeader = 8;
 
-    //数组头开销（12 字节：对象头 + 长度 int）。
+    //Array header overhead (12 bytes: object header + length int).
     public const int ArrayHeader = 12;
 
-    //对象引用开销（4 字节：指针压缩）。
+    //Object reference overhead (4 bytes: a compressed pointer).
     public const int ObjectReference = 4;
 
-    //字符串开销估算（28 字节：String 对象 + char[]）。
+    //String overhead estimate (28 bytes: the String object + char[]).
     public const int StringSize = 28;
 
-    // ============ Tag ID 常量（字节级兼容原版） ============
+    // ============ Tag ID constants (byte-compatible with vanilla) ============
 
     public const byte TagEnd = 0;
     public const byte TagByte = 1;
@@ -32,34 +32,34 @@ public interface Tag
     public const byte TagIntArray = 11;
     public const byte TagLongArray = 12;
 
-    //NBT 嵌套深度上限（防恶意存档 OOM）。
+    //NBT nesting depth limit (keeps malicious saves from causing OOM).
     public const int MaxDepth = 512;
 
-    //写入到二进制输出。字节级兼容原版 write(DataOutput)。
+    //Write to the binary output. Byte-compatible with vanilla write(DataOutput).
     void Write(INbtWriter output);
 
-    //返回此 Tag 的字符串表示（SNBT 格式）。
+    //Returns this Tag as a string (SNBT format).
     string ToString();
 
-    //返回 Tag ID（0-12）。
+    //Returns the Tag ID (0-12).
     byte Id { get; }
 
-    //返回此 Tag 的类型描述。
+    //Returns the type description of this Tag.
     TagType Type { get; }
 
-    //深拷贝。
+    //Deep copy.
     Tag Copy();
 
-    //估算此 Tag 占用字节数（用于 NbtAccounter）。
+    //Estimate the bytes this Tag occupies (used by NbtAccounter).
     int SizeInBytes();
 
-    //接受 TagVisitor 访问。
+    //Accepts a TagVisitor.
     void Accept(TagVisitor visitor);
 
-    //接受 StreamTagVisitor 流式访问。
+    //Accepts a streaming StreamTagVisitor.
     StreamTagVisitor.ValueResult Accept(StreamTagVisitor visitor);
 
-    //作为根条目访问（对应原版 acceptAsRoot）。
+    //Visit as the root entry (mirrors vanilla acceptAsRoot).
     void AcceptAsRoot(StreamTagVisitor output)
     {
         var entryResult = output.VisitRootEntry(Type);
@@ -69,10 +69,10 @@ public interface Tag
         }
     }
 
-    //尝试作为字符串返回（仅 StringTag 重写）。
+    //Try to return this as a string (only StringTag overrides it).
     virtual string? AsString() => null;
 
-    //尝试作为数字返回（仅 NumericTag 子类重写）。
+    //Try to return this as a number (only NumericTag subclasses override it).
     virtual Number? AsNumber() => null;
 
     virtual byte? AsByte() => AsNumber()?.ByteValue();

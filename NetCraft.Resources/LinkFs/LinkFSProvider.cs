@@ -2,15 +2,15 @@ using NetCraft.Util;
 
 namespace NetCraft.Resources;
 
-//LinkFSProvider 链接文件系统的访问入口 对应原版 net.minecraft.server.packs.linkfs.LinkFSProvider
-//原版继承 FileSystemProvider 这里只保留读流 列目录 读属性 查访问这些会被用到的行为
+//LinkFSProvider, the access entry point for the link file system, maps to vanilla net.minecraft.server.packs.linkfs.LinkFSProvider
+//Vanilla extends FileSystemProvider, here only the used behaviors are kept: read stream, list directory, read attributes, check access
 public sealed class LinkFSProvider
 {
     public const string Scheme = "x-mc-link";
 
     public string GetScheme() => Scheme;
 
-    //NewReadChannel 打开真实文件读流 不存在抛异常
+    //NewReadChannel opens a read stream on the real file, throws when it does not exist
     public Stream NewReadChannel(LinkFSPath path)
     {
         var target = path.ToAbsolutePath().GetTargetPath();
@@ -18,7 +18,7 @@ public sealed class LinkFSProvider
         return File.OpenRead(target);
     }
 
-    //NewDirectoryStream 列出目录下的子路径
+    //NewDirectoryStream lists the child paths of a directory
     public IReadOnlyList<LinkFSPath> NewDirectoryStream(LinkFSPath dir, Func<LinkFSPath, bool>? filter = null)
     {
         var contents = dir.ToAbsolutePath().GetDirectoryContents();
@@ -31,10 +31,10 @@ public sealed class LinkFSProvider
         return result;
     }
 
-    //ReadAttributes 取占位属性
+    //ReadAttributes gets the placeholder attributes
     public DummyFileAttributes ReadAttributes(LinkFSPath path) => path.ToAbsolutePath().GetBasicAttributes();
 
-    //CheckAccess 只读文件系统 读要求路径存在 写一律拒绝
+    //CheckAccess, a readonly file system, reads require the path to exist and writes are always rejected
     public void CheckAccess(LinkFSPath path, bool read)
     {
         if (!read) throw new UnauthorizedAccessException("LinkFS is read-only");

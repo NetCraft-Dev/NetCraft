@@ -2,8 +2,8 @@ using System.Globalization;
 
 namespace NetCraft.Registry;
 
-//标识符，对应原版Identifier（26.2由ResourceLocation重命名）
-//namespace:path格式，readonly struct避免堆分配
+//Identifier, maps to vanilla Identifier (renamed from ResourceLocation in 26.2)
+//namespace:path format; a readonly struct avoids heap allocation
 public readonly struct Identifier : IEquatable<Identifier>, IComparable<Identifier>
 {
     public const char NamespaceSeparator = ':';
@@ -20,7 +20,7 @@ public readonly struct Identifier : IEquatable<Identifier>, IComparable<Identifi
         Path = path;
     }
 
-    //从命名空间和路径构造，校验合法性
+    //Construct from namespace and path, validating them
     public static Identifier FromNamespaceAndPath(string @namespace, string path)
     {
         AssertValidNamespace(@namespace, path);
@@ -28,24 +28,24 @@ public readonly struct Identifier : IEquatable<Identifier>, IComparable<Identifi
         return new Identifier(@namespace, path);
     }
 
-    //解析"namespace:path"
+    //Parse "namespace:path"
     public static Identifier Parse(string identifier) => BySeparator(identifier, NamespaceSeparator);
 
-    //用默认命名空间minecraft构造
+    //Construct with the default namespace minecraft
     public static Identifier WithDefaultNamespace(string path)
     {
         AssertValidPath(DefaultNamespace, path);
         return new Identifier(DefaultNamespace, path);
     }
 
-    //尝试解析，失败返回null
+    //Try to parse; returns null on failure
     public static Identifier? TryParse(string identifier) => TryBySeparator(identifier, NamespaceSeparator);
 
-    //尝试构造，非法返回null
+    //Try to build; returns null if invalid
     public static Identifier? TryBuild(string @namespace, string path)
         => IsValidNamespace(@namespace) && IsValidPath(path) ? new Identifier(@namespace, path) : null;
 
-    //按分隔符切分构造
+    //Split and construct by separator
     public static Identifier BySeparator(string identifier, char separator)
     {
         var separatorIndex = identifier.IndexOf(separator);
@@ -62,7 +62,7 @@ public readonly struct Identifier : IEquatable<Identifier>, IComparable<Identifi
         return WithDefaultNamespace(identifier);
     }
 
-    //尝试按分隔符切分，非法返回null
+    //Try to split by separator; returns null if invalid
     public static Identifier? TryBySeparator(string identifier, char separator)
     {
         var separatorIndex = identifier.IndexOf(separator);
@@ -99,7 +99,7 @@ public readonly struct Identifier : IEquatable<Identifier>, IComparable<Identifi
     public override bool Equals(object? obj) => obj is Identifier o && Equals(o);
     public override int GetHashCode() => (31 * Namespace.GetHashCode()) + Path.GetHashCode();
 
-    //先比path后比namespace，序号比较保证跨文化稳定
+    //Compare path first then namespace; ordinal comparison keeps it culture-stable
     public int CompareTo(Identifier other)
     {
         var result = string.CompareOrdinal(Path, other.Path);
@@ -110,13 +110,13 @@ public readonly struct Identifier : IEquatable<Identifier>, IComparable<Identifi
     public static bool operator ==(Identifier left, Identifier right) => left.Equals(right);
     public static bool operator !=(Identifier left, Identifier right) => !left.Equals(right);
 
-    //转调试用文件名
+    //Convert to a debug file name
     public string ToDebugFileName() => ToString().Replace('/', '_').Replace(':', '_');
 
-    //转语言键namespace.path
+    //Convert to a language key namespace.path
     public string ToLanguageKey() => Namespace + "." + Path;
 
-    //默认命名空间时省略前缀
+    //Omit the prefix for the default namespace
     public string ToShortLanguageKey() => Namespace == DefaultNamespace ? Path : ToLanguageKey();
     public string ToShortString() => Namespace == DefaultNamespace ? Path : ToString();
 
@@ -160,7 +160,7 @@ public readonly struct Identifier : IEquatable<Identifier>, IComparable<Identifi
     }
 }
 
-//标识符解析异常
+//Identifier parse exception
 public class IdentifierException : Exception
 {
     public IdentifierException(string message) : base(message) { }

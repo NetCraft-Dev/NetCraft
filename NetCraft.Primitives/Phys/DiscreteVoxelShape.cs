@@ -1,8 +1,8 @@
 namespace NetCraft.Primitives.Phys;
 
-//DiscreteVoxelShape 离散体素形状 对应原版 DiscreteVoxelShape
-//把形状切成网格小立方格用位图存 布尔运算在格子上做 比逐盒判定快得多
-//这里只记格子下标 实际长度单位由 VoxelShape 侧的坐标序列给出
+//DiscreteVoxelShape discrete voxel shape, maps to vanilla DiscreteVoxelShape
+//Slices the shape into a grid of small cubes stored as a bitmap, boolean operations run on cells and are much faster than per-box tests
+//Only cell indices are recorded here, the actual length units come from the coordinate sequence on the VoxelShape side
 public abstract class DiscreteVoxelShape
 {
     private static readonly Direction.Axis[] AxisValues =
@@ -12,22 +12,22 @@ public abstract class DiscreteVoxelShape
         Direction.Axis.Z,
     };
 
-    //IntFaceConsumer 朝外的面回调 对应原版 DiscreteVoxelShape.IntFaceConsumer
+    //IntFaceConsumer outward face callback, maps to vanilla DiscreteVoxelShape.IntFaceConsumer
     public delegate void IntFaceConsumer(Direction direction, int x, int y, int z);
 
-    //IntLineConsumer 棱或盒的两角点回调 对应原版 DiscreteVoxelShape.IntLineConsumer
+    //IntLineConsumer callback for the two corners of an edge or box, maps to vanilla DiscreteVoxelShape.IntLineConsumer
     public delegate void IntLineConsumer(int x1, int y1, int z1, int x2, int y2, int z2);
 
     protected DiscreteVoxelShape(int xSize, int ySize, int zSize)
     {
         if (xSize < 0 || ySize < 0 || zSize < 0)
-            throw new ArgumentException($"尺寸必须非负 x:{xSize} y:{ySize} z:{zSize}");
+            throw new ArgumentException($"Size must be non-negative x:{xSize} y:{ySize} z:{zSize}");
         XSize = xSize;
         YSize = ySize;
         ZSize = zSize;
     }
 
-    //三轴格子数
+    //Cell counts along the three axes
     public int XSize { get; }
     public int YSize { get; }
     public int ZSize { get; }
@@ -40,8 +40,8 @@ public abstract class DiscreteVoxelShape
 
     public abstract int LastFull(Direction.Axis axis);
 
-    //Rotate 按八面体群整块旋转离散网格 对应原版 rotate
-    //变换可能把某轴翻过来 负尺寸取绝对值 并用 -值-1 作为该轴位移把格子挪回正区间
+    //Rotate rotates the whole discrete grid by an octahedral group, maps to vanilla rotate
+    //The transform may flip an axis, take the absolute value of a negative size and use -value-1 as the axis shift to move cells back into the positive range
     public DiscreteVoxelShape Rotate(OctahedralGroup rotation)
     {
         if (rotation == OctahedralGroup.Identity) return this;
@@ -71,7 +71,7 @@ public abstract class DiscreteVoxelShape
         return value - 1;
     }
 
-    //IsFullWide 越界一律算空 对应原版 isFullWide
+    //IsFullWide treats out-of-bounds as empty, maps to vanilla isFullWide
     public bool IsFullWide(int x, int y, int z)
     {
         if (x < 0 || y < 0 || z < 0 || x >= XSize || y >= YSize || z >= ZSize) return false;
@@ -90,7 +90,7 @@ public abstract class DiscreteVoxelShape
             transform.Cycle(x, y, z, Direction.Axis.Y),
             transform.Cycle(x, y, z, Direction.Axis.Z));
 
-    //IsEmpty 任一轴上首尾重合即空 对应原版 isEmpty
+    //IsEmpty empty when the first and last full cells coincide on any axis, maps to vanilla isEmpty
     public virtual bool IsEmpty()
     {
         foreach (var axis in AxisValues)
@@ -100,7 +100,7 @@ public abstract class DiscreteVoxelShape
 
     public int GetSize(Direction.Axis axis) => axis.Choose(XSize, YSize, ZSize);
 
-    //FirstFull 沿 aAxis 找出该行列上第一个实心格 找不到返回 aSize 对应原版 firstFull
+    //FirstFull finds the first solid cell along aAxis in that row/column, returns aSize if none, maps to vanilla firstFull
     public int FirstFull(Direction.Axis aAxis, int b, int c)
     {
         var aSize = GetSize(aAxis);
@@ -114,7 +114,7 @@ public abstract class DiscreteVoxelShape
         return aSize;
     }
 
-    //LastFull 沿 aAxis 找出最后一个实心格 返回其下标加一 对应原版 lastFull
+    //LastFull finds the last solid cell along aAxis, returns its index plus one, maps to vanilla lastFull
     public int LastFull(Direction.Axis aAxis, int b, int c)
     {
         if (b < 0 || c < 0) return 0;
@@ -128,7 +128,7 @@ public abstract class DiscreteVoxelShape
         return 0;
     }
 
-    //ForAllEdges 遍历所有外棱 三轴各扫一遍 对应原版 forAllEdges
+    //ForAllEdges iterates every outer edge, scanning each of the three axes once, maps to vanilla forAllEdges
     public void ForAllEdges(IntLineConsumer consumer, bool mergeNeighbors)
     {
         ForAllAxisEdges(consumer, AxisCycle.None, mergeNeighbors);
@@ -148,7 +148,7 @@ public abstract class DiscreteVoxelShape
             var lastStart = -1;
             for (var c = 0; c <= cSize; c++)
             {
-                //看围绕这条棱的四个格子构成什么形状 一格或三格实心 或两格对角实心都算外棱
+                //Look at the four cells around this edge, one or three solid cells, or two diagonally solid cells, are all considered an outer edge
                 var fullSectors = 0;
                 var oddSectors = 0;
                 for (var da = 0; da <= 1; da++)
@@ -194,7 +194,7 @@ public abstract class DiscreteVoxelShape
     public void ForAllBoxes(IntLineConsumer consumer, bool mergeNeighbors)
         => BitSetDiscreteVoxelShape.ForAllBoxes(this, consumer, mergeNeighbors);
 
-    //ForAllFaces 遍历所有朝外的面 对应原版 forAllFaces
+    //ForAllFaces iterates every outward face, maps to vanilla forAllFaces
     public void ForAllFaces(IntFaceConsumer consumer)
     {
         ForAllAxisFaces(consumer, AxisCycle.None);
@@ -217,7 +217,7 @@ public abstract class DiscreteVoxelShape
             var lastFull = false;
             for (var c = 0; c <= cSize; c++)
             {
-                //实心段起点朝负向出面 终点朝正向出面
+                //The start of a solid run emits a face toward the negative direction, the end toward the positive direction
                 var full = c != cSize && IsFull(inverse, a, b, c);
                 if (!lastFull && full)
                     consumer(negative,

@@ -4,11 +4,11 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Phys.Collision;
 
-//BlockCollisions 遍历测试区覆盖到的方块 产出与其相交的碰撞形状 对应原版 BlockCollisions
-//原版用 Cursor3D 游标并借边界标记跳过不可能相交的方块 这里按等价的三重循环遍历 结果一致只是少了那层剪枝
+//BlockCollisions iterates the blocks covered by the test area and yields the collision shapes intersecting it, maps to vanilla BlockCollisions
+//Vanilla uses a Cursor3D cursor and boundary flags to skip blocks that cannot intersect; this uses an equivalent triple loop with the same result, only missing that pruning layer
 public sealed class BlockCollisions<T> : IEnumerable<T>
 {
-    //原版盒体边界朝外留的容差 边界刚好压线的方块也要算进来
+    //The tolerance vanilla leaves outward on the box bounds; blocks whose bounds just touch the line are also counted
     private const double Tolerance = 1.0E-7;
 
     private readonly CollisionGetter _collisionGetter;
@@ -34,7 +34,7 @@ public sealed class BlockCollisions<T> : IEnumerable<T>
 
     public IEnumerator<T> GetEnumerator()
     {
-        //范围比测试区各向外扩一格 形状可能从相邻格伸进来
+        //The range is expanded one block outward on each side of the test area; shapes may extend in from a neighboring cell
         var x0 = Floor(_box.Min.X - Tolerance) - 1;
         var x1 = Floor(_box.Max.X + Tolerance) + 1;
         var y0 = Floor(_box.Min.Y - Tolerance) - 1;
@@ -42,7 +42,7 @@ public sealed class BlockCollisions<T> : IEnumerable<T>
         var z0 = Floor(_box.Min.Z - Tolerance) - 1;
         var z1 = Floor(_box.Max.Z + Tolerance) + 1;
 
-        //同一区块内的方块共用一个视图 跨区块才重新取
+        //Blocks within the same chunk share one view; it is re-fetched only across chunks
         BlockGetter? chunk = null;
         var cachedChunkX = int.MinValue;
         var cachedChunkZ = int.MinValue;
@@ -63,7 +63,7 @@ public sealed class BlockCollisions<T> : IEnumerable<T>
             var pos = new BlockPos(x, y, z);
             var state = chunk.GetBlockState(x, y, z);
             var shape = _context.GetCollisionShape(state, _collisionGetter, pos);
-            //整块的形状不必构造平移副本 直接拿格子与测试区比更快
+            //A full block's shape needs no translated copy; comparing the cell with the test area directly is faster
             if (ReferenceEquals(shape, Shapes.Block()))
             {
                 if (_box.Intersects(x, y, z, x + 1.0, y + 1.0, z + 1.0))

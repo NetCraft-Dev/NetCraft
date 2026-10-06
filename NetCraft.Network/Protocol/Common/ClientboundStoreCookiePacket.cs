@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientboundStoreCookiePacket 存储 cookie 包对应原版 net.minecraft.network.protocol.common.ClientboundStoreCookiePacket
-//含 Identifier key + byte[] payload 服务端请求客户端存储 cookie
+//ClientboundStoreCookiePacket store cookie packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundStoreCookiePacket
+//Contains Identifier key + byte[] payload; the server asks the client to store a cookie
 public sealed record ClientboundStoreCookiePacket(Identifier Key, byte[] Payload) : Packet<ClientCommonPacketListener>
 {
     public const int MaxPayloadLength = 1024;

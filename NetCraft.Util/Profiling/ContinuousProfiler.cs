@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Profiling;
 
-//连续profiler对应原版net.minecraft.util.profiling.ContinuousProfiler
-//包装ActiveProfiler启用/禁用控制采样窗口
+//Continuous profiler, maps to vanilla net.minecraft.util.profiling.ContinuousProfiler
+//Wraps ActiveProfiler, enable/disable controls the sampling window
 public sealed class ContinuousProfiler
 {
     private readonly Func<long> _realTime;

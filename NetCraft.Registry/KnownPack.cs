@@ -1,4 +1,4 @@
 namespace NetCraft.Registry;
 
-//TODO packs阶段补全KnownPack记录资源包来源
+//TODO fill in KnownPack during the packs stage to record the source resource pack
 public sealed record KnownPack(string Namespace, string Id, string Version);

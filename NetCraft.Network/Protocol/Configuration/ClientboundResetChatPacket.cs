@@ -1,8 +1,8 @@
 namespace NetCraft.Network.Protocol.Configuration;
 
-//ClientboundResetChatPacket 服务端通知客户端重置聊天状态
-//对应原版 net.minecraft.network.protocol.configuration.ClientboundResetChatPacket
-//无 payload 用单例 INSTANCE
+//ClientboundResetChatPacket the server notifies the client to reset chat state
+//Maps to vanilla net.minecraft.network.protocol.configuration.ClientboundResetChatPacket
+//No payload, using the INSTANCE singleton
 public sealed record ClientboundResetChatPacket : Packet<ClientConfigurationPacketListener>
 {
     public static readonly ClientboundResetChatPacket Instance = new();

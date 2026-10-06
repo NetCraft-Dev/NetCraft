@@ -3,8 +3,8 @@ using System.Numerics;
 
 namespace NetCraft.Util;
 
-//动态位集对应原版java.util.BitSet
-//基于long[]按位存储支持任意非负下标
+//Dynamic bit set, maps to vanilla java.util.BitSet
+//Bit-packed storage over long[], supports arbitrary non-negative indices
 public sealed class BitSet
 {
     private const int BitsPerWord = 64;
@@ -22,13 +22,13 @@ public sealed class BitSet
         _wordCount = 0;
     }
 
-    //已设置的最高位所在word数+1对应原版size
+    //Highest set bit's word index + 1, maps to vanilla size
     public int Size => _wordCount << WordShift;
 
-    //是否未设置任何位对应原版isEmpty
+    //Whether no bit is set, maps to vanilla isEmpty
     public bool IsEmpty => _wordCount == 0;
 
-    //获取index位对应原版get
+    //Reads the bit at index, maps to vanilla get
     public bool Get(int index)
     {
         if (index < 0) throw new IndexOutOfRangeException($"Index {index} out of range");
@@ -37,7 +37,7 @@ public sealed class BitSet
         return (_words[wordIndex] & (1L << index)) != 0;
     }
 
-    //设置index位对应原版set
+    //Sets the bit at index, maps to vanilla set
     public void Set(int index)
     {
         if (index < 0) throw new IndexOutOfRangeException($"Index {index} out of range");
@@ -47,14 +47,14 @@ public sealed class BitSet
         if (wordIndex >= _wordCount) _wordCount = wordIndex + 1;
     }
 
-    //设置index位为value对应原版set(int,boolean)
+    //Sets the bit at index to value, maps to vanilla set(int,boolean)
     public void Set(int index, bool value)
     {
         if (value) Set(index);
         else Clear(index);
     }
 
-    //判断与other是否有交集对应原版intersects
+    //Tests for intersection with other, maps to vanilla intersects
     public bool Intersects(BitSet other)
     {
         if (other is null) return false;
@@ -66,7 +66,7 @@ public sealed class BitSet
         return false;
     }
 
-    //清空index位对应原版clear
+    //Clears the bit at index, maps to vanilla clear
     public void Clear(int index)
     {
         var wordIndex = index >> WordShift;
@@ -75,7 +75,7 @@ public sealed class BitSet
         TrimWordCount();
     }
 
-    //扩容到newCapacity个word
+    //Grows to newCapacity words
     private void EnsureCapacity(int newWordCount)
     {
         if (newWordCount <= _words.Length) return;
@@ -83,7 +83,7 @@ public sealed class BitSet
         Array.Resize(ref _words, newSize);
     }
 
-    //clone返回内容相同的副本对应原版java.util.BitSet.clone
+    //clone returns an identical copy, maps to vanilla java.util.BitSet.clone
     public BitSet Clone()
     {
         var copy = new BitSet(_wordCount << WordShift);
@@ -92,7 +92,7 @@ public sealed class BitSet
         return copy;
     }
 
-    //回收尾部全零的word并更新_wordCount
+    //Reclaims trailing all-zero words and updates _wordCount
     private void TrimWordCount()
     {
         while (_wordCount > 0 && _words[_wordCount - 1] == 0L)

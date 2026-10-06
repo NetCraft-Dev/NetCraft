@@ -1,12 +1,12 @@
 namespace NetCraft.Registry.EntityAttribute;
 
-//AttributeInstance 属性实例 对应原版 AttributeInstance
-//持基值与该属性上的全部修饰符 取值走脏标志缓存 修饰符变动时回调持有者
+//AttributeInstance attribute instance, maps to vanilla AttributeInstance
+//Holds the base value and all modifiers on the attribute; value reads go through a dirty-flag cache and modifier changes notify the owner
 public sealed class AttributeInstance
 {
-    //_modifiersByOperation 修饰符按运算分组 算值时按组遍历 对应原版 modifiersByOperation
+    //_modifiersByOperation modifiers grouped by operation, iterated per group when computing, maps to vanilla modifiersByOperation
     private readonly Dictionary<AttributeOperation, Dictionary<Identifier, AttributeModifier>> _modifiersByOperation = new();
-    //_modifierById 全部修饰符按 id 索引 判重与查找走它 对应原版 modifierById
+    //_modifierById all modifiers indexed by id, used for deduplication and lookup, maps to vanilla modifierById
     private readonly Dictionary<Identifier, AttributeModifier> _modifierById = new();
     private readonly Action<AttributeInstance>? _onDirty;
     private double _baseValue;
@@ -20,13 +20,13 @@ public sealed class AttributeInstance
         _baseValue = attribute.DefaultValue;
     }
 
-    //Attribute 所属属性 对应原版 getAttribute
+    //Attribute owning attribute, maps to vanilla getAttribute
     public Attribute Attribute { get; }
 
-    //BaseValue 基值 对应原版 getBaseValue
+    //BaseValue base value, maps to vanilla getBaseValue
     public double BaseValue => _baseValue;
 
-    //SetBaseValue 改基值 值相同就不动脏标记 对应原版 setBaseValue
+    //SetBaseValue changes the base value; no dirty flag when unchanged, maps to vanilla setBaseValue
     public void SetBaseValue(double value)
     {
         if (value == _baseValue) return;
@@ -34,26 +34,26 @@ public sealed class AttributeInstance
         SetDirty();
     }
 
-    //Modifiers 全部修饰符快照 对应原版 getModifiers
+    //Modifiers snapshot of all modifiers, maps to vanilla getModifiers
     public IReadOnlyCollection<AttributeModifier> Modifiers => new List<AttributeModifier>(_modifierById.Values);
 
-    //GetModifier 按 id 取修饰符 没有该修饰符返回 null 对应原版 getModifier
+    //GetModifier gets a modifier by id, returning null if absent, maps to vanilla getModifier
     public AttributeModifier? GetModifier(Identifier id) => _modifierById.GetValueOrDefault(id);
 
-    //HasModifier 该属性上是否已有指定 id 的修饰符 对应原版 hasModifier
+    //HasModifier whether the attribute already has a modifier with the given id, maps to vanilla hasModifier
     public bool HasModifier(Identifier id) => _modifierById.ContainsKey(id);
 
-    //AddTransientModifier 加临时修饰符 同 id 已存在直接抛 对应原版 addTransientModifier
+    //AddTransientModifier adds a transient modifier; an existing same id throws immediately, maps to vanilla addTransientModifier
     public void AddTransientModifier(AttributeModifier modifier)
     {
         if (_modifierById.ContainsKey(modifier.Id))
-            throw new ArgumentException($"该属性上已有 id={modifier.Id} 的修饰符");
+            throw new ArgumentException($"The attribute already has a modifier with id={modifier.Id}");
         _modifierById[modifier.Id] = modifier;
         GetOrCreateModifiersIn(modifier.Operation)[modifier.Id] = modifier;
         SetDirty();
     }
 
-    //RemoveModifier 按 id 移除修饰符 没有该修饰符返回 false 对应原版 removeModifier
+    //RemoveModifier removes a modifier by id, returning false if absent, maps to vanilla removeModifier
     public bool RemoveModifier(Identifier id)
     {
         if (!_modifierById.Remove(id, out var modifier)) return false;
@@ -62,7 +62,7 @@ public sealed class AttributeInstance
         return true;
     }
 
-    //Value 最终取值 只有脏了才重算 对应原版 getValue
+    //Value final value, recomputed only when dirty, maps to vanilla getValue
     public double Value
     {
         get
@@ -76,8 +76,8 @@ public sealed class AttributeInstance
         }
     }
 
-    //ReplaceFrom 整份复制另一个实例的基值与修饰符 对应原版 replaceFrom
-    //属性类型的默认表就是以模板实例复制出新实例的
+    //ReplaceFrom copies another instance's base value and modifiers wholesale, maps to vanilla replaceFrom
+    //The attribute type's default table copies new instances out of a template instance like this
     public void ReplaceFrom(AttributeInstance other)
     {
         _baseValue = other._baseValue;
@@ -92,12 +92,12 @@ public sealed class AttributeInstance
         SetDirty();
     }
 
-    //Pack 打包成存档形态 带上基值与全部修饰符 对应原版 pack
+    //Pack packs into the save form with the base value and all modifiers, maps to vanilla pack
     public Packed Pack()
         => new(Attribute, BaseValue, new List<AttributeModifier>(_modifierById.Values));
 
-    //Apply 从存档形态还原 基值覆盖 修饰符按 id 覆盖式装上 对应原版 apply
-    //原版只存永久修饰符 本作暂时没有临时修饰符来源 全部修饰符都当永久处理
+    //Apply restores from the save form, overriding the base value and installing modifiers by id, maps to vanilla apply
+    //Vanilla stores only permanent modifiers; this port has no transient modifier source yet, so all modifiers are treated as permanent
     public void Apply(Packed packed)
     {
         SetBaseValue(packed.BaseValue);
@@ -108,12 +108,12 @@ public sealed class AttributeInstance
         }
     }
 
-    //Packed 属性实例的存档形态 对应原版 AttributeInstance.Packed
-    //modifiers 按原版语义是永久修饰符 本作与全部修饰符一致
+    //Packed save form of an attribute instance, maps to vanilla AttributeInstance.Packed
+    //modifiers are permanent modifiers under vanilla semantics, matching all modifiers here
     public sealed record Packed(Attribute Attribute, double BaseValue, IReadOnlyList<AttributeModifier> Modifiers);
 
-    //CalculateValue 按原版三段式算值 顺序不能换
-    //先把全部 add_value 加在基值上 再按加完的基值算 add_multiplied_base 最后逐个连乘 add_multiplied_total
+    //CalculateValue computes the value in vanilla's three-stage order, which cannot be reordered
+    //First add all add_value to the base value, then compute add_multiplied_base on the updated base value, and finally multiply add_multiplied_total one by one
     private double CalculateValue()
     {
         var baseValue = BaseValue;
@@ -127,20 +127,20 @@ public sealed class AttributeInstance
         return Attribute.SanitizeValue(result);
     }
 
-    //SetDirty 标脏并回调持有者 对应原版 setDirty
+    //SetDirty marks dirty and notifies the owner, maps to vanilla setDirty
     private void SetDirty()
     {
         _dirty = true;
         _onDirty?.Invoke(this);
     }
 
-    //ModifiersIn 取某运算下的修饰符 没登记过返回空
+    //ModifiersIn gets the modifiers under an operation, returning empty if never registered
     private IReadOnlyCollection<AttributeModifier> ModifiersIn(AttributeOperation operation)
         => _modifiersByOperation.TryGetValue(operation, out var byId)
             ? byId.Values
             : Array.Empty<AttributeModifier>();
 
-    //GetOrCreateModifiersIn 取某运算下的修饰符表 没有就建一个
+    //GetOrCreateModifiersIn gets the modifier table under an operation, creating one if absent
     private Dictionary<Identifier, AttributeModifier> GetOrCreateModifiersIn(AttributeOperation operation)
     {
         if (_modifiersByOperation.TryGetValue(operation, out var byId)) return byId;

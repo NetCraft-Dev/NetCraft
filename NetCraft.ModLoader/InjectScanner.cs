@@ -177,6 +177,21 @@ internal static class InjectScanner
                 case "SliceTo":
                     rule.SliceTo = named.Value as string;
                     break;
+                case "InType":
+                    rule.InType = named.Value as string;
+                    break;
+                case "InMethod":
+                    rule.InMethod = named.Value as string;
+                    break;
+                case "Placement" when named.Value is string placement && !string.IsNullOrWhiteSpace(placement):
+                    rule.PlacementName = placement;
+                    break;
+                case "LocalIndex" when named.Value is int localIndex:
+                    rule.LocalIndex = localIndex;
+                    break;
+                case "ConstantValue":
+                    rule.ScannedConstantValue = BoxedConstant(named.Value);
+                    break;
                 case "Environment" when named.Value is string environment && !string.IsNullOrWhiteSpace(environment):
                     rule.EnvironmentValue = environment;
                     break;
@@ -184,6 +199,11 @@ internal static class InjectScanner
         }
         return rule;
     }
+
+    //BoxedConstant 取常量参数的裸值 解成包装形态的再剥一层
+    //装箱后是什么类型就是什么类型 引擎比对时按那个类型走
+    private static object? BoxedConstant(object? value)
+        => value is CustomAttributeTypedArgument<string> typed ? typed.Value : value;
 
     //ArgumentText 取一个固定参数的值
     //typeof 参数编进元数据的是类型序列化名 落在 Value 上 退化时再看 Type

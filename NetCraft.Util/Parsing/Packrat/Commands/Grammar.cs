@@ -3,9 +3,9 @@ using NetCraft.Util;
 
 namespace NetCraft.Util.Parsing.Packrat.Commands;
 
-//语法对应原版net.minecraft.util.parsing.packrat.commands.Grammar
-//封装Dictionary和顶层NamedRule提供parseForCommands入口
-//parseForSuggestions依赖brigadier建议系统暂未移植抛NotSupportedException
+//Grammar, maps to vanilla net.minecraft.util.parsing.packrat.commands.Grammar
+//Wraps Dictionary and the top-level NamedRule, provides the parseForCommands entry
+//parseForSuggestions depends on the brigadier suggestion system, not yet ported and throws NotSupportedException
 public sealed class Grammar<T>
 {
     public Dictionary<CommandStringReader> Rules { get; }
@@ -21,7 +21,7 @@ public sealed class Grammar<T>
     public Optional<T> Parse(ParseState<CommandStringReader> state)
         => state.ParseTopRule(Top);
 
-    //parseForCommands从CommandStringReader解析失败抛CommandSyntaxException
+    //parseForCommands parses from CommandStringReader, throws CommandSyntaxException on failure
     public T ParseForCommands(CommandStringReader reader)
     {
         var longestOnly = new LongestOnlyErrorCollector<CommandStringReader>();

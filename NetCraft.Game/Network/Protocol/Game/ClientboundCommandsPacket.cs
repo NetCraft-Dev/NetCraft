@@ -7,8 +7,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundCommandsPacket 命令树下发包对应原版 ClientboundCommandsPacket
-//先把整棵树枚举成节点表(根节点固定 0)再逐个写节点 客户端据此解析玩家输入的斜杠命令
+//ClientboundCommandsPacket command tree packet, maps to vanilla ClientboundCommandsPacket
+//First enumerate the whole tree into a node table (root is fixed at 0), then write the nodes one by one; the client uses this to parse slash commands typed by the player
 public sealed record ClientboundCommandsPacket(CommandNode<CommandSourceStack> Root) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundCommandsPacket> StreamCodec { get; } = new CommandsCodec();
@@ -17,7 +17,7 @@ public sealed record ClientboundCommandsPacket(CommandNode<CommandSourceStack> R
 
     public void Handle(ClientGamePacketListener handler) => handler.HandleCommands(this);
 
-    //flags 低两位是节点类型 高位是能力标记 对齐原版
+    //In flags the low two bits are the node type and the high bits are capability markers, aligns with vanilla
     private const byte MaskType = 3;
     private const byte TypeRoot = 0;
     private const byte TypeLiteral = 1;
@@ -36,13 +36,13 @@ public sealed record ClientboundCommandsPacket(CommandNode<CommandSourceStack> R
             var entries = new Entry[count];
             var nodes = new CommandNode<CommandSourceStack>?[count];
 
-            //children 与 redirect 引用整表 id 建节点时惰性递归解析 对齐原版 NodeResolver
+            //children and redirect reference table-wide ids and are resolved lazily by recursion when nodes are built, aligns with vanilla NodeResolver
             for (var i = 0; i < count; i++) entries[i] = ReadEntry(buf);
             var rootIndex = buf.ReadVarInt();
             return new ClientboundCommandsPacket(Resolve(rootIndex, entries, nodes));
         }
 
-        //Resolve 惰性建节点并挂载 children redirect 目标可能前向引用 需要时先建
+        //Resolve lazily builds nodes and attaches children; a redirect target may be a forward reference, so it is built first when needed
         private static CommandNode<CommandSourceStack> Resolve(int index, Entry[] entries, CommandNode<CommandSourceStack>?[] nodes)
         {
             if (nodes[index] is { } cached) return cached;
@@ -69,7 +69,7 @@ public sealed record ClientboundCommandsPacket(CommandNode<CommandSourceStack> R
         }
     }
 
-    //Entry 单个节点的原始数据 解码第一遍的产物
+    //Entry raw data of a single node, the product of the first decode pass
     private sealed class Entry
     {
         public byte Flags;
@@ -79,7 +79,7 @@ public sealed record ClientboundCommandsPacket(CommandNode<CommandSourceStack> R
         public object? ArgumentType;
     }
 
-    //Enumerate 深度优先收集节点并分配 id redirect 先于 children 与原版一致
+    //Enumerate collects nodes depth-first and assigns ids; redirect comes before children, matching vanilla
     private static void Enumerate(CommandNode<CommandSourceStack> node, Dictionary<CommandNode<CommandSourceStack>, int> ids, List<CommandNode<CommandSourceStack>> order)
     {
         if (ids.ContainsKey(node)) return;
@@ -95,7 +95,7 @@ public sealed record ClientboundCommandsPacket(CommandNode<CommandSourceStack> R
         if (node is RootCommandNode<CommandSourceStack>) flags = TypeRoot;
         else if (node is LiteralCommandNode<CommandSourceStack>) flags = TypeLiteral;
         else if (node is ArgumentCommandNode<CommandSourceStack>) flags = TypeArgument;
-        else throw new InvalidOperationException($"未知命令节点类型: {node.GetType().Name}");
+        else throw new InvalidOperationException($"Unknown command node type: {node.GetType().Name}");
 
         var argument = node as ArgumentCommandNode<CommandSourceStack>;
         if (node.GetCommand() != null) flags |= FlagExecutable;
@@ -112,11 +112,11 @@ public sealed record ClientboundCommandsPacket(CommandNode<CommandSourceStack> R
         {
             var argumentType = argument.GetArgumentTypeObject();
             var info = ArgumentTypeInfos.Unpack(argumentType)
-                ?? throw new InvalidOperationException($"参数类型未注册: {argumentType.GetType().Name}");
+                ?? throw new InvalidOperationException($"Unregistered argument type: {argumentType.GetType().Name}");
             buf.WriteString(argument.Name);
             buf.WriteVarInt(BuiltInRegistries.COMMAND_ARGUMENT_TYPE.GetIdOrThrow(info));
             info.SerializeToNetwork(info.Unpack(argumentType), buf);
-            //自定义补全统一回落 ask_server 客户端打字时回问服务端 对齐原版未命名 provider 行为
+            //Custom suggestions all fall back to ask_server, asking the server while the client types, aligns with vanilla unnamed provider behavior
             if ((flags & FlagCustomSuggestions) != 0)
                 buf.WriteIdentifier(Identifier.WithDefaultNamespace("ask_server"));
         }
@@ -142,7 +142,7 @@ public sealed record ClientboundCommandsPacket(CommandNode<CommandSourceStack> R
             entry.Name = buf.ReadString();
             var infoId = buf.ReadVarInt();
             var info = BuiltInRegistries.COMMAND_ARGUMENT_TYPE.ById(infoId) as ArgumentTypeInfo
-                ?? throw new InvalidOperationException($"未知命令参数类型 id: {infoId}");
+                ?? throw new InvalidOperationException($"Unknown command argument type id: {infoId}");
             entry.ArgumentType = info.DeserializeFromNetwork(buf).Instantiate();
             if ((entry.Flags & FlagCustomSuggestions) != 0) buf.ReadIdentifier();
         }
@@ -154,7 +154,7 @@ public sealed record ClientboundCommandsPacket(CommandNode<CommandSourceStack> R
         return entry;
     }
 
-    //CreateNode 还原节点 redirect 经 resolve 回调惰性解析 对齐原版 resultBuilder.redirect
+    //CreateNode restores a node; redirect is resolved lazily through the resolve callback, aligns with vanilla resultBuilder.redirect
     private static CommandNode<CommandSourceStack> CreateNode(Entry entry, Func<int, CommandNode<CommandSourceStack>> resolve)
     {
         var redirect = entry.RedirectId >= 0 ? resolve(entry.RedirectId) : null;
@@ -163,18 +163,18 @@ public sealed record ClientboundCommandsPacket(CommandNode<CommandSourceStack> R
             TypeRoot => new RootCommandNode<CommandSourceStack>(),
             TypeLiteral => new LiteralCommandNode<CommandSourceStack>(entry.Name, null, AlwaysTrue, redirect, null, false),
             TypeArgument => CreateArgumentNode(entry, redirect),
-            var other => throw new InvalidOperationException($"未知命令节点类型位: {other}"),
+            var other => throw new InvalidOperationException($"Unknown command node type bits: {other}"),
         };
     }
 
     private static CommandNode<CommandSourceStack> CreateArgumentNode(Entry entry, CommandNode<CommandSourceStack>? redirect)
     {
         var argumentType = entry.ArgumentType
-            ?? throw new InvalidOperationException("参数节点缺少参数类型");
+            ?? throw new InvalidOperationException("Argument node is missing its argument type");
         var valueType = FindArgumentValueType(argumentType.GetType())
-            ?? throw new InvalidOperationException($"参数类型未实现 ArgumentType<T>: {argumentType.GetType().Name}");
+            ?? throw new InvalidOperationException($"Argument type does not implement ArgumentType<T>: {argumentType.GetType().Name}");
 
-        //ArgumentCommandNode<S,T> 的 T 只在运行时由参数类型实例决定 只能反射构造
+        //ArgumentCommandNode<S,T>'s T is only determined at runtime by the argument type instance, so it can only be constructed by reflection
         var nodeType = typeof(ArgumentCommandNode<,>).MakeGenericType(typeof(CommandSourceStack), valueType);
         var constructor = nodeType.GetConstructors()[0];
         return (CommandNode<CommandSourceStack>)constructor.Invoke(

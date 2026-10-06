@@ -2,17 +2,17 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientboundDisconnectPacket 客户端断开连接包对应原版 net.minecraft.network.protocol.common.ClientboundDisconnectPacket
-//reason 是组件按原版用组件流编解码 写成字符串会让客户端把长度前缀当 NBT tag id 解析失败
-//IsTerminal true 表示断开后连接关闭
-//Component 用全限定名 在外层命名空间 NetCraft.Network.* 下简单名会被 NetCraft.Network.Component 命名空间抢走
+//ClientboundDisconnectPacket client disconnect packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundDisconnectPacket
+//reason is a component and uses the component stream codec as in vanilla; writing it as a string would make the client misinterpret the length prefix as an NBT tag id and fail to parse
+//IsTerminal true means the connection closes after disconnecting
+//Component uses a fully qualified name; under the outer namespace NetCraft.Network.* the simple name would be captured by the NetCraft.Network.Component namespace
 public sealed record ClientboundDisconnectPacket(NetCraft.Network.Chat.Component Reason) : Packet<ClientCommonPacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundDisconnectPacket> StreamCodec { get; } = new DisconnectCodec();
 
     public PacketType<ClientCommonPacketListener> Type => CommonPacketTypes.ClientboundDisconnect;
 
-    //IsTerminal 断开包后连接关闭
+    //IsTerminal the connection closes after the disconnect packet
     public bool IsTerminal => true;
 
     public void Handle(ClientCommonPacketListener handler) => handler.HandleDisconnect(this);

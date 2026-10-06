@@ -2,9 +2,9 @@ using NetCraft.Registry;
 
 namespace NetCraft.Resources;
 
-//PackResources 资源包内容访问对应原版 net.minecraft.server.packs.PackResources
-//提供 namespace:path 到资源流的访问
-//子类实现具体来源（文件夹/zip/嵌入资源）
+//PackResources, resource pack content access, maps to vanilla net.minecraft.server.packs.PackResources
+//Provides access from namespace:path to a resource stream
+//Subclasses implement the concrete source (folder/zip/embedded resources)
 public abstract class PackResources : IDisposable
 {
     public string PackId { get; }
@@ -14,24 +14,24 @@ public abstract class PackResources : IDisposable
         PackId = packId;
     }
 
-    //GetRootResource 获取资源包根目录下的资源流（如 pack.png）
+    //GetRootResource gets a stream for a resource at the pack root (such as pack.png)
     public abstract Stream? GetRootResource(string path);
 
-    //GetResource 获取命名空间资源流（如 minecraft:textures/block/stone.png）
+    //GetResource gets a namespace resource stream (such as minecraft:textures/block/stone.png)
     public abstract Stream? GetResource(PackType type, Identifier location);
 
-    //ListResources 列出指定路径前缀下所有匹配资源
+    //ListResources lists all resources matching a path prefix
     public abstract void ListResources(PackType type, string namespaceName, string pathPrefix, ISet<Identifier> output);
 
-    //GetNamespaces 获取资源包包含的所有命名空间
+    //GetNamespaces gets all namespaces contained in the resource pack
     public abstract ISet<string> GetNamespaces(PackType type);
 
     public virtual void Dispose() { }
 }
 
-//PackType 资源类型枚举对应原版 PackType
-//CLIENT_RESOURCES 客户端资源（贴图/音效/model）
-//SERVER_DATA 服务端数据（advancements/recipes/tags/functions）
+//PackType, resource type enum, maps to vanilla PackType
+//CLIENT_RESOURCES client resources (textures/sounds/models)
+//SERVER_DATA server data (advancements/recipes/tags/functions)
 public enum PackType
 {
     ClientResources,

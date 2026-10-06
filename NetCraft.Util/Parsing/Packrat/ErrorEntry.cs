@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Parsing.Packrat;
 
-//错误条目对应原版net.minecraft.util.parsing.packrat.ErrorEntry
-//记录解析失败位置建议值和原因供错误收集器聚合
+//Error entry, maps to vanilla net.minecraft.util.parsing.packrat.ErrorEntry
+//Records the parse failure position, suggestions and reason for the error collector to aggregate
 public sealed class ErrorEntry<S>
 {
     public int Cursor { get; }

@@ -2,8 +2,8 @@ using NetCraft.Util.Profiling.Metrics;
 
 namespace NetCraft.Util.Profiling;
 
-//profiler填充器接口对应原版net.minecraft.util.profiling.ProfilerFiller
-//提供push/pop/incrementCounter/zone等基础探查操作
+//Profiler filler interface, maps to vanilla net.minecraft.util.profiling.ProfilerFiller
+//Provides basic instrumentation: push/pop/incrementCounter/zone
 public interface ProfilerFiller
 {
     public const string Root = "root";
@@ -28,37 +28,37 @@ public interface ProfilerFiller
 
     void IncrementCounter(Func<string> name, int amount);
 
-    //zone附加文本对应原版addZoneText默认空实现
+    //zone added text, maps to vanilla addZoneText, empty by default
     void AddZoneText(string text) { }
 
-    //zone附加值对应原版addZoneValue默认空实现
+    //zone added value, maps to vanilla addZoneValue, empty by default
     void AddZoneValue(long value) { }
 
-    //zone颜色对应原版setZoneColor默认空实现
+    //zone color, maps to vanilla setZoneColor, empty by default
     void SetZoneColor(int color) { }
 
-    //zone作用域对应原版zone(name)自动push返回Zone Dispose时pop
+    //zone scope, maps to vanilla zone(name); auto-pushes and returns a Zone, pops on Dispose
     Zone Zone(string name)
     {
         Push(name);
         return new Zone(this);
     }
 
-    //zone作用域lazy版对应原版zone(Supplier)
+    //zone scope lazy version, maps to vanilla zone(Supplier)
     Zone Zone(Func<string> name)
     {
         Push(name);
         return new Zone(this);
     }
 
-    //单次自增对应原版incrementCounter(name)
+    //Single increment, maps to vanilla incrementCounter(name)
     void IncrementCounter(string name) => IncrementCounter(name, 1);
 
-    //单次自增lazy版对应原版incrementCounter(Supplier)
+    //Single increment lazy version, maps to vanilla incrementCounter(Supplier)
     void IncrementCounter(Func<string> name) => IncrementCounter(name, 1);
 
-    //合并两个filler对应原版ProfilerFiller.combine
-    //InactiveProfiler实例跳过合并直接返回另一个
+    //Merges two fillers, maps to vanilla ProfilerFiller.combine
+    //An InactiveProfiler instance skips merging and returns the other directly
     static ProfilerFiller Combine(ProfilerFiller? first, ProfilerFiller? second)
     {
         if (ReferenceEquals(first, InactiveProfiler.Instance)) return second!;
@@ -69,8 +69,8 @@ public interface ProfilerFiller
     }
 }
 
-//组合profiler对应原版ProfilerFiller.CombinedProfileFiller
-//两个filler同步调用
+//Combined profiler, maps to vanilla ProfilerFiller.CombinedProfileFiller
+//Calls both fillers in sync
 public sealed class CombinedProfileFiller : ProfilerFiller
 {
     private readonly ProfilerFiller _first;

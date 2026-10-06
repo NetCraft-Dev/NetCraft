@@ -9,71 +9,71 @@ using NetCraft.Network.Protocol.Status;
 
 namespace NetCraft.Game.Network;
 
-//ConnectionExtensions Connection 业务包相关扩展方法
-//从 Network/Connection.cs 抽离业务包依赖逻辑至此
-//内核 Connection 只保留通用框架握手/状态/登录协议注册由 Game 层做
+//ConnectionExtensions extension methods for connection business packets
+//Extracted business packet dependency logic here from Network/Connection.cs
+//The kernel Connection keeps only the generic framework handshake/status/login protocols; registration is done by the Game layer
 public static class ConnectionExtensions
 {
-    //SetListenerForServerboundHandshake 设置服务端初始握手监听器
-    //对齐原版 Connection.setListenerForServerboundHandshake
+    //SetListenerForServerboundHandshake sets the server initial handshake listener
+    //Aligns with vanilla Connection.setListenerForServerboundHandshake
     public static void SetListenerForServerboundHandshake(this Connection connection, PacketListener listener)
     {
         if (connection.Receiving != PacketFlow.Serverbound)
-            throw new InvalidOperationException("非服务端连接不能设置握手监听器");
+            throw new InvalidOperationException("A non-server connection cannot set a handshake listener");
         if (listener.Flow != FlowDirection.Serverbound)
-            throw new InvalidOperationException("握手监听器方向必须为 Serverbound");
+            throw new InvalidOperationException("The handshake listener direction must be Serverbound");
         if (listener.Protocol != ConnectionProtocol.Handshake)
-            throw new InvalidOperationException("握手监听器协议必须为 Handshake");
+            throw new InvalidOperationException("The handshake listener protocol must be Handshake");
         connection.SetInitialInboundProtocolInternal(listener, HandshakeProtocols.Serverbound);
     }
 
-    //SetListenerForServerboundStatus 设置服务端 status 阶段监听器
+    //SetListenerForServerboundStatus sets the server status phase listener
     public static void SetListenerForServerboundStatus(this Connection connection, ServerStatusPacketListener listener)
     {
         if (connection.Receiving != PacketFlow.Serverbound)
-            throw new InvalidOperationException("非服务端连接不能设置 status 监听器");
+            throw new InvalidOperationException("A non-server connection cannot set a status listener");
         if (listener.Protocol != ConnectionProtocol.Status)
-            throw new InvalidOperationException("status 监听器协议必须为 Status");
+            throw new InvalidOperationException("The status listener protocol must be Status");
         connection.SetupInboundProtocol(StatusProtocols.Serverbound, listener);
         connection.SetupOutboundProtocol(StatusProtocols.Clientbound);
     }
 
-    //SetListenerForServerboundLogin 设置服务端 login 阶段监听器
+    //SetListenerForServerboundLogin sets the server login phase listener
     public static void SetListenerForServerboundLogin(this Connection connection, ServerLoginPacketListener listener)
     {
         if (connection.Receiving != PacketFlow.Serverbound)
-            throw new InvalidOperationException("非服务端连接不能设置 login 监听器");
+            throw new InvalidOperationException("A non-server connection cannot set a login listener");
         if (listener.Protocol != ConnectionProtocol.Login)
-            throw new InvalidOperationException("login 监听器协议必须为 Login");
+            throw new InvalidOperationException("The login listener protocol must be Login");
         connection.SetupInboundProtocol(LoginProtocols.Serverbound, listener);
         connection.SetupOutboundProtocol(LoginProtocols.Clientbound);
     }
 
-    //SetListenerForServerboundConfiguration 设置服务端 configuration 阶段监听器
+    //SetListenerForServerboundConfiguration sets the server configuration phase listener
     public static void SetListenerForServerboundConfiguration(this Connection connection, ServerConfigurationPacketListener listener)
     {
         if (connection.Receiving != PacketFlow.Serverbound)
-            throw new InvalidOperationException("非服务端连接不能设置 configuration 监听器");
+            throw new InvalidOperationException("A non-server connection cannot set a configuration listener");
         if (listener.Protocol != ConnectionProtocol.Configuration)
-            throw new InvalidOperationException("configuration 监听器协议必须为 Configuration");
+            throw new InvalidOperationException("The configuration listener protocol must be Configuration");
         connection.SetupInboundProtocol(ConfigurationProtocols.Serverbound, listener);
         connection.SetupOutboundProtocol(ConfigurationProtocols.Clientbound);
     }
 
-    //SetListenerForServerboundGame 设置服务端 play 阶段监听器
-    //listener.Protocol 显式返回 Play 因继承链默认 Protocol 是 Configuration
+    //SetListenerForServerboundGame sets the server play phase listener
+    //listener.Protocol explicitly returns Play because the inherited default Protocol is Configuration
     public static void SetListenerForServerboundGame(this Connection connection, ServerGamePacketListener listener)
     {
         if (connection.Receiving != PacketFlow.Serverbound)
-            throw new InvalidOperationException("非服务端连接不能设置 play 监听器");
+            throw new InvalidOperationException("A non-server connection cannot set a play listener");
         if (listener.Protocol != ConnectionProtocol.Play)
-            throw new InvalidOperationException("play 监听器协议必须为 Play");
+            throw new InvalidOperationException("The play listener protocol must be Play");
         connection.SetupInboundProtocol(GameProtocols.Serverbound, listener);
         connection.SetupOutboundProtocol(GameProtocols.Clientbound);
     }
 
-    //InitiateServerboundStatusConnection 客户端发起状态查询连接
-    //对齐原版 Connection.initiateServerboundStatusConnection
+    //InitiateServerboundStatusConnection initiates a status query connection from the client
+    //Aligns with vanilla Connection.initiateServerboundStatusConnection
     public static void InitiateServerboundStatusConnection(
         this Connection connection,
         string hostName, int port,
@@ -90,8 +90,8 @@ public static class ConnectionExtensions
             protocolVersion);
     }
 
-    //InitiateServerboundLoginConnection 客户端发起登录连接
-    //对齐原版 initiateServerboundPlayConnection 命名沿用原版 Play 实为 Login
+    //InitiateServerboundLoginConnection initiates a login connection from the client
+    //Aligns with vanilla initiateServerboundPlayConnection; the vanilla name is kept, but this is really Login
     public static void InitiateServerboundLoginConnection(
         this Connection connection,
         string hostName, int port,
@@ -108,9 +108,9 @@ public static class ConnectionExtensions
             protocolVersion);
     }
 
-    //InitiateServerboundConnection 通用客户端发起流程
-    //对齐原版 initiateServerboundConnection
-    //发送 ClientIntention 后切换出站协议到目标协议
+    //InitiateServerboundConnection generic client initiation flow
+    //Aligns with vanilla initiateServerboundConnection
+    //After sending ClientIntention, switch the outbound protocol to the target protocol
     public static void InitiateServerboundConnection<S, C>(
         this Connection connection,
         string hostName, int port,
@@ -123,7 +123,7 @@ public static class ConnectionExtensions
         where C : class, PacketListener
     {
         if (outbound.Id != inbound.Id)
-            throw new InvalidOperationException("出入站协议不匹配");
+            throw new InvalidOperationException("Inbound and outbound protocols do not match");
         connection.SetDisconnectListenerInternal(listener);
         connection.RunOnceConnected(conn =>
         {

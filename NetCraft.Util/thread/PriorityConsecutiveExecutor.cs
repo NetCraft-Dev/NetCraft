@@ -1,8 +1,8 @@
 namespace NetCraft.Util.Thread;
 
-//优先级连续执行器对应原版PriorityConsecutiveExecutor
-//内部用FixedPriorityQueue按priorityCount个桶调度priority越小越优先
-//scheduleWithResult返回Task由TaskCompletionSource控制完成
+//Priority consecutive executor, maps to vanilla PriorityConsecutiveExecutor
+//Internally uses FixedPriorityQueue scheduling by priorityCount buckets, lower priority value wins
+//scheduleWithResult returns a Task completed via TaskCompletionSource
 public sealed class PriorityConsecutiveExecutor : AbstractConsecutiveExecutor<RunnableWithPriority>
 {
     public PriorityConsecutiveExecutor(int priorityCount, IExecutor executor, string name)
@@ -13,7 +13,7 @@ public sealed class PriorityConsecutiveExecutor : AbstractConsecutiveExecutor<Ru
 
     protected override void RunTask(RunnableWithPriority task) => task.Run();
 
-    //提交带优先级的任务并返回Task由futureConsumer完成或异常
+    //Submits a prioritized task and returns a Task, completed or faulted by futureConsumer
     public Task<TSource> ScheduleWithResult<TSource>(int priority, Action<TaskCompletionSource<TSource>> futureConsumer)
     {
         var tcs = new TaskCompletionSource<TSource>(TaskCreationOptions.RunContinuationsAsynchronously);

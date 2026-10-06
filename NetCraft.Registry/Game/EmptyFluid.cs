@@ -2,9 +2,9 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Registry;
 
-//EmptyFluid 空流体 对应原版 net.minecraft.world.level.material.EmptyFluid
-//原版把它当作注册表里 empty 那一项 所有判定都取"没有流体"这一侧
-//退回方块原版指向空气 本作空流体在方块状态里没有对应物 被调用即说明调用方漏判了 IsEmpty
+//EmptyFluid empty fluid, maps to vanilla net.minecraft.world.level.material.EmptyFluid
+//Vanilla treats it as the empty entry in the registry and every check takes the "no fluid" side
+//Vanilla's legacy block points to air; empty fluid has no counterpart in block states here, so being called means the caller missed an IsEmpty check
 public sealed class EmptyFluid : Fluid
 {
     public override Identifier Id => Identifier.WithDefaultNamespace("empty");
@@ -22,7 +22,7 @@ public sealed class EmptyFluid : Fluid
     public override float GetOwnHeight(FluidState state) => 0f;
 
     public override BlockState CreateLegacyBlock(FluidState state)
-        => throw new InvalidOperationException("空流体没有对应的方块状态");
+        => throw new InvalidOperationException("Empty fluid has no corresponding block state");
 
     public override float ExplosionResistance => 0f;
 }

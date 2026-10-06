@@ -2,9 +2,9 @@ using System.Text;
 
 namespace NetCraft.Util.Random;
 
-//LegacyRandomSource 旧版线性同余随机源对应原版 net.minecraft.world.level.levelgen.LegacyRandomSource
-//48 位 LCG 算法兼容 Java Random 历史种子序列EndIslandDensityFunction 依赖此源生成末地岛屿噪声
-//MULTIPLIER/INCREMENT/MODULUS_MASK 对齐 java.util.Random 常量保证与原版末地生成一致
+//LegacyRandomSource legacy linear congruential random source, maps to vanilla net.minecraft.world.level.levelgen.LegacyRandomSource
+//48-bit LCG compatible with Java Random's historical seed sequence; EndIslandDensityFunction relies on this source to generate End island noise
+//MULTIPLIER/INCREMENT/MODULUS_MASK align with java.util.Random constants to match vanilla End generation
 public sealed class LegacyRandomSource : RandomSource
 {
     private const int ModulusBits = 48;
@@ -12,10 +12,10 @@ public sealed class LegacyRandomSource : RandomSource
     private const long Multiplier = 25214903917L;
     private const long Increment = 11;
 
-    //FLOAT_UNIT 24 位浮点单位 2^-24 对齐原版 FLOAT_UNIT
+    //FLOAT_UNIT 24-bit float unit 2^-24, aligns with vanilla FLOAT_UNIT
     private const float FloatUnit = 5.9604645E-8f;
 
-    //DOUBLE_UNIT 53 位双精度单位 2^-53 对齐原版 DOUBLE_UNIT
+    //DOUBLE_UNIT 53-bit double unit 2^-53, aligns with vanilla DOUBLE_UNIT
     private const double DoubleUnit = 1.1102230246251565E-16d;
 
     private long _seed;
@@ -37,8 +37,8 @@ public sealed class LegacyRandomSource : RandomSource
         _gaussianSource.Reset();
     }
 
-    //Next 核心 LCG 推进对应原版 next(bits)
-    //推进种子后取高 bits 位返回 bits<=32
+    //Next core LCG advance, maps to vanilla next(bits)
+    //After advancing the seed, takes the high bits; returns bits<=32
     private int Next(int bits)
     {
         _seed = (_seed * Multiplier + Increment) & ModulusMask;
@@ -47,8 +47,8 @@ public sealed class LegacyRandomSource : RandomSource
 
     public int NextInt() => Next(32);
 
-    //nextInt(bound) 无偏有界整数对应原版 java.util.Random.nextInt(int)
-    //2 的幂次直接位移否则拒绝采样保证均匀分布
+    //nextInt(bound) unbiased bounded integer, maps to vanilla java.util.Random.nextInt(int)
+    //For powers of two shifts directly, otherwise rejection sampling ensures uniform distribution
     public int NextInt(int bound)
     {
         if (bound <= 0)
@@ -74,15 +74,15 @@ public sealed class LegacyRandomSource : RandomSource
 
     public double NextGaussian() => _gaussianSource.NextGaussian();
 
-    //consumeCount 重写走 next 避免nextInt 截断对齐原版 BitRandomSource 默认行为
+    //consumeCount override goes through next to avoid nextInt truncation, aligning with vanilla BitRandomSource default behavior
     public void ConsumeCount(int rounds)
     {
         for (var i = 0; i < rounds; i++)
             Next(32);
     }
 
-    //LegacyPositionalRandomFactory 旧版位置性工厂对应原版 LegacyPositionalRandomFactory
-    //按坐标或哈希异或种子派生稳定 RandomSource
+    //LegacyPositionalRandomFactory legacy positional factory, maps to vanilla LegacyPositionalRandomFactory
+    //Derives a stable RandomSource by XORing the seed with coordinates or a hash
     public sealed class LegacyPositionalRandomFactory : PositionalRandomFactory
     {
         private readonly long _seed;
@@ -95,15 +95,15 @@ public sealed class LegacyRandomSource : RandomSource
             return new LegacyRandomSource(positionalSeed ^ _seed);
         }
 
-        //FromHashOf 按字符串哈希派生随机源对应原版 fromHashOf(String)
-        //原版取 Java String.hashCode 必须逐位对齐: C# 的 GetHashCode 默认每进程随机化 用它做种子会让地形跨进程漂移
+        //FromHashOf derives a random source from a string hash, maps to vanilla fromHashOf(String)
+        //Vanilla uses Java String.hashCode and must match bit for bit: C#'s GetHashCode is randomized per process by default, so using it as a seed would make terrain drift across processes
         public RandomSource FromHashOf(string name)
         {
             var positionalSeed = JavaStringHash(name);
             return new LegacyRandomSource(positionalSeed ^ _seed);
         }
 
-        //JavaStringHash 复刻 java.lang.String.hashCode 的 31 进制滚动哈希
+        //JavaStringHash reproduces java.lang.String.hashCode's base-31 rolling hash
         private static int JavaStringHash(string value)
         {
             var hash = 0;

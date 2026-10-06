@@ -3,8 +3,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Resources;
 
-//ZipPackResources zip压缩资源包对应原版 net.minecraft.server.packs.ZipPackResources
-//从zip文件按assets/data目录约定读取资源
+//ZipPackResources, a zip-compressed resource pack, maps to vanilla net.minecraft.server.packs.ZipPackResources
+//Reads resources from a zip file following the assets/data directory convention
 public sealed class ZipPackResources : PackResources
 {
     private readonly ZipArchive _archive;
@@ -21,7 +21,7 @@ public sealed class ZipPackResources : PackResources
         ScanNamespaces();
     }
 
-    //ScanNamespaces 扫描zip内assets/<ns>/与data/<ns>/收集命名空间集合
+    //ScanNamespaces scans assets/<ns>/ and data/<ns>/ inside the zip and collects the namespace set
     private void ScanNamespaces()
     {
         foreach (var entry in _archive.Entries)

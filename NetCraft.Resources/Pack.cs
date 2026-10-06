@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Resources;
 
-//Pack 资源包元数据接口对应原版 net.minecraft.server.packs.Pack
-//描述一个资源包的 id/标题/描述/优先级
+//Pack, resource pack metadata interface, maps to vanilla net.minecraft.server.packs.Pack
+//Describes a resource pack's id/title/description/priority
 public sealed class Pack
 {
     public Identifier Id { get; }

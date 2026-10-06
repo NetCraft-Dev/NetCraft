@@ -3,8 +3,8 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Storage.Light;
 
-//SkyLightEngine 天光引擎对应原版 net.minecraft.world.level.lighting.SkyLightEngine
-//除普通传播外还要维护每列的天光光源高度 区分"整列全亮"与"被遮挡后向下衰减"两种状态
+//SkyLightEngine, sky light engine, maps to vanilla net.minecraft.world.level.lighting.SkyLightEngine
+//Besides ordinary propagation it maintains each column's sky light source height, distinguishing "fully lit column" from "attenuating downward after occlusion"
 public sealed class SkyLightEngine
     : LightEngine<SkyLightSectionStorage.SkyDataLayerStorageMap, SkyLightSectionStorage>
 {
@@ -12,7 +12,7 @@ public sealed class SkyLightEngine
     private static readonly long RemoveSkySourceEntry = QueueEntry.DecreaseSkipOneDirection(MaxLevel, Direction.Up);
     private static readonly long AddSkySourceEntry = QueueEntry.IncreaseSkipOneDirection(MaxLevel, false, Direction.Up);
 
-    //区块未加载时用它兜底 表示该列没有任何天光光源
+    //Used as a fallback when the chunk is unloaded, meaning the column has no sky light source
     private readonly ChunkSkyLightSources _emptyChunkSources;
 
     public SkyLightEngine(LightChunkGetter chunkSource)
@@ -77,7 +77,7 @@ public sealed class SkyLightEngine
         AddSourcesAbove(x, z, lowestSourceY, worldBottomY);
     }
 
-    //removeSourcesBelow 把最低光源之下原本按满值存着的天光收回
+    //removeSourcesBelow retracts sky light stored at full value below the lowest source
     private void RemoveSourcesBelow(int x, int z, int lowestSourceY, int worldBottomY)
     {
         if (lowestSourceY <= worldBottomY) return;
@@ -103,7 +103,7 @@ public sealed class SkyLightEngine
         }
     }
 
-    //addSourcesAbove 把最低光源之上的列补成满值天光
+    //addSourcesAbove fills the column above the lowest source to full sky light
     private void AddSourcesAbove(int x, int z, int lowestSourceY, int worldBottomY)
     {
         var sectionX = SectionPos.BlockToSectionCoord(x);
@@ -199,7 +199,7 @@ public sealed class SkyLightEngine
         }
     }
 
-    //countEmptySectionsBelowIfAtBorder 位于区段底面且贴着水平边界时 统计下方连续的空区段数
+    //countEmptySectionsBelowIfAtBorder counts contiguous empty sections below when on the section's bottom face and at a horizontal border
     private int CountEmptySectionsBelowIfAtBorder(long blockNode)
     {
         var y = BlockPos.GetY(blockNode);
@@ -223,7 +223,7 @@ public sealed class SkyLightEngine
         return emptySectionsBelow;
     }
 
-    //propagateFromEmptySections 光沿空区段垂直贯通时 要把整段空区段一次性填上
+    //propagateFromEmptySections: when light passes vertically through empty sections, the whole empty stretch must be filled at once
     private void PropagateFromEmptySections(long toNode, Direction propagationDirection, int toLevel, bool increase,
         int emptySectionsBelow)
     {
@@ -285,7 +285,7 @@ public sealed class SkyLightEngine
         var topSectionY = Storage.GetTopSectionY(zeroNode);
         var bottomSectionY = Math.Max(Storage.GetBottomSectionY(), lowestFullySourceSectionY);
 
-        //整列都无遮挡的区段直接填满 省掉逐格传播
+        //Sections with a fully unoccluded column are filled directly, skipping per-cell propagation
         for (var sectionY = topSectionY - 1; sectionY >= bottomSectionY; sectionY--)
         {
             var dataLayer = Storage.GetDataLayerToWrite(SectionPos.AsLong(pos.X, sectionY, pos.Z));

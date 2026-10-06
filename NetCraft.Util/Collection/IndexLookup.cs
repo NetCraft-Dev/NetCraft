@@ -1,14 +1,14 @@
 namespace NetCraft.Util.Collection;
 
-//索引查找工具对应原版net.minecraft.util.Util.createIndexLookup/createIndexIdentityLookup
-//小列表用IndexOf线性查找大列表用Dictionary索引
+//Index lookup helpers, map to vanilla net.minecraft.util.Util.createIndexLookup/createIndexIdentityLookup
+//Small lists use IndexOf linear search, large lists use a Dictionary index
 public static class IndexLookup
 {
-    //LINEAR_LOOKUP_THRESHOLD小于此值用线性查找对应原版LINEAR_LOOKUP_THRESHOLD
+    //LINEAR_LOOKUP_THRESHOLD below this uses linear search, maps to vanilla LINEAR_LOOKUP_THRESHOLD
     private const int LinearLookupThreshold = 8;
 
-    //createIndexLookup构造索引查找委托对应原版Util.createIndexLookup
-    //小列表用IndexOf线性查找大列表用Dictionary按值查找
+    //createIndexLookup builds an index lookup delegate, maps to vanilla Util.createIndexLookup
+    //Small lists use IndexOf linear search, large lists use a Dictionary for value lookup
     public static Func<T, int> CreateIndexLookup<T>(IReadOnlyList<T> values)
         where T : notnull
     {
@@ -27,8 +27,8 @@ public static class IndexLookup
         return value => map.TryGetValue(value, out var idx) ? idx : -1;
     }
 
-    //createIndexIdentityLookup构造引用相等索引查找委托对应原版Util.createIndexIdentityLookup
-    //小列表用引用比较IndexOf大列表用ReferenceEqualityComparer字典按引用查找
+    //createIndexIdentityLookup builds a reference-equality index lookup delegate, maps to vanilla Util.createIndexIdentityLookup
+    //Small lists use reference-comparing IndexOf, large lists use a ReferenceEqualityComparer dictionary for reference lookup
     public static Func<T, int> CreateIndexIdentityLookup<T>(IReadOnlyList<T> values)
         where T : class
     {

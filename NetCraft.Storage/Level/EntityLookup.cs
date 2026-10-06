@@ -4,20 +4,20 @@ using NetCraftEntity = NetCraft.Registry.Entity;
 
 namespace NetCraft.Storage;
 
-//EntityLookup 实体分区索引对应原版 net.minecraft.world.level.entity.EntityLookup
-//按 SectionPos 分桶索引实体支持按 AABB 范围查询与按 chunk 查询
-//替代 List<Entity> 的线性扫描提升大世界实体查询性能
+//EntityLookup, entity section index, maps to vanilla net.minecraft.world.level.entity.EntityLookup
+//Buckets entities by SectionPos, supporting AABB range queries and per-chunk queries
+//Replaces linear scans over List<Entity>, improving entity query performance in large worlds
 public sealed class EntityLookup
 {
-    //按 SectionPos.AsLong 分桶每个桶持有该区段内实体列表
+    //Bucketed by SectionPos.AsLong; each bucket holds the entity list for that section
     private readonly Dictionary<long, List<NetCraftEntity>> _bySection = new();
-    //实体到 section 反向索引便于 Remove 快速定位桶避免遍历
+    //Reverse index from entity to section, so Remove locates the bucket quickly without scanning
     private readonly Dictionary<NetCraftEntity, long> _entityToSection = new(ReferenceEqualityComparer.Instance);
 
     public int Count => _entityToSection.Count;
 
-    //Add 添加实体到对应 section 桶
-    //entity.Pos 变化时需先 Remove 再 Add 重新分桶
+    //Add adds an entity to its section bucket
+    //When entity.Pos changes, Remove then Add to re-bucket
     public void Add(NetCraftEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
@@ -32,7 +32,7 @@ public sealed class EntityLookup
         _entityToSection[entity] = sectionKey;
     }
 
-    //Remove 移除实体返回是否成功
+    //Remove removes an entity, returns whether it succeeded
     public bool Remove(NetCraftEntity entity)
     {
         if (!_entityToSection.TryGetValue(entity, out var sectionKey)) return false;
@@ -45,8 +45,8 @@ public sealed class EntityLookup
         return true;
     }
 
-    //GetInRange 返回 AABB 范围内所有实体对应原版 get(AABB)
-    //min/max 为 AABB 两角顶点遍历覆盖的 section 桶收集实体
+    //GetInRange returns all entities in the AABB range, maps to vanilla get(AABB)
+    //min/max are the two AABB corners; iterate the covered section buckets and collect entities
     public IEnumerable<NetCraftEntity> GetInRange(Vec3 min, Vec3 max)
     {
         var minX = SectionPos.BlockToSectionCoord(min.X);
@@ -66,7 +66,7 @@ public sealed class EntityLookup
                 }
     }
 
-    //GetInChunk 返回指定 chunk 内所有实体
+    //GetInChunk returns all entities in the given chunk
     public IEnumerable<NetCraftEntity> GetInChunk(ChunkPos pos)
     {
         foreach (var (key, list) in _bySection)
@@ -79,17 +79,17 @@ public sealed class EntityLookup
         }
     }
 
-    //GetAll 返回所有实体用于 Tick 遍历
+    //GetAll returns all entities, used by tick traversal
     public IEnumerable<NetCraftEntity> GetAll() => _entityToSection.Keys;
 
-    //Clear 清空所有实体
+    //Clear clears all entities
     public void Clear()
     {
         _bySection.Clear();
         _entityToSection.Clear();
     }
 
-    //SectionPosOf 由 Vec3 计算所属 section 的 packed long
+    //SectionPosOf computes the owning section's packed long from a Vec3
     private static long SectionPosOf(Vec3 pos)
         => SectionPos.AsLong(
             SectionPos.BlockToSectionCoord(pos.X),

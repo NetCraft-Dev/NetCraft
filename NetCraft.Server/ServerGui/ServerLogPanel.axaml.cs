@@ -16,42 +16,42 @@ using NetCraft.Logging;
 
 namespace NetCraft.Server.Gui;
 
-//ServerLogPanel 日志与命令面板 对应原版 MinecraftServerGui 的 "Log and chat"
-//上方只读日志区 下方命令输入框 回车按控制台源执行
+//ServerLogPanel, the log and command panel, maps to "Log and chat" in vanilla MinecraftServerGui
+//A readonly log area above and a command input below, Enter executes through the console source
 public sealed partial class ServerLogPanel : UserControl
 {
-    //日志区最多保留的行数 与历史缓存对齐 开服那一段才留得住
-    //超出从头部丢 放任增长会把内存与文本布局拖垮
+    //Max lines kept in the log area, aligned with the history cache so the startup window is retained
+    //Overflow drops from the head, letting it grow would drag down memory and text layout
     private const int MaxLines = 20000;
-    //每帧放行一小批日志 逐条往外淌看着是连续的 而不是几百行一起砸下来
+    //Release a small batch of logs each frame, trickling out line by line looks continuous instead of hundreds slamming down at once
     private static readonly TimeSpan FlushInterval = TimeSpan.FromMilliseconds(16);
-    //单次放行的行数上限 积压再多也留到下一帧 免得一帧插入上千个控件把界面顶住
+    //Max lines released per flush, any backlog waits for the next frame so a single frame does not insert thousands of controls and freeze the UI
     private const int MaxPerFlush = 120;
-    //放行行数不超过这个值才做入场动画 积压时动画只会帮倒忙
+    //The entrance animation runs only when the released line count is at or below this, animating during a backlog only hurts
     private const int AnimatedBatchLimit = 6;
-    //待放行日志的积压上限 界面只留一千行 攒得再多也只是白占内存
+    //Max backlog of pending logs, the UI keeps only a thousand lines and any more just wastes memory
     private const int MaxPending = 4000;
-    //底部的容差 小于它就算贴着
+    //Bottom tolerance, anything below it counts as at the bottom
     private const double BottomTolerance = 4;
 
     private readonly MinecraftServer _server;
     private readonly LogStore _store;
-    //_pending 日志由输出线程写 UI 线程读 出队用 Queue 摊平成 O(1)
+    //_pending logs are written by the output thread and read by the UI thread, a Queue makes dequeuing O(1)
     private readonly Queue<LogStore.Entry> _pending = new();
     private readonly Lock _pendingLock = new();
     private readonly DispatcherTimer _flush;
-    //_view 列表绑定源 只在构造时挂一次 整体换 ItemsSource 会把容器全部重建
+    //_view the list binding source, attached once at construction, swapping ItemsSource wholesale rebuilds all containers
     private readonly RangeObservableCollection<LogRow> _view = new();
-    //_follow 是否粘着最新一行 只在用户真的挪了视口时改
-    //每帧现算 Extent/Offset 是不行的: 新日志一插进来 Extent 就变大而 Offset 不动
-    //只要有一帧判成"不在底部"就再也回不来 用户不动 Offset 而 Extent 一直涨 于是一路被甩开
+    //_follow whether to stick to the newest line, changed only when the user actually moves the viewport
+    //Computing Extent/Offset per frame does not work: inserting a new log grows Extent while Offset stays put
+    //One frame judged as "not at the bottom" is unrecoverable, the user does not move Offset while Extent keeps growing, so it is flung off the whole way
     private bool _follow = true;
-    //_scroll 内部滚动条 由 ScrollChanged 惰性拿到 不在每帧去遍历可视树
+    //_scroll the internal scrollbar, obtained lazily by ScrollChanged rather than walking the visual tree every frame
     private ScrollViewer? _scroll;
     private double _lastOffsetY;
 
-    //Scroll 取内部滚动条 拿不到时才去可视树里翻一次并缓存
-    //挂进可视树之前翻不到 那时保持 null 下一次用到再翻
+    //Scroll gets the internal scrollbar, only walking the visual tree and caching it when unavailable
+    //It cannot be found before being attached to the visual tree, so it stays null then and is searched on next use
     private ScrollViewer? Scroll
         => _scroll ??= LogLines.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
 
@@ -63,17 +63,17 @@ public sealed partial class ServerLogPanel : UserControl
 
         CommandInput.KeyDown += OnInputKeyDown;
         LogLines.ItemsSource = _view;
-        //挂在 ListBox 上接内部滚动条冒泡上来的事件 免得到 Loaded 里再去树里翻
-        //handledEventsToo: 万一滚动条那边把事件标了 handled 也要收到 收不到就退化成永远跟随
+        //Attach to the ListBox to receive the bubbled event from the internal scrollbar, avoiding a tree walk in Loaded
+        //handledEventsToo: receive it even if the scrollbar marked the event handled, otherwise it degrades to always following
         LogLines.AddHandler(ScrollViewer.ScrollChangedEvent, OnScrollChanged,
             RoutingStrategies.Bubble, handledEventsToo: true);
 
-        //日志由输出线程发出 回调里只入队 落到控件上的动作统一交给下面这个定时器
-        //先补看订阅之前发生的日志再订阅 内核初始化与资源加载阶段的日志只有缓冲里有
+        //Logs fire on the output thread, the callback only enqueues and all control actions are left to the timer below
+        //Catch up on logs from before subscribing first, kernel init and resource loading logs exist only in the buffer
         LoadHistory();
         _store.LineAdded += OnLogLine;
-        //历史在构造期填入 那会儿还没测量 直接滚到底是空操作
-        //等布局跑完再排一次 否则开窗停在最老的一行
+        //History is filled during construction when nothing is measured yet, scrolling to the end is a no-op then
+        //Post it again after layout completes, otherwise the window opens stuck on the oldest line
         LogLines.Loaded += (_, _) =>
             Dispatcher.UIThread.Post(ScrollToEnd, DispatcherPriority.Loaded);
         _flush = new DispatcherTimer { Interval = FlushInterval };
@@ -81,22 +81,22 @@ public sealed partial class ServerLogPanel : UserControl
         _flush.Start();
     }
 
-    //SetInputEnabled 服务端就绪前禁掉命令框
-    //GUI 比 Done 先显示 这时敲命令会撞上还在初始化的世界 半截状态下执行结果不可预期
+    //SetInputEnabled disables the command box before the server is ready
+    //The GUI shows before Done, typing then hits a world still initializing and results in a half-initialized state are unpredictable
     public void SetInputEnabled(bool enabled) => CommandInput.IsEnabled = enabled;
 
-    //LoadHistory 把订阅之前写出的日志补进日志区 之后走订阅实时路径
+    //LoadHistory backfills logs written before subscribing into the log area, afterwards the live subscription path takes over
     private void LoadHistory()
     {
         var rows = new List<LogRow>();
         foreach (var entry in _store.Snapshot()) rows.Add(MakeRow(entry, animate: false));
-        //历史条数可能超过面板上限 先按同一规则截掉头部 再一次性铺进去
-        //这一次是整体换内容 发一条 Reset 让列表重建是合适的 逐条加反而白跑几千次容器逻辑
+        //The history count may exceed the panel cap, trim the head by the same rule and lay it all in at once
+        //This is a whole-content swap, emitting a single Reset to rebuild the list is appropriate, adding one by one would waste thousands of container runs
         if (rows.Count > MaxLines) rows.RemoveRange(0, rows.Count - MaxLines);
         _view.ReplaceAll(rows);
     }
 
-    //Detach 解订阅日志 窗口关闭时调 否则这个面板会被日志系统一直引用着
+    //Detach unsubscribes from logs, called when the window closes, otherwise this panel is held forever by the logging system
     public void Detach()
     {
         _store.LineAdded -= OnLogLine;
@@ -107,14 +107,14 @@ public sealed partial class ServerLogPanel : UserControl
     {
         lock (_pendingLock)
         {
-            //积压到顶就丢最老的 日志暴涨时保最新的一批才有意义
+            //Drop the oldest when the backlog peaks, keeping the newest batch matters when logs surge
             if (_pending.Count >= MaxPending) _pending.Dequeue();
             _pending.Enqueue(entry);
         }
     }
 
-    //FlushPending 每帧把积压的日志放行一小批 逐条建控件而不是整块重设文本
-    //放行量随积压伸缩 追得上暴涨的日志 又能让常规速率下的输出看起来是连续的
+    //FlushPending releases a small batch of the backlog each frame, building controls per line rather than resetting text wholesale
+    //The release amount scales with the backlog, keeping up with a surge while making output at normal rates look continuous
     private void FlushPending()
     {
         List<LogStore.Entry> batch;
@@ -125,28 +125,28 @@ public sealed partial class ServerLogPanel : UserControl
             batch = new List<LogStore.Entry>(take);
             for (var i = 0; i < take; i++) batch.Add(_pending.Dequeue());
         }
-        //跟不跟随由 _follow 说了算 它只被用户的实际滚动动作改过 见 OnScrollChanged
+        //Whether to follow is decided by _follow, which is changed only by actual user scrolling, see OnScrollChanged
         var animate = batch.Count <= AnimatedBatchLimit;
-        //同批一次通知带完 逐条加会让列表为每一行各跑一遍容器逻辑
+        //One notification carries the whole batch, adding one by one would run container logic per line
         var rows = new List<LogRow>(batch.Count);
         foreach (var entry in batch) rows.Add(MakeRow(entry, animate));
         _view.AddRange(rows);
         TrimToLimit();
-        //粘着底部才继续跟随 与原版那条 shouldScroll 判定等价
+        //Following continues only when stuck to the bottom, equivalent to vanilla's shouldScroll check
         if (_follow) ScrollToEnd();
     }
 
-    //TrimToLimit 超出行数上限的从头部整批裁掉
-    //逐条 RemoveAt(0) 每条都要搬一次数组并各发一次通知 整批裁只发一次
+    //TrimToLimit trims from the head in one batch when over the line cap
+    //RemoveAt(0) per line shifts the array and emits a notification each time, a batch trim emits once
     private void TrimToLimit()
     {
         var over = _view.Count - MaxLines;
         if (over > 0) _view.RemoveRange(0, over);
     }
 
-    //ScrollToEnd 滚到最新一行
-    //已经贴着底部就不再动: 每帧强滚一次本身就是抖动源 虚拟化下滚动还会顺带带出一轮布局
-    //拿不到滚动条时退回 ScrollIntoView 列表还没挂进可视树时走这一支
+    //ScrollToEnd scrolls to the newest line
+    //It does nothing when already at the bottom: forcing a scroll every frame is itself a jitter source and under virtualization scrolling also triggers a layout pass
+    //When the scrollbar is unavailable it falls back to ScrollIntoView, taken when the list is not yet attached to the visual tree
     private void ScrollToEnd()
     {
         if (Scroll is not { } scroll)
@@ -159,9 +159,9 @@ public sealed partial class ServerLogPanel : UserControl
         scroll.Offset = new Vector(scroll.Offset.X, target);
     }
 
-    //OnScrollChanged 视口真的被挪动时更新跟随状态
-    //先按 Extent/Viewport 的增量把被动挪动滤掉: 插入新行或裁掉旧行都会让 Extent 变
-    //那种变化会把 Offset 一起带偏 跟用户拖视口是两回事 混在一起判等于自己把自己的跟随关掉
+    //OnScrollChanged updates the follow state when the viewport is genuinely moved
+    //Filter out passive movement by the Extent/Viewport delta first: inserting a new line or trimming an old one changes Extent
+    //That change also drags Offset along and is different from a user dragging the viewport, judging them together would turn off following by itself
     private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
         if (e.Source is ScrollViewer scroll) _scroll = scroll;
@@ -169,29 +169,29 @@ public sealed partial class ServerLogPanel : UserControl
         if (Math.Abs(e.ExtentDelta.Y) > 0.5 || Math.Abs(e.ViewportDelta.Y) > 0.5) return;
         var y = _scroll.Offset.Y;
         if (Math.Abs(y - _lastOffsetY) < 0.5) return;
-        //到底部(或接近底部)一律恢复跟随 用户往上滚就停止 其余情况(程序往下滚)保持原状
-        //不能写成"没到底就置假": 滚动定位落到的位置未必正好是最后一像素
-        //只要有一帧判假就再也回不来 用户不动 Offset 而 Extent 一直涨 于是一路被甩开
+        //At the bottom (or near it) following is always restored, scrolling up stops it, and any other case (programmatic scroll down) keeps the status quo
+        //It must not be written as "set false when not at the bottom": the scroll position may not land exactly on the last pixel
+        //One frame judged false is unrecoverable, the user does not move Offset while Extent keeps growing, so it is flung off the whole way
         var up = y < _lastOffsetY;
         _lastOffsetY = y;
         if (y + _scroll.Viewport.Height >= _scroll.Extent.Height - BottomTolerance) _follow = true;
         else if (up) _follow = false;
     }
 
-    //MakeRow 解析一行日志 真正的文本控件由虚拟化按需生成
-    //配色片段留在行对象上 容器滚出屏幕被回收再复用时直接照搬 不用重解析
-    //animate 为真时这行挂进可见区会补一段入场动画 历史补看一次几百行就不做 那会把开窗拖慢
+    //MakeRow parses one log line, the actual text control is created on demand by virtualization
+    //The color spans stay on the row object and are reused when a container is recycled after scrolling off screen, no reparse needed
+    //When animate is true the row plays an entrance animation on entering the visible area, a few hundred history lines at once skip it since that would slow window opening
     private static LogRow MakeRow(LogStore.Entry entry, bool animate)
         => new(entry.Text, entry.Level, animate);
 
-    //OnRowPrepared 新行第一次挂进可见区时播一次入场动画
-    //虚拟化会把滚出屏幕的容器回收 滚动时重挂是常事 用 IsNew 挡一道只放行真正的新行
+    //OnRowPrepared plays the entrance animation the first time a new row enters the visible area
+    //Virtualization recycles containers that scroll off screen and reattachment is common during scrolling, IsNew gates it to truly new rows
     private void OnRowPrepared(object? sender, ContainerPreparedEventArgs e)
     {
         if (e.Container is not ListBoxItem item || item.DataContext is not LogRow row || !row.IsNew) return;
         row.IsNew = false;
-        //先把起始值写到本地 动画起来之前那一帧才不会闪出完整的一行
-        //跑完由 PlayAppear 把终值落回本地 否则属性回落到 0 整行会消失
+        //Write the start value locally first so the frame before the animation does not flash a fully drawn row
+        //PlayAppear writes the end value back locally when done, otherwise the property falls back to 0 and the whole row disappears
         item.Opacity = 0;
         item.RenderTransform = new TranslateTransform(0, 6);
         LogRowAnimation.Play(item);
@@ -207,14 +207,14 @@ public sealed partial class ServerLogPanel : UserControl
         Execute(command);
     }
 
-    //Execute 以控制台源投递命令 由主循环 tick 取出执行
-    //不在 UI 线程也不在连接线程跑 与主循环同线程才有一致的世界状态 回执按命令源约定落回日志
+    //Execute dispatches the command through the console source for the main loop tick to pick up
+    //Runs on neither the UI thread nor a connection thread, only the main loop thread has consistent world state, and the reply goes back to logs per the command source
     private void Execute(string command)
         => _server.EnqueueConsoleCommand(ServerCommandSource.Console(_server), command);
 }
 
-//LogRow 日志面板的一行 原始文本与配色片段一起存着
-//虚拟化容器滚出屏幕会被回收再复用 片段留在行上 重新挂进来时直接照搬不用重解析
+//LogRow, one line in the log panel, the raw text and color spans are stored together
+//Virtualized containers are recycled when scrolled off screen and reused, the spans stay on the row and are reused on reattachment without reparsing
 public sealed class LogRow
 {
     private readonly string _line;
@@ -228,18 +228,18 @@ public sealed class LogRow
         IsNew = animate;
     }
 
-    //Line 原始文本 排查时想按内容找行用得着 里面还带着 ANSI 着色码
+    //Line the raw text, useful for finding rows by content during investigation, it still carries ANSI color codes
     public string Line => _line;
 
-    //Level 这行的级别 日志页按它做过滤 级别由 LogStore 解析一次 行对象直接带着走
+    //Level the level of this line, the log page filters by it, the level is parsed once by LogStore and carried directly on the row object
     public LogLevel Level { get; }
 
-    //Spans 配色片段 解析一次就留着
-    //缓存提到两万行后构造期就解析会把开窗拖慢 而列表是虚拟化的 只有看得见的几十行会真去取它
-    //所以拖到第一次要用时再解析
+    //Spans the color spans, parsed once and kept
+    //After the cache grows to twenty thousand lines, parsing at construction would slow window opening, and the list is virtualized so only the few dozen visible rows actually request it
+    //So parsing is deferred to first use
     public IReadOnlyList<AnsiLogParser.LogSpan> Spans => _spans ??= AnsiLogParser.Parse(_line);
 
-    //PlainText 去掉 ANSI 后的可见文本 搜索在它上面跑
+    //PlainText the visible text with ANSI removed, search runs on it
     public string PlainText
     {
         get
@@ -251,19 +251,19 @@ public sealed class LogRow
         }
     }
 
-    //IsNew 还没播过入场动画 容器回收复用后不该再播一次
+    //IsNew has not played the entrance animation yet, a recycled and reused container must not play it again
     public bool IsNew { get; set; }
 
-    //Matches 命中搜索的词在 PlainText 上的区间 渲染时按它把命中的那几个字挑出来加底
+    //Matches the ranges of the search hits on PlainText, rendering uses them to pick out the hit characters and highlight them
     public IReadOnlyList<(int Start, int Length)> Matches { get; set; } = Array.Empty<(int, int)>();
 
-    //InView 这行当前在日志页的视图里 裁掉旧行时要据此同步删列表 免得视图与全量缓冲对不上
+    //InView whether this row is currently in the log page's view, trimming old rows uses it to remove from the list in sync so the view and the full buffer stay aligned
     public bool InView { get; set; }
 }
 
-//LogRowSpans 把一行的配色片段与命中区间灌进 TextBlock 的 Inlines
-//TextBlock.Inlines 本身挂不上绑定 而 ItemTemplate 生成的控件又不在 ListBoxItem.Content 上
-//挂成附加属性后变更回调正好落在模板实例绑好数据那一刻 容器改挂到另一行时也会重走进来
+//LogRowSpans pours a row's color spans and match ranges into a TextBlock's Inlines
+//TextBlock.Inlines itself cannot be bound and the control generated by ItemTemplate is not on ListBoxItem.Content
+//As attached properties the change callback lands exactly when the template instance has data bound, and it re-enters when a container is reattached to another row
 public static class LogRowSpans
 {
     public static readonly AttachedProperty<IReadOnlyList<AnsiLogParser.LogSpan>?> SpansProperty =
@@ -274,13 +274,13 @@ public static class LogRowSpans
         AvaloniaProperty.RegisterAttached<TextBlock, IReadOnlyList<(int Start, int Length)>?>(
             "Matches", typeof(TextBlock));
 
-    //命中词的底色与字色 深底上拿亮黄配深字最跳 又不会把整行盖住
+    //Background and foreground for hit text, bright yellow on a dark background with dark text pops most without covering the whole line
     private static readonly IBrush MatchBackground = new SolidColorBrush(Color.Parse("#FFD54A"));
     private static readonly IBrush MatchForeground = new SolidColorBrush(Color.Parse("#1E1F22"));
 
     static LogRowSpans()
     {
-        //两个属性谁先到都会整行重画一遍 绑定更新顺序不保证 这样结果始终一致
+        //Whichever property arrives first redraws the whole line, binding update order is not guaranteed and this keeps the result consistent
         SpansProperty.Changed.AddClassHandler<TextBlock>((block, _) => Render(block));
         MatchesProperty.Changed.AddClassHandler<TextBlock>((block, _) => Render(block));
     }
@@ -297,8 +297,8 @@ public static class LogRowSpans
     public static IReadOnlyList<(int Start, int Length)>? GetMatches(TextBlock target)
         => target.GetValue(MatchesProperty);
 
-    //Render 按片段写 Inlines 落在命中区间里的那几段换成高亮样式
-    //片段是有色的 命中区间是按可见文本给的 所以边走边记已写出的字符数 把两者对齐
+    //Render writes Inlines per span, segments falling in a match range get the highlight style
+    //Spans are colored while match ranges are given against the visible text, so the written character count is tracked along the way to align the two
     private static void Render(TextBlock block)
     {
         block.Inlines!.Clear();
@@ -316,7 +316,7 @@ public static class LogRowSpans
                 offset += length;
                 continue;
             }
-            //这段文本覆盖 [offset, offset+length) 命中区间落进来的部分单独切一段出来
+            //This text covers [offset, offset+length), the part of a match range falling inside is sliced out separately
             var cursor = 0;
             foreach (var (start, matchLength) in matches)
             {

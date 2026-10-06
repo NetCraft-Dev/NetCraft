@@ -1,7 +1,7 @@
 namespace NetCraft.Primitives.Phys;
 
-//OffsetDoubleList 整体平移的坐标序列 对应原版 OffsetDoubleList
-//形状移动时坐标统一加偏移 不必重建底层数组
+//OffsetDoubleList coordinate sequence translated as a whole, maps to vanilla OffsetDoubleList
+//When a shape moves, coordinates get a uniform offset added, no need to rebuild the underlying array
 public sealed class OffsetDoubleList : AbstractDoubleList
 {
     private readonly IReadOnlyList<double> _source;

@@ -4,19 +4,19 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Storage.Updates;
 
-//CollectingNeighborUpdater 收集式更新器 对应原版 CollectingNeighborUpdater
-//单栈 + 延迟列表 + 重入计数 两条通道混在同一条队列里按同一套规则交错执行
-//排空发生在调用栈内 不逐 tick 处理 也没有每 tick 配额
+//CollectingNeighborUpdater, the collecting updater, maps to vanilla CollectingNeighborUpdater
+//One stack + a deferred list + a reentrancy count; both channels share one queue and interleave by the same rules
+//Draining happens inside the call stack, not per tick, and there is no per-tick budget
 public sealed class CollectingNeighborUpdater : INeighborUpdater
 {
     private readonly ServerLevel _level;
-    //负数表示不限制链长
+    //A negative value means the chain length is unlimited
     private readonly int _maxChainedNeighborUpdates;
-    //_stack 待执行项 LIFO
+    //_stack, pending items, LIFO
     private readonly Stack<INeighborUpdate> _stack = new();
-    //_addedThisLayer 当前项执行期间新产生的更新 延后到当前项做完再压栈
+    //_addedThisLayer, updates created while the current item runs, deferred until it finishes before being pushed
     private readonly List<INeighborUpdate> _addedThisLayer = new();
-    //_count 重入计数兼链长计数
+    //_count, reentrancy count and chain length counter
     private int _count;
 
     public CollectingNeighborUpdater(ServerLevel level, int maxChainedNeighborUpdates)
@@ -39,9 +39,9 @@ public sealed class CollectingNeighborUpdater : INeighborUpdater
     public void UpdateNeighborsAtExceptFromFacing(BlockPos pos, NetCraft.Registry.Block block, Direction? skipDirection)
         => AddAndRun(pos, new MultiNeighborUpdate(pos, block, skipDirection));
 
-    //AddAndRun 入队一项并按需驱动排空 对应原版 addAndRun
-    //执行中产生的新项进延迟列表 只有非重入的顶层调用才启动排空
-    //链长超限直接丢弃该项 只在首次越界打一条日志
+    //AddAndRun enqueues an item and drives draining as needed, maps to vanilla addAndRun
+    //New items created during execution go to the deferred list; only a non-reentrant top-level call starts draining
+    //When the chain length is exceeded the item is dropped, with a log only on the first overflow
     private void AddAndRun(BlockPos pos, INeighborUpdate update)
     {
         var runningAlready = _count > 0;
@@ -60,17 +60,17 @@ public sealed class CollectingNeighborUpdater : INeighborUpdater
         if (!runningAlready) RunUpdates();
     }
 
-    //RunUpdates 排空整条队列 对应原版 runUpdates
-    //同一队列项会被反复 RunNext 直到它做完或产生新更新 新更新打断当前项并抢先继续
-    //原版反编译把 try/finally 嵌进了 while 内层 按语义应是 try 包住整个循环
-    //照反编译写会让队列每次只执行一项 邻居更新链在第一跳就断掉
+    //RunUpdates drains the whole queue, maps to vanilla runUpdates
+    //The same queue item is RunNext repeatedly until it finishes or produces new updates; new updates interrupt the current item and run first
+    //The vanilla decompile nests try/finally inside the while; semantically try should wrap the whole loop
+    //Writing it per the decompile would execute only one item at a time, breaking the neighbor update chain at the first hop
     private void RunUpdates()
     {
         try
         {
             while (_stack.Count > 0 || _addedThisLayer.Count > 0)
             {
-                //新增项逆序压栈 保证同批新项仍按添加顺序执行
+                //New items are pushed in reverse so the same batch still executes in addition order
                 for (var i = _addedThisLayer.Count - 1; i >= 0; i--)
                     _stack.Push(_addedThisLayer[i]);
                 _addedThisLayer.Clear();
@@ -88,14 +88,14 @@ public sealed class CollectingNeighborUpdater : INeighborUpdater
         }
         finally
         {
-            //正常结束或异常展开都要复位 免得留下脏状态让后续调用连锁出错
+            //Reset on normal completion or exception unwind, so no dirty state causes chained failures later
             _stack.Clear();
             _addedThisLayer.Clear();
             _count = 0;
         }
     }
 
-    //SimpleNeighborUpdate 执行时重读位置的邻居更新项
+    //SimpleNeighborUpdate, a neighbor update item that re-reads the pos on execution
     private sealed class SimpleNeighborUpdate : INeighborUpdate
     {
         private readonly BlockPos _pos;
@@ -116,7 +116,7 @@ public sealed class CollectingNeighborUpdater : INeighborUpdater
         }
     }
 
-    //FullNeighborUpdate 用入队时快照的邻居更新项 执行时不再重读
+    //FullNeighborUpdate, a neighbor update item using the state snapshot taken at enqueue; not re-read on execution
     private sealed class FullNeighborUpdate : INeighborUpdate
     {
         private readonly BlockState _state;
@@ -140,8 +140,8 @@ public sealed class CollectingNeighborUpdater : INeighborUpdater
         }
     }
 
-    //MultiNeighborUpdate 一次向六方向发更新 每步只走一个方向
-    //其它更新可以插进它的方向循环中间 红石更新顺序靠这个机制成立
+    //MultiNeighborUpdate sends updates in all six directions, one direction per step
+    //Other updates can interleave into its direction loop; the redstone update order relies on this
     private sealed class MultiNeighborUpdate : INeighborUpdate
     {
         private readonly BlockPos _sourcePos;
@@ -174,8 +174,8 @@ public sealed class CollectingNeighborUpdater : INeighborUpdater
             => _skipDirection is { } skip && BlockUpdateFlags.NeighbourUpdateOrder[index] == skip;
     }
 
-    //ShapeUpdateTask 携带邻接状态快照的形状更新项
-    //名字带 Task 后缀是为了避开同名公开方法 shapeUpdate
+    //ShapeUpdateTask, a shape update item carrying a neighbor state snapshot
+    //The Task suffix avoids clashing with the same-named public shapeUpdate method
     private sealed class ShapeUpdateTask : INeighborUpdate
     {
         private readonly Direction _direction;

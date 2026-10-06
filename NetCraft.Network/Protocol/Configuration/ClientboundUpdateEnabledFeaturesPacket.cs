@@ -2,9 +2,9 @@ using System.Collections.Generic;
 
 namespace NetCraft.Network.Protocol.Configuration;
 
-//ClientboundUpdateEnabledFeaturesPacket 服务端通知启用的特性
-//对应原版 net.minecraft.network.protocol.configuration.ClientboundUpdateEnabledFeaturesPacket
-//含 HashSet<Identifier> features 启用的特性标识符集合
+//ClientboundUpdateEnabledFeaturesPacket the server notifies which features are enabled
+//Maps to vanilla net.minecraft.network.protocol.configuration.ClientboundUpdateEnabledFeaturesPacket
+//Contains HashSet<Identifier> features, the set of enabled feature identifiers
 public sealed record ClientboundUpdateEnabledFeaturesPacket(HashSet<Identifier> Features) : Packet<ClientConfigurationPacketListener>
 {
     public const int MaxFeatures = 1024;

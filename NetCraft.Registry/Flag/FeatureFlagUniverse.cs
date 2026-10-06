@@ -1,7 +1,7 @@
 namespace NetCraft.Registry.Flag;
 
-//特性开关宇宙对应原版FeatureFlagUniverse
-//不同宇宙的掩码不能混用，同一个宇宙最多64个开关
+//Feature flag universe, maps to vanilla FeatureFlagUniverse
+//Masks from different universes must not be mixed; one universe holds at most 64 flags
 public sealed class FeatureFlagUniverse
 {
     private readonly string _id;

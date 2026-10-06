@@ -1,13 +1,13 @@
 namespace NetCraft.Codec;
 
-//可选Dynamic对应原版com.mojang.serialization.OptionalDynamic
-//Dynamic.Get返回值包装内部DataResult成功有值失败带错误信息
-//转发AsNumber/AsString等便捷方法到内部成功值或返回默认
+//Optional Dynamic, mirroring vanilla com.mojang.serialization.OptionalDynamic
+//Wraps the value returned by Dynamic.Get; the inner DataResult holds a value on success and an error message on failure
+//Forwards convenience methods such as AsNumber/AsString to the inner value on success, or returns a default
 public sealed class OptionalDynamic<T>
 {
     public DynamicOps<T> Ops { get; }
 
-    //内部DataResult失败时携带Key不存在的错误信息
+    //The inner DataResult carries a key-missing error message on failure
     public DataResult<T> Inner { get; }
 
     public OptionalDynamic(DynamicOps<T> ops, DataResult<T> inner)
@@ -16,19 +16,19 @@ public sealed class OptionalDynamic<T>
         Inner = inner;
     }
 
-    //成功时包装为Dynamic返回Optional失败返回Empty
+    //On success it wraps the value as a Dynamic and returns Optional, on failure Empty
     public Optional<Dynamic<T>> Result()
         => Inner.Result().Map(v => new Dynamic<T>(Ops, v));
 
-    //成功返回包装值失败返回other
+    //Returns the wrapped value on success and other on failure
     public Dynamic<T> OrElse(Dynamic<T> other)
         => Result().OrElse(other);
 
-    //成功返回包装值失败抛异常
+    //Returns the wrapped value on success and throws on failure
     public Dynamic<T> GetOrThrow()
         => new(Ops, Inner.GetOrThrow(err => new InvalidOperationException(err)));
 
-    //===转发到Dynamic的便捷方法失败返回默认===
+    //===convenience methods forwarded to Dynamic, returning a default on failure===
 
     public DataResult<double> AsNumber() => Result().Map(d => d.AsNumber()).OrElse(DataResult<double>.Error(() => "Empty"));
 
@@ -48,11 +48,11 @@ public sealed class OptionalDynamic<T>
 
     public bool AsBoolean(bool def) => Result().Map(d => d.AsBoolean(def)).OrElse(def);
 
-    //asStream转发到内部Dynamic的AsStream失败返回空DataResult
+    //asStream forwards to the inner Dynamic's AsStream and returns an empty DataResult on failure
     public DataResult<IEnumerable<Dynamic<T>>> AsStream()
         => Result().Map(d => d.AsStream()).OrElse(DataResult<IEnumerable<Dynamic<T>>>.Error(() => "Empty"));
 
-    //asStreamOpt失败时返回空集合对齐原版OptionalDynamic.asStream().result().orElse(Stream.empty())
+    //asStreamOpt returns an empty collection on failure, matching vanilla OptionalDynamic.asStream().result().orElse(Stream.empty())
     public IEnumerable<Dynamic<T>> AsStreamOpt()
         => Result().Map(d => d.AsStreamOpt()).OrElse(Enumerable.Empty<Dynamic<T>>());
 }

@@ -2,8 +2,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Storage.Paletted;
 
-//PalettedContainer对应原版net.minecraft.world.level.chunk.PalettedContainer
-//用palette与bitstorage紧凑存储重复值多的数据如方块状态与生物群系
+//PalettedContainer, maps to vanilla net.minecraft.world.level.chunk.PalettedContainer
+//Uses a palette and bit storage to pack repetitive data such as block states and biomes
 public sealed class PalettedContainer<T> : PaletteResize<T>
 {
     private volatile Data _data;
@@ -28,7 +28,7 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
         _data = source._data.Copy();
     }
 
-    //对应原版onResize palette空间不足时创建新Data并迁移数据
+    //Maps to vanilla onResize; when the palette runs out of space it creates a new Data and migrates the contents
     public int OnResize(int bits, T lastAddedValue)
     {
         var oldData = _data;
@@ -38,7 +38,7 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
         return newData.Palette.IdFor(lastAddedValue, PaletteResize<T>.NoResizeExpected());
     }
 
-    //读写访问对应原版acquire/release当前空实现
+    //Read/write access, maps to vanilla acquire/release, currently empty implementations
     public void Acquire() { }
     public void Release() { }
 
@@ -121,12 +121,12 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
 
     public PalettedContainer<T> Copy() => new(this);
 
-    //重建为只含默认值的容器对应原版recreate
+    //Rebuild as a container holding only the default value, maps to vanilla recreate
     public PalettedContainer<T> Recreate()
         => new(_data.Palette.ValueFor(0), _strategy);
 
-    //统计每个值出现次数对应原版count
-    //按 palette 下标开计数槽而不是逐格查字典 少一次哈希 也免了字典本身的分配
+    //Count occurrences of each value, maps to vanilla count
+    //Allocate count slots by palette index rather than dictionary lookups per cell, saving a hash and the dictionary allocation itself
     public void Count(Action<T, int> output)
     {
         var data = _data;
@@ -148,7 +148,7 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
         }
     }
 
-    //序列化打包对应原版pack用HashMapPalette重排id到紧凑序列
+    //Serialization packing, maps to vanilla pack; uses a HashMapPalette to renumber ids into a compact sequence
     public PackedData<T> Pack(Strategy<T> strategy)
     {
         Acquire();
@@ -181,13 +181,13 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
         }
     }
 
-    //GetPackedData 用自身 strategy 打包对外暴露用于存盘序列化
-    //网络序列化不能用此方法 pack 会重排紧凑 id global 配置下与客户端按全局 id 解读不一致
+    //GetPackedData packs with its own strategy, exposed for disk serialization
+    //Network serialization must not use this method: pack renumbers ids compactly, which conflicts with the client reading global ids under a global config
     public PackedData<T> GetPackedData() => Pack(_strategy);
 
-    //GetNetworkData 暴露运行时 palette 与 storage 原始数据用于网络序列化
-    //对应原版 PalettedContainer.write 直接写运行时数据不重排
-    //global palette 时 entries 为空 storage 即全局 id
+    //GetNetworkData exposes the runtime palette and raw storage for network serialization
+    //Maps to vanilla PalettedContainer.write, writing runtime data directly without renumbering
+    //With a global palette, entries is empty and storage is the global id
     public NetworkData<T> GetNetworkData()
     {
         Acquire();
@@ -203,7 +203,7 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
             }
             else
             {
-                //取展平缓存而不是每次现建数组 区块下发的每一段都走这里
+                //Takes the flattened cache rather than building an array each time; every section sent to the client goes through here
                 entries = data.FlatPalette;
             }
             var raw = data.Storage.GetRaw();
@@ -228,7 +228,7 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
         return new Data(configuration, storage, palette);
     }
 
-    //把旧palette下的storage重新编码到新palette对应原版reencodeContents
+    //Re-encode the storage under the old palette into the new palette, maps to vanilla reencodeContents
     private static int[] ReencodeContents(BitStorage storage, Palette<T> oldPalette, Palette<T> newPalette)
     {
         var buffer = new int[storage.Size];
@@ -249,9 +249,9 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
         return buffer;
     }
 
-    //从PackedData反序列化为PalettedContainer对应原版unpack
-    //BitsPerEntry>=0 为网络路径按声明位宽建配置 global palette 时 entries 为空不能按条目数推
-    //BitsPerEntry<0 为存盘路径按 palette 条目数推配置
+    //Deserialize PackedData into a PalettedContainer, maps to vanilla unpack
+    //BitsPerEntry>=0 is the network path, building the config from the declared bit width; with a global palette entries is empty so it cannot be inferred from entry count
+    //BitsPerEntry<0 is the disk path, inferring the config from the palette entry count
     public static DataResult<PalettedContainer<T>> Unpack(Strategy<T> strategy, PackedData<T> discData)
     {
         var paletteEntries = discData.PaletteEntries;
@@ -284,7 +284,7 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
             {
                 if (discData.BitsPerEntry >= 0 && storedConfiguration is GlobalConfiguration)
                 {
-                    //网络 global palette storage 直接存全局 id 不重排
+                    //Network global palette storage holds global ids directly without renumbering
                     palette = storedConfiguration.CreatePalette(strategy, paletteEntries);
                     storage = new SimpleBitStorage(storedConfiguration.BitsInMemory, entryCount, data);
                 }
@@ -311,8 +311,8 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
         return DataResult<PalettedContainer<T>>.Success(new PalettedContainer<T>(strategy, storedConfiguration, storage, palette));
     }
 
-    //创建PalettedContainer的codec对应原版PalettedContainer.codecRW
-    //用RecordCodecBuilder序列化PackedData再comapFlatMap转换
+    //Create the codec for PalettedContainer, maps to vanilla PalettedContainer.codecRW
+    //Serializes PackedData with RecordCodecBuilder then converts via comapFlatMap
     public static Codec<PalettedContainer<T>> CreateCodec(Codec<T> elementCodec, Strategy<T> strategy, T defaultValue)
     {
         var packedCodec = RecordCodecBuilder.Of2<PackedData<T>, IReadOnlyList<T>, Optional<long[]>>(
@@ -326,11 +326,11 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
             container => container.Pack(strategy));
     }
 
-    //内部数据持有configuration storage palette对应原版Data
+    //Internal data holding configuration, storage and palette, maps to vanilla Data
     private sealed class Data
     {
-        //_flatPalette 展平后的 palette 条目 惰性建一次
-        //哈希调色板取条目是一次字典查找 区块下发与存盘要按 id 逐项取 展平后只剩数组下标
+        //_flatPalette, flattened palette entries, built lazily once
+        //Fetching an entry from a hash palette is a dictionary lookup; sending sections and saving fetch by id item by item, so flattening leaves only array indexing
         private T[]? _flatPalette;
 
         public Configuration Configuration { get; }
@@ -344,7 +344,7 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
             Palette = palette;
         }
 
-        //FlatPalette 展平的 palette 条目 长度与 palette 条目数一致
+        //FlatPalette, flattened palette entries with a length matching the palette entry count
         public T[] FlatPalette
         {
             get
@@ -366,7 +366,7 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
                 var value = oldPalette.ValueFor(oldStorage.Get(i));
                 Storage.Set(i, Palette.IdFor(value, dummyResizer));
             }
-            //上面可能往本 palette 里加过条目 展平缓存作废
+            //The code above may have added entries to this palette, invalidating the flatten cache
             _flatPalette = null;
         }
 
@@ -374,8 +374,8 @@ public sealed class PalettedContainer<T> : PaletteResize<T>
     }
 }
 
-//PackedData对应原版PalettedContainerRO.PackedData
-//NBT序列化中间表示paletteEntries值列表storage压缩long数组bitsPerEntry位宽
+//PackedData, maps to vanilla PalettedContainerRO.PackedData
+//NBT serialization intermediate form: paletteEntries value list, storage packed long array, bitsPerEntry bit width
 public sealed record PackedData<T>(IReadOnlyList<T> PaletteEntries, Optional<long[]> Storage, int BitsPerEntry)
 {
     public const int UnknownBitsPerEntry = -1;
@@ -383,6 +383,6 @@ public sealed record PackedData<T>(IReadOnlyList<T> PaletteEntries, Optional<lon
     public PackedData(IReadOnlyList<T> paletteEntries, Optional<long[]> storage) : this(paletteEntries, storage, UnknownBitsPerEntry) { }
 }
 
-//NetworkData 网络序列化视图运行时 palette 条目与 storage 原始数据
-//global palette 时 PaletteEntries 为空 Storage 即全局 id
+//NetworkData, a network serialization view of runtime palette entries and raw storage
+//With a global palette, PaletteEntries is empty and Storage is the global id
 public sealed record NetworkData<T>(int Bits, IReadOnlyList<T> PaletteEntries, long[] RawStorage);

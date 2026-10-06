@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundGameTestHighlightPosPacket 测试高亮位置包对应原版 ClientboundGameTestHighlightPosPacket
-//字段 AbsolutePos(BlockPos) RelativePos(BlockPos)
+//ClientboundGameTestHighlightPosPacket game test highlight pos packet, maps to vanilla ClientboundGameTestHighlightPosPacket
+//Fields: AbsolutePos(BlockPos), RelativePos(BlockPos)
 public sealed record ClientboundGameTestHighlightPosPacket(object AbsolutePos, object RelativePos) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundGameTestHighlightPosPacket> StreamCodec { get; } = new GameTestHighlightPosCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundGameTestHighlightPosPacket(object AbsolutePos, o
     private sealed class GameTestHighlightPosCodec : StreamCodec<FriendlyByteBuf, ClientboundGameTestHighlightPosPacket>
     {
         public ClientboundGameTestHighlightPosPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundGameTestHighlightPosPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

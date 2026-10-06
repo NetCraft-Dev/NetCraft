@@ -2,12 +2,12 @@ using NetCraft.Codec;
 
 namespace NetCraft.Network;
 
-//Filterable 可过筛文本容器 对应原版 net.minecraft.server.network.Filterable
-//raw 是原始文本 filtered 是服务端过滤后的版本 过滤未开启时只有 raw
+//Filterable is a filterable text container, maps to vanilla net.minecraft.server.network.Filterable
+//raw is the original text and filtered is the server-filtered version; when filtering is off only raw exists
 public sealed record Filterable<T>(T Raw, Optional<T> Filtered)
 {
-    //CodecOf 完整形态 raw 加 filtered 二字段 缺失退化成裸值 对应原版 codec
-    //方法名带 Of 后缀避免与 Codec 类型同名
+    //CodecOf is the full form with raw plus the filtered field, degrading to a bare value when absent, maps to vanilla codec
+    //The method name uses the Of suffix to avoid clashing with the Codec type
     public static Codec<Filterable<T>> CodecOf(Codec<T> valueCodec)
     {
         var fullCodec = RecordCodecBuilder.Of2(
@@ -20,19 +20,19 @@ public sealed record Filterable<T>(T Raw, Optional<T> Filtered)
         return Codecs.WithAlternative(fullCodec, simpleCodec);
     }
 
-    //StreamCodecOf 裸值加可选过滤值 对应原版 streamCodec
+    //StreamCodecOf is a bare value plus an optional filtered value, maps to vanilla streamCodec
     public static StreamCodec<RegistryFriendlyByteBuf, Filterable<T>> StreamCodecOf<T>(
         StreamCodec<RegistryFriendlyByteBuf, T> valueCodec)
         => new FilterableStreamCodec<T>(valueCodec);
 
-    //PassThrough 只带裸值 对应原版 passThrough
+    //PassThrough carries only the bare value, maps to vanilla passThrough
     public static Filterable<T> PassThrough(T value) => new(value, Optional<T>.Empty());
 
-    //Get 过滤开启时取过滤值 否则取裸值 对应原版 get
+    //Get returns the filtered value when filtering is on, otherwise the bare value, maps to vanilla get
     public T Get(bool filterEnabled) => filterEnabled ? Filtered.OrElse(Raw) : Raw;
 }
 
-//FilterableStreamCodec 裸值加可选过滤值 对应原版 streamCodec
+//FilterableStreamCodec is a bare value plus an optional filtered value, maps to vanilla streamCodec
 internal sealed class FilterableStreamCodec<T> : StreamCodec<RegistryFriendlyByteBuf, Filterable<T>>
 {
     private readonly StreamCodec<RegistryFriendlyByteBuf, T> _valueCodec;

@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSystemChatPacket 系统聊天包对应原版 ClientboundSystemChatPacket
-//字段 Content(Component) Overlay(boolean)
+//ClientboundSystemChatPacket system chat packet, maps to vanilla ClientboundSystemChatPacket
+//Fields: Content(Component), Overlay(boolean)
 public sealed record ClientboundSystemChatPacket(Component Content, bool Overlay) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSystemChatPacket> StreamCodec { get; } = new SystemChatCodec();

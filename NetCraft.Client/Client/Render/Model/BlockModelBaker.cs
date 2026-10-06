@@ -3,12 +3,12 @@ using NetCraft.Gpu;
 
 namespace NetCraft.Game.Client.Render.Model;
 
-//BlockModelBaker 模型烘焙器对标原版 ModelBakery 烘焙阶段
-//把 UnbakedModel + ITextureAtlas 烘焙成 BakedModel
-//遍历 elements 的 faces 解析纹理变量→sprite→图集 UV 生成 BakedQuad
-//顶点位置由 element from/to 计算 UV 由 face.uv 归一化后用 sprite.MapU/MapV 映射
-//首版所有 quad 放 Solid layer 后续按 renderType 分 Cutout/Translucent
-//依赖 ITextureAtlas 接口不耦合 GpuDevice 测试可用 stub
+//BlockModelBaker model baker, maps to the baking stage of vanilla ModelBakery
+//Bakes UnbakedModel + ITextureAtlas into BakedModel
+//Iterates elements' faces, resolving texture variables→sprite→atlas UV to generate BakedQuad
+//Vertex positions are computed from element from/to; UV is normalized from face.uv then mapped via sprite.MapU/MapV
+//The first version puts all quads in the Solid layer; later versions split into Cutout/Translucent by renderType
+//Depends on the ITextureAtlas interface, not coupled to GpuDevice; tests can use a stub
 public sealed class BlockModelBaker
 {
     private readonly ITextureAtlas _atlas;
@@ -18,13 +18,13 @@ public sealed class BlockModelBaker
         _atlas = atlas;
     }
 
-    //Bake 烘焙 UnbakedModel 为 BakedModel
-    //model 必须已 ResolveParent（elements/textures 已合并）
+    //Bake bakes UnbakedModel into BakedModel
+    //model must already be ResolveParent'd (elements/textures merged)
     public BakedModel Bake(UnbakedModel model) => Bake(model, 0, 0);
 
-    //Bake 带变体旋转的烘焙
-    //rotationX/rotationY 是 blockstates 变体的 x/y 绕方块中心旋转 对应原版 Variant 的模型变换
-    //不带上它们贴面方块只会渲染出模型文件的基准朝向 拉杆按钮火把四处都朝同一个方向
+    //Bake baking with variant rotation
+    //rotationX/rotationY are the blockstates variant's x/y rotation about the block center, corresponding to vanilla Variant's model transform
+    //Without them, facing blocks would only render the model file's base orientation; levers/buttons/torches would all face the same direction
     public BakedModel Bake(UnbakedModel model, int rotationX, int rotationY)
     {
         var baked = new BakedModel();
@@ -40,47 +40,47 @@ public sealed class BlockModelBaker
         return baked;
     }
 
-    //BakeFace 烘焙单个面为 BakedQuad
-    //解析纹理变量得到 sprite name 查图集 sprite 计算图集 UV
-    //顶点位置由 from/to 按 Direction 计算 4 个角顶点
-    //返回 null 表示纹理未找到（sprite 不在图集中）
+    //BakeFace bakes a single face into BakedQuad
+    //Resolve the texture variable to a sprite name, look up the atlas sprite, and compute atlas UV
+    //Vertex positions are computed from from/to by Direction, four corner vertices
+    //Returns null when the texture is not found (sprite not in the atlas)
     private BakedQuad? BakeFace(ModelElement element, ModelFace face, UnbakedModel model,
         int rotationX, int rotationY)
     {
         var textureName = BlockModelLoader.ResolveTexture(model, face.Texture);
         var sprite = _atlas.GetSprite(textureName);
         if (sprite is null) return null;
-        //face UV 是 [u0,v0,u1,v1] 像素坐标 0-16 范围归一化到 [0,1] 再映射图集
+        //face UV is [u0,v0,u1,v1] in pixel coordinates 0-16, normalized to [0,1] then mapped to the atlas
         var u0 = face.UV.X / 16f;
         var v0 = face.UV.Y / 16f;
         var u1 = face.UV.Z / 16f;
         var w1 = face.UV.W / 16f;
-        //图集 UV 映射
+        //Atlas UV mapping
         var auv0 = new Vector2(sprite.MapU(u0), sprite.MapV(v0));
         var auv1 = new Vector2(sprite.MapU(u1), sprite.MapV(v0));
         var auv2 = new Vector2(sprite.MapU(u1), sprite.MapV(w1));
         var auv3 = new Vector2(sprite.MapU(u0), sprite.MapV(w1));
-        //顶点位置按 Direction 从 from/to 计算 再套上变体旋转
+        //Vertex positions computed from from/to by Direction, then applying the variant rotation
         var (p0, p1, p2, p3) = ComputeFaceVertices(element.From, element.To, face.Direction);
         p0 = RotateVertex(p0, rotationX, rotationY);
         p1 = RotateVertex(p1, rotationX, rotationY);
         p2 = RotateVertex(p2, rotationX, rotationY);
         p3 = RotateVertex(p3, rotationX, rotationY);
-        //UV 跟着顶点索引走 等价于原版默认的 uvlock=false 纹理随面一起转
+        //UV follows the vertex indices, equivalent to vanilla's default uvlock=false where the texture rotates with the face
         var direction = RotateDirection(face.Direction, rotationX, rotationY);
         return new BakedQuad(p0, p1, p2, p3, auv0, auv1, auv2, auv3, direction, face.TintIndex);
     }
 
-    //中心 变体旋转绕方块中心转 对应原版 Transformation 以方块几何中心为轴心
+    //Center variant rotation is about the block center, corresponding to vanilla Transformation pivoting on the block's geometric center
     private static readonly Vector3 Center = new(8f, 8f, 8f);
 
-    //RotateVertex 按变体 x/y 绕方块中心旋转一个顶点
+    //RotateVertex rotates a vertex about the block center by the variant x/y
     private static Vector3 RotateVertex(Vector3 position, int rotationX, int rotationY)
         => Center + RotateVector(position - Center, rotationX, rotationY);
 
-    //RotateVector 按变体 x/y 旋转一个方向向量
-    //原版 x 90 把 UP 转成 NORTH y 90 把 NORTH 转成 EAST 两者都是绕轴负 90 度
-    //顺序是先 x 后 y 对应原版 OctahedralGroup 的矩阵组合
+    //RotateVector rotates a direction vector by the variant x/y
+    //Vanilla x 90 turns UP into NORTH; y 90 turns NORTH into EAST; both rotate -90 degrees about the axis
+    //Order is x then y, corresponding to vanilla OctahedralGroup's matrix composition
     private static Vector3 RotateVector(Vector3 vector, int rotationX, int rotationY)
     {
         if (rotationX != 0)
@@ -92,17 +92,17 @@ public sealed class BlockModelBaker
         return vector;
     }
 
-    //RotateFace 旋转面的朝向 用于 cullface 面剔除 空值表示不剔除保持原样
+    //RotateFace rotates the face orientation for cullface culling; null means no culling, kept as is
     private static Direction? RotateFace(Direction? face, int rotationX, int rotationY)
         => face is null ? null : RotateDirection(face.Value, rotationX, rotationY);
 
-    //RotateDirection 旋转一个轴向 旋转量是 90 度的整数倍 结果必定落在六个轴上
+    //RotateDirection rotates an axis; the rotation is a multiple of 90 degrees so the result always lands on one of the six axes
     private static Direction RotateDirection(Direction direction, int rotationX, int rotationY)
         => rotationX == 0 && rotationY == 0
             ? direction
             : FromUnitVector(RotateVector(direction.UnitVector(), rotationX, rotationY));
 
-    //FromUnitVector 把单位轴向量折回方向枚举
+    //FromUnitVector folds a unit axis vector back into the direction enum
     private static Direction FromUnitVector(Vector3 vector)
     {
         if (vector.Y > 0.5f) return Direction.Up;
@@ -112,9 +112,9 @@ public sealed class BlockModelBaker
         return vector.Z > 0.5f ? Direction.South : Direction.North;
     }
 
-    //ComputeFaceVertices 按 Direction 计算 4 顶点位置
-    //返回 CCW 顺序（从面外侧看）顶点坐标 0-16 范围
-    //chunk mesh 生成时再归一化到 0-1 世界坐标
+    //ComputeFaceVertices computes the four vertex positions by Direction
+    //Returns vertex coordinates in CCW order (viewed from the face's outer side), 0-16 range
+    //Chunk mesh generation normalizes them to 0-1 world coordinates
     private static (Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3) ComputeFaceVertices(
         Vector3 from, Vector3 to, Direction dir)
     {
@@ -126,17 +126,17 @@ public sealed class BlockModelBaker
         var z1 = to.Z;
         return dir switch
         {
-            //Down 朝下从外侧看（从 -Y 方向看上来）CCW 顺序
+            //Down facing down, viewed from the outer side (looking up from -Y), CCW order
             Direction.Down => (new(x0, y0, z1), new(x0, y0, z0), new(x1, y0, z0), new(x1, y0, z1)),
-            //Up 朝上从外侧看（从 +Y 方向看下来）CCW 顺序
+            //Up facing up, viewed from the outer side (looking down from +Y), CCW order
             Direction.Up => (new(x0, y1, z0), new(x0, y1, z1), new(x1, y1, z1), new(x1, y1, z0)),
-            //North 朝 -Z CCW 顺序
+            //North facing -Z, CCW order
             Direction.North => (new(x0, y1, z0), new(x0, y0, z0), new(x1, y0, z0), new(x1, y1, z0)),
-            //South 朝 +Z CCW 顺序
+            //South facing +Z, CCW order
             Direction.South => (new(x1, y1, z1), new(x1, y0, z1), new(x0, y0, z1), new(x0, y1, z1)),
-            //West 朝 -X CCW 顺序
+            //West facing -X, CCW order
             Direction.West => (new(x0, y1, z1), new(x0, y0, z1), new(x0, y0, z0), new(x0, y1, z0)),
-            //East 朝 +X CCW 顺序
+            //East facing +X, CCW order
             Direction.East => (new(x1, y1, z0), new(x1, y0, z0), new(x1, y0, z1), new(x1, y1, z1)),
             _ => throw new ArgumentOutOfRangeException(nameof(dir))
         };

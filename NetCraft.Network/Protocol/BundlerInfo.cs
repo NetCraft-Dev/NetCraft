@@ -1,30 +1,30 @@
 namespace NetCraft.Network.Protocol;
 
-//BundlerInfo 打包信息对应原版 net.minecraft.network.protocol.BundlerInfo
-//描述 bundle 包的拆解和组装逻辑
-//THandler 是包处理器类型所有 bundle 子包都继承 Packet<THandler>
+//BundlerInfo bundling info, maps to vanilla net.minecraft.network.protocol.BundlerInfo
+//Describes the unbundling and assembly logic for bundle packets
+//THandler is the packet handler type; all bundle subpackets inherit Packet<THandler>
 public interface BundlerInfo<THandler>
 {
-    //BundleSizeLimit 单个 bundle 最多 4096 个子包
+    //BundleSizeLimit a single bundle holds at most 4096 subpackets
     public const int BundleSizeLimit = 4096;
 
-    //Bundler 子包收集器
-    //AddPacket 加入子包返回 null 继续收集返回非 null 表示 bundle 完成应发送
+    //Bundler subpacket collector
+    //AddPacket adds a subpacket; returning null means keep collecting, non-null means the bundle is complete and should be sent
     public interface Bundler<THandler>
     {
         Packet<THandler>? AddPacket(Packet<THandler> packet);
     }
 
-    //UnbundlePacket 拆解 bundle 包为子包序列输出到 output
+    //UnbundlePacket unbundles a bundle packet into a subpacket sequence output to output
     void UnbundlePacket(Packet<THandler> packet, Action<Packet<THandler>> output);
 
-    //StartPacketBundling 收到 bundle 起始分隔符时开始组装返回 Bundler 否则返回 null
+    //StartPacketBundling starts assembly on receiving the bundle start delimiter and returns a Bundler, otherwise null
     Bundler<THandler>? StartPacketBundling(Packet<THandler> packet);
 
-    //CreateForPacket 为指定 bundle 包类型创建 BundlerInfo
-    //bundlePacketType bundle 包类型
-    //constructor 子包序列构造 bundle 包的工厂
-    //delimiterPacket 起止分隔符包实例
+    //CreateForPacket creates a BundlerInfo for the given bundle packet type
+    //bundlePacketType the bundle packet type
+    //constructor a factory building a bundle packet from a subpacket sequence
+    //delimiterPacket the start and end delimiter packet instance
     static BundlerInfo<THandler> CreateForPacket(
         PacketType<THandler> bundlePacketType,
         Func<IEnumerable<Packet<THandler>>, BundlePacket<THandler>> constructor,
@@ -32,7 +32,7 @@ public interface BundlerInfo<THandler>
         => new ForPacketBundlerInfo<THandler>(constructor, delimiterPacket);
 }
 
-//ForPacketBundlerInfo BundlerInfo.CreateForPacket 实现
+//ForPacketBundlerInfo BundlerInfo.CreateForPacket implementation
 file sealed class ForPacketBundlerInfo<THandler> : BundlerInfo<THandler>
 {
     private readonly Func<IEnumerable<Packet<THandler>>, BundlePacket<THandler>> _constructor;
@@ -48,7 +48,7 @@ file sealed class ForPacketBundlerInfo<THandler> : BundlerInfo<THandler>
 
     public void UnbundlePacket(Packet<THandler> packet, Action<Packet<THandler>> output)
     {
-        //bundle 包：输出分隔符 + 子包序列 + 分隔符
+        //bundle packet: output delimiter + subpacket sequence + delimiter
         if (packet is BundlePacket<THandler> bundle)
         {
             output(_delimiterPacket);
@@ -62,14 +62,14 @@ file sealed class ForPacketBundlerInfo<THandler> : BundlerInfo<THandler>
 
     public BundlerInfo<THandler>.Bundler<THandler>? StartPacketBundling(Packet<THandler> packet)
     {
-        //收到起始分隔符包开始组装 Bundler
+        //Assembly starts a Bundler on receiving the start delimiter packet
         if (ReferenceEquals(packet, _delimiterPacket))
             return new PacketBundler<THandler>(_constructor, _delimiterPacket);
         return null;
     }
 }
 
-//PacketBundler 收集子包达到上限或收到结束分隔符时构造 bundle 包
+//PacketBundler collects subpackets and builds the bundle packet when the limit is reached or the end delimiter is received
 file sealed class PacketBundler<THandler> : BundlerInfo<THandler>.Bundler<THandler>
 {
     private readonly Func<IEnumerable<Packet<THandler>>, BundlePacket<THandler>> _constructor;
@@ -86,12 +86,12 @@ file sealed class PacketBundler<THandler> : BundlerInfo<THandler>.Bundler<THandl
 
     public Packet<THandler>? AddPacket(Packet<THandler> packet)
     {
-        //收到结束分隔符包构造 bundle 包返回
+        //On receiving the end delimiter packet it builds the bundle packet and returns
         if (ReferenceEquals(packet, _delimiter))
             return _constructor(_bundlePackets);
-        //超出上限抛异常
+        //Throws when the limit is exceeded
         if (_bundlePackets.Count >= BundlerInfo<THandler>.BundleSizeLimit)
-            throw new InvalidOperationException("Bundle 子包数量超限 " + BundlerInfo<THandler>.BundleSizeLimit);
+            throw new InvalidOperationException("Bundle subpacket count out of range " + BundlerInfo<THandler>.BundleSizeLimit);
         _bundlePackets.Add(packet);
         return null;
     }

@@ -1,8 +1,8 @@
 namespace NetCraft.Primitives;
 
-//方向枚举对应原版net.minecraft.core.Direction
-//原版有16个方向这里只取6个基础方向加DOWN/UP等枚举值
-//持StepX/StepY/StepZ偏移量与Axis轴标记
+//Direction enum, maps to vanilla net.minecraft.core.Direction
+//Vanilla has 16 directions, here only the 6 base directions plus enum values such as DOWN/UP
+//Holds the StepX/StepY/StepZ offsets and an Axis marker
 public readonly struct Direction : IEquatable<Direction>
 {
     public enum Axis
@@ -35,7 +35,7 @@ public readonly struct Direction : IEquatable<Direction>
     public static readonly Direction[] Values = { Down, Up, North, South, West, East };
     public static readonly Direction[] AllShuffledOrder = { West, East, North, South, Down, Up };
 
-    //两个逐轴推进顺序 顺序固定不能改 原版也是两个常量复用
+    //Two per-axis step orders, the order is fixed and must not change, vanilla also reuses two constants
     private static readonly Axis[] YxzAxisOrder = { Axis.Y, Axis.X, Axis.Z };
     private static readonly Axis[] YzxAxisOrder = { Axis.Y, Axis.Z, Axis.X };
 
@@ -58,14 +58,14 @@ public readonly struct Direction : IEquatable<Direction>
         StepZ = stepZ;
     }
 
-    //ById按id取方向
+    //ById returns the direction by id
     public static Direction ById(int id)
     {
         return Values[((id % Values.Length) + Values.Length) % Values.Length];
     }
 
-    //fromYRot按水平朝向角度取方向 对应原版 Direction.fromYRot
-    //0 是 SOUTH 90 是 WEST 180 是 NORTH 270 是 EAST 与原版一致
+    //fromYRot returns the direction for a horizontal yaw angle, maps to vanilla Direction.fromYRot
+    //0 is SOUTH, 90 is WEST, 180 is NORTH, 270 is EAST, same as vanilla
     public static Direction FromYRot(float yRot)
     {
         var index = (int)MathF.Floor(yRot / 90f + 0.5f) & 3;
@@ -78,9 +78,9 @@ public readonly struct Direction : IEquatable<Direction>
         };
     }
 
-    //FromViewVector 按视线向量取最贴近的方向 六个方向都参与 对应原版 Direction.getNearest
-    //观察者这类要含上下的方块靠它算朝向 水平版 FromYRot 不适用于它们
-    //初值取最小正数 视线为零向量时六个点积都是 0 谁也不替换 落回 NORTH 与原版一致
+    //FromViewVector returns the closest direction for a view vector, all six directions participate, maps to vanilla Direction.getNearest
+    //Blocks such as observers that need up/down use this to compute their facing, the horizontal FromYRot does not apply to them
+    //Initial value is the smallest positive number, when the view vector is zero all six dots are 0 and nothing replaces it, falling back to NORTH, same as vanilla
     public static Direction FromViewVector(double x, double y, double z)
     {
         var result = North;
@@ -95,7 +95,7 @@ public readonly struct Direction : IEquatable<Direction>
         return result;
     }
 
-    //byAxisDirection按轴方向取该轴正负方向
+    //byAxisDirection returns the positive/negative direction of the axis
     public static Direction ByAxisDirection(Axis axis, AxisDirection dir)
     {
         foreach (var d in Values)
@@ -105,16 +105,16 @@ public readonly struct Direction : IEquatable<Direction>
         return Down;
     }
 
-    //AxisStepOrder 逐轴裁剪时的推进顺序 对应原版 Direction.axisStepOrder
-    //竖直优先 水平两轴按位移大的排前面 先解位移大的轴结果才与原版逐个对齐
+    //AxisStepOrder step order when clipping axis by axis, maps to vanilla Direction.axisStepOrder
+    //Vertical first, the two horizontal axes ordered with the larger displacement first, solving the larger-displacement axis first aligns the result with vanilla step by step
     public static Axis[] AxisStepOrder(Vec3 movement)
         => Math.Abs(movement.X) < Math.Abs(movement.Z) ? YzxAxisOrder : YxzAxisOrder;
 
-    //opposite取反方向
+    //opposite reverses the direction
     public Direction Opposite => ById(OppositeId);
 
-    //counterClockWise逆时针旋转一次 对应原版 getCounterClockWise
-    //只对水平方向有定义 竖直方向原版抛异常 这里退回自身
+    //counterClockWise rotates counter-clockwise once, maps to vanilla getCounterClockWise
+    //Only defined for horizontal directions, vanilla throws for vertical ones, here it falls back to itself
     public Direction CounterClockWise => Id3D switch
     {
         NorthId => West,
@@ -124,7 +124,7 @@ public readonly struct Direction : IEquatable<Direction>
         _ => this,
     };
 
-    //clockWise顺时针旋转一次 对应原版 getClockWise 只对水平方向有定义
+    //clockWise rotates clockwise once, maps to vanilla getClockWise, only defined for horizontal directions
     public Direction ClockWise => Id3D switch
     {
         NorthId => East,
@@ -136,10 +136,10 @@ public readonly struct Direction : IEquatable<Direction>
 
     public bool IsHorizontal => AxisValue == Axis.X || AxisValue == Axis.Z;
 
-    //getAxis返回Axis
+    //getAxis returns the Axis
     public Axis GetAxis() => AxisValue;
 
-    //getStep按轴取步长
+    //getStep returns the step along the axis
     public int GetStep(Axis axis)
     {
         if (axis == Axis.X) return StepX;
@@ -167,8 +167,8 @@ public readonly struct Direction : IEquatable<Direction>
     }
 }
 
-//DirectionAxisExtensions 轴取值辅助 对应原版 Direction.Axis.choose
-//离散网格按轴遍历时要用它把三轴循环写成一套代码
+//DirectionAxisExtensions axis value helper, maps to vanilla Direction.Axis.choose
+//Used when iterating a discrete grid by axis so the three-axis loops share one piece of code
 public static class DirectionAxisExtensions
 {
     public static int Choose(this Direction.Axis axis, int x, int y, int z) => axis switch

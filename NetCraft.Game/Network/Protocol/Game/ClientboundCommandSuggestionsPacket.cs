@@ -3,12 +3,12 @@ using NetCraft.Network.Component;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//CommandSuggestionEntry 命令建议条目对应原版 ClientboundCommandSuggestionsPacket.Entry
-//文本 + 可选 tooltip tooltip 按组件的 trusted optional 编码
+//CommandSuggestionEntry command suggestion entry, maps to vanilla ClientboundCommandSuggestionsPacket.Entry
+//Text + optional tooltip; the tooltip is encoded as a trusted optional component
 public sealed record CommandSuggestionEntry(string Text, Component? Tooltip);
 
-//ClientboundCommandSuggestionsPacket 命令建议包对应原版 ClientboundCommandSuggestionsPacket
-//字段 Id(int) Start(int) Length(int) Entries(条目列表)
+//ClientboundCommandSuggestionsPacket command suggestions packet, maps to vanilla ClientboundCommandSuggestionsPacket
+//Fields: Id(int), Start(int), Length(int), Entries (entry list)
 public sealed record ClientboundCommandSuggestionsPacket(
     int Id, int Start, int Length, IReadOnlyList<CommandSuggestionEntry> Entries) : Packet<ClientGamePacketListener>
 {

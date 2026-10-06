@@ -2,8 +2,8 @@ using NetCraft.Commands;
 
 namespace NetCraft.Commands.Context;
 
-//StringRange 字符串范围对应原版com.mojang.brigadier.context.StringRange
-//标记解析片段在原输入中的起止位置供ParsedArgument与Suggestion使用
+//StringRange maps to vanilla com.mojang.brigadier.context.StringRange
+//Marks the start and end of a parsed fragment in the original input, used by ParsedArgument and Suggestion
 public sealed record StringRange(int Start, int End)
 {
     public static StringRange At(int pos) => new(pos, pos);

@@ -3,8 +3,8 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetCursorItemPacket 光标物品包对应原版 ClientboundSetCursorItemPacket
-//字段 Contents(ItemStack) 用 ItemStack.OptionalStreamCodec 编解码允许空栈
+//ClientboundSetCursorItemPacket cursor item packet, maps to vanilla ClientboundSetCursorItemPacket
+//Field: Contents(ItemStack), encoded with ItemStack.OptionalStreamCodec to allow an empty stack
 public sealed record ClientboundSetCursorItemPacket(ItemStack Contents) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<RegistryFriendlyByteBuf, ClientboundSetCursorItemPacket> StreamCodec { get; } = new SetCursorItemCodec();

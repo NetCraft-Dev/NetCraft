@@ -1,9 +1,9 @@
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientboundResourcePackPushPacket 资源包推送包对应原版 net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket
-//含 UUID id + url + hash + required + forced + prompt(string 简化版)
-//原版用 Component prompt 简化为 string
+//ClientboundResourcePackPushPacket resource pack push packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket
+//Contains UUID id + url + hash + required + forced + prompt(string in the simplified form)
+//Vanilla uses a Component prompt, simplified to string
 public sealed record ClientboundResourcePackPushPacket(
     Guid Id,
     string Url,

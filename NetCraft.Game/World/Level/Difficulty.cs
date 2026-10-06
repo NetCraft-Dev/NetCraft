@@ -1,7 +1,7 @@
 namespace NetCraft.Game.World.Level;
 
-//Difficulty 游戏难度对标原版 net.minecraft.world.level.Difficulty
-//静态实例模式代替 enum id 与协议及 level.dat 一致 0=和平 1=简单 2=普通 3=困难
+//Difficulty game difficulty, maps to vanilla net.minecraft.world.level.Difficulty
+//Static instance pattern instead of enum; ids match protocol and level.dat: 0=peaceful 1=easy 2=normal 3=hard
 public sealed class Difficulty
 {
     public static readonly Difficulty Peaceful = new(0, "peaceful");
@@ -11,9 +11,9 @@ public sealed class Difficulty
 
     private static readonly Difficulty[] s_all = { Peaceful, Easy, Normal, Hard };
 
-    //Id 数字 id 与协议一致
+    //Id numeric id, matches protocol
     public int Id { get; }
-    //Name 名称 与 level.dat 里 difficulty 字段一致
+    //Name name, matches the difficulty field in level.dat
     public string Name { get; }
 
     private Difficulty(int id, string name)
@@ -22,7 +22,7 @@ public sealed class Difficulty
         Name = name;
     }
 
-    //ById 按数字 id 查难度 未找到返回 null
+    //ById lookup difficulty by numeric id, returns null if not found
     public static Difficulty? ById(int id)
     {
         foreach (var difficulty in s_all)
@@ -30,7 +30,7 @@ public sealed class Difficulty
         return null;
     }
 
-    //ByName 按名称查难度忽略大小写 未找到返回 null
+    //ByName lookup difficulty by name, case-insensitive, returns null if not found
     public static Difficulty? ByName(string? name)
     {
         if (string.IsNullOrWhiteSpace(name)) return null;

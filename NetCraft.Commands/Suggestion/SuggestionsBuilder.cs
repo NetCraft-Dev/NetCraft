@@ -4,8 +4,8 @@ using NetCraft.Commands.Context;
 
 namespace NetCraft.Commands.Suggestion;
 
-//SuggestionsBuilder 建议构建器对应原版com.mojang.brigadier.suggestion.SuggestionsBuilder
-//累积Suggestion条目并构建Suggestions或Task<Suggestions>结果
+//SuggestionsBuilder maps to vanilla com.mojang.brigadier.suggestion.SuggestionsBuilder
+//Accumulates Suggestion entries and builds a Suggestions or Task<Suggestions> result
 public sealed class SuggestionsBuilder
 {
     private readonly string _input;

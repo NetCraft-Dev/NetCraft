@@ -2,9 +2,9 @@ using NetCraft.Codec;
 
 namespace NetCraft.Util.Parsing.Packrat;
 
-//解析状态对应原版net.minecraft.util.parsing.packrat.ParseState
-//持有scope和errorCollector提供规则解析入口和游标mark/restore
-//silent返回不收集错误的状态
+//Parse state, maps to vanilla net.minecraft.util.parsing.packrat.ParseState
+//Holds scope and errorCollector, provides the rule parse entry and cursor mark/restore
+//silent returns a state that collects no errors
 public interface ParseState<S>
 {
     Scope Scope { get; }
@@ -28,7 +28,7 @@ public interface ParseState<S>
 
 public static class ParseStateExtensions
 {
-    //parseTopRule解析顶层规则返回Optional结果
+    //parseTopRule parses the top-level rule and returns an Optional result
     public static Optional<T> ParseTopRule<S, T>(this ParseState<S> state, NamedRule<S, T> rule)
     {
         var obj = state.Parse(rule);

@@ -1,8 +1,8 @@
 namespace NetCraft.Codec;
 
-//动态值包装对应原版com.mojang.serialization.Dynamic<T>
-//持有一段ops下的值可通过Convert跨ops转换
-//提供Get/AsString/AsStream/Update/Set/Create*等便捷操作
+//Dynamic value wrapper, mirroring vanilla com.mojang.serialization.Dynamic<T>
+//Holds a value under some ops and can convert across ops with Convert
+//Provides convenience operations such as Get/AsString/AsStream/Update/Set/Create*
 public sealed class Dynamic<T>
 {
     public DynamicOps<T> Ops { get; }
@@ -15,33 +15,33 @@ public sealed class Dynamic<T>
         Value = value;
     }
 
-    //把当前值用源ops.ConvertTo转到目标ops
+    //Convert the current value to the target ops with the source ops.ConvertTo
     public Dynamic<U> Convert<U>(DynamicOps<U> ops)
         => new(ops, Ops.ConvertTo(ops, Value));
 
     public Dynamic<T> WithValue(T value) => new(Ops, value);
 
-    //空map对应原版emptyMap
+    //Empty map, mirroring vanilla emptyMap
     public Dynamic<T> EmptyMap() => new(Ops, Ops.EmptyMap());
 
-    //空list对应原版emptyList
+    //Empty list, mirroring vanilla emptyList
     public Dynamic<T> EmptyList() => new(Ops, Ops.EmptyList());
 
-    //取string key对应子Dynamic返回OptionalDynamic失败时携带错误信息
+    //Get the child Dynamic for a string key, returning an OptionalDynamic that carries the error message on failure
     public OptionalDynamic<T> Get(string key)
         => new(Ops, Ops.GetMap(Value).FlatMap(m =>
             m.Get(key).IsPresent
                 ? DataResult<T>.Success(m.Get(key).Get())
                 : DataResult<T>.Error(() => "Key not found: " + key)));
 
-    //取T类型key对应子Dynamic
+    //Get the child Dynamic for a key of type T
     public OptionalDynamic<T> Get(T key)
         => new(Ops, Ops.GetMap(Value).FlatMap(m =>
             m.Get(key).IsPresent
                 ? DataResult<T>.Success(m.Get(key).Get())
                 : DataResult<T>.Error(() => "Key not found")));
 
-    //===取值转换DataResult===
+    //===value conversion DataResult===
 
     public DataResult<double> AsNumber() => Ops.GetNumberValue(Value);
 
@@ -67,51 +67,51 @@ public sealed class Dynamic<T>
 
     public short AsShort(short def) => (short)AsNumber(def);
 
-    //===流式转换===
+    //===stream conversion===
 
-    //转Dynamic流失败返回错误DataResult
+    //Convert to a Dynamic stream, returning an error DataResult on failure
     public DataResult<IEnumerable<Dynamic<T>>> AsStream()
         => Ops.GetStream(Value).Map(s => s.Select(e => new Dynamic<T>(Ops, e)));
 
-    //转Dynamic流失败部分返回空序列
+    //Convert to a Dynamic stream, returning an empty sequence on partial failure
     public IEnumerable<Dynamic<T>> AsStreamOpt()
         => AsStream().Result().OrElse(Enumerable.Empty<Dynamic<T>>());
 
-    //转Pair Dynamic流失败返回错误DataResult
+    //Convert to a Pair Dynamic stream, returning an error DataResult on failure
     public DataResult<IEnumerable<Pair<Dynamic<T>, Dynamic<T>>>> AsMap()
         => Ops.GetMapValues(Value).Map(s => s.Select(p =>
             new Pair<Dynamic<T>, Dynamic<T>>(new(Ops, p.First), new(Ops, p.Second))));
 
-    //转Pair Dynamic流失败部分返回空序列
+    //Convert to a Pair Dynamic stream, returning an empty sequence on partial failure
     public IEnumerable<Pair<Dynamic<T>, Dynamic<T>>> AsMapOpt()
         => AsMap().Result().OrElse(Enumerable.Empty<Pair<Dynamic<T>, Dynamic<T>>>());
 
-    //===修改操作===
+    //===mutation operations===
 
-    //用fn更新指定string key对应子值返回新Dynamic
+    //Update the child value at a string key with fn and return a new Dynamic
     public Dynamic<T> Update(string key, Func<Dynamic<T>, Dynamic<T>> fn)
         => Set(key, fn(Get(key).OrElse(EmptyMap())));
 
-    //用fn更新指定T key对应子值
+    //Update the child value at a key of type T with fn
     public Dynamic<T> Update(T key, Func<Dynamic<T>, Dynamic<T>> fn)
         => Set(key, fn(Get(key).OrElse(EmptyMap())));
 
-    //设置指定string key对应子值为value返回新Dynamic
+    //Set the child value at a string key to value and return a new Dynamic
     public Dynamic<T> Set(string key, Dynamic<T> value)
         => new(Ops, Ops.MergeToMap(Value, Ops.CreateString(key), value.Value).GetOrThrow(err => new InvalidOperationException(err)));
 
-    //设置指定T key对应子值
+    //Set the child value at a key of type T
     public Dynamic<T> Set(T key, Dynamic<T> value)
         => new(Ops, Ops.MergeToMap(Value, key, value.Value).GetOrThrow(err => new InvalidOperationException(err)));
 
-    //存在时设置key对应值不存在保持原值
+    //Set the value for the key when it exists, keeping the old value otherwise
     public Dynamic<T> SetFieldIfPresent(string key, Optional<Dynamic<T>> value)
         => value.IsPresent ? Set(key, value.Get()) : this;
 
-    //删除指定string key返回新Dynamic
+    //Remove the given string key and return a new Dynamic
     public Dynamic<T> Remove(string key) => new(Ops, Ops.Remove(Value, key));
 
-    //重命名字段oldKey为newKey值保持不变
+    //Rename the field oldKey to newKey, keeping the value unchanged
     public Dynamic<T> RenameField(string oldKey, string newKey)
     {
         var opt = Get(oldKey).Result();
@@ -119,7 +119,7 @@ public sealed class Dynamic<T>
         return opt.IsPresent ? removed.Set(newKey, opt.Get()) : removed;
     }
 
-    //重命名字段并应用fn修改对应值
+    //Rename the field and apply fn to the value
     public Dynamic<T> RenameAndFixField(string oldKey, string newKey, Func<Dynamic<T>, Dynamic<T>> fn)
     {
         var opt = Get(oldKey).Result();
@@ -127,14 +127,14 @@ public sealed class Dynamic<T>
         return opt.IsPresent ? removed.Set(newKey, fn(opt.Get())) : removed;
     }
 
-    //把src的srcKey字段复制到dest的destKey字段返回新dest
+    //Copy the srcKey field of src to the destKey field of dest and return the new dest
     public static Dynamic<T> CopyField(Dynamic<T> src, string srcKey, Dynamic<T> dest, string destKey)
     {
         var opt = src.Get(srcKey).Result();
         return opt.IsPresent ? dest.Set(destKey, opt.Get()) : dest;
     }
 
-    //用fn修改map中所有键值对返回新Dynamic
+    //Apply fn to every key-value pair in the map and return a new Dynamic
     public Dynamic<T> UpdateMapValues(Func<Pair<Dynamic<T>, Dynamic<T>>, Pair<Dynamic<T>, Dynamic<T>>> fn)
     {
         var newEntries = AsMapOpt().Select(fn)
@@ -142,15 +142,15 @@ public sealed class Dynamic<T>
         return new(Ops, Ops.CreateMap(newEntries));
     }
 
-    //失败时返回空map
+    //Returns an empty map on failure
     public Dynamic<T> OrElseEmptyMap()
         => Ops.GetMap(Value).Result().IsPresent ? this : EmptyMap();
 
-    //失败时返回空list
+    //Returns an empty list on failure
     public Dynamic<T> OrElseEmptyList()
         => Ops.GetStream(Value).Result().IsPresent ? this : EmptyList();
 
-    //===工厂方法===
+    //===factory methods===
 
     public Dynamic<T> CreateString(string value) => new(Ops, Ops.CreateString(value));
 
@@ -168,11 +168,11 @@ public sealed class Dynamic<T>
 
     public Dynamic<T> CreateBoolean(bool value) => new(Ops, Ops.CreateBoolean(value));
 
-    //用一组Pair Dynamic构造map类型Dynamic
+    //Build a map Dynamic from a set of Pair Dynamics
     public Dynamic<T> CreateMap(IEnumerable<Pair<Dynamic<T>, Dynamic<T>>> map)
         => new(Ops, Ops.CreateMap(map.Select(p => new Pair<T, T>(p.First.Value, p.Second.Value))));
 
-    //用一组Dynamic构造list类型Dynamic
+    //Build a list Dynamic from a set of Dynamics
     public Dynamic<T> CreateList(IEnumerable<Dynamic<T>> list)
         => new(Ops, Ops.CreateList(list.Select(d => d.Value)));
 }

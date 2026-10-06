@@ -2,9 +2,9 @@ using System.Text;
 
 namespace NetCraft.Registry.State;
 
-//状态持有者，对应原版 StateHolder<O, S>
-//O 是所有者类型如 Block，S 是自身类型如 BlockState
-//核心机制 neighbors 二维数组预计算所有相邻状态 setValue O(1)
+//State holder, maps to vanilla StateHolder<O, S>
+//O is the owner type such as Block and S is the self type such as BlockState
+//Core mechanism: the neighbors 2D array precomputes all adjacent states so setValue is O(1)
 public abstract class StateHolder<O, S> where S : StateHolder<O, S>
 {
     private const int ValueNotFound = -1;
@@ -25,7 +25,7 @@ public abstract class StateHolder<O, S> where S : StateHolder<O, S>
         _propertyValues = propertyValues;
     }
 
-    //循环切换属性到下一个值
+    //Cycle the property to its next value
     public S Cycle<T>(Property<T> property) where T : IComparable
         => SetValue(property, FindNextInCollection(property.PossibleValues, GetValue(property)!));
 
@@ -89,7 +89,7 @@ public abstract class StateHolder<O, S> where S : StateHolder<O, S>
         return v is null ? defaultValue : (T)v;
     }
 
-    //设置属性值，返回邻居状态，找不到属性抛异常
+    //Set a property value, returning the neighbor state; throws if the property is missing
     public S SetValue<T>(Property<T> property, T value) where T : IComparable
     {
         var index = ValueIndex(property);
@@ -98,7 +98,7 @@ public abstract class StateHolder<O, S> where S : StateHolder<O, S>
         return SetValueInternal(property, index, value!);
     }
 
-    //尝试设置，找不到属性返回当前状态
+    //Try to set; returns the current state if the property is missing
     public S TrySetValue<T>(Property<T> property, T value) where T : IComparable
     {
         var index = ValueIndex(property);
@@ -106,8 +106,8 @@ public abstract class StateHolder<O, S> where S : StateHolder<O, S>
         return SetValueInternal(property, index, value!);
     }
 
-    //非泛型SetValue用于PropertiesCodec反序列化不要求T为IComparable
-    //找不到属性或值非法返回当前状态不抛
+    //Non-generic SetValue used by PropertiesCodec deserialization, not requiring T to be IComparable
+    //Returns the current state without throwing if the property is missing or the value is invalid
     public S SetValue(PropertyBase property, object value)
     {
         var index = ValueIndex(property);
@@ -125,7 +125,7 @@ public abstract class StateHolder<O, S> where S : StateHolder<O, S>
         return _neighbors![propertyIndex][valueIndex]!;
     }
 
-    //由 StateDefinition 调用注入预计算的邻居表
+    //Called by StateDefinition to inject the precomputed neighbor table
     public void InitializeNeighbors(S?[][] neighbors)
     {
         if (_neighbors != null)
@@ -133,10 +133,10 @@ public abstract class StateHolder<O, S> where S : StateHolder<O, S>
         _neighbors = neighbors;
     }
 
-    //无属性的单一状态
+    //A singleton state with no properties
     public bool IsSingletonState => _propertyKeys.Length == 0;
 
-    //所有属性的当前值
+    //Current values of all properties
     public IEnumerable<PropertyValue> GetValues()
     {
         for (var i = 0; i < _propertyKeys.Length; i++)

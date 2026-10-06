@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundContainerClosePacket 容器关闭包对应原版 ClientboundContainerClosePacket
-//字段 ContainerId(int)
+//ClientboundContainerClosePacket container close packet, maps to vanilla ClientboundContainerClosePacket
+//Field: ContainerId(int)
 public sealed record ClientboundContainerClosePacket(int ContainerId) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundContainerClosePacket> StreamCodec { get; } = new ContainerCloseCodec();

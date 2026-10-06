@@ -2,6 +2,6 @@ using NetCraft.Commands.Context;
 
 namespace NetCraft.Commands;
 
-//RedirectModifier 重定向修改器委托对应原版com.mojang.brigadier.RedirectModifier
-//根据CommandContext返回多个source用于fork展开
+//RedirectModifier delegate maps to vanilla com.mojang.brigadier.RedirectModifier
+//Returns multiple sources from a CommandContext for fork expansion
 public delegate ICollection<S> RedirectModifier<S>(CommandContext<S> context);

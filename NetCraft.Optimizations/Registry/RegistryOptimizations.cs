@@ -2,37 +2,37 @@ using NetCraft.Config;
 
 namespace NetCraft.Optimizations.Registry;
 
-//Registry 优化模块对应核心优化点 2.3 / 2.4
-//2.3 FrozenDictionary 索引集成于 NetCraft.Registry/MappedRegistry.cs 的 Freeze 方法
-//2.4 intrusive holder struct 化保持 Reference<T> class 形态因调用链广泛改造代价高
-//现有 ReferenceEqualityComparer.Instance 已是引用比较等价 struct 索引语义
-//借鉴 ModernFix ForgeRegistry 优化方案已验证
+//Registry optimization module, covers core optimization points 2.3 / 2.4
+//2.3 FrozenDictionary indexing is integrated in the Freeze method in NetCraft.Registry/MappedRegistry.cs
+//2.4 The intrusive holder stays a Reference<T> class instead of a struct, the call chain is too broad for the change to pay off
+//The existing ReferenceEqualityComparer.Instance is already a reference comparison equivalent to struct indexing
+//Borrows from the ModernFix ForgeRegistry approach, already validated
 public static class RegistryOptimizations
 {
     public const string ModuleName = "Registry Optimization";
     public const string TargetSubsystem = "NetCraft.Registry";
 
-    //对应优化点 2.3 MappedRegistry.Freeze 后构建 FrozenDictionary 索引
-    //开关启用时 byLocation/byKey/byValue/toId/allTags 五张表 freeze 后转 FrozenDictionary
+    //Optimization point 2.3, build FrozenDictionary indexes after MappedRegistry.Freeze
+    //When the toggle is on, the five tables byLocation/byKey/byValue/toId/allTags become FrozenDictionary after freeze
     public static bool IsFrozenDictionaryEnabled => OptimizationFlags.RegistryFrozenDictionary;
 
-    //对应优化点 2.4 intrusive holder struct 化
-    //开关启用表示采用 struct 等价语义（ReferenceEqualityComparer 引用比较等价 struct 索引）
-    //Reference<T> 保持 class 形态避免破坏 BuiltInRegistries/Register 调用链
+    //Optimization point 2.4, intrusive holder struct conversion
+    //When the toggle is on, it uses struct-equivalent semantics (ReferenceEqualityComparer reference comparison as struct indexing)
+    //Reference<T> stays a class to avoid breaking the BuiltInRegistries/Register call chain
     public static bool IsIntrusiveHolderStructEnabled => OptimizationFlags.IntrusiveHolderStruct;
 
-    //IsOptimized 检查两开关是否全开判断 Registry 优化是否启用
+    //IsOptimized checks whether both toggles are on to decide if Registry optimization is enabled
     public static bool IsOptimized =>
         IsFrozenDictionaryEnabled && IsIntrusiveHolderStructEnabled;
 
-    //GetStats 返回 Registry 优化统计信息用于诊断
+    //GetStats returns the Registry optimization stats for diagnostics
     public static RegistryOptimizationStats GetStats() => new(
         FrozenDictionary: IsFrozenDictionaryEnabled,
         IntrusiveHolderStruct: IsIntrusiveHolderStructEnabled,
         IsOptimized: IsOptimized);
 }
 
-//Registry 优化统计快照
+//Registry optimization stats snapshot
 public readonly record struct RegistryOptimizationStats(
     bool FrozenDictionary,
     bool IntrusiveHolderStruct,

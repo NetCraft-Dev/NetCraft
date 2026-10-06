@@ -4,8 +4,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Advancements.Predicates.Entity;
 
-//EntityFlagsPredicate 实体状态位谓词 逐项比对实体的布尔状态 未给出的字段一律放行
-//对应原版 net.minecraft.advancements.predicates.entity.EntityFlagsPredicate
+//EntityFlagsPredicate entity flags predicate, compares the entity's boolean flags item by item; fields without a value always pass
+//maps to vanilla net.minecraft.advancements.predicates.entity.EntityFlagsPredicate
 public sealed record EntityFlagsPredicate(
     Optional<bool> IsOnGround,
     Optional<bool> IsOnFire,
@@ -17,7 +17,7 @@ public sealed record EntityFlagsPredicate(
     Optional<bool> IsInWater,
     Optional<bool> IsFallFlying) : EntitySubPredicate
 {
-    //Codec 持久化编解码 字段名 is_on_ground 等对齐原版 CODEC
+    //Codec persistence codec, field names such as is_on_ground align with vanilla CODEC
     public static readonly Codec<EntityFlagsPredicate> Codec = RecordCodecBuilder.Of9(
         Codecs.Bool.OptionalFieldOf("is_on_ground")
             .ForGetter((EntityFlagsPredicate predicate) => predicate.IsOnGround),
@@ -41,7 +41,7 @@ public sealed record EntityFlagsPredicate(
             new EntityFlagsPredicate(isOnGround, isOnFire, isCrouching, isSprinting, isSwimming, isFlying, isBaby,
                 isInWater, isFallFlying));
 
-    //Matches 逐项状态位比对 对应原版 matches
+    //Matches flags compared item by item, maps to vanilla matches
     public bool Matches(NetCraft.Registry.Entity entity)
     {
         if (IsOnGround.IsPresent && entity.OnGround != IsOnGround.Get()) return false;
@@ -56,6 +56,6 @@ public sealed record EntityFlagsPredicate(
         return true;
     }
 
-    //Matches 忽略位置参数的接口实现 对应原版 matches
+    //Matches the interface implementation that ignores the position argument, maps to vanilla matches
     public bool Matches(NetCraft.Registry.Entity entity, ILevelReader? level, Vec3? position) => Matches(entity);
 }

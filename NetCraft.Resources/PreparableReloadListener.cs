@@ -1,17 +1,17 @@
 namespace NetCraft.Resources;
 
-//PreparableReloadListener 资源重载监听器对应原版同名接口
-//同步签名适配 NetCraft 启动期阻塞模型原版 CompletableFuture 异步调度暂不移植
-//未来异步化时 SimpleReloadInstance 内部改 Task 即可listener 接口不变
+//PreparableReloadListener, resource reload listener, maps to the vanilla interface of the same name
+//The synchronous signature fits NetCraft's blocking startup model, vanilla's CompletableFuture async scheduling is not ported for now
+//When async is introduced later, only SimpleReloadInstance changes internally to Task, the listener interface stays the same
 public interface PreparableReloadListener
 {
-    //Reload 在 ResourceManager 内容变更后被 SimpleReloadInstance 调用
-    //rm 当前 ResourceManager 快照 ctx 进度与名称上下文供日志
+    //Reload is called by SimpleReloadInstance after the ResourceManager content changes
+    //rm is the current ResourceManager snapshot, ctx carries progress and name context for logs
     void Reload(ResourceManager rm, ReloadContext ctx);
 }
 
-//ReloadContext 重载上下文携带 listener 名称与序号供进度报告
-//对应原版 PreparationBarrier+SharedState 简化为同步场景所需的最小信息
+//ReloadContext, reload context carrying the listener name and index for progress reports
+//Vanilla's PreparationBarrier+SharedState reduced to the minimal information a synchronous scenario needs
 public sealed class ReloadContext
 {
     public string Name { get; }

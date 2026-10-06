@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Parsing.Packrat;
 
-//解析控制信号对应原版net.minecraft.util.parsing.packrat.Control
-//cut标记规则提前失败hasCut查询是否已cut
+//Parse control signal, maps to vanilla net.minecraft.util.parsing.packrat.Control
+//cut marks a rule as failed early, hasCut queries whether already cut
 public interface Control
 {
     void Cut();
@@ -9,7 +9,7 @@ public interface Control
     bool HasCut();
 }
 
-//UNBOUND空实现供默认场景使用
+//UNBOUND empty implementation for default scenarios
 public sealed class UnboundControl : Control
 {
     public static UnboundControl Instance { get; } = new();

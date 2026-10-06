@@ -4,8 +4,8 @@ using NetCraft.Commands.Context;
 
 namespace NetCraft.Commands.Suggestion;
 
-//Suggestion 建议项对应原版com.mojang.brigadier.suggestion.Suggestion
-//承载range定位的替换文本与可选tooltip供命令补全使用
+//Suggestion maps to vanilla com.mojang.brigadier.suggestion.Suggestion
+//Carries replacement text located by range and an optional tooltip for command completion
 public class Suggestion : IComparable<Suggestion>, IEquatable<Suggestion>
 {
     private readonly StringRange _range;
@@ -27,7 +27,7 @@ public class Suggestion : IComparable<Suggestion>, IEquatable<Suggestion>
     public string Text => _text;
     public IMessage? Tooltip => _tooltip;
 
-    //Apply 把建议文本应用到原输入对应range区间
+    //Apply applies the suggestion text to the range in the original input
     public string Apply(string input)
     {
         if (_range.Start == 0 && _range.End == input.Length)
@@ -47,7 +47,7 @@ public class Suggestion : IComparable<Suggestion>, IEquatable<Suggestion>
         return result.ToString();
     }
 
-    //Expand 扩展range到指定range并补全两侧原文片段
+    //Expand widens the range to the given range, filling in the original text on both sides
     public Suggestion Expand(string command, StringRange range)
     {
         if (range == _range)

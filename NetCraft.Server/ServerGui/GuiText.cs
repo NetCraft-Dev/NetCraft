@@ -2,9 +2,9 @@ using NetCraft.Game;
 
 namespace NetCraft.Server.Gui;
 
-//GuiText 面板 axaml 里的静态文案
-//xaml 只能绑属性 这里把文案键转成静态属性供 {x:Static} 取
-//面板在启动时构建一次 语言码来自 server.properties 的 nc-language 运行期不变 取一次就够
+//GuiText, static text used in the panel axaml
+//XAML can only bind properties, so text keys become static properties fetched via {x:Static}
+//Panels are built once at startup, the language code comes from nc-language in server.properties and never changes at runtime, one read is enough
 public static class GuiText
 {
     public static string ChunkTerrain => Loc.Get("netcraft.gui.chunk.terrain");

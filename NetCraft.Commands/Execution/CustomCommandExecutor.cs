@@ -3,19 +3,19 @@ using NetCraft.Commands.Exceptions;
 
 namespace NetCraft.Commands.Execution;
 
-//CustomCommandExecutor 自定义命令执行器对应原版 net.minecraft.commands.execution.CustomCommandExecutor
-//拿到完整链与执行控制 自己决定往队列里排什么 /execute 与宏 /function 落在这条路径
-//原版另有 CommandAdapter 桥到 brigadier Command C# 命令是委托 桥接交给注册侧的闭包
+//CustomCommandExecutor custom command executor, maps to vanilla net.minecraft.commands.execution.CustomCommandExecutor
+//Gets the full chain and execution control and decides for itself what to enqueue; /execute and macro /function go down this path
+//Vanilla also has CommandAdapter bridging to a brigadier Command; in C# a command is a delegate, so the bridge is left to the registration-side closure
 public interface CustomCommandExecutor<T>
 {
-    //NotExecutable 自定义执行器注册时命令槽里的占位委托 真正执行走 Run
+    //NotExecutable placeholder delegate in the command slot when a custom executor is registered; real execution goes through Run
     public static readonly Command<T> NotExecutable = _ => throw new NotSupportedException("This function should not run");
 
-    //Run 执行自定义逻辑
+    //Run runs the custom logic
     void Run(T sender, ContextChain<T> currentStep, ChainModifiers modifiers, ExecutionControl<T> output);
 
-    //WithErrorHandling 带异常兜底的骨架对应原版 WithErrorHandling
-    //约束到非泛型核心接口 T 在真实调用侧都实现它
+    //WithErrorHandling skeleton with error fallback, maps to vanilla WithErrorHandling
+    //Constrained to the non-generic core interface, which T always implements on the real call side
     public abstract class WithErrorHandling<T2> : CustomCommandExecutor<T2> where T2 : ExecutionSourceCore
     {
         public void Run(T2 sender, ContextChain<T2> currentStep, ChainModifiers modifiers, ExecutionControl<T2> output)
@@ -31,11 +31,11 @@ public interface CustomCommandExecutor<T>
             }
         }
 
-        //OnError 错误上报默认走源的 HandleError
+        //OnError error reporting defaults to the source's HandleError
         protected virtual void OnError(CommandSyntaxException e, T2 sender, ChainModifiers modifiers, TraceCallbacks? tracer)
             => sender.HandleError(e.Type, e.RawMessage, modifiers.IsForked(), tracer);
 
-        //RunGuarded 子类真正的执行体
+        //RunGuarded the actual execution body of the subclass
         protected abstract void RunGuarded(T2 sender, ContextChain<T2> currentStep, ChainModifiers modifiers, ExecutionControl<T2> output);
     }
 }

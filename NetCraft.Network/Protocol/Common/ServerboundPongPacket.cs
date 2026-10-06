@@ -1,8 +1,8 @@
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ServerboundPongPacket 服务端 pong 包对应原版 net.minecraft.network.protocol.common.ServerboundPongPacket
-//客户端回传服务端 ping 的 id
+//ServerboundPongPacket server-side pong packet, maps to vanilla net.minecraft.network.protocol.common.ServerboundPongPacket
+//The client returns the id from the server's ping
 public sealed record ServerboundPongPacket(int Id) : Packet<ServerCommonPacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundPongPacket> StreamCodec { get; } = new PongCodec();

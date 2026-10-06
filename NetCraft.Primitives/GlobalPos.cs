@@ -1,8 +1,8 @@
 namespace NetCraft.Primitives;
 
-//全局位置对应原版net.minecraft.core.GlobalPos
-//原版为record持可选ResourceKey<Level>维度与BlockPos
-//此处用readonly struct值语义dimensionKey用object占位待Registry就绪后改ResourceKey
+//Global position, maps to vanilla net.minecraft.core.GlobalPos
+//Vanilla is a record holding an optional ResourceKey<Level> dimension and a BlockPos
+//Here a readonly struct for value semantics, dimensionKey uses object as a placeholder until the Registry is ready to switch to ResourceKey
 public readonly struct GlobalPos : IEquatable<GlobalPos>
 {
     public static readonly GlobalPos Zero = new(null, BlockPos.Zero);
@@ -16,7 +16,7 @@ public readonly struct GlobalPos : IEquatable<GlobalPos>
         Pos = pos;
     }
 
-    //of按dimension+pos构造
+    //of constructs from dimension + pos
     public static GlobalPos Of(object? dimensionKey, BlockPos pos) => new(dimensionKey, pos);
 
     public override int GetHashCode() => HashCode.Combine(DimensionKey, Pos);

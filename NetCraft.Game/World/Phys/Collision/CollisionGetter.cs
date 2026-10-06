@@ -5,20 +5,20 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Phys.Collision;
 
-//CollisionGetter 能做碰撞查询的世界视图 对应原版 net.minecraft.world.level.CollisionGetter
-//最小集只保留形状查询需要的入口
-//未接入的部分 世界边界判定恒真 实体碰撞一律空 窒息方块遍历与自由落点搜索留到实体移动阶段
-//source 参数统一用完全限定名 当前命名空间祖先里有同名的 NetCraft.Game.World.Entity 命名空间
+//CollisionGetter world view that can perform collision queries, maps to vanilla net.minecraft.world.level.CollisionGetter
+//The minimal set keeps only the entry points shape queries need
+//Unwired parts: world border checks are always true, entity collisions are always empty, suffocation block iteration and free-spot search are left to the entity movement stage
+//The source parameter uniformly uses the fully qualified name; an ancestor namespace here has the same-named NetCraft.Game.World.Entity namespace
 public interface CollisionGetter : BlockGetter
 {
-    //GetChunkForCollisions 取某区块用于碰撞查询的方块视图 整块可读的世界直接返回自身
+    //GetChunkForCollisions gets the block view of a chunk for collision queries; a fully readable world returns itself
     BlockGetter GetChunkForCollisions(int chunkX, int chunkZ) => this;
 
-    //GetEntityCollisions 与测试区相交的实体碰撞盒 实体碰撞体系未接入一律空
+    //GetEntityCollisions entity hit boxes intersecting the test area; the entity collision system is not wired up so it is always empty
     IReadOnlyList<VoxelShape> GetEntityCollisions(NetCraft.Registry.Entity? source, AABB testArea)
         => Array.Empty<VoxelShape>();
 
-    //IsUnobstructed 形状放进这个世界是否不被挡住 实体碰撞体系接入前只看方块
+    //IsUnobstructed whether placing a shape into this world is not blocked; before the entity collision system is wired up only blocks are checked
     bool IsUnobstructed(NetCraft.Registry.Entity? source, VoxelShape shape) => true;
 
     bool IsUnobstructed(BlockState state, BlockPos pos, CollisionContext context)
@@ -34,7 +34,7 @@ public interface CollisionGetter : BlockGetter
 
     bool NoCollision(NetCraft.Registry.Entity? source, AABB aabb) => NoCollision(source, aabb, false);
 
-    //NoCollision 方块 实体 世界边界三样都不挡才算无碰撞 对应原版 noCollision
+    //NoCollision only when blocks, entities and the world border all do not block, maps to vanilla noCollision
     bool NoCollision(NetCraft.Registry.Entity? source, AABB aabb, bool alwaysCollideWithFluids)
         => NoBlockCollision(source, aabb, alwaysCollideWithFluids)
             && NoEntityCollision(source, aabb)
@@ -55,10 +55,10 @@ public interface CollisionGetter : BlockGetter
     bool NoEntityCollision(NetCraft.Registry.Entity? source, AABB aabb)
         => GetEntityCollisions(source, aabb).Count == 0;
 
-    //世界边界体系未接入 先恒真 接入后要换成世界边界的碰撞形状判定
+    //The world border system is not wired up, so always true for now; once wired it must switch to world border collision shape checks
     bool NoBorderCollision(NetCraft.Registry.Entity? source, AABB aabb) => true;
 
-    //GetCollisions 实体与方块的碰撞形状一起给 对应原版 getCollisions
+    //GetCollisions yields entity and block collision shapes together, maps to vanilla getCollisions
     IEnumerable<VoxelShape> GetCollisions(NetCraft.Registry.Entity? source, AABB box)
     {
         var entityCollisions = GetEntityCollisions(source, box);
@@ -66,8 +66,8 @@ public interface CollisionGetter : BlockGetter
         return entityCollisions.Count == 0 ? blockCollisions : entityCollisions.Concat(blockCollisions);
     }
 
-    //GetPreMoveCollisions 按实体进入本刻前的位置查方块碰撞 对应原版 getPreMoveCollisions
-    //实体刚跨过方块格时是否还算站在上面 靠它区分
+    //GetPreMoveCollisions queries block collisions at the position before the entity entered this tick, maps to vanilla getPreMoveCollisions
+    //Used to distinguish whether the entity still counts as standing on top just after crossing a block cell
     IEnumerable<VoxelShape> GetPreMoveCollisions(NetCraft.Registry.Entity source, AABB box, Vec3 oldPos)
     {
         var entityCollisions = GetEntityCollisions(source, box);

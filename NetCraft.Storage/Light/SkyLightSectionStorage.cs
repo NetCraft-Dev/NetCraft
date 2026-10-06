@@ -4,8 +4,8 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Storage.Light;
 
-//SkyLightSectionStorage 天光区段存储对应原版 net.minecraft.world.level.lighting.SkyLightSectionStorage
-//除层数据外还按列维护最高非空区段 topSections 位于其上的区段天光恒为 15
+//SkyLightSectionStorage, sky light section storage, maps to vanilla net.minecraft.world.level.lighting.SkyLightSectionStorage
+//Besides layer data it maintains the highest non-empty section per column (topSections); sections above it are always sky light 15
 public class SkyLightSectionStorage : LayerLightSectionStorage<SkyLightSectionStorage.SkyDataLayerStorageMap>
 {
     public SkyLightSectionStorage(LightChunkGetter chunkSource)
@@ -15,7 +15,7 @@ public class SkyLightSectionStorage : LayerLightSectionStorage<SkyLightSectionSt
 
     protected internal override int GetLightValue(long blockNode) => GetLightValue(blockNode, false);
 
-    //getLightValue 天光查询 区段在最高非空区段之上时直接是满值 15
+    //getLightValue, sky light query; when the section is above the highest non-empty one it is directly full, 15
     protected internal int GetLightValue(long blockNode, bool updating)
     {
         var sectionNode = SectionPos.BlockToSection(blockNode);
@@ -31,7 +31,7 @@ public class SkyLightSectionStorage : LayerLightSectionStorage<SkyLightSectionSt
         var layer = GetDataLayer(sections, sectionNode);
         if (layer is null)
         {
-            //该区段没有层数据说明它在实体方块之上 沿列向上找第一个有数据的区段
+            //A missing layer here means the section is above solid blocks; walk up the column to the first section with data
             blockNode = BlockPos.GetFlatIndex(blockNode);
             while (layer is null)
             {
@@ -64,7 +64,7 @@ public class SkyLightSectionStorage : LayerLightSectionStorage<SkyLightSectionSt
         var y = SectionPos.GetY(sectionNode);
         if (UpdatingSectionData.GetTopSectionY(zeroNode) != y + 1) return;
 
-        //自该区段向下找第一个仍在存光的区段作为新的最高非空区段
+        //Walk down from that section to the first one still storing light as the new highest non-empty section
         var current = sectionNode;
         while (!StoringLightForSection(current) && HasLightDataAtOrBelow(y))
         {
@@ -85,7 +85,7 @@ public class SkyLightSectionStorage : LayerLightSectionStorage<SkyLightSectionSt
         if (topSection == sections.CurrentLowestY || SectionPos.GetY(sectionNode) >= topSection)
             return LightOnInSection(sectionNode) ? new DataLayer(15) : new DataLayer();
 
-        //在最高非空区段之下时 取上一个有数据的区段并把它最底一层复制到本区段
+        //When below the highest non-empty section, take the section above with data and copy its bottom layer into this one
         var above = SectionPos.Offset(sectionNode, Direction.Up);
         while (true)
         {
@@ -95,7 +95,7 @@ public class SkyLightSectionStorage : LayerLightSectionStorage<SkyLightSectionSt
         }
     }
 
-    //repeatFirstLayer 把层数据里的第一层复制到 16 层 用于表示"整段天光相同"
+    //repeatFirstLayer copies the first layer of the layer data to all 16 layers, meaning "the whole section has the same sky light"
     private static DataLayer RepeatFirstLayer(DataLayer data)
     {
         if (data.IsDefinitelyHomogenous) return data.Copy();
@@ -118,8 +118,8 @@ public class SkyLightSectionStorage : LayerLightSectionStorage<SkyLightSectionSt
 
     protected internal int GetBottomSectionY() => UpdatingSectionData.CurrentLowestY;
 
-    //SkyDataLayerStorageMap 天光层映射对应原版同名嵌套类
-    //topSections 缺失时返回值对齐原版 defaultReturnValue(currentLowestY)
+    //SkyDataLayerStorageMap, sky light layer map, maps to the vanilla nested class of the same name
+    //When topSections is missing the return aligns with vanilla defaultReturnValue(currentLowestY)
     public sealed class SkyDataLayerStorageMap : DataLayerStorageMap<SkyDataLayerStorageMap>
     {
         private readonly Dictionary<long, int> _topSections;

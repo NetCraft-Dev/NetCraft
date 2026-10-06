@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Profiling;
 
-//profiler结果字段对应原版net.minecraft.util.profiling.ResultField
-//单条路径耗时百分比与计数
+//Profiler result field, maps to vanilla net.minecraft.util.profiling.ResultField
+//Single path timing percentage and count
 public sealed class ResultField : IComparable<ResultField>
 {
     public double Percentage { get; }
@@ -25,6 +25,6 @@ public sealed class ResultField : IComparable<ResultField>
         return string.Compare(other.Name, Name, StringComparison.Ordinal);
     }
 
-    //颜色基于name哈希对应原版getColor
+    //Color based on the name hash, maps to vanilla getColor
     public int GetColor() => (Name.GetHashCode() & 11184810) - 12303292;
 }

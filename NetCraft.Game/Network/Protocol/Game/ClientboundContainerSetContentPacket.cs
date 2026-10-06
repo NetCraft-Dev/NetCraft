@@ -3,10 +3,10 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundContainerSetContentPacket 容器内容设置包对应原版 ClientboundContainerSetContentPacket
-//字段 ContainerId(VarInt) StateId(VarInt) Items(List<ItemStack>) CarriedItem(ItemStack)
-//Items 用 ByteBufCodecs.Collection(ItemStack.OptionalStreamCodec) 编解码
-//CarriedItem 直接用 OptionalStreamCodec 空栈写 count=0 不加布尔前缀
+//ClientboundContainerSetContentPacket container content set packet, maps to vanilla ClientboundContainerSetContentPacket
+//Fields: ContainerId(VarInt), StateId(VarInt), Items(List<ItemStack>), CarriedItem(ItemStack)
+//Items is encoded/decoded with ByteBufCodecs.Collection(ItemStack.OptionalStreamCodec)
+//CarriedItem uses OptionalStreamCodec directly; an empty stack writes count=0 without a boolean prefix
 public sealed record ClientboundContainerSetContentPacket(int ContainerId, int StateId, List<ItemStack> Items, ItemStack CarriedItem) : Packet<ClientGamePacketListener>
 {
     private static readonly StreamCodec<RegistryFriendlyByteBuf, List<ItemStack>> _itemsCodec

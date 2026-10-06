@@ -4,8 +4,8 @@ using NetCraft.Logging;
 
 namespace NetCraft.Storage;
 
-//符号链接目标允许列表对应原版PathAllowList
-//一行一条，裸行按前缀比，[glob] 与 [regex] 按模式比，# 开头的行与空行跳过
+//Symlink target allow list, maps to vanilla PathAllowList
+//One entry per line: a bare line matches by prefix, [glob] and [regex] match by pattern, lines starting with # and blank lines are skipped
 public sealed class PathAllowList
 {
     private const string CommentPrefix = "#";
@@ -22,7 +22,7 @@ public sealed class PathAllowList
 
     public bool Matches(string path) => _matcher.Value(path);
 
-    //读一份允许列表文本
+    //Read an allow list from text
     public static PathAllowList ReadPlain(TextReader reader)
     {
         var entries = new List<ConfigEntry>();
@@ -35,8 +35,8 @@ public sealed class PathAllowList
         return new PathAllowList(entries);
     }
 
-    //编译所有条目，一条都没有就恒false
-    //编译炸了按原版做法整份退成恒false，只留一条错误日志
+    //Compile all entries; with none it is always false
+    //On a compile failure, fall back to always false as vanilla does, leaving only an error log
     private Func<string, bool> Compile()
     {
         List<Func<string, bool>> matchers;
@@ -57,7 +57,7 @@ public sealed class PathAllowList
         };
     }
 
-    //允许列表里的一条
+    //One entry in the allow list
     public sealed record ConfigEntry(string Type, string Pattern)
     {
         public Func<string, bool> Compile() => Type switch
@@ -68,7 +68,7 @@ public sealed class PathAllowList
             _ => throw new ArgumentException($"Unsupported definition type '{Type}'"),
         };
 
-        //空行与注释给null
+        //Blank lines and comments give null
         public static ConfigEntry? Parse(string definition)
         {
             if (string.IsNullOrWhiteSpace(definition) || definition.StartsWith(CommentPrefix, StringComparison.Ordinal))
@@ -100,7 +100,7 @@ public sealed class PathAllowList
         }
     }
 
-    //glob 转正则，* 不跨目录分隔符 ** 跨 ? 单个字符，其余原样转义
+    //Convert glob to regex: * does not cross a path separator, ** does, ? matches one character, the rest is escaped as is
     private static string GlobToRegex(string glob)
     {
         var builder = new StringBuilder("^");

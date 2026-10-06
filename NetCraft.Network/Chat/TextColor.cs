@@ -2,8 +2,8 @@ namespace NetCraft.Network.Chat;
 
 using System.Globalization;
 
-//文本颜色对应原版net.minecraft.network.chat.TextColor
-//支持命名颜色和RGB自定义颜色
+//Text color, maps to vanilla net.minecraft.network.chat.TextColor
+//Supports named colors and custom RGB colors
 public sealed class TextColor
 {
     private const string CustomColorPrefix = "#";
@@ -99,7 +99,7 @@ public sealed class TextColor
 
     public override int GetHashCode() => HashCode.Combine(_value, _name);
 
-    //==运算符按值比较对齐Java record equals语义
+    //The == operator compares by value, aligning with Java record equals semantics
     public static bool operator ==(TextColor? left, TextColor? right)
     {
         if (left is null) return right is null;

@@ -1,15 +1,15 @@
 namespace NetCraft.Registry;
 
-//HolderSet对应原版net.minecraft.core.HolderSet
-//包装一组Holder按标签或直接列表形式
+//HolderSet, maps to vanilla net.minecraft.core.HolderSet
+//Wraps a group of Holders, as a tag or a direct list
 public interface HolderSet<T> : IEnumerable<Holder<T>> where T : class
 {
     int Size { get; }
 
-    //已绑定具体内容Direct恒true Named未bind返回false
+    //Whether concrete contents are bound; always true for Direct and false for an unbound Named
     bool IsBound { get; }
 
-    //解包标签键Named返回TagKey Direct返回null
+    //Unwrap to a tag key; Named returns the TagKey and Direct returns null
     TagKey<T>? UnwrapKey();
 
     Holder<T> Get(int index);
@@ -17,7 +17,7 @@ public interface HolderSet<T> : IEnumerable<Holder<T>> where T : class
     bool Contains(Holder<T> value);
 }
 
-//ListBacked基于列表的抽象实现提供Size/Get/迭代默认行为
+//ListBacked list-based abstract implementation, providing default Size/Get/iteration behavior
 public abstract class ListBackedHolderSet<T> : HolderSet<T> where T : class
 {
     protected abstract IReadOnlyList<Holder<T>> Contents { get; }
@@ -30,16 +30,16 @@ public abstract class ListBackedHolderSet<T> : HolderSet<T> where T : class
 
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 
-    //子类必须实现IsBound/UnwrapKey/Contains对应原版ListBacked未提供默认
+    //Subclasses must implement IsBound/UnwrapKey/Contains; vanilla ListBacked provides no defaults
     public abstract bool IsBound { get; }
     public abstract TagKey<T>? UnwrapKey();
     public abstract bool Contains(Holder<T> value);
 }
 
-//DirectHolderSet直接包装Holder列表不可变
+//DirectHolderSet directly wraps an immutable Holder list
 public sealed class DirectHolderSet<T> : ListBackedHolderSet<T> where T : class
 {
-    //每个封闭泛型类型各持一份空集 若共用 object 版再强转 对 T != object 会抛 InvalidCastException
+    //Each closed generic type keeps its own empty set; sharing an object version and casting would throw InvalidCastException for T != object
     private static readonly DirectHolderSet<T> _empty = new(Array.Empty<Holder<T>>());
 
     private readonly IReadOnlyList<Holder<T>> _contents;
@@ -67,7 +67,7 @@ public sealed class DirectHolderSet<T> : ListBackedHolderSet<T> where T : class
     public override string ToString() => "DirectSet[" + string.Join(", ", _contents) + "]";
 }
 
-//NamedHolderSet按TagKey绑定可变内容对应原版HolderSet.Named
+//NamedHolderSet binds mutable contents by TagKey, maps to vanilla HolderSet.Named
 public sealed class NamedHolderSet<T> : ListBackedHolderSet<T> where T : class
 {
     private readonly HolderOwner<T> _owner;
@@ -82,7 +82,7 @@ public sealed class NamedHolderSet<T> : ListBackedHolderSet<T> where T : class
 
     public TagKey<T> Key => _key;
 
-    //Bind绑定具体Holder列表由MappedRegistry.bindTags调用
+    //Bind binds the concrete Holder list, called by MappedRegistry.bindTags
     internal void Bind(IReadOnlyList<Holder<T>> contents)
     {
         _contents = contents;

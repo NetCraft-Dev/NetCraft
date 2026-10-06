@@ -2,8 +2,8 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Storage.Chunk;
 
-//PackedTicks stub对应原版ChunkAccess.PackedTicks
-//stub化为List<CompoundTag>保留ticks原始数据不解析
+//PackedTicks stub, maps to vanilla ChunkAccess.PackedTicks
+//Stubbed as List<CompoundTag>, keeping the raw tick data without parsing
 public sealed class PackedTicks
 {
     public List<CompoundTag> Blocks { get; } = new();

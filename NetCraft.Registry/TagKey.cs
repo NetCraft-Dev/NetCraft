@@ -4,9 +4,9 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry;
 
-//标签键对应原版TagKey
-//标识注册表内一个标签由Registry注册表键和Location路径组成
-//全局intern去重相同registry和location返回同一实例
+//Tag key, maps to vanilla TagKey
+//Identifies a tag within a registry; made of a Registry registry key and a Location path
+//Globally interned; identical registry and location return the same instance
 public sealed class TagKey<T> : IEquatable<TagKey<T>> where T : class
 {
     private static readonly ConcurrentDictionary<InternKey, TagKey<T>> _pool = new();
@@ -20,20 +20,20 @@ public sealed class TagKey<T> : IEquatable<TagKey<T>> where T : class
         Location = location;
     }
 
-    //创建并intern去重
+    //Create and intern for deduplication
     public static TagKey<T> Create(ResourceKey<Registry<T>> registry, Identifier location)
         => _pool.GetOrAdd(new InternKey(registry, location), _ => new TagKey<T>(registry, location));
 
-    //Codec 按标签位置编解码 对应原版 codec
+    //Codec encodes/decodes by tag location; maps to vanilla codec
     public static Codec<TagKey<T>> Codec(ResourceKey<Registry<T>> registryName)
         => IdentifierCodec.Instance.ComapFlatMap(
             location => DataResult<TagKey<T>>.Success(Create(registryName, location)),
             tag => tag.Location);
 
-    //判断是否属于registry引用比较依赖ResourceKey intern
+    //Whether it belongs to a registry; reference comparison relies on ResourceKey interning
     public bool IsFor(ResourceKey<Registry<T>> registry) => ReferenceEquals(Registry, registry);
 
-    //尝试转型为另一注册表类型
+    //Try to cast to another registry type
     public TagKey<E>? Cast<E>(ResourceKey<Registry<E>> registry)
         where E : class
         => IsFor((ResourceKey<Registry<T>>)(object)registry) ? (TagKey<E>)(object)this : null;

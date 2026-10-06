@@ -1,12 +1,12 @@
 namespace NetCraft.Registry;
 
-//值持有者对应原版Holder
-//包装注册表元素区分Direct直接包装值与Reference注册表引用
+//Value holder, maps to vanilla Holder
+//Wraps a registry element; distinguishes Direct values from Reference registry references
 public interface Holder<T> where T : class
 {
     enum Kind { Reference, Direct }
 
-    //持有的值
+    //Held value
     T Value { get; }
 
     bool IsBound();
@@ -17,32 +17,32 @@ public interface Holder<T> where T : class
     bool Is(Predicate<ResourceKey<T>> predicate);
     bool Is(TagKey<T> tag);
 
-    //所属种类
+    //Holder kind
     Kind HolderKind { get; }
 
-    //组件映射
+    //Component map
     DataComponentMap Components { get; }
 
-    //解包为键Reference返回key Direct返回null
+    //Unwrap to a key; Reference returns the key and Direct returns null
     ResourceKey<T>? UnwrapKey();
 
-    //是否可序列化进owner
+    //Whether it can be serialized into owner
     bool CanSerializeIn(HolderOwner<T> owner);
 
-    //标签集合
+    //Tag set
     IEnumerable<TagKey<T>> Tags();
 
-    //注册名未注册返回[unregistered]
+    //Registry name; returns [unregistered] when unregistered
     string RegisteredName => UnwrapKey()?.Identifier.ToString() ?? "[unregistered]";
 
-    //直接包装值
+    //Directly wrap a value
     static Holder<T> Direct(T value) => new Direct<T>(value, DataComponentMap.Empty);
 
-    //直接包装值带组件
+    //Directly wrap a value with components
     static Holder<T> Direct(T value, DataComponentMap components) => new Direct<T>(value, components);
 }
 
-//直接持有者包装值无注册表键
+//Direct holder wrapping a value with no registry key
 public sealed record Direct<T>(T Value, DataComponentMap Components) : Holder<T> where T : class
 {
     public bool IsBound() => true;
@@ -63,12 +63,12 @@ public sealed record Direct<T>(T Value, DataComponentMap Components) : Holder<T>
 
     public override string ToString() => $"Direct{{{Value}}}";
 
-    //Deprecated按值比较
+    //Deprecated: compare by value
     public bool Is(Holder<T> holder) => Value.Equals(holder.Value);
 }
 
-//注册表引用持有者对应原版Holder.Reference
-//可变bind方法在注册或冻结时调用
+//Registry reference holder, maps to vanilla Holder.Reference
+//Mutable bind methods called at registration or freeze
 public sealed class Reference<T> : Holder<T> where T : class
 {
     private readonly HolderOwner<T> _owner;
@@ -88,15 +88,15 @@ public sealed class Reference<T> : Holder<T> where T : class
         _value = value;
     }
 
-    //创建独立引用先有key value待绑定
+    //Create a standalone reference; key comes first and value is bound later
     public static Reference<T> CreateStandAlone(HolderOwner<T> owner, ResourceKey<T> key)
         => new(Type.StandAlone, owner, key, null);
 
-    //创建侵入式引用先有value key待绑定 Deprecated
+    //Create an intrusive reference; value comes first and key is bound later. Deprecated
     public static Reference<T> CreateIntrusive(HolderOwner<T> owner, T value)
         => new(Type.Intrusive, owner, null, value);
 
-    //键未绑定抛异常
+    //Throws if the key is unbound
     public ResourceKey<T> Key
     {
         get
@@ -146,7 +146,7 @@ public sealed class Reference<T> : Holder<T> where T : class
 
     public override string ToString() => $"Reference{{{_key}={_value}}}";
 
-    //绑定方法注册或冻结时由MappedRegistry调用
+    //Bind methods called by MappedRegistry on registration or freeze
 
     internal void BindKey(ResourceKey<T> key)
     {

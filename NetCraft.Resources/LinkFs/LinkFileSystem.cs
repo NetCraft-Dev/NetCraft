@@ -1,7 +1,7 @@
 namespace NetCraft.Resources;
 
-//LinkFileSystem 链接文件系统 对应原版 net.minecraft.server.packs.linkfs.LinkFileSystem
-//把若干真实目录挂成一棵只读树 用 Builder 填内容再 Build 出实例
+//LinkFileSystem, the link file system, maps to vanilla net.minecraft.server.packs.linkfs.LinkFileSystem
+//Mounts several real directories into one readonly tree, use Builder to fill content then Build the instance
 public sealed class LinkFileSystem
 {
     public const string PathSeparator = "/";
@@ -27,7 +27,7 @@ public sealed class LinkFileSystem
 
     public IReadOnlySet<string> SupportedFileAttributeViews { get; } = new HashSet<string> { "basic" };
 
-    //BuildPath 递归把目录条目铺成路径节点
+    //BuildPath recursively lays out directory entries into path nodes
     private static LinkFSPath BuildPath(DirectoryEntry entry, LinkFileSystem fileSystem, string selfName, LinkFSPath? parent)
     {
         var children = new Dictionary<string, LinkFSPath>();
@@ -43,7 +43,7 @@ public sealed class LinkFileSystem
         return result;
     }
 
-    //GetPath 拼出路径 以斜杠开头当绝对 否则当相对
+    //GetPath builds a path, a leading slash means absolute, otherwise relative
     public LinkFSPath GetPath(string first, params string[] more)
     {
         var joined = string.Join(PathSeparator, new[] { first }.Concat(more));
@@ -69,7 +69,7 @@ public sealed class LinkFileSystem
 
     public static Builder CreateBuilder() => new();
 
-    //Builder 填内容 目录按段自动补 文件挂在末段名下
+    //Builder fills content, directories are added per segment, the file hangs under the last segment
     public sealed class Builder
     {
         private readonly DirectoryEntry _root = new();
@@ -100,7 +100,7 @@ public sealed class LinkFileSystem
         public LinkFileSystem Build(string name) => new(name, _root);
     }
 
-    //DirectoryEntry 构建期的目录条目 只存子目录与文件名到真实路径的映射
+    //DirectoryEntry, a build-time directory entry, only stores the mapping of child dirs and file names to real paths
     private sealed class DirectoryEntry
     {
         public Dictionary<string, DirectoryEntry> Children { get; } = new();

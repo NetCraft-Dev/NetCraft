@@ -1,7 +1,7 @@
 namespace NetCraft.Commands.Exceptions;
 
-//ICommandExceptionType 异常类型标记接口对应原版CommandExceptionType
-//所有SimpleCommandExceptionType与Dynamic*CommandExceptionType实现此空接口
+//ICommandExceptionType exception type marker interface, maps to vanilla CommandExceptionType
+//Every SimpleCommandExceptionType and Dynamic*CommandExceptionType implements this empty interface
 public interface ICommandExceptionType
 {
 }

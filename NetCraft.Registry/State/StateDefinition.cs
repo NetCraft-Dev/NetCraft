@@ -4,15 +4,15 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry.State;
 
-//状态定义工厂接口，对应原版 StateDefinition.Factory<O, S>
+//State definition factory interface, maps to vanilla StateDefinition.Factory<O, S>
 public interface StateFactory<O, S> where S : StateHolder<O, S>
 {
     S Create(O owner, PropertyBase[] propertyKeys, object?[] propertyValues);
 }
 
-//状态定义，对应原版 StateDefinition<O, S extends StateHolder<O, S>>
-//枚举所有可能状态组合，构建 neighbors 二维数组使 setValue O(1)
-//简化：propertiesCodec 暂不实现（依赖 Codec 子系统）
+//State definition, maps to vanilla StateDefinition<O, S extends StateHolder<O, S>>
+//Enumerates all possible state combinations and builds the neighbors 2D array so setValue is O(1)
+//Simplified: propertiesCodec is not implemented for now (depends on the Codec subsystem)
 public class StateDefinition<O, S> where S : StateHolder<O, S>
 {
     private static readonly Regex NamePattern = new("^[a-z0-9_]+$", RegexOptions.Compiled);
@@ -32,7 +32,7 @@ public class StateDefinition<O, S> where S : StateHolder<O, S>
         };
     }
 
-    //无属性的单一状态
+    //A singleton state with no properties
     private static IReadOnlyList<S> CreateSingletonState(O owner, StateFactory<O, S> factory)
     {
         var state = factory.Create(owner, Array.Empty<PropertyBase>(), Array.Empty<object?>());
@@ -40,7 +40,7 @@ public class StateDefinition<O, S> where S : StateHolder<O, S>
         return new List<S> { state };
     }
 
-    //笛卡尔积枚举所有状态并构建 neighbors
+    //Enumerate all states via Cartesian product and build neighbors
     private static IReadOnlyList<S> CreateMultiPropertyStates(O owner, StateFactory<O, S> factory, SortedDictionary<string, PropertyBase> propertiesByName)
     {
         var propertyKeys = propertiesByName.Values.ToArray();
@@ -56,7 +56,7 @@ public class StateDefinition<O, S> where S : StateHolder<O, S>
             states.Add(state);
         }
 
-        //构建每个状态的 neighbors 二维数组
+        //Build the neighbors 2D array for each state
         foreach (var (values, state) in statesByValues)
         {
             var neighbors = new S[propertyKeys.Length][];
@@ -78,7 +78,7 @@ public class StateDefinition<O, S> where S : StateHolder<O, S>
 
     private static S[][] CreateEmptyNeighbors() => Array.Empty<S[]>();
 
-    //笛卡尔积枚举
+    //Cartesian product enumeration
     private static IEnumerable<IEnumerable<object>> CartesianProduct(IReadOnlyList<IReadOnlyList<object>> sequences)
     {
         var result = new List<List<object>> { new() };
@@ -112,7 +112,7 @@ public class StateDefinition<O, S> where S : StateHolder<O, S>
     public override string ToString()
         => $"StateDefinition(owner={_owner}, properties=[{string.Join(",", _propertiesByName.Values.Select(p => p.Name))}])";
 
-    //值列表包装，用作字典 key
+    //Value list wrapper used as a dictionary key
     private sealed class ValueList : IEquatable<ValueList>
     {
         public IReadOnlyList<object> Values { get; }
@@ -145,7 +145,7 @@ public class StateDefinition<O, S> where S : StateHolder<O, S>
         public int GetHashCode(ValueList obj) => obj.GetHashCode();
     }
 
-    //构建器，对应原版 StateDefinition.Builder
+    //Builder, maps to vanilla StateDefinition.Builder
     public class Builder
     {
         private readonly O _owner;
@@ -179,11 +179,11 @@ public class StateDefinition<O, S> where S : StateHolder<O, S>
     }
 }
 
-//StateDefinition相关codec对应原版StateDefinition.propertiesCodec
+//StateDefinition codecs, maps to vanilla StateDefinition.propertiesCodec
 public static class StateDefinitionCodecs
 {
-    //propertiesCodec对应原版propertiesCodec
-    //Name字段编码ownerProperties字段编码属性键值对
+    //propertiesCodec maps to vanilla propertiesCodec
+    //The Name field encodes owner and the Properties field encodes the property key/value pairs
     public static Codec<S> PropertiesCodec<O, S>(
         Codec<O> ownerCodec,
         Func<O, StateDefinition<O, S>> definitionGetter)
@@ -197,7 +197,7 @@ public static class StateDefinitionCodecs
             (owner, props) => BuildStateFromProperties(owner, props, definitionGetter));
     }
 
-    //从state构建属性字典name到valueName
+    //Build a property dictionary from the state, name to valueName
     private static Dictionary<string, string> StateToPropertiesMap<O, S>(S state)
         where S : StateHolder<O, S>
     {
@@ -207,7 +207,7 @@ public static class StateDefinitionCodecs
         return dict;
     }
 
-    //从owner与属性字典重建state对应原版propertiesCodec的apply
+    //Rebuild the state from owner and the property dictionary, maps to vanilla propertiesCodec's apply
     private static S BuildStateFromProperties<O, S>(
         O owner,
         Dictionary<string, string> props,

@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundRespawnPacket 重生包对应原版 ClientboundRespawnPacket
-//字段 commonPlayerSpawnInfo CommonPlayerSpawnInfo 业务类型占位 dataToKeep byte
+//ClientboundRespawnPacket respawn packet, maps to vanilla ClientboundRespawnPacket
+//Fields: commonPlayerSpawnInfo CommonPlayerSpawnInfo business type placeholder, dataToKeep byte
 public sealed record ClientboundRespawnPacket(object CommonPlayerSpawnInfo, byte DataToKeep) : Packet<ClientGamePacketListener>
 {
     public const byte KeepAttributeModifiers = 1;
@@ -19,9 +19,9 @@ public sealed record ClientboundRespawnPacket(object CommonPlayerSpawnInfo, byte
     private sealed class RespawnCodec : StreamCodec<FriendlyByteBuf, ClientboundRespawnPacket>
     {
         public ClientboundRespawnPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("CommonPlayerSpawnInfo 业务类型待实现");
+            => throw new NotImplementedException("CommonPlayerSpawnInfo business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundRespawnPacket value)
-            => throw new NotImplementedException("CommonPlayerSpawnInfo 业务类型待实现");
+            => throw new NotImplementedException("CommonPlayerSpawnInfo business type not yet implemented");
     }
 }

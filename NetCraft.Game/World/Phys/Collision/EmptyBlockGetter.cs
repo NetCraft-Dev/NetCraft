@@ -4,8 +4,8 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Phys.Collision;
 
-//EmptyBlockGetter 空世界视图 对应原版 net.minecraft.world.level.EmptyBlockGetter
-//方块形状不依赖世界时用它可以少传一层真实世界 原版高度范围也是全零
+//EmptyBlockGetter empty world view, maps to vanilla net.minecraft.world.level.EmptyBlockGetter
+//Used when block shapes do not depend on the world, to save passing a real world layer; the vanilla height range is also all zero
 public sealed class EmptyBlockGetter : BlockGetter
 {
     public static readonly EmptyBlockGetter Instance = new();
@@ -18,6 +18,6 @@ public sealed class EmptyBlockGetter : BlockGetter
 
     public int SectionsCount => 0;
 
-    //越界与未加载一律空气
+    //Out of bounds and unloaded are always air
     public BlockState GetBlockState(int x, int y, int z) => Blocks.AIR.DefaultBlockState;
 }

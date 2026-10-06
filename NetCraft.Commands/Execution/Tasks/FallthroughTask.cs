@@ -1,12 +1,12 @@
 namespace NetCraft.Commands.Execution.Tasks;
 
-//FallthroughTask 空源集合的返回收尾对应原版 net.minecraft.commands.execution.tasks.FallthroughTask
-//return 模式下修饰后没有源了 回一次失败并废弃本帧
+//FallthroughTask return cleanup for an empty source collection, maps to vanilla net.minecraft.commands.execution.tasks.FallthroughTask
+//In return mode, after modifiers leave no sources, report failure once and discard this frame
 public class FallthroughTask<T>
 {
     private static readonly EntryAction<T> _instance = Execute;
 
-    //Instance 单例动作
+    //Instance singleton action
     public static EntryAction<T> Instance() => _instance;
 
     private static void Execute(ExecutionContext<T> context, Frame frame)

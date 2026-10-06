@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage.Paletted;
 
-//GlobalPalette对应原版net.minecraft.world.level.chunk.GlobalPalette
-//直接用IdMap不做palette映射适合palette满的情况
+//GlobalPalette, maps to vanilla net.minecraft.world.level.chunk.GlobalPalette
+//Uses IdMap directly with no palette mapping, for when the palette is full
 public sealed class GlobalPalette<T> : Palette<T>
 {
     private readonly IdMap<T> _registry;
@@ -12,7 +12,7 @@ public sealed class GlobalPalette<T> : Palette<T>
 
     public int Size => _registry.Size;
 
-    //value直接查registry id不存在返回0对应原版idFor
+    //value is looked up in the registry directly; a missing id returns 0, maps to vanilla idFor
     public int IdFor(T value, PaletteResize<T> resizeHandler)
     {
         var id = _registry.GetId(value);
@@ -21,7 +21,7 @@ public sealed class GlobalPalette<T> : Palette<T>
 
     public bool MaybeHas(Predicate<T> predicate) => true;
 
-    //index直接查registry byId不存在抛MissingPaletteEntryException
+    //index is looked up in the registry by id; a missing entry throws MissingPaletteEntryException
     public T ValueFor(int index)
     {
         var value = _registry.ById(index);

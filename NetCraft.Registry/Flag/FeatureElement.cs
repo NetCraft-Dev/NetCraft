@@ -1,11 +1,11 @@
 namespace NetCraft.Registry.Flag;
 
-//带特性开关的元素对应原版FeatureElement
-//方块物品实体类型这些实现它，来说明自己需要哪些开关
+//Element with feature flags, maps to vanilla FeatureElement
+//Blocks, items and entity types implement it to declare which flags they need
 public interface FeatureElement
 {
-    //会被特性开关过滤掉的注册表
-    //原版是带通配符的Set，C#没有协变通配只能存object，比较时按注册表名对
+    //Registries filtered by feature flags
+    //Vanilla uses a Set with wildcards; C# has no covariant wildcards so object is stored, compared by registry name
     static readonly object[] FILTERED_REGISTRIES =
     [
         Registries.ITEM,
@@ -19,6 +19,6 @@ public interface FeatureElement
 
     FeatureFlagSet RequiredFeatures();
 
-    //需要的开关都被打开才算启用
+    //Enabled only when all required flags are on
     bool IsEnabled(FeatureFlagSet enabledFeatures) => RequiredFeatures().IsSubsetOf(enabledFeatures);
 }

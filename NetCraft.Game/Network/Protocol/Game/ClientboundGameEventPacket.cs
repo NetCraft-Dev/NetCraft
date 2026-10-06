@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundGameEventPacket 游戏事件包对应原版 ClientboundGameEventPacket
-//Event 为事件类型 Param 为事件参数 参数语义随事件而定
+//ClientboundGameEventPacket game event packet, maps to vanilla ClientboundGameEventPacket
+//Event is the event type, Param is the event parameter; the meaning of the parameter depends on the event
 public sealed record ClientboundGameEventPacket(GameEventType Event, float Param) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundGameEventPacket> StreamCodec { get; } = new GameEventCodec();
@@ -27,8 +27,8 @@ public sealed record ClientboundGameEventPacket(GameEventType Event, float Param
     }
 }
 
-//GameEventType 游戏事件类型对应原版 ClientboundGameEventPacket.Type
-//Id 为线缆上的事件编号 未知编号保留原值不丢弃以便进一步排查
+//GameEventType game event type, maps to vanilla ClientboundGameEventPacket.Type
+//Id is the event number on the wire; unknown numbers keep their raw value rather than being dropped, for easier troubleshooting
 public sealed class GameEventType
 {
     private static readonly GameEventType[] ByIdTable = new GameEventType[14];
@@ -64,7 +64,7 @@ public sealed class GameEventType
         return type;
     }
 
-    //ById 按线缆编号取事件类型 未登记的编号原样保留
+    //ById looks up the event type by wire number; unregistered numbers are preserved as-is
     public static GameEventType ById(int id)
         => id >= 0 && id < ByIdTable.Length && ByIdTable[id] is not null
             ? ByIdTable[id]

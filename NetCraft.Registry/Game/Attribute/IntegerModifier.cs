@@ -2,7 +2,7 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.Environment;
 
-//IntegerModifier 整数修饰符对应原版 IntegerModifier
+//IntegerModifier integer modifier, maps to vanilla IntegerModifier
 public static class IntegerModifier
 {
     public static readonly AttributeModifier<int, int> Add = new SimpleIntegerModifier((subject, argument) => subject + argument);
@@ -15,7 +15,7 @@ public static class IntegerModifier
 
     public static readonly AttributeModifier<int, int> Maximum = new SimpleIntegerModifier(Math.Max);
 
-    //SimpleIntegerModifier 参数即整数的修饰符
+    //SimpleIntegerModifier modifier whose argument is the integer itself
     private sealed class SimpleIntegerModifier : AttributeModifier<int, int>
     {
         private readonly Func<int, int, int> _function;

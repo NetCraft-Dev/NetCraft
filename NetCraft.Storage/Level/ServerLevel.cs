@@ -12,60 +12,60 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Storage;
 
-//ServerLevel 服务端关卡抽象类对应原版 net.minecraft.world.level.ServerLevel
-//持有维度标识与关卡数据访问入口 方块更新链也在这里 它是所有世界变更的唯一入口
-//实现 ILevelReader 把谓词层需要的那组读取能力暴露给 Registry 侧
+//ServerLevel, server level abstract class, maps to vanilla net.minecraft.world.level.ServerLevel
+//Holds the dimension identifier and the level data access entry point; the block update chain also lives here as the single entry point for all world changes
+//Implements ILevelReader, exposing the set of reads the predicate layer needs to the Registry side
 public abstract class ServerLevel : ILevelReader
 {
-    //懒建 构造期实例还没初始化完不能建
+    //Built lazily; it cannot be built during construction before the instance is ready
     private INeighborUpdater? _neighborUpdater;
 
-    //Dimension 维度注册名如下界/末地
+    //Dimension, the dimension registry name such as the nether/end
     public abstract Identifier Dimension { get; }
 
-    //DataVersion 关卡数据版本用于 DataFixer 升级判定
+    //DataVersion, the level data version used by the DataFixer upgrade check
     public abstract int DataVersion { get; }
 
-    //RegistryAccess 注册表访问入口用于 Codec 解析时查表
-    //子类提供具体 RegistryAccess 实例对应原版 serverLevel.registryAccess()
+    //RegistryAccess, the registry access entry point used by Codec parsing for lookups
+    //Subclasses provide the concrete RegistryAccess instance, maps to vanilla serverLevel.registryAccess()
     public abstract RegistryAccess RegistryAccess { get; }
 
-    //GetChunk 按 ChunkPos 获取区块访问实例对应原版 getChunk
-    //返回 null 表示区块未加载子类提供具体加载逻辑
+    //GetChunk gets the chunk access instance by ChunkPos, maps to vanilla getChunk
+    //Returns null when the chunk is not loaded; subclasses provide the concrete load logic
     public abstract ChunkAccess? GetChunk(ChunkPos pos);
 
-    //GetNextEntityId 分配下一个可用实体 id 对应原版 ServerLevel.getNextEntityId
-    //默认不查重 只有持久化关卡知道自己装了哪些实体 子类重写接入占用检查
+    //GetNextEntityId allocates the next available entity id, maps to vanilla ServerLevel.getNextEntityId
+    //No dedup by default; only persistent levels know which entities they hold, subclasses override to wire in the occupancy check
     public virtual int GetNextEntityId() => NetCraft.Registry.Entity.NextEntityId(_ => false);
 
-    //GameTime 世界总游戏刻
+    //GameTime, the total world game time
     public long GameTime { get; set; }
 
-    //WorldBorder 世界边界 服务端装配成存档实例 未装配时是默认最大尺寸边界
+    //WorldBorder, world border; the server assembles a save instance, and without it this is the default max-size border
     public WorldBorder WorldBorder { get; set; } = new();
 
-    //MinBuildHeight 该维度最低可放置高度 默认按原版主世界取值 子类按真实区段覆盖
+    //MinBuildHeight, the dimension's lowest placeable height; defaults to the vanilla overworld value, subclasses override with the real sections
     public virtual int MinBuildHeight => -64;
 
-    //MaxBuildHeight 该维度最高可放置高度的上界自身不含 默认按原版主世界取值
+    //MaxBuildHeight, the exclusive upper bound of the dimension's placeable height; defaults to the vanilla overworld value
     public virtual int MaxBuildHeight => 320;
 
-    //ORainLevel 上一刻雨量 与 RainLevel 一起供渲染插值 对应原版 oRainLevel
+    //ORainLevel, the previous tick's rain level, paired with RainLevel for render interpolation, maps to vanilla oRainLevel
     public float ORainLevel { get; set; }
 
-    //RainLevel 当前雨量 0-1 每刻按天气目标渐变
+    //RainLevel, the current rain level 0-1, easing toward the weather target each tick
     public float RainLevel { get; set; }
 
-    //OThunderLevel 上一刻雷声等级 对应原版 oThunderLevel
+    //OThunderLevel, the previous tick's thunder level, maps to vanilla oThunderLevel
     public float OThunderLevel { get; set; }
 
-    //ThunderLevel 当前雷声等级 0-1
+    //ThunderLevel, the current thunder level 0-1
     public float ThunderLevel { get; set; }
 
-    //GetRainLevel 按部分刻插值取雨量 对应原版 getRainLevel
+    //GetRainLevel interpolates the rain level by partial tick, maps to vanilla getRainLevel
     public float GetRainLevel(float deltaPartialTick) => Mth.Lerp(deltaPartialTick, ORainLevel, RainLevel);
 
-    //SetRainLevel 直接设置雨量并把上一刻值对齐 对应原版 setRainLevel
+    //SetRainLevel sets the rain level directly and aligns the previous value, maps to vanilla setRainLevel
     public void SetRainLevel(float rainLevel)
     {
         var clamped = Mth.Clamp(rainLevel, 0.0f, 1.0f);
@@ -73,11 +73,11 @@ public abstract class ServerLevel : ILevelReader
         RainLevel = clamped;
     }
 
-    //GetThunderLevel 雷声等级按雨量缩放 对应原版 getThunderLevel
+    //GetThunderLevel scales the thunder level by the rain level, maps to vanilla getThunderLevel
     public float GetThunderLevel(float deltaPartialTick)
         => Mth.Lerp(deltaPartialTick, OThunderLevel, ThunderLevel) * GetRainLevel(deltaPartialTick);
 
-    //SetThunderLevel 直接设置雷声等级并把上一刻值对齐 对应原版 setThunderLevel
+    //SetThunderLevel sets the thunder level directly and aligns the previous value, maps to vanilla setThunderLevel
     public void SetThunderLevel(float thunderLevel)
     {
         var clamped = Mth.Clamp(thunderLevel, 0.0f, 1.0f);
@@ -85,71 +85,71 @@ public abstract class ServerLevel : ILevelReader
         ThunderLevel = clamped;
     }
 
-    //CanHaveWeather 该维度是否会有天气 对应原版 canHaveWeather
-    //原版判定是无天空光或有天花板或是末地即无天气 本作当前只有主世界这一种能下雨的维度
+    //CanHaveWeather, whether the dimension has weather, maps to vanilla canHaveWeather
+    //The vanilla test is no sky light or a ceiling or the end meaning no weather; this project currently has only the overworld as a dimension that can rain
     public virtual bool CanHaveWeather() => true;
 
-    //IsRaining 是否正在下雨 阈值 0.2 对应原版 isRaining
+    //IsRaining, whether it is raining, threshold 0.2, maps to vanilla isRaining
     public bool IsRaining => CanHaveWeather() && GetRainLevel(1.0f) > 0.2f;
 
-    //IsThundering 是否正在雷暴 阈值 0.9 对应原版 isThundering
+    //IsThundering, whether it is thundering, threshold 0.9, maps to vanilla isThundering
     public bool IsThundering => CanHaveWeather() && GetThunderLevel(1.0f) > 0.9;
 
-    //DayTime 昼夜时间 0-23999 循环 旧字段仅命令层过渡使用
+    //DayTime, day-night time cycling 0-23999; a legacy field only used as a transition in the command layer
     public long DayTime { get; set; }
 
-    //DefaultClock 维度默认时钟 对应原版 DimensionType.defaultClock 由服务器装配
+    //DefaultClock, the dimension's default clock, maps to vanilla DimensionType.defaultClock, assembled by the server
     public Holder<WorldClock>? DefaultClock { get; set; }
 
-    //NeighborUpdater 更新分发器 邻居更新与形状更新两条通道都经它排队
+    //NeighborUpdater, the update dispatcher; both the neighbor update and shape update channels queue through it
     public INeighborUpdater NeighborUpdater
         => _neighborUpdater ??= new CollectingNeighborUpdater(this, MaxChainedNeighborUpdates);
 
-    //MaxChainedNeighborUpdates 链式更新上限 负数表示不限
+    //MaxChainedNeighborUpdates, the chained update limit; a negative value means unlimited
     protected virtual int MaxChainedNeighborUpdates => SharedConstants.MaxChainedNeighborUpdates;
 
-    //BlockUpdateSink 更新链的 Game 层副作用出口 未注入时方块实体移除与销毁副作用缺失
+    //BlockUpdateSink, the Game-layer side-effect sink of the update chain; without injection block entity removal and destroy side effects are missing
     public IBlockUpdateSink? BlockUpdateSink { get; set; }
 
-    //BlockEntityBridge 方块实体的存档与清理桥 未注入时区块落盘不带方块实体
+    //BlockEntityBridge, the bridge for saving and cleaning block entities; without injection chunks are written without block entities
     public IBlockEntityBridge? BlockEntityBridge { get; set; }
 
-    //StructureDataBridge 结构装配结果的存档桥 未注入时区块落盘不带 structures 段
+    //StructureDataBridge, the save bridge for structure placements; without injection chunks are written without a structures section
     public IStructureDataBridge? StructureDataBridge { get; set; }
 
-    //Random 关卡随机源 供调度刻与随机刻使用
+    //Random, the level random source, used by scheduled and random ticks
     public RandomSource Random { get; set; } = RandomSource.Create();
 
-    //IsHandlingTick 是否正处在关卡 tick 的处理流程中 对应原版 ServerLevel.handlingTick
-    //由服务端主循环在关卡 tick 开始处置真 方块事件跑完置假
-    //活塞收回判定要用它: 同刻内收到收回信号说明搬运还没走完 得降级成丢下
+    //IsHandlingTick, whether a level tick is being processed, maps to vanilla ServerLevel.handlingTick
+    //Set true by the server main loop at the start of a level tick and false after block events run
+    //Piston retraction checks use it: a retraction signal in the same tick means the push is not done yet and must downgrade to a drop
     public bool IsHandlingTick { get; set; }
 
-    //_subTickCount 同一刻内的排入序号 对应原版 Level.subTickCount
+    //_subTickCount, the enqueue order within the same tick, maps to vanilla Level.subTickCount
     private long _subTickCount;
     private LevelTicks<NetCraft.Registry.Block>? _blockTicks;
     private LevelTicks<NetCraft.Registry.Fluid>? _fluidTicks;
-    //_blockEvents 方块事件队列 插入序去重 对应原版 ServerLevel.blockEvents
+    //_blockEvents, the block event queue, insertion-ordered and deduplicated, maps to vanilla ServerLevel.blockEvents
     private readonly LinkedList<BlockEventData> _blockEvents = new();
     private readonly HashSet<BlockEventData> _blockEventSet = new();
     private readonly List<BlockEventData> _blockEventsToReschedule = new();
-    //_tickRegisteredChunks 已登记调度刻容器的区块 避免重复登记
+    //_tickRegisteredChunks, chunks with a registered scheduled tick container, avoiding duplicate registration
     private readonly HashSet<long> _tickRegisteredChunks = new();
 
-    //BlockTicks 方块调度刻集合 懒建
+    //BlockTicks, the block scheduled tick collection, built lazily
     public LevelTicks<NetCraft.Registry.Block> BlockTicks
         => _blockTicks ??= new LevelTicks<NetCraft.Registry.Block>(IsPositionTicking);
 
-    //FluidTicks 流体调度刻集合 懒建
+    //FluidTicks, the fluid scheduled tick collection, built lazily
     public LevelTicks<NetCraft.Registry.Fluid> FluidTicks
         => _fluidTicks ??= new LevelTicks<NetCraft.Registry.Fluid>(IsPositionTicking);
 
-    //IsPositionTicking 该区块是否在可 tick 范围 默认全部允许 服务端按视距收窄
+    //IsPositionTicking, whether the chunk is within the tickable range; all allowed by default, the server narrows it by view distance
     protected virtual bool IsPositionTicking(long chunkKey) => true;
 
-    //EnsureChunkTicksRegistered 登记区块的调度刻容器 已登记则什么也不做
-    //不能只依赖区块加载回调 区块经 GetChunk 直接取回的路径不会触发那个回调
-    //首次登记时才 Unpack 把读档带进来的相对延迟按当前游戏刻换算成绝对刻
+    //EnsureChunkTicksRegistered registers the chunk's scheduled tick container and does nothing when already registered
+    //Cannot rely only on the chunk load callback; the path that retrieves a chunk directly through GetChunk does not trigger it
+    //Unpack happens on first registration, converting relative delays from disk into absolute ticks against the current game tick
     public void EnsureChunkTicksRegistered(ChunkAccess chunk)
     {
         if (!_tickRegisteredChunks.Add(ChunkPos.Pack(chunk.Pos.X, chunk.Pos.Z))) return;
@@ -159,7 +159,7 @@ public abstract class ServerLevel : ILevelReader
         FluidTicks.AddContainer(chunk.Pos, chunk.FluidTicks);
     }
 
-    //EnsureChunkTicksRegistered 按坐标登记 区块取不回来就留到下次再试
+    //EnsureChunkTicksRegistered registers by coords; if the chunk cannot be fetched it retries next time
     public void EnsureChunkTicksRegistered(ChunkPos pos)
     {
         if (_tickRegisteredChunks.Contains(ChunkPos.Pack(pos.X, pos.Z))) return;
@@ -167,8 +167,8 @@ public abstract class ServerLevel : ILevelReader
         if (chunk is not null) EnsureChunkTicksRegistered(chunk);
     }
 
-    //UnregisterChunkTicks 摘掉区块的调度刻容器 对应原版 LevelChunk.unregisterTickContainerFromLevel
-    //区块卸载时必须做 容器留在集合里的话该区块再加载会重复登记 排刻也会落在旧容器上
+    //UnregisterChunkTicks detaches the chunk's scheduled tick container, maps to vanilla LevelChunk.unregisterTickContainerFromLevel
+    //Required on chunk unload; leaving the container in the set would double-register the chunk on reload and land new ticks on the old container
     public void UnregisterChunkTicks(ChunkPos pos)
     {
         if (!_tickRegisteredChunks.Remove(ChunkPos.Pack(pos.X, pos.Z))) return;
@@ -176,83 +176,83 @@ public abstract class ServerLevel : ILevelReader
         _fluidTicks?.RemoveContainer(pos);
     }
 
-    //GetBlockState 读方块状态 区块或区段未加载返回 null
+    //GetBlockState reads a block state; returns null when the chunk or section is not loaded
     public virtual BlockState? GetBlockState(BlockPos pos)
     {
         var chunk = GetChunk(new ChunkPos(pos.X >> 4, pos.Z >> 4));
         return chunk?.GetSection(pos.Y >> 4)?.GetBlockState(pos.X & 15, pos.Y & 15, pos.Z & 15);
     }
 
-    //GetLoadedChunk 只取已在内存的区块 不触发加载
-    //无区块源的关卡退回普通 GetChunk 它们本来就没有加载这个概念
+    //GetLoadedChunk takes only a chunk already in memory without triggering a load
+    //Levels without a chunk source fall back to plain GetChunk, having no notion of loading
     public virtual ChunkAccess? GetLoadedChunk(ChunkPos pos) => GetChunk(pos);
 
-    //GetBlockStateIfLoaded 读方块状态且不触发加载 区块不在内存直接给 null
-    //每 tick 遍历实体包围盒那类查询必须走它: 位置挨着未加载区块时
-    //普通 GetBlockState 会凭空拉起一个没有票的区块 那一拍又被回收 于是区块反复卸载又加载
-    //每次卸载都要落盘并清掉区块内的方块实体 活塞这类跨刻中途态方块会连同方块实体一起丢
+    //GetBlockStateIfLoaded reads a block state without triggering a load; a chunk not in memory gives null
+    //Per-tick entity bounding box queries must go through it: when a position borders an unloaded chunk
+    //plain GetBlockState would pull up a chunk with no ticket, which is reclaimed the same tick, so the chunk unloads and loads repeatedly
+    //Every unload writes to disk and clears the chunk's block entities, so cross-tick intermediates like pistons lose their block entities
     public BlockState? GetBlockStateIfLoaded(BlockPos pos)
     {
         var chunk = GetLoadedChunk(new ChunkPos(pos.X >> 4, pos.Z >> 4));
         return chunk?.GetSection(pos.Y >> 4)?.GetBlockState(pos.X & 15, pos.Y & 15, pos.Z & 15);
     }
 
-    //IsLoaded 该位置在建造高度内且所在区块已在内存 对应原版 isLoaded
-    //原版按区块加载等级判定 本作只认内存里有没有区块 够谓词与命令查询用
+    //IsLoaded: the position is within build height and its chunk is in memory, maps to vanilla isLoaded
+    //Vanilla judges by the chunk load level; this project only checks whether the chunk is in memory, enough for predicates and command queries
     public virtual bool IsLoaded(BlockPos pos)
         => pos.Y >= MinBuildHeight && pos.Y < MaxBuildHeight
             && GetLoadedChunk(new ChunkPos(pos.X >> 4, pos.Z >> 4)) is not null;
 
-    //GetFluidState 该位置的流体状态 取不到方块状态时给空流体 对应原版 getFluidState
+    //GetFluidState: the fluid state at the position, giving empty fluid when the block state is unavailable, maps to vanilla getFluidState
     public virtual FluidState GetFluidState(BlockPos pos)
         => GetBlockState(pos)?.FluidState ?? FluidState.Empty;
 
-    //GetMaxLocalRawBrightness 该位置的最大局部亮度 取方块光与天光的较大者 对应原版 getMaxLocalRawBrightness
+    //GetMaxLocalRawBrightness: the position's max local brightness, the larger of block light and sky light, maps to vanilla getMaxLocalRawBrightness
     public virtual int GetMaxLocalRawBrightness(BlockPos pos)
         => Math.Max(
             GetLightValue(NetCraft.Registry.LightLayer.Block, pos),
             GetLightValue(NetCraft.Registry.LightLayer.Sky, pos));
 
-    //CanSeeSky 该位置能直见天空 天光满 15 即视为可见 对应原版 canSeeSky
+    //CanSeeSky: the position sees the sky directly; sky light 15 counts as visible, maps to vanilla canSeeSky
     public virtual bool CanSeeSky(BlockPos pos)
         => GetLightValue(NetCraft.Registry.LightLayer.Sky, pos) >= 15;
 
-    //GetBiome 该位置所在区块的生物群系 区块不在内存时给 null 对应原版 getBiome
+    //GetBiome: the biome of the chunk at the position, null when the chunk is not in memory, maps to vanilla getBiome
     public virtual Holder<Biome>? GetBiome(BlockPos pos)
         => GetLoadedChunk(new ChunkPos(pos.X >> 4, pos.Z >> 4))?
             .GetNoiseBiome(pos.X >> 2, pos.Y >> 2, pos.Z >> 2);
 
-    //UpdateLight 方块变化后的光照重算 无光照引擎的关卡为空实现
+    //UpdateLight, light recomputation after a block change; a no-op for levels without a light engine
     public virtual void UpdateLight(BlockPos pos) { }
 
-    //GetLightValue 读指定光照层在该位置的值 无光照引擎的关卡返回 0
-    //阳光探测器这类按亮度输出的方块要读真实天光 基类给不出时按全黑处理
+    //GetLightValue reads the given light layer's value at the position; levels without a light engine return 0
+    //Blocks that output by brightness like daylight detectors need the real sky light; when the base cannot provide it, treat as fully dark
     public virtual int GetLightValue(NetCraft.Registry.LightLayer layer, BlockPos pos) => 0;
 
-    //SetBlock 写入方块并完成联动 三参版本补默认传播深度 对应原版同名重载
+    //SetBlock writes a block and completes the interactions; the 3-arg version fills in the default propagation depth, maps to the vanilla same-named overload
     public bool SetBlock(BlockPos pos, BlockState state, int updateFlags = BlockUpdateFlags.All)
         => SetBlock(pos, state, updateFlags, BlockUpdateFlags.UpdateLimitDefault);
 
-    //SetBlock 写入方块并完成联动 对应原版 Level.setBlock
-    //顺序 写状态 -> 光照 -> 方块实体移除 -> 移除影响 -> onPlace -> 邻居更新 -> 形状更新
-    //没有"严格模式提前返回" 816 一类只是让对应判定点落空 方法照样走完
+    //SetBlock writes a block and completes the interactions, maps to vanilla Level.setBlock
+    //Order: write state -> light -> block entity removal -> removal effects -> onPlace -> neighbor updates -> shape updates
+    //There is no "strict mode early return"; values like 816 only make the matching checks miss and the method still runs to the end
     public bool SetBlock(BlockPos pos, BlockState state, int updateFlags, int updateLimit)
     {
         var previous = WriteBlockState(pos, state);
         if (previous is null || previous.Value == state) return false;
         var oldState = previous.Value;
         var movedByPiston = (updateFlags & BlockUpdateFlags.MoveByPiston) != 0;
-        //方块类型变了才算换方块 同方块换状态不算
+        //Only a change of block type counts as swapping a block; a state change on the same block does not
         var blockChanged = !ReferenceEquals(oldState.Owner, state.Owner);
 
-        //红石元件的变化是排查信号链路的第一现场 记下旧新状态与副作用开关
+        //A redstone component change is the first scene when diagnosing a signal chain; record the old and new states plus the side-effect flags
         if (RedstoneIds.IsRedstoneComponent(oldState.Owner.Id) || RedstoneIds.IsRedstoneComponent(state.Owner.Id))
             Log.Debug($"redstone write {pos} {oldState.Owner.Id}:{oldState.Id} -> {state.Owner.Id}:{state.Id} flags={updateFlags} changed={blockChanged}");
 
-        //标记光照脏点 对应原版 LevelChunk.setBlockState 里的 updateSectionStatus 与 checkBlock
-        //这里不能按 hasDifferentLightProperties 过滤: 区段由全空变成有玻璃板这类方块时光照属性没变
-        //但区段空态标记必须跟着更新 漏了会让光照引擎一直当它是空的
-        //标记只是入队 真正的传播与下发在每刻末尾统一做一次
+        //Mark the light dirty, maps to updateSectionStatus and checkBlock in vanilla LevelChunk.setBlockState
+        //This cannot be filtered by hasDifferentLightProperties: when a section goes from fully empty to holding blocks like glass panes the light properties do not change
+        //but the section empty flag must update too, or the light engine keeps treating it as empty
+        //Marking only enqueues; the actual propagation and dispatch happen once at the end of each tick
         UpdateLight(pos);
 
         if (blockChanged && (updateFlags & BlockUpdateFlags.SkipBlockEntitySideEffects) == 0)
@@ -271,7 +271,7 @@ public abstract class ServerLevel : ILevelReader
         if ((updateFlags & BlockUpdateFlags.Neighbours) != 0)
             UpdateNeighborsAt(pos, oldState.Owner);
 
-        //形状更新前清掉邻居与抑制掉落两位 对应原版 updateFlags & -34
+        //Clear the neighbors and suppress-drops bits before the shape update, maps to vanilla updateFlags & -34
         if ((updateFlags & BlockUpdateFlags.KnownShape) == 0 && updateLimit > 0)
         {
             var shapeFlags = updateFlags & ~(BlockUpdateFlags.Neighbours | BlockUpdateFlags.SuppressDrops);
@@ -281,39 +281,39 @@ public abstract class ServerLevel : ILevelReader
             BlockUpdateHelper.UpdateIndirectNeighbourShapes(this, state, pos, shapeFlags, nextLimit);
         }
 
-        //客户端同步放在副作用链之后 对应原版 flags 含 UPDATE_CLIENTS 的那一路
+        //Client sync comes after the side-effect chain, maps to the vanilla branch when flags contains UPDATE_CLIENTS
         if ((updateFlags & BlockUpdateFlags.Clients) != 0)
             BlockUpdateSink?.BlockChanged(pos, state);
 
         return true;
     }
 
-    //LevelEvent 广播世界事件 对应原版 Level.levelEvent
+    //LevelEvent broadcasts a world event, maps to vanilla Level.levelEvent
     public void LevelEvent(int kind, BlockPos pos, int data)
         => BlockUpdateSink?.LevelEvent(kind, pos, data);
 
-    //GetBlockEntity 取该位置的方块实体 方块实体容器在 Game 层 由副作用出口提供
+    //GetBlockEntity gets the block entity at that pos; the block entity container is in the Game layer and provided by the side-effect sink
     public T? GetBlockEntity<T>(BlockPos pos) where T : class
         => BlockUpdateSink?.GetBlockEntity(pos) as T;
 
-    //BlockEntityChanged 方块实体数据变化后同步客户端
+    //BlockEntityChanged syncs the client after block entity data changes
     public void BlockEntityChanged(BlockPos pos)
         => BlockUpdateSink?.BlockEntityChanged(pos);
 
-    //SetBlockEntity 放入一个已经建好的方块实体 对应原版 Level.setBlockEntity
-    //活塞推动时方块实体要带上被推状态与运动参数 走不了按状态新建那条路
+    //SetBlockEntity puts in an already-built block entity, maps to vanilla Level.setBlockEntity
+    //When a piston pushes, the block entity must carry the moved flag and motion params, so it cannot go through the create-by-state path
     public void SetBlockEntity(object entity)
         => BlockUpdateSink?.SetBlockEntity(entity);
 
-    //RemoveBlockEntity 移除该位置的方块实体 对应原版 Level.removeBlockEntity
+    //RemoveBlockEntity removes the block entity at that pos, maps to vanilla Level.removeBlockEntity
     public void RemoveBlockEntity(BlockPos pos)
         => BlockUpdateSink?.RemoveBlockEntity(pos);
 
-    //PlaySound 在方块位置播放音效 对应原版 Level.playSound 无实体版本
+    //PlaySound plays a sound at the block pos, maps to vanilla Level.playSound without an entity
     public void PlaySound(SoundEvent sound, SoundSource source, BlockPos pos, float volume, float pitch)
         => BlockUpdateSink?.PlaySound(sound, source, pos.X + 0.5, pos.Y + 0.5, pos.Z + 0.5, volume, pitch);
 
-    //WriteBlockState 只落状态与高度图不带任何联动 对应原版 LevelChunk.setBlockState 的写入部分
+    //WriteBlockState writes only the state and heightmap without any interactions, maps to the write part of vanilla LevelChunk.setBlockState
     protected virtual BlockState? WriteBlockState(BlockPos pos, BlockState state)
     {
         var chunk = GetChunk(new ChunkPos(pos.X >> 4, pos.Z >> 4));
@@ -324,46 +324,46 @@ public abstract class ServerLevel : ILevelReader
         return previous;
     }
 
-    //UpdateNeighborsAt 向该位置六方向发邻居更新 对应原版 updateNeighborsAt
+    //UpdateNeighborsAt sends neighbor updates in all six directions, maps to vanilla updateNeighborsAt
     public void UpdateNeighborsAt(BlockPos pos, NetCraft.Registry.Block sourceBlock)
         => NeighborUpdater.UpdateNeighborsAtExceptFromFacing(pos, sourceBlock, null);
 
-    //UpdateNeighborsAtExceptFromFacing 跳过指定方向的邻居更新 对应原版同名方法
+    //UpdateNeighborsAtExceptFromFacing skips neighbor updates in the given direction, maps to the vanilla same-named method
     public void UpdateNeighborsAtExceptFromFacing(BlockPos pos, NetCraft.Registry.Block sourceBlock,
         Direction? skipDirection)
         => NeighborUpdater.UpdateNeighborsAtExceptFromFacing(pos, sourceBlock, skipDirection);
 
-    //NeighborChanged 单点邻居更新入队 执行时重读该位置状态
+    //NeighborChanged enqueues a single-point neighbor update; the state is re-read on execution
     public void NeighborChanged(BlockPos pos, NetCraft.Registry.Block changedBlock)
         => NeighborUpdater.NeighborChanged(pos, changedBlock);
 
-    //NeighborChanged 带状态快照的单点邻居更新 执行时不再重读
+    //NeighborChanged with a state snapshot; not re-read on execution
     public void NeighborChanged(BlockPos pos, BlockState state, NetCraft.Registry.Block changedBlock,
         bool movedByPiston)
         => NeighborUpdater.NeighborChanged(pos, state, changedBlock, movedByPiston);
 
-    //NeighborShapeChanged 形状更新入队 对应原版 neighborShapeChanged
-    //pos 是被更新的方块位置 neighbourPos 是触发这次更新的源方块位置
+    //NeighborShapeChanged enqueues a shape update, maps to vanilla neighborShapeChanged
+    //pos is the block being updated; neighbourPos is the source block that triggered this update
     public void NeighborShapeChanged(Direction direction, BlockPos pos, BlockPos neighbourPos,
         BlockState neighbourState, int updateFlags, int updateLimit)
         => NeighborUpdater.ShapeUpdate(direction, neighbourState, pos, neighbourPos, updateFlags, updateLimit);
 
-    //ScheduleTick 排入方块调度刻 对应原版 LevelAccessor.scheduleTick
+    //ScheduleTick schedules a block tick, maps to vanilla LevelAccessor.scheduleTick
     public void ScheduleTick(BlockPos pos, NetCraft.Registry.Block block, int delay)
         => ScheduleTick(pos, block, delay, TickPriority.Normal);
 
     public void ScheduleTick(BlockPos pos, NetCraft.Registry.Block block, int delay, TickPriority priority)
     {
-        //目标区块可能还没登记容器 就地补上 否则这个刻会被丢掉
+        //The target chunk may not have a container registered yet; register it in place or this tick is dropped
         EnsureChunkTicksRegistered(new ChunkPos(pos.X >> 4, pos.Z >> 4));
         BlockTicks.Schedule(new ScheduledTick<NetCraft.Registry.Block>(
             block, pos, GameTime + delay, priority, _subTickCount++));
-        //计划刻有没有排上是红石不动作时最需要确认的一环
+        //Whether the scheduled tick got queued is the most important thing to confirm when redstone does not act
         if (RedstoneIds.IsRedstoneComponent(block.Id))
             Log.Debug($"redstone schedule {pos} block={block.Id} delay={delay} priority={priority} now={GameTime} due={GameTime + delay}");
     }
 
-    //ScheduleTick 排入流体调度刻 对应原版 LevelAccessor.scheduleTick 的流体重载
+    //ScheduleTick schedules a fluid tick, maps to the fluid overload of vanilla LevelAccessor.scheduleTick
     public void ScheduleTick(BlockPos pos, NetCraft.Registry.Fluid fluid, int delay)
         => ScheduleTick(pos, fluid, delay, TickPriority.Normal);
 
@@ -374,23 +374,23 @@ public abstract class ServerLevel : ILevelReader
             fluid, pos, GameTime + delay, priority, _subTickCount++));
     }
 
-    //HasScheduledTick 该位置是否已排了同一方块的调度刻
+    //HasScheduledTick, whether the same block's tick is already scheduled at that pos
     public bool HasScheduledTick(BlockPos pos, NetCraft.Registry.Block block)
         => BlockTicks.HasScheduledTick(pos, block);
 
-    //WillTickThisTick 该位置的方块刻是否已在本刻被收集
+    //WillTickThisTick, whether the block tick at that pos has been collected this tick
     public bool WillTickThisTick(BlockPos pos, NetCraft.Registry.Block block)
         => BlockTicks.WillTickThisTick(pos, block);
 
-    //TickBlockTicks 推进方块调度刻 预算对齐原版 ServerLevel.tick 里那个 65536
+    //TickBlockTicks advances block scheduled ticks; the budget matches the 65536 in vanilla ServerLevel.tick
     public void TickBlockTicks(int maxTicksToProcess = 65536)
         => BlockTicks.Tick(GameTime, maxTicksToProcess, TickBlock);
 
-    //TickFluidTicks 推进流体调度刻 预算与方块刻同源 对应原版 ServerLevel.tick 里的 FluidTicks.tick
+    //TickFluidTicks advances fluid scheduled ticks with the same budget as block ticks, maps to FluidTicks.tick in vanilla ServerLevel.tick
     public void TickFluidTicks(int maxTicksToProcess = 65536)
         => FluidTicks.Tick(GameTime, maxTicksToProcess, TickFluid);
 
-    //TickFluid 流体刻回调 该位置现在的流体与排刻时登记的不是同一种就丢弃
+    //TickFluid, the fluid tick callback; dropped when the fluid now at the pos is not the same kind registered at scheduling
     private void TickFluid(BlockPos pos, NetCraft.Registry.Fluid fluid)
     {
         var state = GetBlockState(pos);
@@ -401,12 +401,12 @@ public abstract class ServerLevel : ILevelReader
             behaviour.Tick(this, pos, state.Value, fluidState);
     }
 
-    //TickBlock 执行一次方块刻 对应原版 ServerLevel.tickBlock
-    //位置上的方块必须还是排入时那一个 否则丢弃 原版就靠这个挡掉过期的刻
+    //TickBlock runs one block tick, maps to vanilla ServerLevel.tickBlock
+    //The block at the pos must still be the one scheduled, otherwise it is dropped; vanilla relies on this to filter stale ticks
     private void TickBlock(BlockPos pos, NetCraft.Registry.Block block)
     {
         var state = GetBlockState(pos);
-        //过期的刻要打出来 否则只会看到"排了刻但没反应"
+        //Log stale ticks too, otherwise you only see "a tick was scheduled but nothing happened"
         if (state is null || !ReferenceEquals(state.Value.Owner, block))
         {
             if (RedstoneIds.IsRedstoneComponent(block.Id))
@@ -418,19 +418,19 @@ public abstract class ServerLevel : ILevelReader
             behaviour.Tick(this, pos, state.Value, Random);
     }
 
-    //BlockEvent 入队一个方块事件 对应原版 ServerLevel.blockEvent
+    //BlockEvent enqueues a block event, maps to vanilla ServerLevel.blockEvent
     public void BlockEvent(BlockPos pos, NetCraft.Registry.Block block, int paramA, int paramB)
     {
         var data = new BlockEventData(pos, block, paramA, paramB);
         if (_blockEventSet.Add(data)) _blockEvents.AddLast(data);
     }
 
-    //FlushBlockUpdates 冲刷本拍积压的方块变化下发 对应原版 chunkSource.tick 里的 broadcastChanges
+    //FlushBlockUpdates flushes this tick's accumulated block changes, maps to broadcastChanges in vanilla chunkSource.tick
     public void FlushBlockUpdates() => BlockUpdateSink?.FlushBlockUpdates();
 
-    //RunBlockEvents 执行方块事件队列 对应原版 ServerLevel.runBlockEvents
-    //本刻不在可 tick 范围的事件顺延到后续 tick 方块类型不符的直接丢弃
-    //事件被方块受理后经副作用出口广播给客户端 包里带的是原版那三个参数
+    //RunBlockEvents runs the block event queue, maps to vanilla ServerLevel.runBlockEvents
+    //Events outside the tickable range this tick defer to a later tick; a block type mismatch is dropped outright
+    //Once a block accepts the event it is broadcast to clients through the side-effect sink with the vanilla three parameters
     public void RunBlockEvents()
     {
         _blockEventsToReschedule.Clear();
@@ -455,9 +455,9 @@ public abstract class ServerLevel : ILevelReader
             if (_blockEventSet.Add(data)) _blockEvents.AddLast(data);
     }
 
-    //GetSignal 读指定位置对某方向输出的信号 对应原版 SignalGetter.getSignal
-    //导体方块会把六向直接信号并进来自身信号 信号源强度与直接信号取最大
-    //direction 是从接收者指向被查方块的方向 与原版一致
+    //GetSignal reads the signal the given pos outputs in a direction, maps to vanilla SignalGetter.getSignal
+    //A conducting block merges the six directions' direct signals into its own; the signal strength and direct signal take the max
+    //direction points from the receiver toward the queried block, as in vanilla
     public int GetSignal(BlockPos pos, Direction direction)
     {
         var state = GetBlockState(pos);
@@ -469,7 +469,7 @@ public abstract class ServerLevel : ILevelReader
         return signal;
     }
 
-    //GetDirectSignal 读指定位置的直接信号 对应原版 SignalGetter.getDirectSignal
+    //GetDirectSignal reads the direct signal at the given pos, maps to vanilla SignalGetter.getDirectSignal
     public int GetDirectSignal(BlockPos pos, Direction direction)
     {
         var state = GetBlockState(pos);
@@ -477,8 +477,8 @@ public abstract class ServerLevel : ILevelReader
         return behaviour.GetDirectSignal(this, pos, state.Value, direction);
     }
 
-    //GetDirectSignalTo 六方向直接信号取最大 到 15 提前返回 对应原版 getDirectSignalTo
-    //逐级展开的顺序 DOWN UP NORTH SOUTH WEST EAST 与原版一致 不能改成遍历 Values
+    //GetDirectSignalTo takes the max of the six directions' direct signals, returning early at 15, maps to vanilla getDirectSignalTo
+    //The unrolled order DOWN UP NORTH SOUTH WEST EAST matches vanilla and must not become an iteration over Values
     public int GetDirectSignalTo(BlockPos pos)
     {
         var signal = Math.Max(0, GetDirectSignal(pos.Offset(Direction.Down), Direction.Down));
@@ -494,10 +494,10 @@ public abstract class ServerLevel : ILevelReader
         return Math.Max(signal, GetDirectSignal(pos.Offset(Direction.East), Direction.East));
     }
 
-    //HasSignal 该位置对某方向是否有信号 对应原版 SignalGetter.hasSignal
+    //HasSignal, whether the given pos has a signal in a direction, maps to vanilla SignalGetter.hasSignal
     public bool HasSignal(BlockPos pos, Direction direction) => GetSignal(pos, direction) > 0;
 
-    //HasNeighborSignal 六向是否有信号 对应原版 hasNeighborSignal
+    //HasNeighborSignal, whether any of the six directions has a signal, maps to vanilla hasNeighborSignal
     public bool HasNeighborSignal(BlockPos pos)
     {
         foreach (var direction in Direction.Values)
@@ -505,7 +505,7 @@ public abstract class ServerLevel : ILevelReader
         return false;
     }
 
-    //GetBestNeighborSignal 六向信号取最大 到 15 提前返回 对应原版 getBestNeighborSignal
+    //GetBestNeighborSignal takes the max of the six directions' signals, returning early at 15, maps to vanilla getBestNeighborSignal
     public int GetBestNeighborSignal(BlockPos pos)
     {
         var best = 0;
@@ -518,7 +518,7 @@ public abstract class ServerLevel : ILevelReader
         return best;
     }
 
-    //GetBestOwnOrNeighbourSignal 自身信号与邻居信号取最大 对应原版 getBestOwnOrNeighbourSignal
+    //GetBestOwnOrNeighbourSignal takes the max of its own and neighbor signals, maps to vanilla getBestOwnOrNeighbourSignal
     public int GetBestOwnOrNeighbourSignal(BlockPos pos)
     {
         var state = GetBlockState(pos);
@@ -528,16 +528,16 @@ public abstract class ServerLevel : ILevelReader
         return Math.Max(GetBestNeighborSignal(pos), own);
     }
 
-    //GetControlInputSignal 读控制输入信号 对应原版 SignalGetter.getControlInputSignal
-    //中继器的侧向锁定与比较器的侧输入都走它
-    //onlyDiodes 为真时只认二极管 原版中继器锁定就靠这条把红石线排除在外
+    //GetControlInputSignal reads the control input signal, maps to vanilla SignalGetter.getControlInputSignal
+    //Repeater side locking and comparator side input both go through it
+    //When onlyDiodes is true only diodes count; vanilla repeater locking uses this to exclude redstone wire
     public int GetControlInputSignal(BlockPos pos, Direction direction, bool onlyDiodes)
     {
         var state = GetBlockState(pos);
         if (state is null || state.Value.Owner is not IBlockSignalBehaviour behaviour) return 0;
         var current = state.Value;
         if (onlyDiodes) return behaviour.IsDiode ? GetDirectSignal(pos, direction) : 0;
-        //红石块恒 15 红石线读自身功率 其余信号源读直接信号 对应原版三个分支
+        //Redstone block is always 15, redstone wire reads its own power, other signal sources read the direct signal, matching the vanilla three branches
         if (current.Owner.Id == RedstoneIds.Block) return 15;
         if (current.Owner.Id == RedstoneIds.Wire)
             return current.HasProperty(BlockStateProperties.Power)
@@ -546,16 +546,16 @@ public abstract class ServerLevel : ILevelReader
         return behaviour.IsSignalSource ? GetDirectSignal(pos, direction) : 0;
     }
 
-    //ExtraEntityBoxes 实体管理器之外的包围盒来源 玩家不在实体管理器里由 Game 层注入
+    //ExtraEntityBoxes, bounding boxes from outside the entity manager; players are not in the entity manager and are injected by the Game layer
     public Func<IEnumerable<AABB>>? ExtraEntityBoxes { get; set; }
 
-    //EntityBoxes 参与实体进入判定的全部包围盒 子类把实体管理器里的实体接进来
+    //EntityBoxes, all bounding boxes taking part in the entity-inside test; subclasses wire in the entity manager's entities
     protected virtual IEnumerable<AABB> EntityBoxes()
         => ExtraEntityBoxes?.Invoke() ?? Enumerable.Empty<AABB>();
 
-    //DispatchEntityInside 派发实体进入方块回调 对应原版 Entity.checkInsideBlocks
-    //实体每 tick 移动后调用 按包围盒向内收一点覆盖到的方块逐个派发
-    //读方块走不触发加载的版本: 这里每 tick 都跑 碰到未加载的邻居区块不能顺手把它拉起来
+    //DispatchEntityInside dispatches the entity-inside-block callback, maps to vanilla Entity.checkInsideBlocks
+    //Called after each entity move per tick, dispatching to each block covered by a slightly shrunk bounding box
+    //Block reads use the non-loading variant: this runs every tick and must not incidentally pull up an unloaded neighboring chunk
     public void DispatchEntityInside()
     {
         foreach (var box in EntityBoxes())
@@ -579,8 +579,8 @@ public abstract class ServerLevel : ILevelReader
         }
     }
 
-    //CountEntitiesInBox 统计盒内的实体数 压力板算信号强度用 对应原版 getEntitiesOfClass 的计数用法
-    //玩家由 ExtraEntityBoxes 另算 关卡实体交给子类
+    //CountEntitiesInBox counts entities in the box, used by pressure plates for signal strength, maps to the counting use of vanilla getEntitiesOfClass
+    //Players are counted separately through ExtraEntityBoxes; level entities are left to subclasses
     public int CountEntitiesInBox(AABB box)
     {
         var count = 0;
@@ -590,14 +590,14 @@ public abstract class ServerLevel : ILevelReader
         return count + CountLevelEntitiesInBox(box);
     }
 
-    //CountLevelEntitiesInBox 关卡实体管理器里的实体计数 无实体管理器的关卡为 0
+    //CountLevelEntitiesInBox counts entities in the level entity manager; 0 for levels without one
     protected virtual int CountLevelEntitiesInBox(AABB box) => 0;
 
-    //EntitiesInBox 盒内的关卡实体 放置占位检查与将来的实体碰撞共用
-    //玩家不在实体管理器里 需要时由调用方另算 ExtraEntityBoxes
+    //EntitiesInBox, level entities in the box, shared by placement placeholder checks and future entity collision
+    //Players are not in the entity manager; the caller counts ExtraEntityBoxes separately when needed
     public IEnumerable<NetCraft.Registry.Entity> EntitiesInBox(AABB box) => LevelEntitiesInBox(box);
 
-    //LevelEntitiesInBox 关卡实体管理器里与盒相交的实体 无实体管理器的关卡为空
+    //LevelEntitiesInBox, entities intersecting the box in the level entity manager; empty for levels without one
     protected virtual IEnumerable<NetCraft.Registry.Entity> LevelEntitiesInBox(AABB box)
         => Enumerable.Empty<NetCraft.Registry.Entity>();
 }

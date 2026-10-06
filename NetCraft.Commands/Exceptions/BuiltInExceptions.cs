@@ -2,8 +2,8 @@ using NetCraft.Commands;
 
 namespace NetCraft.Commands.Exceptions;
 
-//BuiltInExceptions 内建异常工厂对应原版BuiltInExceptions
-//实现IBuiltInExceptionProvider按字段缓存所有标准异常类型实例
+//BuiltInExceptions built-in exception factory, maps to vanilla BuiltInExceptions
+//Implements IBuiltInExceptionProvider, caching every standard exception type instance in fields
 public sealed class BuiltInExceptions : IBuiltInExceptionProvider
 {
     private static readonly Dynamic2CommandExceptionType DOUBLE_TOO_SMALL =

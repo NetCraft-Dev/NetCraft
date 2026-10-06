@@ -2,8 +2,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Nbt;
 
-//NBT的DynamicOps实现对应原版net.minecraft.nbt.NbtOps
-//把Tag作为序列化载体实现Codec框架的所有类型操作
+//DynamicOps implementation for NBT, mirroring vanilla net.minecraft.nbt.NbtOps
+//Uses Tag as the serialization carrier and implements every type operation of the Codec framework
 public sealed class NbtOps : DynamicOps<Tag>
 {
     public static readonly NbtOps Instance = new();
@@ -36,16 +36,16 @@ public sealed class NbtOps : DynamicOps<Tag>
 
     public Tag CreateList(IEnumerable<Tag> stream) => new ListTag(stream);
 
-    //CreateByteList重写返回ByteArrayTag对齐原版NbtOps
+    //CreateByteList is overridden to return a ByteArrayTag, aligning with vanilla NbtOps
     public Tag CreateByteList(IEnumerable<byte> stream) => new ByteArrayTag(stream.ToArray());
 
-    //CreateIntList重写返回IntArrayTag对齐原版NbtOps
+    //CreateIntList is overridden to return an IntArrayTag, aligning with vanilla NbtOps
     public Tag CreateIntList(IEnumerable<int> stream) => new IntArrayTag(stream.ToArray());
 
-    //CreateLongList重写返回LongArrayTag对齐原版NbtOps
+    //CreateLongList is overridden to return a LongArrayTag, aligning with vanilla NbtOps
     public Tag CreateLongList(IEnumerable<long> stream) => new LongArrayTag(stream.ToArray());
 
-    //创建CompoundTag要求key必须是StringTag否则抛
+    //Creates a CompoundTag; the key must be a StringTag or it throws
     public Tag CreateMap(IEnumerable<Pair<Tag, Tag>> map)
     {
         var tag = new CompoundTag();
@@ -58,13 +58,13 @@ public sealed class NbtOps : DynamicOps<Tag>
         return tag;
     }
 
-    //取数值统一转double原版返回Number最小集用double
+    //Numbers are read as double; vanilla returns Number while this minimal port uses double
     public DataResult<double> GetNumberValue(Tag input)
         => input.AsNumber() is { } number
             ? DataResult<double>.Success(number.DoubleValue())
             : DataResult<double>.Error(() => $"Not a number: {input}");
 
-    //长整数走精确路径Number内部是double直接转换会舍入掉超过53位的位模式
+    //Longs take the exact path: Number holds a double internally and a direct conversion would round away bit patterns wider than 53 bits
     public DataResult<long> GetLongValue(Tag input)
         => input is LongTag longTag
             ? DataResult<long>.Success(longTag.Value)
@@ -78,7 +78,7 @@ public sealed class NbtOps : DynamicOps<Tag>
     public DataResult<bool> GetBooleanValue(Tag input)
         => GetNumberValue(input).Map(v => v != 0.0);
 
-    //合并单个value到list失败返回DataResult.Error对齐原版try-catch
+    //Merges a single value into a list and returns DataResult.Error on failure, matching vanilla's try-catch
     public DataResult<Tag> MergeToList(Tag list, Tag value)
     {
         try
@@ -111,7 +111,7 @@ public sealed class NbtOps : DynamicOps<Tag>
         }
     }
 
-    //合并key-value到map要求key是StringTag
+    //Merges a key-value pair into a map; the key must be a StringTag
     public DataResult<Tag> MergeToMap(Tag map, Tag key, Tag value)
     {
         if (map is not CompoundTag and not EndTag)
@@ -166,7 +166,7 @@ public sealed class NbtOps : DynamicOps<Tag>
         return DataResult<Tag>.Success(output);
     }
 
-    //CompoundTag转MapLike其他类型返回错误
+    //CompoundTag to MapLike; other types return an error
     public DataResult<MapLike<Tag>> GetMap(Tag input)
     {
         if (input is CompoundTag compound)
@@ -184,7 +184,7 @@ public sealed class NbtOps : DynamicOps<Tag>
         return DataResult<IEnumerable<Pair<Tag, Tag>>>.Error(() => $"Not a map: {input}");
     }
 
-    //ListTag/ByteArray/IntArray/LongArray作为stream返回
+    //ListTag/ByteArray/IntArray/LongArray are returned as a stream
     public DataResult<IEnumerable<Tag>> GetStream(Tag input)
     {
         return input switch
@@ -197,7 +197,7 @@ public sealed class NbtOps : DynamicOps<Tag>
         };
     }
 
-    //删除key返回浅拷贝CompoundTag其他类型原样返回
+    //Remove a key and return a shallow-copied CompoundTag; other types are returned unchanged
     public Tag Remove(Tag input, string key)
     {
         if (input is CompoundTag compound)
@@ -209,7 +209,7 @@ public sealed class NbtOps : DynamicOps<Tag>
         return input;
     }
 
-    //把当前Tag转换到目标ops最小集标量按值传递复合递归
+    //Convert this Tag to the target ops: in this minimal port scalars are passed by value and compounds recurse
     public U ConvertTo<U>(DynamicOps<U> ops, Tag tag)
     {
         return tag switch
@@ -237,8 +237,8 @@ public sealed class NbtOps : DynamicOps<Tag>
     private U ConvertMap<U>(DynamicOps<U> ops, CompoundTag compound)
         => ops.CreateMap(compound.Select(e => new Pair<U, U>(ops.CreateString(e.Key), ConvertTo(ops, e.Value))));
 
-    //创建list collector用于mergeToList
-    //按初始tag类型选紧凑数组collector全Byte/Int/Long用对应紧凑数组其他用ListTag
+    //Create a list collector for mergeToList
+    //Pick the collector from the initial tag type: all Byte/Int/Long use the matching compact array, anything else a ListTag
     private ListCollector? CreateCollector(Tag tag)
     {
         if (tag is EndTag) return new GenericListCollector();
@@ -257,7 +257,7 @@ public sealed class NbtOps : DynamicOps<Tag>
         return null;
     }
 
-    //返回record builder用于MapCodec.Encoder
+    //Returns a record builder for MapCodec.Encoder
     public RecordBuilder<Tag> MapBuilder() => new NbtRecordBuilder(this);
     private sealed class CompoundMapLike : MapLike<Tag>
     {
@@ -279,7 +279,7 @@ public sealed class NbtOps : DynamicOps<Tag>
             => _tag.Select(e => new Pair<Tag, Tag>(StringTag.ValueOf(e.Key), e.Value));
     }
 
-    //list collector接口对应原版ListCollector
+    //List collector interface, mirroring vanilla ListCollector
     private interface ListCollector
     {
         ListCollector Accept(Tag tag);
@@ -287,7 +287,7 @@ public sealed class NbtOps : DynamicOps<Tag>
         Tag Result();
     }
 
-    //通用ListTag collector不优化紧凑数组遇到任意类型都加入ListTag
+    //Generic ListTag collector with no compact array optimization; any type is added to the ListTag
     private sealed class GenericListCollector : ListCollector
     {
         private readonly ListTag _result = new();
@@ -308,7 +308,7 @@ public sealed class NbtOps : DynamicOps<Tag>
         public Tag Result() => _result;
     }
 
-    //ByteCollector累积ByteTag到byte[]结果ByteArrayTag遇非ByteTag降级GenericListCollector
+    //ByteCollector accumulates ByteTags into a byte[] and yields a ByteArrayTag; a non-ByteTag degrades it to GenericListCollector
     private sealed class ByteCollector : ListCollector
     {
         private readonly List<byte> _bytes = new();
@@ -325,7 +325,7 @@ public sealed class NbtOps : DynamicOps<Tag>
                 _bytes.Add(b.Value);
                 return this;
             }
-            //降级为GenericListCollector把已累积byte转回ByteTag再追加新tag
+            //Degrade to GenericListCollector: convert the accumulated bytes back to ByteTags and append the new tag
             var generic = new GenericListCollector(_bytes.Select(bv => (Tag)ByteTag.ValueOf(bv)));
             return generic.Accept(tag);
         }
@@ -333,7 +333,7 @@ public sealed class NbtOps : DynamicOps<Tag>
         public Tag Result() => new ByteArrayTag(_bytes.ToArray());
     }
 
-    //IntCollector累积IntTag到int[]结果IntArrayTag遇非IntTag降级GenericListCollector
+    //IntCollector accumulates IntTags into an int[] and yields an IntArrayTag; a non-IntTag degrades it to GenericListCollector
     private sealed class IntCollector : ListCollector
     {
         private readonly List<int> _ints = new();
@@ -357,7 +357,7 @@ public sealed class NbtOps : DynamicOps<Tag>
         public Tag Result() => new IntArrayTag(_ints.ToArray());
     }
 
-    //LongCollector累积LongTag到long[]结果LongArrayTag遇非LongTag降级GenericListCollector
+    //LongCollector accumulates LongTags into a long[] and yields a LongArrayTag; a non-LongTag degrades it to GenericListCollector
     private sealed class LongCollector : ListCollector
     {
         private readonly List<long> _longs = new();
@@ -382,8 +382,8 @@ public sealed class NbtOps : DynamicOps<Tag>
     }
 }
 
-//NBT的RecordBuilder实现对应原版NbtRecordBuilder
-//累积字段到CompoundTag并支持prefix合并
+//RecordBuilder implementation for NBT, mirroring vanilla NbtRecordBuilder
+//Accumulates fields into a CompoundTag and supports prefix merging
 public sealed class NbtRecordBuilder : AbstractRecordBuilder<Tag>
 {
     public NbtRecordBuilder(NbtOps ops) : base(ops) { }

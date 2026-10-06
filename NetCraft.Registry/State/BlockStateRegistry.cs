@@ -2,15 +2,15 @@ using System.Text;
 
 namespace NetCraft.Registry.State;
 
-//BlockState 数据存储与查表对应原版优化点2.5
-//所有 BlockState 实例的属性数据与neighbors集中存此避免每实例持有数组
-//对齐 FerriteCore FastMap 思路struct BlockState 只持 int Id 数据查此表
+//BlockState data storage and lookup, corresponds to vanilla optimization 2.5
+//Property data and neighbors for all BlockState instances are stored centrally here, avoiding per-instance arrays
+//Aligns with the FerriteCore FastMap idea: the BlockState struct holds only an int Id and looks up data in this table
 public static class BlockStateRegistry
 {
     private static readonly List<BlockStateData> _all = new();
     private static readonly Dictionary<int, BlockState> _statesById = new();
 
-    //注册一个新 BlockState 返回 struct 包装
+    //Register a new BlockState and return the struct wrapper
     public static BlockState Register(Block owner, PropertyBase[] keys, object?[] values)
     {
         if (keys.Length != values.Length)
@@ -22,7 +22,7 @@ public static class BlockStateRegistry
         return state;
     }
 
-    //注入预计算的 neighbors 表用 int 索引避免 BlockState 引用
+    //Inject the precomputed neighbors table using int indexes to avoid BlockState references
     public static void InitializeNeighbors(int stateId, int[][] neighbors)
     {
         if (_all[stateId].Neighbors is not null)
@@ -32,7 +32,7 @@ public static class BlockStateRegistry
 
     public static int Count => _all.Count;
 
-    //GetState 按 id 返回 BlockState 越界返回 default 供网络 palette 反查
+    //GetState returns a BlockState by id, or default when out of range, for network palette reverse lookup
     public static BlockState GetState(int id)
         => id >= 0 && id < _all.Count ? _statesById[id] : default;
 
@@ -42,9 +42,9 @@ public static class BlockStateRegistry
 
     public static bool IsSingletonState(int id) => _all[id].PropertyKeys.Length == 0;
 
-    //属性索引查表线性查找对齐原版 ValueIndex
-    //按名与值类型判等而不是比引用 方块表给每个方块现造的属性实例与 BlockStateProperties 的常量实例不是同一个
-    //同一个方块内属性名唯一 按名匹配不会串到别的属性上
+    //Property index lookup; linear search aligns with vanilla ValueIndex
+    //Equality is by name and value type rather than reference; the property instance built per block by the block table is not the same as the constant in BlockStateProperties
+    //Property names are unique within a block, so matching by name cannot cross over to another property
     private static int ValueIndex(int id, PropertyBase property)
     {
         var keys = _all[id].PropertyKeys;
@@ -80,8 +80,8 @@ public static class BlockStateRegistry
         var index = ValueIndex(id, property);
         if (index == -1)
             throw new ArgumentException($"Cannot set property {property} as it does not exist in {Owner(id)}");
-        //值索引要按方块自己那份属性算 同名同类型的两份实例值域可能不同
-        //四向 facing 与六向 facing 就是同名同类型 拿错实例会算到越界索引
+        //The value index must be computed from the block's own property; two instances with the same name and type may have different value ranges
+        //Four-way facing and six-way facing share a name and type, so using the wrong instance would compute an out-of-range index
         var actual = _all[id].PropertyKeys[index] as Property<T> ?? property;
         var valueIndex = actual.GetInternalIndex(value);
         if (valueIndex < 0)
@@ -99,7 +99,7 @@ public static class BlockStateRegistry
         return _statesById[_all[id].Neighbors![index][valueIndex]];
     }
 
-    //非泛型SetValue用于Codec反序列化不要求T为IComparable
+    //Non-generic SetValue used by Codec deserialization, not requiring T to be IComparable
     public static BlockState SetValue(int id, PropertyBase property, object value)
     {
         var index = ValueIndex(id, property);
@@ -148,7 +148,7 @@ public static class BlockStateRegistry
         return builder.ToString();
     }
 
-    //重置仅供测试使用清空所有已注册数据
+    //Reset clears all registered data, for tests only
     public static void Reset()
     {
         _all.Clear();

@@ -2,8 +2,8 @@ using NetCraft.Commands;
 
 namespace NetCraft.Commands.Exceptions;
 
-//Dynamic4CommandExceptionType 四参动态异常类型对应原版Dynamic4CommandExceptionType
-//按四个参数通过Func生成Message创建CommandSyntaxException
+//Dynamic4CommandExceptionType four-argument dynamic exception type, maps to vanilla Dynamic4CommandExceptionType
+//Produces a Message from four arguments via a Func and creates a CommandSyntaxException
 public sealed class Dynamic4CommandExceptionType : ICommandExceptionType
 {
     private readonly Func<object, object, object, object, IMessage> _function;

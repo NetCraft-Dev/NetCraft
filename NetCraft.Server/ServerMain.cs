@@ -22,78 +22,78 @@ using NetCraft.Util;
 using NetCraft.Util.Random;
 using BootstrapClass = NetCraft.Bootstrap.Bootstrap;
 using GameConfiguredWorldCarver = NetCraft.Game.World.Level.LevelGen.Carver.ConfiguredWorldCarver;
-//注册表与关卡定义各有一个 DimensionType 前者是标记接口 这里固定指 Game 层的真实类型
+//The registry and level definitions each have a DimensionType, the former is a marker interface, this fixes the reference to the real Game-layer type
 using GameDimensionType = NetCraft.Game.World.Level.LevelGen.Dimension.DimensionType;
 
 namespace NetCraft.Game;
 
-//ServerMain 服务端主入口
-//对应原版 net.minecraft.server.Main
-//串联 内核初始化 + 启动参数解析 + 服务端业务调度
-//本类自身即 EXE 入口 也可被 NetCraft.Loader 引用后分发调用
+//ServerMain, the server main entry point
+//Maps to vanilla net.minecraft.server.Main
+//Chains kernel initialization + startup argument parsing + server business dispatch
+//This class is itself the EXE entry point and can also be referenced by NetCraft.Loader for dispatch
 public static class ServerMain
 {
     private static int _started;
 
-    //Run 服务端启动主函数
-    //进程入口在 NetCraft.ServerExe 里 模组引导也在那边做 这里只负责启动流程本身
-    //args 命令行参数 内核识别的消费未识别的通过事件传给 GameOptions
+    //Run the server startup main function
+    //The process entry is in NetCraft.ServerExe where mod bootstrap also happens, this only handles the startup flow itself
+    //args command line arguments, kernel-recognized ones are consumed and the rest are passed to GameOptions through an event
     public static void Run(string[] args)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
         {
             Log.Warning("ServerMain already started, ignoring duplicate call");
-            //Log.Debug("Run 出口");
+            //Log.Debug("Run exit");
             return;
         }
         Log.Debug($"Run entry args={string.Join(",", args)}");
 
         Log.SetClassSource(typeof(ServerMain));
-        //崩溃报告文件名里的角色段 与内核共用的处理器靠它区分客户端与服务端
+        //The role segment in the crash report file name, the handler shared with the kernel uses it to tell client from server
         CrashHandler.Role = "server";
         Log.Info("NetCraft server starting");
 
-        //GUI 默认启用 --nogui 与裸 nogui 都能关 对齐原版 Main 对两种写法的判定
-        //nogui 声明成内核 flag 让 LaunchOptions 吞掉 免得漏进 GameOptions 当成未知参数
+        //GUI is enabled by default, both --nogui and bare nogui disable it, matching vanilla Main's handling of both spellings
+        //nogui is declared as a kernel flag for LaunchOptions to swallow, so it does not leak into GameOptions as an unknown argument
         LaunchOptions.DeclareKernelFlag("nogui");
-        //noconsole 关掉终端命令行 对应 Paper 的 --noconsole 与 --nojline 给脚本与 CI 用
+        //noconsole disables the terminal console, maps to Paper's --noconsole and --nojline, for scripts and CI
         LaunchOptions.DeclareKernelFlag("noconsole");
-        //potato 彩蛋开关 同样交给内核吞掉 免得被 GameOptions 当成未知参数
+        //potato easter egg toggle, also swallowed by the kernel so GameOptions does not treat it as an unknown argument
         LaunchOptions.DeclareKernelFlag("potato");
         var useGui = Array.IndexOf(args, "--nogui") < 0 && Array.IndexOf(args, "nogui") < 0;
         var useConsole = Array.IndexOf(args, "--noconsole") < 0;
 
-        //1. 创建 GameOptions 订阅内核未识别参数事件
+        //1. Create GameOptions and subscribe to the kernel's unrecognized-argument event
         var options = new GameOptions();
         options.Subscribe();
 
-        //2. 初始化内核触发 LaunchOptions.Parse
+        //2. Initialize the kernel, triggering LaunchOptions.Parse
         NetCraftKernel.Initialize(args);
 
-        //3. 解析剩余挂起参数
+        //3. Parse the remaining pending arguments
         options.FlushPending();
 
-        //4. 设置 --output-dir 覆盖基准未传则用 AppContext.BaseDirectory
-        //   下游统一从 AppPaths 取避免相对路径被解释为运行时工作目录
+        //4. Set the --output-dir override base, AppContext.BaseDirectory when not passed
+        //   Downstream reads everything from AppPaths to avoid relative paths being interpreted against the runtime working directory
         AppPaths.SetOverride(options.GetOptionOrDefault("output-dir", string.Empty));
 
-        //4.1 加载 server.properties 不存在则生成默认
-        //    端口 max-players 难度 正版验证 PVP 视野距离等
-        //    只依赖 AppPaths 不依赖资源 提前到这里是为了让后面全程知道该说哪国话
+        //4.1 Load server.properties, generate defaults when absent
+        //    Port, max-players, difficulty, online mode, PVP, view distance and so on
+        //    Depends only on AppPaths and not on resources, pulled early so everything afterwards knows which language to speak
         var settings = ServerSettings.LoadOrGenerate(AppPaths.ServerPropertiesPath);
 
-        //4.2 按配置里的语言码装语言表 配了不支持的语言码时退回 en_us
-        //    语言文件已由内核解压到根目录 lang/ 内核那次装的是默认码 这一步才把它定死
+        //4.2 Load the language table by the language code in config, falls back to en_us for an unsupported code
+        //    The kernel has already extracted language files to lang/, the kernel load used the default code and this step pins it down
         NcLanguage.Load(settings.NcLanguage);
         Log.Info($"Server settings port {settings.ServerPort} level {settings.LevelName} gamemode {settings.Gamemode} difficulty {settings.Difficulty} language {settings.NcLanguage}");
 
-        //5. 提取 jar 资源到 assets/ 与 data/ 同时把 pack.mcmeta 复制到根目录
-        //   与 ClientMain 步骤 5 对齐让服务端也能加载原版资源与数据驱动内容
-        //   必须早于 BootstrapClass.BootStrap 因后者会 Freeze 注册表 冻结后无法再写入
+        //5. Extract jar resources to assets/ and data/ and copy pack.mcmeta to the root
+        //   Aligned with step 5 of ClientMain so the server can also load vanilla resources and data-driven content
+        //   Must precede BootstrapClass.BootStrap since the latter freezes registries and they can no longer be written to after freezing
         AssetsExtractor.Extract(options);
 
-        //6. 构造 ResourceManager 加载 vanilla pack
-        //   vanilla pack 以 BaseDirectory 为根读 assets/ 与 data/ 子树与 pack.mcmeta
+        //6. Build the ResourceManager and load the vanilla pack
+        //   The vanilla pack reads the assets/ and data/ subtrees and pack.mcmeta rooted at BaseDirectory
         var registryAccess = BuiltInRegistries.CreateRegistryAccess();
         var resourceManager = new ResourceManager();
         resourceManager.AddPack(new Pack(
@@ -104,32 +104,32 @@ public static class ServerMain
             isBuiltin: true,
             resources: new FolderPackResources("vanilla", AppPaths.BaseDirectory)));
 
-        //6.1 挂上资源包后再装一次 这次能一并取到原版译名
-        //    NC 自有文案仍是根目录 lang/ 那批 两边合进同一张表
+        //6.1 Load again after attaching the resource pack, this time vanilla translations are picked up too
+        //    NC's own text is still the batch under lang/, both sides merge into one table
         LanguageTable.Load(resourceManager, settings.NcLanguage);
 
-        //7. Game 层引导前半段 必须在数据驱动加载之前
-        //   密度函数类型表/方块是元素 JSON 的 codec 依赖 缺了会整批解码失败
-        //   环境属性表也要先注册 biome 的 attributes 字段按键查这张表
+        //7. The first half of Game layer bootstrap, must precede data-driven loading
+        //   The density function type table and blocks are codec dependencies of element JSON, missing them fails the whole batch of decoding
+        //   The environment attribute table must also be registered first for the biome attributes field to look up by key
         DataComponents.Bootstrap();
         GameBootstrap.BootstrapBeforeDataLoad();
         EnvironmentAttributes.RegisterAll();
 
-        //8. 数据驱动加载注册表元素 必须早于 Freeze
-        //   有 jar 时群系/密度函数/噪声/噪声设置取 data/minecraft/worldgen/ 下的原版真值
-        //   无 jar 时加载 0 项 由第 9 步 Noises.Bootstrap 与 NoiseGeneratorSettings.Overworld 兜底
-        //   worldgen 注册表在 Registries 侧是 object 键 用 Boxed 把强类型 codec 解出的元素装箱装载
-        //   元素之间互相引用 加载器多轮重试直到引用目标就位
+        //8. Data-driven loading of registry elements, must precede Freeze
+        //   With a jar, biomes/density functions/noise/noise settings take the vanilla true values under data/minecraft/worldgen/
+        //   Without a jar, 0 items are loaded and step 9 Noises.Bootstrap and NoiseGeneratorSettings.Overworld fall back
+        //   The worldgen registries are object-keyed on the Registries side, Boxed boxes elements decoded by the strongly typed codec for loading
+        //   Elements reference each other, the loader retries in rounds until the referenced targets are in place
         var registryLoad = RegistryDataLoader.Load(resourceManager, registryAccess, new RegistryData[]
         {
             new RegistryData<NoiseParameters>(
                 (WritableRegistry<NoiseParameters>)BuiltInRegistries.NOISE, NoiseParameters.Codec),
             RegistryData.Boxed((WritableRegistry<object>)BuiltInRegistries.DENSITY_FUNCTION, DensityFunctionCodec.Instance),
-            //configured_carver 必须排在 biome 之前 群系的 carvers 字段解析时要按注册名查它们
+            //configured_carver must come before biome, the biome carvers field looks them up by registry name when parsing
             new RegistryData<ConfiguredWorldCarver>(
                 (WritableRegistry<ConfiguredWorldCarver>)BuiltInRegistries.CONFIGURED_CARVER,
                 GameConfiguredWorldCarver.ElementCodec),
-            //configured_feature / placed_feature 同样要排在 biome 之前 群系的 features 字段要按注册名查它们
+            //configured_feature / placed_feature must also come before biome, the biome features field looks them up by registry name
             new RegistryData<NetCraft.Registry.ConfiguredFeature>(
                 (WritableRegistry<NetCraft.Registry.ConfiguredFeature>)BuiltInRegistries.CONFIGURED_FEATURE,
                 NetCraft.Game.World.Level.LevelGen.Features.ConfiguredFeature.ElementCodec),
@@ -139,12 +139,12 @@ public static class ServerMain
             new RegistryData<Biome>((WritableRegistry<Biome>)BuiltInRegistries.BIOME, Biome.DirectCodec),
             RegistryData.Boxed((WritableRegistry<object>)BuiltInRegistries.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST, MultiNoiseBiomeSourceParameterList.Codec),
             RegistryData.Boxed((WritableRegistry<object>)BuiltInRegistries.NOISE_SETTINGS, NoiseGeneratorSettings.Codec),
-            //dimension_type 维度类型 决定各维度的高度范围/坐标缩放/天光与天花板
+            //dimension_type, decides the height range / coordinate scale / skylight and ceiling of each dimension
             new RegistryData<NetCraft.Registry.DimensionType>(
                 (WritableRegistry<NetCraft.Registry.DimensionType>)BuiltInRegistries.DIMENSION_TYPE,
                 GameDimensionType.ElementCodec),
-            //structure 系列四类 顺序 processor_list → template_pool → structure → structure_set
-            //模板池的元素要按注册名查处理器列表 结构要查模板池 结构集合最后引用结构
+            //The structure series has four kinds, order processor_list → template_pool → structure → structure_set
+            //Template pool elements look up processor lists by registry name, structures look up template pools, and structure sets reference structures last
             new RegistryData<NetCraft.Registry.StructureProcessorList>(
                 (WritableRegistry<NetCraft.Registry.StructureProcessorList>)BuiltInRegistries.PROCESSOR_LIST,
                 NetCraft.Game.World.Level.LevelGen.Structure.StructureProcessorList.ElementCodec),
@@ -161,39 +161,39 @@ public static class ServerMain
         Log.Info($"Registry data loaded: {registryLoad.LoadedCount} elements, {registryLoad.Errors.Count} errors");
         foreach (var error in registryLoad.Errors) Log.Warning($"Registry element failed to load: {error}");
 
-        //8.1 维度类型兜底与关卡定义装载
-        //    dimension_type 已随第 8 步数据驱动装载 无数据包时用内置常量补齐三个必需维度
-        //    level_stem 没有独立目录 内嵌在 worldgen/world_preset/<预设>.json 的 dimensions 段
+        //8.1 Dimension type fallback and level definition loading
+        //    dimension_type is loaded by step 8's data-driven pass, without a data pack the three required dimensions are filled in from built-in constants
+        //    level_stem has no separate directory, it is embedded in the dimensions section of worldgen/world_preset/<preset>.json
         DimensionTypes.RegisterBuiltin();
         var loadedDimensions = WorldPresets.Load(resourceManager, registryAccess, WorldPresets.Normal);
         Log.Info(loadedDimensions.Count == 0
             ? "Level definitions not loaded (resource pack lacks world_preset), dimension setup falls back to built-ins"
             : $"Level definitions loaded: {loadedDimensions.Count} dimensions {string.Join(",", loadedDimensions)}");
 
-        //9. Game 层引导后半段与内置注册表 freeze
-        //   Noises.Bootstrap 对已被第 8 步数据驱动填充的键跳过 保证 JSON 里的原版真值优先
-        //   必须在 BootstrapClass.BootStrap 之前完成因 BootStrap 会 Freeze 所有注册表
+        //9. The second half of Game layer bootstrap and the built-in registry freeze
+        //   Noises.Bootstrap skips keys already filled by step 8's data-driven pass, ensuring the vanilla true values in JSON win
+        //   Must complete before BootstrapClass.BootStrap since BootStrap freezes all registries
         GameBootstrap.BootstrapAfterDataLoad();
-        //9.1 结构模板管理器注入 必须在结构系列装载之后 否则拿不到已装载的 jigsaw 结构实例
+        //9.1 Structure template manager injection, must come after the structure series is loaded, otherwise it cannot get the loaded jigsaw structure instances
         GameBootstrap.InjectStructureTemplates(resourceManager);
         BootstrapClass.BootStrap();
 
-        //10. 触发 Tags 等数据驱动重载
-        //    必须在 BootstrapClass.BootStrap 之后因 BindAll 要求 Registry 已 Freeze
-        //    LoadResources 注册 TagsReloadListener 调 LoadBuiltinTags+BindAll
+        //10. Trigger data-driven reloads such as Tags
+        //    Must come after BootstrapClass.BootStrap since BindAll requires the registries to be frozen
+        //    LoadResources registers TagsReloadListener which calls LoadBuiltinTags+BindAll
         var rsr = ReloadableServerResources.LoadResources(resourceManager, registryAccess);
         Log.Info($"Server resources loaded: {rsr.Listeners.Count} listeners, {resourceManager.Packs.Count} packs");
 
-        //12. 初始化世界存储
-        //   参考原生 LevelStorageSource.createWorldStorage 加载 anvil 区域文件
-        //   NetCraft.Storage 已实现 LevelStorage 包装 RegionFileStorage 提供世界存储入口
+        //12. Initialize world storage
+        //   Follows native LevelStorageSource.createWorldStorage to load anvil region files
+        //   NetCraft.Storage implements LevelStorage wrapping RegionFileStorage as the world storage entry point
         var levelStorage = new LevelStorage(AppPaths.WorldsDir);
         var levelAccess = levelStorage.CreateAccess(settings.LevelName);
         Log.Info($"World storage ready {levelAccess.WorldDir}");
 
-        //读 level.dat 存在则世界元数据从存档恢复种子优先取 world_gen_settings.dat
-        //新世界种子来自 server.properties 的 level-seed 首次落盘后固化
-        //level.dat 损坏时拒绝启动 静默当新世界会在 initServer 固化时把旧存档覆盖掉
+        //Read level.dat, when present the world metadata is restored from the save and the seed prefers world_gen_settings.dat
+        //A new world seed comes from level-seed in server.properties and is fixed after the first write to disk
+        //A corrupt level.dat refuses startup, silently treating it as a new world would overwrite the old save when initServer fixes it
         LevelData? levelData;
         try
         {
@@ -216,32 +216,32 @@ public static class ServerMain
             seed = ParseLevelSeed(settings.LevelSeed);
         }
 
-        //13. 构建 DataFixer 与 DedicatedServer 实例并启动主循环
-        //   GameDataFixers.BuildV1_21Fixer 注册 13 个 Schema 与 18 个 Fix 覆盖 1.20.2 到 1.21.4 升级链
-        //   DedicatedServer 内部创建 OVERWORLD 维度 SimpleRegionStorage 与 PersistentServerLevel 接入存档
-        //   接入 NoiseBasedChunkGenerator + MultiNoiseBiomeSource 让世界生成子系统真正被使用
-        //   噪声设置优先取第 8 步数据驱动的 minecraft:overworld 无 jar 时回退硬编码
-        //   rsr 持有 ResourceManager 与 Tags 供后续 /reload 命令重载
-        //   server.Run 阻塞当前线程直到 server.Stop 被调用 Stop 时强制刷盘
+        //13. Build the DataFixer and DedicatedServer instances and start the main loop
+        //   GameDataFixers.BuildV1_21Fixer registers 13 Schemas and 18 Fixes covering the 1.20.2 to 1.21.4 upgrade chain
+        //   DedicatedServer internally creates the OVERWORLD dimension SimpleRegionStorage and PersistentServerLevel to hook into the save
+        //   Hooking in NoiseBasedChunkGenerator + MultiNoiseBiomeSource puts the world generation subsystem to real use
+        //   Noise settings prefer the data-driven minecraft:overworld from step 8, falling back to hardcoded without a jar
+        //   rsr holds the ResourceManager and Tags for later /reload commands
+        //   server.Run blocks the current thread until server.Stop is called, Stop forces a disk flush
         var dataFixer = GameDataFixers.BuildV1_21Fixer();
         var random = RandomSource.Create(seed);
-        //按关卡定义装配主世界生成器 数据包缺 world_preset 时退回硬编码兜底
-        //噪声设置与群系参数表都优先取第 8 步数据驱动的真值
+        //Assemble the overworld generator from the level definition, falling back to the hardcoded fallback when the data pack lacks world_preset
+        //Noise settings and the biome parameter list both prefer the data-driven true values from step 8
         var overworldStem = WorldPresets.Get(LevelKeys.OVERWORLD.Identifier);
         var chunkGenerator = overworldStem?.Generator ?? BuildFallbackOverworldGenerator();
         Log.Info(overworldStem is null
             ? "Overworld generator uses hardcoded fallback (level definitions not loaded)"
             : "Overworld generator comes from level definition minecraft:overworld");
 
-        //GUI 模式服务端主循环要跑在后台线程(主线程留给 Avalonia 消息循环)
-        //先把线程对象交给 DedicatedServer 登记 循环体等 server 建好再启动
+        //In GUI mode the server main loop must run on a background thread (the main thread is reserved for the Avalonia message loop)
+        //The thread object is registered with DedicatedServer first and the loop body starts once the server is built
         DedicatedServer? guiServer = null;
         var serverThread = useGui
             ? new Thread(() => { guiServer!.InitServer(); guiServer.Run(); })
             { Name = "NetCraft-Server", IsBackground = true }
             : null;
 
-        //各维度的维度类型与关卡定义都来自数据包 由 DedicatedServer 按注册表逐个建世界
+        //Each dimension's type and level definition come from the data pack, DedicatedServer builds worlds one by one from the registries
         using var server = new DedicatedServer(
             serverThread ?? Thread.CurrentThread,
             settings,
@@ -253,8 +253,8 @@ public static class ServerMain
             worldSeed: seed,
             levelData: levelData);
 
-        //BuildFallbackOverworldGenerator 无数据包时的主世界生成器
-        //与数据驱动路径等价 只是噪声设置与参数表取硬编码常量
+        //BuildFallbackOverworldGenerator, the overworld generator when there is no data pack
+        //Equivalent to the data-driven path, only noise settings and the parameter list come from hardcoded constants
         static ChunkGenerator BuildFallbackOverworldGenerator()
         {
             var loadedSettings = BuiltInRegistries.NOISE_SETTINGS
@@ -268,12 +268,12 @@ public static class ServerMain
             return new NoiseBasedChunkGenerator(biomeSource, noiseSettings);
         }
 
-        //13.1 订阅运行时 GC 与 JIT 事件 内存图基线红紫点与调试日志都从这来
-        //启动期的 GC 也要看得见所以尽早订阅 起不来只影响打点不会牵连服务端
+        //13.1 Subscribe to runtime GC and JIT events, the memory graph baseline red and purple dots and debug logs all come from here
+        //Startup GCs must be visible too so this subscribes early, a failure only affects the dots and does not affect the server
         GcEventMonitor.Start();
         JitEventMonitor.Start();
 
-        //注册 Ctrl+C 触发优雅关闭 GUI 模式下窗口会随后自行关闭
+        //Register Ctrl+C for graceful shutdown, in GUI mode the window then closes by itself
         Console.CancelKeyPress += (_, e) =>
         {
             e.Cancel = true;
@@ -282,8 +282,8 @@ public static class ServerMain
 
         if (useGui)
         {
-            //14.1 有 GUI：服务端主循环放后台线程 主线程交给 Avalonia 直到窗口关闭
-            //终端那一路命令行两种模式都留着 对应原版开 GUI 也保留控制台命令输入
+            //14.1 With GUI: the server main loop goes on a background thread and the main thread is given to Avalonia until the window closes
+            //The terminal console stays in both modes, matching vanilla keeping console command input with the GUI on
             Log.Info("Server GUI enabled, closing the window stops the server; pass --nogui or nogui to run headless");
             using ReplConsole? repl = useConsole ? ReplConsole.Start(server) : null;
             guiServer = server;
@@ -292,23 +292,23 @@ public static class ServerMain
         }
         else
         {
-            //14.2 无 GUI：沿用原路径 主线程直接跑 对应原版 runServer 先 initServer 再 tick
-            //命令行要在 Run 阻塞主线程之前起来 它自己开后台线程读键
-            //输入或输出被重定向时它只挂一条读行线程 脚本与管道喂命令走的就是那条
+            //14.2 Without GUI: the original path is used, the main thread runs directly, matching vanilla runServer calling initServer then ticking
+            //The console must be started before Run blocks the main thread, it opens its own background thread to read keys
+            //When input or output is redirected it only starts a line-reading thread, that is the path scripts and pipes use to feed commands
             using ReplConsole? repl = useConsole ? ReplConsole.Start(server) : null;
             server.InitServer();
             server.Run();
         }
 
-        //15. 清理退出
+        //15. Cleanup and exit
         GcEventMonitor.Stop();
         options.Unsubscribe();
         Log.Info("NetCraft server stopped");
-        //Log.Debug("Run 出口");
+        //Log.Debug("Run exit");
     }
 
-    //WaitForServer 阻塞调用线程直到服务端关闭
-    //外部 EXE 用此方法保持进程不退出
+    //WaitForServer blocks the calling thread until the server shuts down
+    //The external EXE uses this method to keep the process alive
     public static void WaitForServer(CancellationToken cancellationToken = default)
     {
         Log.Debug($"WaitForServer entry cancellationToken={cancellationToken}");
@@ -318,13 +318,13 @@ public static class ServerMain
         }
         catch (OperationCanceledException)
         {
-            //正常退出
+            //Normal exit
         }
-        //Log.Debug("WaitForServer 出口");
+        //Log.Debug("WaitForServer exit");
     }
 
-    //ParseLevelSeed 解析 server.properties 中的 level-seed 字段
-    //空或非数字返回随机 long 数字返回 long.Parse 结果对齐原版 seed 语义
+    //ParseLevelSeed parses the level-seed field in server.properties
+    //Empty or non-numeric returns a random long, numeric returns the long.Parse result, aligned with vanilla seed semantics
     private static long ParseLevelSeed(string? seedStr)
     {
         if (string.IsNullOrWhiteSpace(seedStr)) return RandomSupport.GenerateUniqueSeed();

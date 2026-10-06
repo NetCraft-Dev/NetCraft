@@ -2,8 +2,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry;
 
-//DamageEffects 受伤表现 对应原版 net.minecraft.world.damagesource.DamageEffects
-//原版每项还带一个音效 本作音效体系未接通 只保留序列化名
+//DamageEffects hurt effect, maps to vanilla net.minecraft.world.damagesource.DamageEffects
+//Each vanilla entry also carries a sound; the sound system is not wired up here yet, so only the serialized names are kept
 public enum DamageEffects
 {
     HURT,
@@ -14,10 +14,10 @@ public enum DamageEffects
     FREEZING
 }
 
-//DamageEffectsCodecs 受伤表现的序列化名与编解码
+//DamageEffectsCodecs serialized names and codecs for hurt effects
 public static class DamageEffectsCodecs
 {
-    //GetName 序列化名 对应原版 getSerializedName
+    //GetName serialized name, maps to vanilla getSerializedName
     public static string GetName(this DamageEffects effects) => effects switch
     {
         DamageEffects.HURT => "hurt",
@@ -28,7 +28,7 @@ public static class DamageEffectsCodecs
         _ => "freezing"
     };
 
-    //Codec 持久化编解码 按序列化名 对应原版 CODEC
+    //Codec persistence codec by serialized name, maps to vanilla CODEC
     public static readonly Codec<DamageEffects> Codec = Codecs.String.ComapFlatMap(
         name => name switch
         {
@@ -38,7 +38,7 @@ public static class DamageEffectsCodecs
             "burning" => DataResult<DamageEffects>.Success(DamageEffects.BURNING),
             "poking" => DataResult<DamageEffects>.Success(DamageEffects.POKING),
             "freezing" => DataResult<DamageEffects>.Success(DamageEffects.FREEZING),
-            _ => DataResult<DamageEffects>.Error(() => $"未知受伤表现 {name}")
+            _ => DataResult<DamageEffects>.Error(() => $"Unknown hurt effect {name}")
         },
         effects => effects.GetName());
 }

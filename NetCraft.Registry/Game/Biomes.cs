@@ -1,7 +1,7 @@
 namespace NetCraft.Registry;
 
-//Biomes 内置生物群系键常量对应原版 net.minecraft.world.level.biome.Biomes
-//覆盖 data/minecraft/worldgen/biome 下全部 66 个原版群系 顺序与文件名一致
+//Biomes built-in biome key constants, maps to vanilla net.minecraft.world.level.biome.Biomes
+//Covers all 66 vanilla biomes under data/minecraft/worldgen/biome, in the same order as the file names
 public static class Biomes
 {
     public static readonly ResourceKey<Biome> BADLANDS = Create("badlands");
@@ -71,7 +71,7 @@ public static class Biomes
     public static readonly ResourceKey<Biome> WINDSWEPT_SAVANNA = Create("windswept_savanna");
     public static readonly ResourceKey<Biome> WOODED_BADLANDS = Create("wooded_badlands");
 
-    //Create 在 BIOME 注册表内建键
+    //Create builds a key in the BIOME registry
     private static ResourceKey<Biome> Create(string path)
         => ResourceKey<Biome>.Create(Registries.BIOME, Identifier.WithDefaultNamespace(path));
 }

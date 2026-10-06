@@ -1,23 +1,23 @@
 namespace NetCraft.Registry;
 
-//HolderLookup 元素查找接口对应原版 net.minecraft.core.HolderLookup
-//Registry 继承提供按 ResourceKey 查 Holder 与列举元素标签能力
-//故意不含 Get(Identifier)/Get(TagKey) 避免与 Registry 同名方法签名冲突 Registry 已有这两个方法返回更具体的 Reference/NamedHolderSet
+//HolderLookup element lookup interface, maps to vanilla net.minecraft.core.HolderLookup
+//Registry extends it to look up a Holder by ResourceKey and enumerate element tags
+//Deliberately omits Get(Identifier)/Get(TagKey) to avoid signature conflicts with same-named Registry methods; Registry already has both and returns the more specific Reference/NamedHolderSet
 public interface HolderLookup<T> where T : class
 {
-    //ListElements 列举所有已注册 Holder
+    //ListElements enumerates all registered Holders
     IEnumerable<Holder<T>> ListElements();
 
-    //Get 按 ResourceKey 查 Holder 找不到返回 null
+    //Get looks up a Holder by ResourceKey; returns null if not found
     Holder<T>? Get(ResourceKey<T> key);
 
-    //ListTags 列举所有已绑定标签与对应 HolderSet
+    //ListTags enumerates all bound tags with their HolderSets
     IEnumerable<KeyValuePair<TagKey<T>, HolderSet<T>>> ListTags();
 
-    //CanSerializeIn 判断 Holder 能否在指定 owner 上下文序列化
+    //CanSerializeIn determines whether a Holder can be serialized in the given owner context
     bool CanSerializeIn(HolderOwner<T> owner);
 
-    //GetOrDefault 按 ResourceKey 查 Holder 找不到返回 Direct(value) 或 null
+    //GetOrDefault looks up a Holder by ResourceKey; falls back to Direct(value) or null
     Holder<T>? GetOrDefault(ResourceKey<T> key, T? defaultValue)
     {
         var holder = Get(key);
@@ -26,18 +26,18 @@ public interface HolderLookup<T> where T : class
     }
 }
 
-//HolderLookupProvider 跨注册表查找入口对应原版 HolderLookup.Provider
-//RegistryAccess 继承提供 lookup 按注册表 key 查 Registry
-//用顶层接口名 HolderLookupProvider 避免嵌套命名冗长
+//HolderLookupProvider cross-registry lookup entry point, maps to vanilla HolderLookup.Provider
+//RegistryAccess extends it to look up a Registry by registry key
+//Uses the top-level interface name HolderLookupProvider to avoid verbose nesting
 public interface HolderLookupProvider
 {
-    //Lookup 按注册表 key 查 Registry 找不到返回 null
+    //Lookup looks up a Registry by registry key; returns null if not found
     Registry<T>? Lookup<T>(ResourceKey<Registry<T>> registryKey) where T : class;
 
-    //ListRegistryKeys 所有注册表标识符
+    //ListRegistryKeys lists all registry identifiers
     IEnumerable<Identifier> ListRegistryKeys();
 
-    //LookupOrThrow 按注册表 key 查 Registry 找不到抛异常
+    //LookupOrThrow looks up a Registry by registry key; throws if not found
     Registry<T> LookupOrThrow<T>(ResourceKey<Registry<T>> registryKey) where T : class
     {
         var r = Lookup<T>(registryKey);

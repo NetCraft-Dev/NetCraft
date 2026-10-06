@@ -8,16 +8,16 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.Network;
 
-//ClientConnector 客户端 TCP 连接器对应原版 Connection.connectToServer
-//后台线程建立 TcpClient 连接成功后构造 PacketFlow.Clientbound 的 Connection 启动读循环
-//走 InitiateServerboundLoginConnection 发 Intention(Hello/Ack/FinishConfiguration 由监听器推进)
-//连接结果通过 onConnected/onFailed 回调通知调用方回调在读线程或连接线程触发注意线程安全
+//ClientConnector client TCP connector, maps to vanilla Connection.connectToServer
+//A background thread establishes the TcpClient; on success it builds a Connection with PacketFlow.Clientbound and starts the read loop
+//Goes through InitiateServerboundLoginConnection to send Intention (Hello/Ack/FinishConfiguration are advanced by the listener)
+//Connection result is reported via the onConnected/onFailed callbacks; callbacks fire on the read thread or connect thread, so mind thread safety
 public static class ClientConnector
 {
-    //Connect 发起连接 host 服务器地址 port 端口 playerName 客户端玩家名
-    //player/onJoinWorld/level 透传给 ClientGamePacketListenerImpl
-    //onConnected 连接建立回调传出 Connection 供 MinecraftClient 持有 tick
-    //onFailed 连接失败回调带异常信息
+    //Connect starts a connection: host server address, port, playerName client player name
+    //player/onJoinWorld/level are passed through to ClientGamePacketListenerImpl
+    //onConnected connection-established callback; emits the Connection for MinecraftClient to hold and tick
+    //onFailed connection-failure callback carrying the exception message
     public static void Connect(string host, int port,
         ClientLevel? level, World.Entity.Player player, System.Action? onJoinWorld,
         System.Action<Connection> onConnected, System.Action<string> onFailed,
@@ -31,7 +31,7 @@ public static class ClientConnector
         thread.Start();
     }
 
-    //ConnectCore 连接主流程构造监听器链 Login->Configuration->Game 后发起登录
+    //ConnectCore main connect flow: builds the listener chain Login->Configuration->Game, then starts login
     private static void ConnectCore(string host, int port,
         ClientLevel? level, World.Entity.Player player, string playerName,
         System.Action? onJoinWorld, System.Action<Connection> onConnected, System.Action<string> onFailed)
@@ -48,7 +48,7 @@ public static class ClientConnector
             var configListener = new ClientConfigurationPacketListenerImpl(connection, gameListener);
             var loginListener = new ClientLoginPacketListenerImpl(connection, configListener);
             connection.InitiateServerboundLoginConnection(host, port, loginListener);
-            //Intention 后发 LoginStart 对齐原版 initiateServerboundPlayConnection 流程
+            //After Intention, send LoginStart, aligning with vanilla initiateServerboundPlayConnection flow
             connection.Send(new ServerboundHelloPacket(playerName, Guid.NewGuid()));
             connection.StartReadLoop();
             Log.Info($"Connected to server {host}:{port}");

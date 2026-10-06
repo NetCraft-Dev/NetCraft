@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Util.DebugChart;
 
-//SampleLogger 调试采样记录器 对应原版 net.minecraft.util.debugchart.SampleLogger
-//LogFullSample 记完整一帧 LogSample 只记首维 LogPartialSample 记指定维
+//SampleLogger debug sample recorder, maps to vanilla net.minecraft.util.debugchart.SampleLogger
+//LogFullSample logs a full frame; LogSample logs only the first dimension; LogPartialSample logs the given dimension
 public interface SampleLogger
 {
     void LogFullSample(long[] sample);

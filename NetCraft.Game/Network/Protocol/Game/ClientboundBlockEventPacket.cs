@@ -2,8 +2,8 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundBlockEventPacket 方块事件包对应原版 ClientboundBlockEventPacket
-//字段 Pos(方块坐标) B0/B1(事件参数 含义由具体方块定义) BlockId(方块注册表序号)
+//ClientboundBlockEventPacket block event packet, maps to vanilla ClientboundBlockEventPacket
+//Fields: Pos (block position), B0/B1 (event params, meaning defined by the concrete block), BlockId (block registry id)
 public sealed record ClientboundBlockEventPacket(BlockPos Pos, byte B0, byte B1, int BlockId)
     : Packet<ClientGamePacketListener>
 {
@@ -15,7 +15,7 @@ public sealed record ClientboundBlockEventPacket(BlockPos Pos, byte B0, byte B1,
 
     private sealed class BlockEventCodec : StreamCodec<FriendlyByteBuf, ClientboundBlockEventPacket>
     {
-        //原版顺序 writeBlockPos -> byte b0 -> byte b1 -> VarInt blockId
+        //Vanilla order: writeBlockPos -> byte b0 -> byte b1 -> VarInt blockId
         public ClientboundBlockEventPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadBlockPos(), buf.ReadByte(), buf.ReadByte(), buf.ReadVarInt());
 

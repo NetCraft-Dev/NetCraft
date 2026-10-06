@@ -4,9 +4,9 @@ using NetCraft.Game.Server;
 
 namespace NetCraft.Game.Server.Rcon;
 
-//RconConsoleSource RCON 命令的执行者与输出缓冲对应原版 net.minecraft.server.rcon.RconConsoleSource
-//命令输出写进缓冲 RconClient 在命令执行完后把缓冲内容发回给 RCON 客户端
-//命令源由 ServerCommandSource.Rcon 造 名字 Rcon 权限等级 owners
+//RconConsoleSource, the RCON command executor and output buffer, maps to vanilla net.minecraft.server.rcon.RconConsoleSource
+//Command output is written into the buffer, RconClient sends the buffer content back to the RCON client after the command finishes
+//The command source is built by ServerCommandSource.Rcon, named Rcon with permission level owners
 public class RconConsoleSource
 {
     private readonly StringBuilder _buffer = new();
@@ -19,17 +19,17 @@ public class RconConsoleSource
         _writer = new RconBufferWriter(_buffer);
     }
 
-    //PrepareForCommand 清空缓冲
+    //PrepareForCommand clears the buffer
     public void PrepareForCommand() => _buffer.Clear();
 
-    //GetCommandResponse 取缓冲内容
+    //GetCommandResponse returns the buffer content
     public string GetCommandResponse() => _buffer.ToString();
 
-    //CreateCommandSourceStack 造 RCON 命令源 输出走缓冲 不落日志
+    //CreateCommandSourceStack builds the RCON command source, output goes to the buffer and not to logs
     public ServerCommandSource CreateCommandSourceStack()
         => ServerCommandSource.Rcon(_server, _writer);
 
-    //RconBufferWriter 把命令回执写进缓冲 NewLine 置空让 WriteLine 不追加换行 与原版 append 行为一致
+    //RconBufferWriter writes command replies into the buffer, NewLine is empty so WriteLine does not append a newline, matching vanilla append behavior
     private sealed class RconBufferWriter(StringBuilder buffer) : TextWriter
     {
         public override Encoding Encoding => Encoding.UTF8;

@@ -2,14 +2,14 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry;
 
-//DataComponentMap 数据组件映射对应原版 net.minecraft.core.component.DataComponentMap
-//继承 DataComponentLookup 只读接口加 Composite 静态构造 Builder 在 Network 子库构建可变版本
+//DataComponentMap data component map, maps to vanilla net.minecraft.core.component.DataComponentMap
+//Extends the read-only DataComponentLookup interface and adds Composite plus static construction; Builder builds the mutable version in the Network sub-library
 public interface DataComponentMap : DataComponentLookup
 {
-    //Empty 空映射单例
+    //Empty empty map singleton
     public static DataComponentMap Empty { get; } = EmptyDataComponentMap.Instance;
 
-    //CODEC 整表持久化编解码 transient 组件不写出 对应原版 DataComponentMap.CODEC
+    //CODEC whole-map persistence codec; transient components are not written out, maps to vanilla DataComponentMap.CODEC
     public static readonly Codec<DataComponentMap> CODEC = DataComponentType<object>.VALUE_MAP_CODEC.ComapFlatMap(
         map =>
         {
@@ -19,14 +19,14 @@ public interface DataComponentMap : DataComponentLookup
         },
         ToValueMap);
 
-    //Composite 组合 prototype 与 overrides overrides 优先
+    //Composite combines prototype and overrides, overrides take priority
     static DataComponentMap Composite(DataComponentMap prototype, DataComponentMap overrides)
         => new CompositeDataComponentMap(prototype, overrides);
 
-    //Builder 造组件映射构造器 对应原版 builder
+    //Builder creates a component map builder, maps to vanilla builder
     static DataComponentMapBuilder Builder() => new();
 
-    //ToValueMap 取可持久化的组件项 编码侧过滤 transient 对应原版 makeCodecFromMap 的编码侧
+    //ToValueMap takes the persistable component entries, filtering transient on the encode side, maps to the encode side of vanilla makeCodecFromMap
     private static Dictionary<DataComponentType<object>, object> ToValueMap(DataComponentMap map)
     {
         var result = new Dictionary<DataComponentType<object>, object>();
@@ -37,7 +37,7 @@ public interface DataComponentMap : DataComponentLookup
     }
 }
 
-//EmptyDataComponentMap 空映射单例
+//EmptyDataComponentMap empty map singleton
 internal sealed class EmptyDataComponentMap : DataComponentMap
 {
     public static readonly EmptyDataComponentMap Instance = new();
@@ -47,7 +47,7 @@ internal sealed class EmptyDataComponentMap : DataComponentMap
     public IEnumerable<object> KeySet => Array.Empty<object>();
 }
 
-//CompositeDataComponentMap 组合映射 overrides 优先 prototype 兜底
+//CompositeDataComponentMap composite map, overrides take priority and prototype is the fallback
 internal sealed class CompositeDataComponentMap : DataComponentMap
 {
     private readonly DataComponentMap _prototype;
@@ -66,30 +66,30 @@ internal sealed class CompositeDataComponentMap : DataComponentMap
         => _prototype.KeySet.Concat(_overrides.KeySet).Distinct();
 }
 
-//DataComponentLookup 只读查找接口对应原版 net.minecraft.core.component.DataComponentLookup
-//DataComponentMap 继承提供 Composite/Builder 等可变操作 DataComponentLookup 只暴露 Get/Has/KeySet
+//DataComponentLookup read-only lookup interface, maps to vanilla net.minecraft.core.component.DataComponentLookup
+//DataComponentMap extends it with mutable operations like Composite/Builder; DataComponentLookup exposes only Get/Has/KeySet
 public interface DataComponentLookup : DataComponentGetter
 {
-    //Empty 空查找单例
+    //Empty empty lookup singleton
     public static DataComponentLookup Empty { get; } = EmptyDataComponentLookup.Instance;
 
-    //Get 按 type 取值不存在返回 null
+    //Get returns the value by type; returns null if absent
     T? Get<T>(DataComponentType<T> type) where T : class;
 
-    //KeySet 所有 type 集合用 object 装箱避免 C# 泛型不变性
+    //KeySet all types, boxed as object to avoid C# generic invariance
     IEnumerable<object> KeySet { get; }
 
-    //Has 判 type 是否存在
+    //Has checks whether the type is present
     bool Has<T>(DataComponentType<T> type) where T : class => Get(type) is not null;
 
-    //Size 组件数量
+    //Size component count
     int Size => KeySet.Count();
 
-    //IsEmpty 是否为空
+    //IsEmpty whether it is empty
     bool IsEmpty => Size == 0;
 }
 
-//EmptyDataComponentLookup 空查找单例
+//EmptyDataComponentLookup empty lookup singleton
 internal sealed class EmptyDataComponentLookup : DataComponentLookup
 {
     public static readonly EmptyDataComponentLookup Instance = new();

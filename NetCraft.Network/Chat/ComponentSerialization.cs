@@ -8,18 +8,18 @@ using NetCraft.Nbt;
 using NetCraft.Network.Chat.Contents;
 using NetCraft.Network;
 
-//Component序列化对应原版net.minecraft.network.chat.ComponentSerialization
-//提供Component的JSON序列化和FriendlyByteBuf StreamCodec
-//简化版支持纯文本/翻译/按键绑定/嵌套兄弟/基础样式
-//复杂内容Score/Selector/Nbt/Object待业务类型补全后扩展
+//Component serialization, maps to vanilla net.minecraft.network.chat.ComponentSerialization
+//Provides JSON serialization and a FriendlyByteBuf StreamCodec for Component
+//The simplified form supports plain text/translation/keybind/nested siblings/basic style
+//Complex contents Score/Selector/Nbt/Object are extended once the business types are completed
 public static class ComponentSerialization
 {
-    //FriendlyByteBuf StreamCodec对应原版STREAM_CODEC
-    //写JSON字符串到FriendlyByteBuf读JSON字符串解析为Component
+    //FriendlyByteBuf StreamCodec, maps to vanilla STREAM_CODEC
+    //Writes a JSON string into FriendlyByteBuf and reads a JSON string back, parsing it into a Component
     public static StreamCodec<FriendlyByteBuf, Component> StreamCodec { get; } = new ComponentStreamCodec();
 
-    //Codec 组件持久化编解码 对应原版 CODEC
-    //简化走 JSON 文本 解析失败返回错误而不是抛异常
+    //Codec component persistence codec, maps to vanilla CODEC
+    //The simplified form goes through JSON text; a parse failure returns an error instead of throwing
     public static readonly Codec<Component> Codec = Codecs.String.ComapFlatMap(
         json =>
         {
@@ -34,7 +34,7 @@ public static class ComponentSerialization
         },
         component => ToJson(component));
 
-    //JSON序列化Component为字符串
+    //JSON-serializes a Component into a string
     public static string ToJson(Component component)
     {
         using var stream = new MemoryStream();
@@ -44,19 +44,19 @@ public static class ComponentSerialization
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    //JSON反序列化字符串为Component
+    //JSON-deserializes a string into a Component
     public static Component FromJson(string json)
     {
         using var doc = JsonDocument.Parse(json);
         return ReadComponent(doc.RootElement);
     }
 
-    //NBT标签还原组件 供命令参数把 SNBT 片段转成组件
-    //对应原版 ComponentSerialization.CODEC 配 NbtOps 的组合
+    //Restores a Component from an NBT tag, letting command arguments turn an SNBT fragment into a component
+    //Maps to the combination of vanilla ComponentSerialization.CODEC with NbtOps
     public static Component FromTag(Tag tag) => FromJson(TagToJson(tag));
 
-    //写入Component到JSON writer
-    //纯文本无样式无兄弟优化为字符串否则写对象
+    //Writes a Component to the JSON writer
+    //Plain text with no style and no siblings is optimized to a string, otherwise an object is written
     private static void WriteComponent(Utf8JsonWriter writer, Component component)
     {
         if (component.TryCollapseToString() is string text)
@@ -81,7 +81,7 @@ public static class ComponentSerialization
         writer.WriteEndObject();
     }
 
-    //写入内容字段根据ComponentContents类型分发
+    //Writes the content field, dispatched by ComponentContents type
     private static void WriteContents(Utf8JsonWriter writer, ComponentContents contents)
     {
         switch (contents)
@@ -121,7 +121,7 @@ public static class ComponentSerialization
         }
     }
 
-    //写入翻译参数基础类型直接写Component递归
+    //Writes translation arguments: primitives are written directly, Components recursively
     private static void WriteArgument(Utf8JsonWriter writer, object arg)
     {
         if (arg is Component comp) WriteComponent(writer, comp);
@@ -134,7 +134,7 @@ public static class ComponentSerialization
         else writer.WriteStringValue(arg?.ToString());
     }
 
-    //写入样式非空字段才写
+    //Writes the style, only non-null fields
     private static void WriteStyle(Utf8JsonWriter writer, Style style)
     {
         if (style.Color is not null) writer.WriteString("color", style.Color.Serialize());
@@ -147,7 +147,7 @@ public static class ComponentSerialization
         if (!style.Font.Equals(FontDescription.Default)) writer.WriteString("font", style.Font.ToString());
     }
 
-    //从JSON读取Component根据值类型分发
+    //Reads a Component from JSON, dispatched by the value type
     private static Component ReadComponent(JsonElement element)
     {
         switch (element.ValueKind)
@@ -165,7 +165,7 @@ public static class ComponentSerialization
         }
     }
 
-    //从JSON数组读取首元素为内容其余为兄弟
+    //Reads from a JSON array: the first element is the content and the rest are siblings
     private static Component ReadArrayComponent(JsonElement element)
     {
         MutableComponent? result = null;
@@ -184,7 +184,7 @@ public static class ComponentSerialization
         return result ?? Component.Empty();
     }
 
-    //从JSON对象读取Component内容+样式+兄弟
+    //Reads a Component from a JSON object: content + style + siblings
     private static Component ReadObjectComponent(JsonElement element)
     {
         var contents = ReadContents(element);
@@ -198,7 +198,7 @@ public static class ComponentSerialization
         return component;
     }
 
-    //从JSON对象读取内容字段
+    //Reads the content field from the JSON object
     private static ComponentContents ReadContents(JsonElement element)
     {
         if (element.TryGetProperty("text", out var textProp))
@@ -236,7 +236,7 @@ public static class ComponentSerialization
         return PlainTextContents.Empty;
     }
 
-    //从JSON读取翻译参数
+    //Reads translation arguments from JSON
     private static object ReadArgument(JsonElement element)
     {
         if (element.ValueKind == JsonValueKind.String) return element.GetString() ?? string.Empty;
@@ -252,7 +252,7 @@ public static class ComponentSerialization
         return element.ToString();
     }
 
-    //从JSON读取样式应用到MutableComponent
+    //Reads the style from JSON and applies it to the MutableComponent
     private static void ReadStyle(JsonElement element, MutableComponent component)
     {
         var style = Style.Empty;
@@ -271,7 +271,7 @@ public static class ComponentSerialization
         component.SetStyle(style);
     }
 
-    //读取可选布尔字段
+    //Reads an optional boolean field
     private static bool TryGetBool(JsonElement element, string name, out bool value)
     {
         value = false;
@@ -283,9 +283,9 @@ public static class ComponentSerialization
         return false;
     }
 
-    //FriendlyByteBuf StreamCodec实现
-    //26.2网络格式为无根名NBT对应原版ByteBufCodecs.fromCodecWithRegistries(tagCodec+NbtOps)
-    //Component经JSON中转纯文本为StringTag其余为CompoundTag
+    //FriendlyByteBuf StreamCodec implementation
+    //The 26.2 network format is a rootless NBT, maps to vanilla ByteBufCodecs.fromCodecWithRegistries(tagCodec+NbtOps)
+    //The Component goes through JSON: plain text becomes a StringTag, the rest a CompoundTag
     private sealed class ComponentStreamCodec : StreamCodec<FriendlyByteBuf, Component>
     {
         public Component Decode(FriendlyByteBuf buf)
@@ -301,8 +301,8 @@ public static class ComponentSerialization
         }
     }
 
-    //JsonElement转NBT Tag bool转ByteTag数字按精度选Int/Long/Double
-    //数组混合元素类型由ListTag写出时统一包装为单字段"" CompoundTag
+    //Converts JsonElement to NBT Tag: bool to ByteTag, numbers to Int/Long/Double by precision
+    //Arrays with mixed element types are uniformly wrapped into a single-field "" CompoundTag when written by ListTag
     private static Tag JsonToTag(JsonElement element)
     {
         switch (element.ValueKind)
@@ -331,7 +331,7 @@ public static class ComponentSerialization
         }
     }
 
-    //NBT Tag转JSON字符串 ByteTag还原为bool数值tag按原类型还原
+    //Converts NBT Tag to JSON string: ByteTag restores to bool, numeric tags restore by original type
     private static string TagToJson(Tag tag)
         => TagToJsonNode(tag)?.ToJsonString() ?? "null";
 

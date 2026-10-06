@@ -9,10 +9,10 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Gui.Screens;
 
-//GameScreen 游戏 HUD 对应原版 Hud.java
-//用 widgets sprites 纹理渲染十字准星 Hotbar 选中框 心 饥饿条
-//P1 心走 HeartRenderer 完整算法（6 类型×8 变体+低血抖动+再生上跳+吸收心+闪烁覆盖）
-//F3 Debug 多行文本读玩家真实状态 数字键 1-9 切换选中槽
+//GameScreen game HUD, maps to vanilla Hud.java
+//Renders the crosshair, Hotbar selection box, hearts, and hunger bar with widgets sprites textures
+//P1 hearts use HeartRenderer's full algorithm (6 types × 8 variants + low-health jitter + regeneration bounce + absorption hearts + blink overlay)
+//F3 Debug multi-line text reads the player's real state; number keys 1-9 switch the selected slot
 public sealed class GameScreen : Screen
 {
     private GuiImage? _crosshair;
@@ -20,7 +20,7 @@ public sealed class GameScreen : Screen
     private GuiImage? _hotbarSel;
     private readonly List<GuiImage> _foods = new();
     private readonly List<GuiLabel> _debugLines = new();
-    //P1 HeartRenderer 心渲染器对标原版 Hud.extractHearts 完整算法
+    //P1 HeartRenderer heart renderer, maps to vanilla Hud.extractHearts' full algorithm
     private readonly HeartRenderer _heartRenderer = new();
 
     private int _selectedSlot;
@@ -29,23 +29,23 @@ public sealed class GameScreen : Screen
     private long _lastFpsFrame;
     private int _fps;
 
-    //饥饿 sprite identifier swapchain 重建后由 GuiSpriteManager 重新懒加载无需手动重取
+    //Hunger sprite identifier; after a swapchain rebuild GuiSpriteManager lazily reloads it, no manual re-fetch needed
     private const string FoodFullSprite = "minecraft:textures/gui/sprites/hud/food_full";
     private const string FoodHalfSprite = "minecraft:textures/gui/sprites/hud/food_half";
     private const string FoodEmptySprite = "minecraft:textures/gui/sprites/hud/food_empty";
-    //Hotbar 布局参数供选中框跟随槽位用
+    //Hotbar layout parameters, used so the selection box follows the slot
     private int _hotbarX, _hotbarY;
 
-    public override string Title => "游戏 HUD";
+    public override string Title => "Game HUD";
 
     public override void Init()
     {
         var cx = GuiWidth / 2;
         var cy = GuiHeight / 2;
-        //P0 HUD 元素用 SpriteIdentifier 由 GuiSpriteManager 懒加载 PNG+.mcmeta
-        //swapchain 重建后无需重取 textureId GuiSpriteManager 内部缓存命中
+        //P0 HUD elements use SpriteIdentifier; GuiSpriteManager lazily loads the PNG+.mcmeta
+        //After a swapchain rebuild there is no need to re-fetch textureId; GuiSpriteManager hits its internal cache
 
-        //十字准星 15x15 居中 crosshair.png 16x16 留 1px 边距
+        //Crosshair 15x15 centered; crosshair.png is 16x16, leaving a 1px margin
         _crosshair = AddWidget(new GuiImage
         {
             SpriteIdentifier = "minecraft:textures/gui/sprites/hud/crosshair",
@@ -55,7 +55,7 @@ public sealed class GameScreen : Screen
             Height = 15
         });
 
-        //Hotbar 182x22 底部居中 9 格 20x20 加左右各 1px 边框
+        //Hotbar 182x22 centered at the bottom; 9 slots 20x20 plus 1px border on each side
         var hotbarW = 182;
         var hotbarH = 22;
         _hotbarX = cx - hotbarW / 2;
@@ -68,7 +68,7 @@ public sealed class GameScreen : Screen
             Width = hotbarW,
             Height = hotbarH
         });
-        //选中框 24x24 跟随当前槽位比槽位 20x20 大 2px 每边
+        //Selection box 24x24 follows the current slot; 2px larger on each side than the 20x20 slot
         _hotbarSel = AddWidget(new GuiImage
         {
             SpriteIdentifier = "minecraft:textures/gui/sprites/hud/hotbar_selection",
@@ -77,10 +77,10 @@ public sealed class GameScreen : Screen
         });
         UpdateSelectorPosition();
 
-        //心走 RenderForeground HeartRenderer 完整算法每帧直接画不创建 GuiImage
+        //Hearts go through RenderForeground's full HeartRenderer algorithm, drawn directly each frame without creating a GuiImage
         var heartW = 9;
         var heartsY = _hotbarY - heartW - 2;
-        //饥饿条 10 鸡腿 Hotbar 上方右对齐每鸡腿 2 点饥饿
+        //Hunger bar, 10 drumsticks right-aligned above the Hotbar, 2 hunger points per drumstick
         var foodsX = _hotbarX + hotbarW - 10 * heartW;
         for (var i = 0; i < 10; i++)
         {
@@ -94,7 +94,7 @@ public sealed class GameScreen : Screen
         }
         UpdateFoods();
 
-        //F3 Debug 多行左上角默认隐藏 前7行业务状态 后6行 GPU 性能指标
+        //F3 Debug multi-line at the top-left, hidden by default; the first 7 lines are game state, the last 6 are GPU performance metrics
         for (var i = 0; i < 13; i++)
         {
             _debugLines.Add(AddWidget(new GuiLabel
@@ -107,14 +107,14 @@ public sealed class GameScreen : Screen
                 Visible = false
             }));
         }
-        //P15 注册 cube 物品到 ItemItemAtlas 供 Hotbar 物品图标渲染 PoC 用 CubeModel 程序化几何
-        //RegisterItem 幂等 resize 重 Init 重复调返回 existing 不重复注册
+        //P15 register the cube item into ItemItemAtlas for Hotbar item icon rendering; the PoC uses CubeModel procedural geometry
+        //RegisterItem is idempotent; on resize re-Init a repeated call returns the existing entry without re-registering
         Minecraft.GpuApp?.ItemAtlas?.RegisterItem("cube", 1.0f);
     }
 
     public override void Tick()
     {
-        //FPS 每秒统计一次基于 FrameCount 差值
+        //FPS is computed once per second from the FrameCount delta
         var now = Stopwatch.GetTimestamp();
         var elapsed = now - _lastFpsTimestamp;
         if (elapsed >= Stopwatch.Frequency)
@@ -123,11 +123,11 @@ public sealed class GameScreen : Screen
             _lastFpsFrame = Minecraft.FrameCount;
             _lastFpsTimestamp = now;
         }
-        //选中框跟随当前槽位心饥饿纹理按生命饥饿值刷新
+        //The selection box follows the current slot; heart and hunger textures refresh by health/hunger value
         UpdateSelectorPosition();
         _heartRenderer.Tick(Minecraft.Player);
         UpdateFoods();
-        //Debug 文本更新与可见性切换
+        //Debug text update and visibility toggle
         if (_showDebug)
         {
             UpdateDebugText();
@@ -139,8 +139,8 @@ public sealed class GameScreen : Screen
         }
     }
 
-    //UpdateSelectorPosition 选中框跟随当前槽位
-    //槽位 i 左边缘 = _hotbarX + 1 + i*20 选中框 24x24 居中盖在槽位上偏移 -1
+    //UpdateSelectorPosition makes the selection box follow the current slot
+    //Slot i's left edge = _hotbarX + 1 + i*20; the 24x24 selection box is centered over the slot with offset -1
     private void UpdateSelectorPosition()
     {
         if (_hotbarSel is null) return;
@@ -148,9 +148,9 @@ public sealed class GameScreen : Screen
         _hotbarSel.Y = _hotbarY - 1;
     }
 
-    //RenderForeground 心渲染走 HeartRenderer 完整算法每帧直接画不录 cache
-    //对标原版 Hud.renderHeart 委托调 GuiGraphics.blitSprite
-    //xLeft 心容器左边缘 yLineBase 最底行 Y healthRowHeight 行间距多行心时上移
+    //RenderForeground heart rendering uses HeartRenderer's full algorithm, drawn directly each frame without recording to cache
+    //Maps to vanilla Hud.renderHeart's delegate calling GuiGraphics.blitSprite
+    //xLeft heart container left edge; yLineBase bottom row Y; healthRowHeight row spacing, moving up for multiple heart rows
     public override void RenderForeground(IGuiRenderContext context)
     {
         var player = Minecraft.Player;
@@ -163,10 +163,10 @@ public sealed class GameScreen : Screen
         RenderHotbarItems(context);
     }
 
-    //RenderHotbarItems 渲染 hotbar 9 格物品图标调 ItemItemAtlas.GetOrUpdate 拿 SlotView
-    //首次 GetOrUpdate 触发 DrawToSlot GPU 渲染到 AtlasTexture 后续 Ready 状态直接返回 UV 不重复 Submit
-    //物品图标 16x16 居中在槽位 20x20 内偏移 2px 对标原版 Hud.renderItem
-    //PoC cube 物品用 CubeModel 程序化几何完整版走 ItemModelResolver
+    //RenderHotbarItems renders the hotbar's 9 item icons, calling ItemItemAtlas.GetOrUpdate to get a SlotView
+    //The first GetOrUpdate triggers DrawToSlot GPU rendering into AtlasTexture; once Ready it returns UV directly without re-submitting
+    //Item icon 16x16 centered in the 20x20 slot with 2px offset, maps to vanilla Hud.renderItem
+    //PoC cube items use CubeModel procedural geometry; the full version goes through ItemModelResolver
     private void RenderHotbarItems(IGuiRenderContext context)
     {
         var gpu = Minecraft.GpuApp;
@@ -192,7 +192,7 @@ public sealed class GameScreen : Screen
         }
     }
 
-    //UpdateFoods 按 FoodLevel 更新每个鸡腿 sprite full/half/empty
+    //UpdateFoods updates each drumstick sprite to full/half/empty by FoodLevel
     private void UpdateFoods()
     {
         if (_foods.Count == 0) return;
@@ -205,7 +205,7 @@ public sealed class GameScreen : Screen
         }
     }
 
-    //UpdateDebugText 填充 F3 Debug 多行文本读真实玩家状态
+    //UpdateDebugText fills the F3 Debug multi-line text reading the player's real state
     private void UpdateDebugText()
     {
         var player = Minecraft.Player;
@@ -217,10 +217,10 @@ public sealed class GameScreen : Screen
         _debugLines[0].Text = "NetCraft v0.1.0";
         _debugLines[1].Text = $"{_fps} fps";
         _debugLines[2].Text = $"XYZ: {px:F2} / {py:F2} / {pz:F2}";
-        _debugLines[3].Text = $"区块: {cx} / {cz}";
-        _debugLines[4].Text = $"面向: {FacingName(player.YRot)} ({player.YRot:F1})";
-        _debugLines[5].Text = $"生命: {player.Health:F1}/{player.MaxHealth:F0} 饥饿: {player.FoodLevel}/20";
-        _debugLines[6].Text = $"渲染距离: {Minecraft.Config.RenderDistance} chunks FOV: {Minecraft.Config.Fov}";
+        _debugLines[3].Text = $"Chunk: {cx} / {cz}";
+        _debugLines[4].Text = $"Facing: {FacingName(player.YRot)} ({player.YRot:F1})";
+        _debugLines[5].Text = $"Health: {player.Health:F1}/{player.MaxHealth:F0} Hunger: {player.FoodLevel}/20";
+        _debugLines[6].Text = $"Render distance: {Minecraft.Config.RenderDistance} chunks FOV: {Minecraft.Config.Fov}";
         var gpu = Minecraft.GpuApp;
         if (gpu is null) return;
         _debugLines[7].Text = $"drawcall: {gpu.DrawCallCount} mesh: {gpu.MeshCount} vertex: {gpu.VertexCount}";
@@ -229,20 +229,20 @@ public sealed class GameScreen : Screen
         _debugLines[10].Text = $"pipeline: hit={gpu.PipelineHits} miss={gpu.PipelineMisses}";
     }
 
-    //FacingName 由 YRot 推算八方位名 0=南 90=西 180=北 270=东
+    //FacingName derives the eight-way direction name from YRot: 0=South 90=West 180=North 270=East
     private static string FacingName(float yRot)
     {
         var deg = ((int)yRot % 360 + 360) % 360;
         return deg switch
         {
-            < 22 or >= 338 => "南(+Z)",
-            < 67 => "西南",
-            < 112 => "西(-X)",
-            < 157 => "西北",
-            < 202 => "北(-Z)",
-            < 247 => "东北",
-            < 292 => "东(+X)",
-            _ => "东南"
+            < 22 or >= 338 => "South (+Z)",
+            < 67 => "Southwest",
+            < 112 => "West (-X)",
+            < 157 => "Northwest",
+            < 202 => "North (-Z)",
+            < 247 => "Northeast",
+            < 292 => "East (+X)",
+            _ => "Southeast"
         };
     }
 
@@ -250,13 +250,13 @@ public sealed class GameScreen : Screen
 
     public override void OnHotbarSelect(int slot) => _selectedSlot = Math.Clamp(slot, 0, 8);
 
-    //EyeHeight 眼睛高度 与服务端 ServerPlayer.EyeHeight 同值 拾取起点按它抬到眼部
+    //EyeHeight eye height, same value as the server's ServerPlayer.EyeHeight; the pick origin is raised to eye level by it
     private const double EyeHeight = 1.62;
 
-    //_actionSequence 方块动作包序列号 服务端按它回方块变更回执 客户端只保证递增
+    //_actionSequence block action packet sequence number; the server acknowledges block changes by it; the client only guarantees it increments
     private int _actionSequence;
 
-    //OnKeyPressed HUD 业务键 Q 丢弃手持物品 E 打开背包界面
+    //OnKeyPressed HUD business keys: Q drops the held item, E opens the inventory screen
     public override void OnKeyPressed(int key)
     {
         if (key == GameKeys.E)
@@ -271,8 +271,8 @@ public sealed class GameScreen : Screen
             BlockPos.Zero, NetCraft.Primitives.Direction.Up, NextActionSequence()));
     }
 
-    //OnMouseDown 左键破坏准星指向的方块 对应原版左键挖掘的最小实现
-    //没有挖掘进度与本地预测 一次点按连发 START 与 STOP 由服务端判定是否真的破坏
+    //OnMouseDown the left button breaks the block the crosshair points at; a minimal implementation of vanilla left-click mining
+    //No mining progress or local prediction; a single click sends START then STOP and the server decides whether it actually breaks
     public override void OnMouseDown(GuiMouseButton button, int x, int y)
     {
         if (button != GuiMouseButton.Left) return;
@@ -287,7 +287,7 @@ public sealed class GameScreen : Screen
             pos, face, NextActionSequence()));
     }
 
-    //NextActionSequence 方块动作序列号自增
+    //NextActionSequence increments the block action sequence number
     private int NextActionSequence() => ++_actionSequence;
 
     public override void OnClose() => Manager.PushScreen(new PauseScreen());

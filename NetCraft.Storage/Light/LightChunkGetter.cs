@@ -3,16 +3,16 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage.Light;
 
-//LightChunkGetter 光照取区块接口对应原版 net.minecraft.world.level.chunk.LightChunkGetter
-//光照引擎通过它按区块坐标取到 LightChunk 视图
+//LightChunkGetter, chunk getter for lighting, maps to vanilla net.minecraft.world.level.chunk.LightChunkGetter
+//The light engine uses it to get the LightChunk view by chunk coords
 public interface LightChunkGetter
 {
-    //getChunkForLighting 取光照用区块视图未加载返回 null
+    //getChunkForLighting returns the chunk view for lighting; returns null when not loaded
     LightChunk? GetChunkForLighting(int chunkX, int chunkZ);
 
-    //getLevel 取世界读取入口 提供高度范围与按坐标读方块
+    //getLevel returns the world read entry point, providing the height range and block reads by coords
     BlockGetter GetLevel();
 
-    //onLightUpdate 光照更新完成回调 原版为接口默认方法
+    //onLightUpdate, light update completion callback; a default interface method in vanilla
     void OnLightUpdate(LightLayer layer, SectionPos pos) { }
 }

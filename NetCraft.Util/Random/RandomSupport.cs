@@ -2,20 +2,20 @@ using System.Security.Cryptography;
 
 namespace NetCraft.Util.Random;
 
-//随机支持工具对应原版net.minecraft.world.level.levelgen.RandomSupport
-//提供种子升级128位与哈希种子生成
+//Random support helpers, map to vanilla net.minecraft.world.level.levelgen.RandomSupport
+//Provides 128-bit seed upgrade and hash seed generation
 public static class RandomSupport
 {
-    //GOLDEN_RATIO_64黄金比例64位常量对应原版GOLDEN_RATIO_64
+    //GOLDEN_RATIO_64 golden ratio 64-bit constant, maps to vanilla GOLDEN_RATIO_64
     public const long GoldenRatio64 = -7046029254386353131L;
 
-    //SILVER_RATIO_64白银比例64位常量对应原版SILVER_RATIO_64
+    //SILVER_RATIO_64 silver ratio 64-bit constant, maps to vanilla SILVER_RATIO_64
     public const long SilverRatio64 = 7640891576956012809L;
 
     private static long _seedUniquifier = 8682522807148012L;
 
-    //mixStafford13Stafford混洗13对应原版mixStafford13
-    //用于种子升级与位置哈希避免低位偏置
+    //mixStafford13 Stafford mix13, maps to vanilla mixStafford13
+    //Used for seed upgrade and positional hashing to avoid low-bit bias
     public static long MixStafford13(long z)
     {
         unchecked
@@ -26,7 +26,7 @@ public static class RandomSupport
         }
     }
 
-    //upgradeSeedTo128bitUnmixed未混洗升级到128位种子对应原版upgradeSeedTo128bitUnmixed
+    //upgradeSeedTo128bitUnmixed unmixed upgrade to a 128-bit seed, maps to vanilla upgradeSeedTo128bitUnmixed
     public static Seed128bit UpgradeSeedTo128bitUnmixed(long legacySeed)
     {
         unchecked
@@ -37,12 +37,12 @@ public static class RandomSupport
         }
     }
 
-    //upgradeSeedTo128bit升级并混洗对应原版upgradeSeedTo128bit
+    //upgradeSeedTo128bit upgrades and mixes, maps to vanilla upgradeSeedTo128bit
     public static Seed128bit UpgradeSeedTo128bit(long legacySeed)
         => UpgradeSeedTo128bitUnmixed(legacySeed).Mixed();
 
-    //seedFromHashOf按字符串MD5哈希生成128位种子对应原版seedFromHashOf
-    //C#用MD5.HashData替代Guava Hashing.md5保证字节级一致
+    //seedFromHashOf generates a 128-bit seed from a string MD5 hash, maps to vanilla seedFromHashOf
+    //C# uses MD5.HashData instead of Guava Hashing.md5 to guarantee byte-level consistency
     public static Seed128bit SeedFromHashOf(string input)
     {
         var bytes = MD5.HashData(System.Text.Encoding.UTF8.GetBytes(input));
@@ -51,8 +51,8 @@ public static class RandomSupport
         return new Seed128bit(hashLo, hashHi);
     }
 
-    //generateUniqueSeed生成唯一种子对应原版generateUniqueSeed
-    //用Interlocked模拟AtomicLong.updateAndGet
+    //generateUniqueSeed generates a unique seed, maps to vanilla generateUniqueSeed
+    //Uses Interlocked to simulate AtomicLong.updateAndGet
     public static long GenerateUniqueSeed()
     {
         long current, newValue;
@@ -67,17 +67,17 @@ public static class RandomSupport
         return unchecked(newValue ^ DateTimeOffset.UtcNow.Ticks);
     }
 
-    //Seed128bit 128位种子记录对应原版RandomSupport.Seed128bit
+    //Seed128bit 128-bit seed record, maps to vanilla RandomSupport.Seed128bit
     public sealed record Seed128bit(long SeedLo, long SeedHi)
     {
-        //xor与另一对long异或对应原版xor(long,long)
+        //xor XORs with another long pair, maps to vanilla xor(long,long)
         public Seed128bit Xor(long lo, long hi)
             => new(SeedLo ^ lo, SeedHi ^ hi);
 
-        //xor与另一Seed128bit异或对应原版xor(Seed128bit)
+        //xor XORs with another Seed128bit, maps to vanilla xor(Seed128bit)
         public Seed128bit Xor(Seed128bit other) => Xor(other.SeedLo, other.SeedHi);
 
-        //mixed对两路种子做Stafford13混洗对应原版mixed
+        //mixed applies Stafford13 mixing to both seed parts, maps to vanilla mixed
         public Seed128bit Mixed()
             => new(MixStafford13(SeedLo), MixStafford13(SeedHi));
     }

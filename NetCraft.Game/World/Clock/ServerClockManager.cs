@@ -6,16 +6,16 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Clock;
 
-//ServerClockManager 服务端时钟管理器对应原版 net.minecraft.world.clock.ServerClockManager
-//按 WorldClock 注册表为每个时钟维护 ClockInstance 状态机 rate 累积 partialTick 满一进位
-//持久化为 overworld data 目录的 world_clocks.dat 修改时钟后向全服广播 SetTime 包
+//ServerClockManager server-side clock manager, maps to vanilla net.minecraft.world.clock.ServerClockManager
+//Maintains a ClockInstance state machine per clock from the WorldClock registry; rate accumulates partialTick and carries on reaching one
+//Persisted as world_clocks.dat in the overworld data directory; after changing a clock it broadcasts a SetTime packet to the whole server
 public sealed class ServerClockManager : SavedData, ClockManager
 {
-    //TypeId 存档标识 对应原版 SavedDataType 的 minecraft:world_clocks
-    //存 data/minecraft/world_clocks.dat 带命名空间子目录
+    //TypeId save id, maps to the minecraft:world_clocks of vanilla SavedDataType
+    //Stored in data/minecraft/world_clocks.dat under a namespaced subdirectory
     private const string TypeId = "minecraft:world_clocks";
 
-    //Type SavedData 工厂 tag 为磁盘读入的注册名到 ClockState 的 map 空则全新创建
+    //Type SavedData factory; tag maps registry names read from disk to ClockState; empty means create fresh
     public static readonly SavedDataType<ServerClockManager> Type = new ClockManagerType();
 
     private readonly Dictionary<Holder<WorldClock>, ClockInstance> _clocks = new();
@@ -24,7 +24,7 @@ public sealed class ServerClockManager : SavedData, ClockManager
 
     public override string Id => TypeId;
 
-    //ClockManagerType 工厂实现 存档 tag 先收着 Init 时按注册表展开
+    //ClockManagerType factory implementation; the save tag is kept and expanded against the registry in Init
     private sealed class ClockManagerType : SavedDataType<ServerClockManager>
     {
         public string Id => TypeId;
@@ -44,7 +44,7 @@ public sealed class ServerClockManager : SavedData, ClockManager
         }
     }
 
-    //Init 遍历注册表建实例并从存档状态恢复 对应原版 init
+    //Init iterates the registry to build instances and restores from the saved state, maps to vanilla init
     public void Init(MinecraftServer server)
     {
         _server = server;
@@ -63,7 +63,7 @@ public sealed class ServerClockManager : SavedData, ClockManager
     private void RegisterTimeMarker(ResourceKey<ClockTimeMarker> timeMarkerId, ClockTimeMarker timeMarker)
         => GetInstance(timeMarker.Clock).TimeMarkers[timeMarkerId] = timeMarker;
 
-    //Tick 每服务端 tick 推进所有时钟 对应原版 tick 受 ADVANCE_TIME 规则控制此规则未实现恒放行
+    //Tick advances all clocks every server tick, maps to vanilla tick; controlled by the ADVANCE_TIME rule which is unimplemented here and always passes
     public void Tick()
     {
         foreach (var instance in _clocks.Values)
@@ -78,7 +78,7 @@ public sealed class ServerClockManager : SavedData, ClockManager
             instance.PartialTick = 0f;
         });
 
-    //MoveToTimeMarker 跳到下一次该时间标记 未注册该标记返回 false
+    //MoveToTimeMarker jumps to the next occurrence of the time marker; returns false when the marker is unregistered
     public bool MoveToTimeMarker(Holder<WorldClock> clock, ResourceKey<ClockTimeMarker> timeMarkerId)
     {
         var moved = false;
@@ -102,7 +102,7 @@ public sealed class ServerClockManager : SavedData, ClockManager
     public void SetRate(Holder<WorldClock> clock, float rate)
         => ModifyClock(clock, instance => instance.Rate = rate);
 
-    //ModifyClock 修改后广播该时钟新状态并标脏
+    //ModifyClock after a change broadcasts the clock's new state and marks it dirty
     private void ModifyClock(Holder<WorldClock> clock, Action<ClockInstance> action)
     {
         var instance = GetInstance(clock);
@@ -114,7 +114,7 @@ public sealed class ServerClockManager : SavedData, ClockManager
 
     public long GetTotalTicks(Holder<WorldClock> definition) => GetInstance(definition).TotalTicks;
 
-    //CreateFullSyncPacket 玩家加入时发送全量时钟状态
+    //CreateFullSyncPacket sends the full clock state when a player joins
     public ClientboundSetTimePacket CreateFullSyncPacket()
     {
         var updates = new List<ClientboundSetTimePacket.ClockUpdate>(_clocks.Count);
@@ -130,7 +130,7 @@ public sealed class ServerClockManager : SavedData, ClockManager
             && timeMarker.OccursAt(instance.TotalTicks);
     }
 
-    //CommandTimeMarkersForClock 列出该时钟下命令可见的时间标记 id
+    //CommandTimeMarkersForClock lists the command-visible time marker ids for the clock
     public IEnumerable<ResourceKey<ClockTimeMarker>> CommandTimeMarkersForClock(Holder<WorldClock> clock)
         => GetInstance(clock).TimeMarkers
             .Where(e => e.Value.ShowInCommands)
@@ -142,9 +142,9 @@ public sealed class ServerClockManager : SavedData, ClockManager
     private ClockInstance GetInstance(Holder<WorldClock> definition)
         => _clocks.TryGetValue(definition, out var instance)
             ? instance
-            : throw new InvalidOperationException($"时钟未初始化: {definition.RegisteredName}");
+            : throw new InvalidOperationException($"clock not initialized: {definition.RegisteredName}");
 
-    //Save 写为 注册名 -> ClockState 的 map 对应原版 PackedClockStates.CODEC
+    //Save written as a registry name -> ClockState map, maps to vanilla PackedClockStates.CODEC
     public override CompoundTag Save(CompoundTag tag)
     {
         foreach (var (holder, instance) in _clocks)
@@ -152,7 +152,7 @@ public sealed class ServerClockManager : SavedData, ClockManager
         return tag;
     }
 
-    //ClockInstance 单时钟运行时状态对应原版 ServerClockManager.ClockInstance
+    //ClockInstance single-clock runtime state, maps to vanilla ServerClockManager.ClockInstance
     private sealed class ClockInstance
     {
         public long TotalTicks;
@@ -181,7 +181,7 @@ public sealed class ServerClockManager : SavedData, ClockManager
 
         public ClockState PackState() => new(TotalTicks, PartialTick, Rate, Paused);
 
-        //PackNetworkState 暂停时网络侧 rate 归零客户端据此停走
+        //PackNetworkState when paused the network rate is zeroed so the client stops advancing
         public ClientboundSetTimePacket.ClockUpdate PackNetworkState(int clockId)
             => new(clockId, TotalTicks, PartialTick, Paused ? 0f : Rate);
     }

@@ -1,6 +1,6 @@
 namespace NetCraft.Codec;
 
-//简二元组对应原版com.mojang.datafixers.util.Pair
+//Simple pair, mirroring vanilla com.mojang.datafixers.util.Pair
 public readonly struct Pair<TFirst, TSecond>(TFirst first, TSecond second)
 {
     public TFirst First { get; } = first;
@@ -8,7 +8,7 @@ public readonly struct Pair<TFirst, TSecond>(TFirst first, TSecond second)
 
     public static Pair<TFirst, TSecond> Of(TFirst first, TSecond second) => new(first, second);
 
-    //元组解构支持
+    //Tuple deconstruction support
     public void Deconstruct(out TFirst first, out TSecond second)
     {
         first = First;

@@ -10,45 +10,45 @@ using NetCraft.Logging;
 
 namespace NetCraft.Server.Gui;
 
-//PotatoIcon --potato 的彩蛋 把窗口与任务栏图标换成一颗土豆
-//只有 Windows 且开了 GUI 才会走到这里 任何一步失败只记一条日志 不能拖累开服
+//PotatoIcon, the --potato easter egg, swaps the window and taskbar icon for a potato
+//Reached only on Windows with the GUI enabled, any failed step logs one line and must not hinder server startup
 internal static partial class PotatoIcon
 {
-    //图标取自图床 原图 1024x1024 用前先缩
+    //Icon is taken from an image host, the original is 1024x1024 and is downscaled before use
     private const string IconUrl = "https://ccvaults.com/assets/10.%20Items/10.%20Food/Potato.png";
 
-    //图标边长上限 ICO 的目录项宽高各只有一字节 0 表示 256 再大就表达不出来
+    //Icon side length cap, ICO directory entry width and height are one byte each and 0 means 256, anything larger cannot be expressed
     private const int MaxIconSize = 256;
 
-    //拉过一次就存到程序根目录 之后启动直接读本地 不再看网络脸色
+    //Once fetched it is stored in the program root, later startups read it locally and no longer depend on the network
     private static string CachePath => Path.Combine(AppPaths.BaseDirectory, "potato-icon.png");
-    //单次请求超时 重试次数 与逐次拉长的间隔
+    //Single request timeout, retry count, and the progressively increasing interval
     private const int RequestTimeoutSeconds = 6;
     private const int MaxAttempts = 5;
     private const int RetryDelayStepMs = 500;
-    //PNG 签名 缓存对不上就当没有 免得坏文件把彩蛋永久卡死
+    //PNG signature, a mismatched cache is treated as absent so a corrupt file does not permanently break the easter egg
     private static readonly byte[] PngSignature = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
 
     private const uint WmSetIcon = 0x0080;
     private const IntPtr IconSmall = 0;
     private const IntPtr IconBig = 1;
-    //GCLP_HICON / GCLP_HICONSM 窗口类大小图标槽位
+    //GCLP_HICON / GCLP_HICONSM window class large and small icon slots
     private const int GclpHicon = -14;
     private const int GclpHiconSm = -34;
-    //CreateIconFromResourceEx 认的图标版本号
+    //Icon version recognized by CreateIconFromResourceEx
     private const uint IconVersion = 0x00030000;
-    //ICONDIR 6 字节 + ICONDIRENTRY 16 字节
+    //ICONDIR 6 bytes + ICONDIRENTRY 16 bytes
     private const int IcoHeaderSize = 22;
 
-    //Apply 拉图标并同时挂到 Avalonia 窗口与 Windows 任务栏
-    //要等窗口露出来再调 那时平台句柄才有效
+    //Apply fetches the icon and attaches it to both the Avalonia window and the Windows taskbar
+    //Call only after the window appears, the platform handle is only valid then
     public static async void Apply(Window window)
     {
         if (!OperatingSystem.IsWindows()) return;
         try
         {
             var raw = await LoadIconAsync();
-            //原图 1024 装不进 ICO 先统一缩到图标尺寸
+            //The 1024 original does not fit in an ICO, downscale it to the icon size first
             var bytes = Resize(raw);
             ApplyToWindow(window, bytes);
             ApplyToTaskbar(window, bytes);
@@ -59,8 +59,8 @@ internal static partial class PotatoIcon
         }
     }
 
-    //LoadIconAsync 取图标字节 本地缓存优先 没有才走网络
-    //网络抖动是常态 所以下载要静默重试 全挂了才把异常抛给调用方记一条日志
+    //LoadIconAsync fetches the icon bytes, local cache first and network only when absent
+    //Network flakiness is normal, so downloads retry silently and only a total failure throws to the caller to log one line
     private static async Task<byte[]> LoadIconAsync()
     {
         var cached = TryReadCache();
@@ -70,7 +70,7 @@ internal static partial class PotatoIcon
         return bytes;
     }
 
-    //TryReadCache 读上次存下的图标 读不到或内容不对都当没有
+    //TryReadCache reads the previously stored icon, a read failure or wrong content is treated as absent
     private static byte[] TryReadCache()
     {
         try
@@ -88,7 +88,7 @@ internal static partial class PotatoIcon
         }
     }
 
-    //WriteCache 存一份好让下次启动不再依赖网络 存不进去也不影响这次使用
+    //WriteCache stores a copy so the next startup no longer depends on the network, a failed write does not affect this run
     private static void WriteCache(byte[] bytes)
     {
         try
@@ -101,7 +101,7 @@ internal static partial class PotatoIcon
         }
     }
 
-    //DownloadAsync 拉图 失败静默重试 MaxAttempts 次 间隔逐次拉长
+    //DownloadAsync fetches the image, retries silently up to MaxAttempts times with a progressively increasing interval
     private static async Task<byte[]> DownloadAsync()
     {
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(RequestTimeoutSeconds) };
@@ -120,8 +120,8 @@ internal static partial class PotatoIcon
         }
     }
 
-    //Resize 用 Avalonia 把原图缩到图标尺寸再编码回 PNG
-    //这一步就是"先用 Avalonia 的 API 转换" 后面两种用法都吃这份缩小后的字节
+    //Resize uses Avalonia to downscale the original to the icon size and re-encodes it as PNG
+    //This is the "convert with the Avalonia API first" step, both later uses consume these downscaled bytes
     private static byte[] Resize(byte[] png)
     {
         using var input = new MemoryStream(png);
@@ -131,15 +131,15 @@ internal static partial class PotatoIcon
         return output.ToArray();
     }
 
-    //ApplyToWindow 一份交给 Avalonia 当窗口图标
+    //ApplyToWindow hands one copy to Avalonia as the window icon
     private static void ApplyToWindow(Window window, byte[] bytes)
     {
         using var stream = new MemoryStream(bytes);
         window.Icon = new WindowIcon(stream);
     }
 
-    //ApplyToTaskbar 另一份交给 WinAPI 改任务栏那颗
-    //Avalonia 设的窗口图标任务栏未必采用 这里再直接发 WM_SETICON 并把窗口类的图标槽位一起换掉
+    //ApplyToTaskbar hands another copy to the WinAPI to change the taskbar icon
+    //The taskbar does not necessarily adopt the window icon set by Avalonia, so WM_SETICON is sent directly and the window class icon slots are swapped too
     private static void ApplyToTaskbar(Window window, byte[] bytes)
     {
         var handle = window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
@@ -152,8 +152,8 @@ internal static partial class PotatoIcon
         SetClassLongPtrW(handle, GclpHiconSm, icon);
     }
 
-    //CreateIcon 把 PNG 包成最小 ICO 结构再交给系统
-    //CreateIconFromResourceEx 只认 ICONDIR + ICONDIRENTRY + 图像数据 直接喂裸 PNG 是不行的
+    //CreateIcon wraps the PNG in the minimal ICO structure before handing it to the system
+    //CreateIconFromResourceEx only accepts ICONDIR + ICONDIRENTRY + image data, feeding it a bare PNG does not work
     private static IntPtr CreateIcon(byte[] png)
     {
         int width, height;
@@ -167,7 +167,7 @@ internal static partial class PotatoIcon
         var buffer = new byte[IcoHeaderSize + png.Length];
         buffer[2] = 1;
         buffer[4] = 1;
-        //宽高各一字节 0 代表 256
+        //Width and height are one byte each, 0 means 256
         buffer[6] = (byte)(width >= 256 ? 0 : width);
         buffer[7] = (byte)(height >= 256 ? 0 : height);
         buffer[10] = 1;

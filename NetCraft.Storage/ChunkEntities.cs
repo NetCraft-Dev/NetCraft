@@ -3,8 +3,8 @@ namespace NetCraft.Storage;
 using System.Collections.Generic;
 using NetCraft.Primitives;
 
-//chunk实体集合对应原版net.minecraft.world.level.entity.ChunkEntities
-//持有chunk位置与实体列表提供isEmpty判定与getEntities流
+//Chunk entities collection, maps to vanilla net.minecraft.world.level.entity.ChunkEntities
+//Holds the chunk pos and entity list, providing isEmpty and the getEntities stream
 public sealed class ChunkEntities<T>
 {
     public ChunkPos Pos { get; }

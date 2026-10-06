@@ -8,8 +8,8 @@ using NetCraft.Util.Parsing.Packrat.Commands;
 
 namespace NetCraft.Nbt;
 
-//SNBT语法对应原版net.minecraft.nbt.SnbtGrammar
-//通过createParser注册所有解析规则并构造Grammar<Tag>供TagParser使用
+//SNBT grammar, mirroring vanilla net.minecraft.nbt.SnbtGrammar
+//Registers every parse rule through createParser and builds a Grammar<Tag> for TagParser
 public static partial class SnbtGrammar
 {
     internal static readonly DynamicCommandExceptionType ErrorNumberParseFailureType =
@@ -81,32 +81,32 @@ public static partial class SnbtGrammar
     internal static readonly DelayedException<CommandSyntaxException> ErrorInfinityNotAllowed =
         DelayedExceptionFactories.Create(new SimpleCommandExceptionType("Infinity not allowed"));
 
-    //BINARY_NUMERAL二进制数字串接受01和下划线
+    //BINARY_NUMERAL is a binary digit string accepting 0, 1 and underscores
     internal static readonly NumberRunParseRule BinaryNumeral = new BinaryNumeralRule();
 
-    //DECIMAL_NUMERAL十进制数字串接受0-9和下划线
+    //DECIMAL_NUMERAL is a decimal digit string accepting 0-9 and underscores
     internal static readonly NumberRunParseRule DecimalNumeral = new DecimalNumeralRule();
 
-    //HEX_NUMERAL十六进制数字串接受0-9A-Fa-f和下划线
+    //HEX_NUMERAL is a hexadecimal digit string accepting 0-9A-Fa-f and underscores
     internal static readonly NumberRunParseRule HexNumeral = new HexNumeralRule();
 
-    //PLAIN_STRING_CHUNK普通字符串块不接受引号反斜杠
+    //PLAIN_STRING_CHUNK is a plain string chunk that accepts neither quotes nor backslashes
     internal static readonly GreedyPredicateParseRule PlainStringChunk = new PlainStringChunkRule();
 
-    //NUMBER_LOOKEAHEAD数字起始字符前看
+    //NUMBER_LOOKEAHEAD is a lookahead for number start characters
     internal static readonly Term<CommandStringReader> NumberLookahead =
         new NumberLookaheadTerm();
 
     internal static readonly Regex UnicodeName = new("[-a-zA-Z0-9 ]+", RegexOptions.Compiled);
 
-    //CreateNumberParseError把FormatException消息包装成DelayedException
+    //CreateNumberParseError wraps a FormatException message into a DelayedException
     internal static DelayedException<CommandSyntaxException> CreateNumberParseError(string message)
         => DelayedExceptionFactories.Create(ErrorNumberParseFailureType, message);
 
-    //needsUnderscoreRemoval检查字符串是否含下划线
+    //needsUnderscoreRemoval checks whether the string contains underscores
     internal static bool NeedsUnderscoreRemoval(string contents) => contents.IndexOf('_') != -1;
 
-    //cleanAndAppend按需移除下划线后追加到output
+    //cleanAndAppend removes underscores when needed and appends to output
     internal static void CleanAndAppend(StringBuilder output, string contents)
         => CleanAndAppend(output, contents, NeedsUnderscoreRemoval(contents));
 
@@ -123,13 +123,13 @@ public static partial class SnbtGrammar
         output.Append(contents);
     }
 
-    //canStartNumber判断字符能否起始数字字面量
+    //canStartNumber reports whether a character can start a numeric literal
     internal static bool CanStartNumber(char c) => c is '+' or '-' or '.' or (>= '0' and <= '9');
 
-    //isAllowedToStartUnquotedString非数字起始字符才允许无引号字符串
+    //isAllowedToStartUnquotedString allows an unquoted string only for non-digit start characters
     internal static bool IsAllowedToStartUnquotedString(char c) => !CanStartNumber(c);
 
-    //parseUnsignedShort把字符串按radix解析成无符号short用Convert按radix转换
+    //parseUnsignedShort parses a string into an unsigned short using Convert with the given radix
     internal static short ParseUnsignedShort(string s, int radix)
     {
         var value = Convert.ToInt32(s, radix);
@@ -137,7 +137,7 @@ public static partial class SnbtGrammar
         return (short)value;
     }
 
-    //escapeControlCharacters把控制字符转义成SNBT转义序列
+    //escapeControlCharacters turns control characters into SNBT escape sequences
     public static string? EscapeControlCharacters(char c) => c switch
     {
         '\b' => "b",
@@ -149,7 +149,7 @@ public static partial class SnbtGrammar
         _ => null
     };
 
-    //joinList把字符串列表用空字符串拼接原版LocalTime.ROOT_LOCALE空串
+    //joinList joins a string list with an empty string, matching vanilla LocalTime.ROOT_LOCALE
     internal static string JoinList(List<string> list)
     {
         if (list.Count == 0) return string.Empty;
@@ -157,7 +157,7 @@ public static partial class SnbtGrammar
         return string.Join(string.Empty, list);
     }
 
-    //createFloat把浮点字面量各部分拼成字符串后按typeSuffix转float或double
+    //createFloat joins the parts of a float literal into a string and converts to float or double based on typeSuffix
     internal static T? CreateFloat<T>(DynamicOps<T> ops, Sign sign, string? whole, string? fraction,
         Signed<string>? exponent, TypeSuffix? typeSuffix, ParseState<CommandStringReader> state)
     {
@@ -190,7 +190,7 @@ public static partial class SnbtGrammar
         }
     }
 
-    //convertFloat解析成float验证非无穷大后调用ops.CreateFloat
+    //convertFloat parses to float, checks that it is not infinite and calls ops.CreateFloat
     internal static T? ConvertFloat<T>(DynamicOps<T> ops, ParseState<CommandStringReader> state, string str)
     {
         var f = float.Parse(str, CultureInfo.InvariantCulture);
@@ -202,7 +202,7 @@ public static partial class SnbtGrammar
         return ops.CreateFloat(f);
     }
 
-    //convertDouble解析成double验证非无穷大后调用ops.CreateDouble
+    //convertDouble parses to double, checks that it is not infinite and calls ops.CreateDouble
     internal static T? ConvertDouble<T>(DynamicOps<T> ops, ParseState<CommandStringReader> state, string str)
     {
         var d = double.Parse(str, CultureInfo.InvariantCulture);

@@ -2,62 +2,62 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Storage.Updates;
 
-//BlockUpdateFlags setBlock 的副作用开关 对应原版 Block.UPDATE_*
-//原版没有"严格模式提前返回" 置位只让对应判定点落空 方法照样走完全程
+//BlockUpdateFlags, side-effect switches for setBlock, maps to vanilla Block.UPDATE_*
+//Vanilla has no "strict mode early return"; setting a bit only makes the matching check miss, the method still runs to the end
 public static class BlockUpdateFlags
 {
-    //变更后通知周围方块 触发邻居更新通道
+    //Notify surrounding blocks after the change, triggering the neighbor update channel
     public const int Neighbours = 1;
 
-    //变更后同步客户端
+    //Sync clients after the change
     public const int Clients = 2;
 
-    //客户端侧抑制置脏
+    //Suppress dirty marking on the client side
     public const int Invisible = 4;
 
-    //立即置脏 26.2 服务端已无读取方 保留常量只为零值语义与原版一致
+    //Mark dirty immediately; 26.2 has no server-side reader, the constant is kept only so the zero value matches vanilla
     public const int Immediate = 8;
 
-    //调用方声明新形状已知 跳过形状更新通道
+    //The caller declares the new shape known, skipping the shape update channel
     public const int KnownShape = 16;
 
-    //抑制掉落 只在 updateOrDestroy 里生效
+    //Suppress drops, only takes effect in updateOrDestroy
     public const int SuppressDrops = 32;
 
-    //被活塞推动 对应原版 movedByPiston 标志
+    //Moved by piston, maps to the vanilla movedByPiston flag
     public const int MoveByPiston = 64;
 
-    //形状更新遇到红石线时整个跳过
+    //Skip the whole shape update when the target is redstone wire
     public const int SkipShapeUpdateOnWire = 128;
 
-    //跳过旧方块实体的移除副作用
+    //Skip removal side effects of the old block entity
     public const int SkipBlockEntitySideEffects = 256;
 
-    //跳过 onPlace
+    //Skip onPlace
     public const int SkipOnPlace = 512;
 
-    //全部副作用关闭 对应原版 816 一次关掉降级 掉落 已知形状 四个判定点
+    //All side effects off, maps to vanilla 816, turning off the demotion, drops and known-shape checks at once
     public const int SkipAllSideEffects =
         SkipBlockEntitySideEffects | SkipOnPlace | SuppressDrops | KnownShape;
 
-    //不通知客户端且跳过方块实体副作用 对应原版 260
+    //Does not notify clients and skips block entity side effects, maps to vanilla 260
     public const int None = SkipBlockEntitySideEffects | Invisible;
 
-    //邻居加客户端 对应原版 3 普通放置最常用
+    //Neighbors plus clients, maps to vanilla 3, most common for ordinary placement
     public const int All = Neighbours | Clients;
 
-    //UpdateLimitDefault 链式传播深度默认值 对应原版三参重载里补的 512
+    //UpdateLimitDefault, default chained propagation depth, the 512 filled in by the vanilla 3-arg overload
     public const int UpdateLimitDefault = 512;
 
-    //NeighbourUpdateOrder 邻居更新遍历顺序 对应原版 NeighborUpdater.UPDATE_ORDER
-    //顺序本身参与红石时序 不能改
+    //NeighbourUpdateOrder, neighbor update traversal order, maps to vanilla NeighborUpdater.UPDATE_ORDER
+    //The order itself is part of redstone timing, must not change
     public static readonly Direction[] NeighbourUpdateOrder =
     {
         Direction.West, Direction.East, Direction.Down, Direction.Up, Direction.North, Direction.South,
     };
 
-    //ShapeUpdateOrder 形状更新遍历顺序 对应原版 BlockBehaviour.UPDATE_SHAPE_ORDER
-    //与邻居顺序不同 两套不能混用
+    //ShapeUpdateOrder, shape update traversal order, maps to vanilla BlockBehaviour.UPDATE_SHAPE_ORDER
+    //Different from the neighbor order, the two must not be mixed
     public static readonly Direction[] ShapeUpdateOrder =
     {
         Direction.West, Direction.East, Direction.North, Direction.South, Direction.Down, Direction.Up,

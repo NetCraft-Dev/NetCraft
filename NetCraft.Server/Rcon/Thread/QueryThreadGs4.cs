@@ -7,9 +7,9 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.Server.Rcon.Thread;
 
-//QueryThreadGs4 GS4 查询协议线程对应原版 net.minecraft.server.rcon.thread.QueryThreadGs4
-//UDP 监听 handshake(0x09) 发挑战数 status(0x00) 回基础信息或规则表
-//挑战数 30 秒清理一次 规则响应缓存 5 秒
+//QueryThreadGs4, GS4 query protocol thread, maps to vanilla net.minecraft.server.rcon.thread.QueryThreadGs4
+//Listens on UDP, handshake(0x09) sends a challenge, status(0x00) returns basic info or the rule table
+//Challenges are pruned every 30 seconds, the rule response is cached for 5 seconds
 public class QueryThreadGs4 : GenericThread
 {
     private const string GameType = "SMP";
@@ -64,7 +64,7 @@ public class QueryThreadGs4 : GenericThread
         _rulesResponse = new NetworkDataOutputStream(PktUtils.MaxPacketSize);
     }
 
-    //Create 按配置建线程端口没配好返回 null 对应原版 create
+    //Create builds the thread from config and returns null when the port is not set up, maps to vanilla create
     public static QueryThreadGs4? Create(DedicatedServer serverInterface)
     {
         var port = serverInterface.Settings.QueryPort;
@@ -81,7 +81,7 @@ public class QueryThreadGs4 : GenericThread
     private void SendTo(byte[] data, IPEndPoint src)
         => _socket!.SendTo(data, 0, data.Length, SocketFlags.None, src);
 
-    //ProcessPacket 处理一个 UDP 包返回是否有效
+    //ProcessPacket handles one UDP packet and returns whether it was valid
     private bool ProcessPacket(byte[] buf, int len, IPEndPoint socketAddress)
     {
         if (3 > len || buf[0] != 0xFE || buf[1] != 0xFD)
@@ -126,7 +126,7 @@ public class QueryThreadGs4 : GenericThread
         return true;
     }
 
-    //BuildRuleResponse 规则表响应 5 秒内复用缓存只改头部挑战号 对应原版 buildRuleResponse
+    //BuildRuleResponse rule table response, reuses the cache within 5 seconds and only changes the challenge number in the header, maps to vanilla buildRuleResponse
     private byte[] BuildRuleResponse(IPEndPoint socketAddress)
     {
         var now = Environment.TickCount64;
@@ -196,7 +196,7 @@ public class QueryThreadGs4 : GenericThread
         SendTo(challenge.ChallengeBytes, socketAddress);
     }
 
-    //PruneChallenges 过期挑战清理 30 秒一次
+    //PruneChallenges prunes expired challenges, once every 30 seconds
     private void PruneChallenges()
     {
         if (!Running) return;
@@ -207,7 +207,7 @@ public class QueryThreadGs4 : GenericThread
             _validChallenges.Remove(FirstKeyOf(stale));
     }
 
-    //FirstKeyOf 按值反查键 清理时用
+    //FirstKeyOf reverse-looks up the key by value, used during pruning
     private IPEndPoint FirstKeyOf(RequestChallenge challenge)
         => _validChallenges.First(pair => ReferenceEquals(pair.Value, challenge)).Key;
 
@@ -234,7 +234,7 @@ public class QueryThreadGs4 : GenericThread
                     }
                     catch (SocketException e) when (e.SocketErrorCode is SocketError.ConnectionReset or SocketError.ConnectionRefused)
                     {
-                        //java 的 PortUnreachableException 在 Windows 上映射 WSAECONNRESET 在 POSIX 上映射 ECONNREFUSED
+                        //Java's PortUnreachableException maps to WSAECONNRESET on Windows and ECONNREFUSED on POSIX
                         continue;
                     }
                     PruneChallenges();
@@ -260,7 +260,7 @@ public class QueryThreadGs4 : GenericThread
         return base.Start();
     }
 
-    //RecoverSocketError 崩掉的 UDP socket 重建一次 重建失败就停
+    //RecoverSocketError rebuilds a broken UDP socket once, stops if the rebuild fails
     private void RecoverSocketError(Exception e)
     {
         if (!Running) return;
@@ -288,8 +288,8 @@ public class QueryThreadGs4 : GenericThread
         }
     }
 
-    //RequestChallenge 一次握手发出的挑战对应原版 RequestChallenge
-    //ident 是请求里带的四字节 挑战数是随机数 编码为 tab+ident+challenge+0
+    //RequestChallenge, a challenge issued by one handshake, maps to vanilla RequestChallenge
+    //ident is the four bytes carried in the request, the challenge is a random number encoded as tab+ident+challenge+0
     private sealed class RequestChallenge
     {
         private readonly long _time = Environment.TickCount64;
@@ -298,7 +298,7 @@ public class QueryThreadGs4 : GenericThread
         {
             IdentBytes = [buf[3], buf[4], buf[5], buf[6]];
             Ident = Encoding.UTF8.GetString(IdentBytes);
-            //NC 没有 java 的 ThreadLocal 随机源 挑战数各自现造一个等价
+            //NC has no Java ThreadLocal random source, so each challenge creates its own equivalent
             Challenge = RandomSource.Create().NextInt(0x1000000);
             ChallengeBytes = Encoding.UTF8.GetBytes($"\t{Ident}{Challenge}\0");
         }

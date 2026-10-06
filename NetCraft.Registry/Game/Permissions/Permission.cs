@@ -3,16 +3,16 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry;
 
-//Permission 权限定义对应原版 net.minecraft.server.permissions.Permission
-//两类实现: Atom 具名原子权限(字符串 id)与 HasCommandLevel 命令等级门槛
-//FULL_CODEC 按 PERMISSION_TYPE 注册表分派 CODEC 额外接受裸字符串 id 退化为 Atom
-//基类做成 abstract record 让 Atom/HasCommandLevel 的值语义与原版 record 一致
+//Permission permission definition, maps to vanilla net.minecraft.server.permissions.Permission
+//Two implementations: Atom for named atomic permissions (string id) and HasCommandLevel for command level thresholds
+//FULL_CODEC dispatches through the PERMISSION_TYPE registry while CODEC additionally accepts a bare string id degraded to Atom
+//The base is an abstract record so Atom/HasCommandLevel value semantics match vanilla records
 public abstract record Permission
 {
-    //FullCodec 按 type 字段查 PERMISSION_TYPE 注册表分派对应原版 byNameCodec().dispatch
+    //FullCodec dispatches through the PERMISSION_TYPE registry by the type field, maps to vanilla byNameCodec().dispatch
     public static readonly Codec<Permission> FullCodec = new PermissionDispatchCodec();
 
-    //Codec 先按完整分派解析 失败退回裸字符串 id 包成 Atom 对应原版 Codec.either(...).xmap
+    //Codec parses with the full dispatch first and falls back to a bare string id wrapped as Atom, maps to vanilla Codec.either(...).xmap
     public static readonly Codec<Permission> Codec = Codecs.Either(FullCodec, IdentifierCodec.Instance)
         .ComapFlatMap(
             (Alt<Permission, Identifier> alt) => alt.Map(
@@ -22,14 +22,14 @@ public abstract record Permission
                 ? Alt<Permission, Identifier>.Right(atom.Id)
                 : Alt<Permission, Identifier>.Left(permission));
 
-    //GetCodec 取本实例的注册表分派 codec 编码时反查注册表键要用
+    //GetCodec gets this instance's registry dispatch codec, needed to reverse-look up the registry key when encoding
     public abstract MapCodec<Permission> GetCodec();
 
-    //Atom 具名原子权限对应原版 Permission.Atom record
-    //相等性按 id 值比较 LevelBasedPermissionSet 里的引用常量靠它命中
+    //Atom named atomic permission, maps to vanilla Permission.Atom record
+    //Equality compares the id value, which is how reference constants in LevelBasedPermissionSet match
     public sealed record Atom : Permission
     {
-        //MapCodec 单字段 id 对应原版 RecordCodecBuilder.mapCodec
+        //MapCodec single id field, maps to vanilla RecordCodecBuilder.mapCodec
         public static readonly MapCodec<Permission> MapCodec =
             RecordCodecBuilder.Of1<Permission, Identifier>(
                 IdentifierCodec.Instance.FieldOf("id").ForGetter<Permission, Identifier>(p => ((Atom)p).Id),
@@ -41,7 +41,7 @@ public abstract record Permission
 
         public override MapCodec<Permission> GetCodec() => MapCodec;
 
-        //Create 按字符串建带默认命名空间的原子权限对应原版 Atom.create
+        //Create builds an atomic permission under the default namespace from a string, maps to vanilla Atom.create
         public static Atom Create(string name) => Create(Identifier.WithDefaultNamespace(name));
 
         public static Atom Create(Identifier id) => new(id);
@@ -49,11 +49,11 @@ public abstract record Permission
         public override string ToString() => $"Atom[{Id}]";
     }
 
-    //HasCommandLevel 命令等级门槛对应原版 Permission.HasCommandLevel record
-    //持有等级而非具体命令 判定交给 PermissionSet 侧
+    //HasCommandLevel command level threshold, maps to vanilla Permission.HasCommandLevel record
+    //Holds a level rather than a concrete command; the PermissionSet side performs the check
     public sealed record HasCommandLevel : Permission
     {
-        //MapCodec 单字段 level 按序列化名编解码对应原版 PermissionLevel.CODEC
+        //MapCodec single level field encoded/decoded by serialized name, maps to vanilla PermissionLevel.CODEC
         public static readonly MapCodec<Permission> MapCodec =
             RecordCodecBuilder.Of1<Permission, PermissionLevel>(
                 PermissionLevels.Codec.FieldOf("level").ForGetter<Permission, PermissionLevel>(p => ((HasCommandLevel)p).Level),
@@ -69,8 +69,8 @@ public abstract record Permission
     }
 }
 
-//PermissionDispatchCodec 按 type 字段分派到注册表里的 MapCodec 对应原版 dispatch
-//type 与参数平铺在同一层 子 codec 忽略多余键 与 PlacementModifierCodec 同一套口径
+//PermissionDispatchCodec dispatches to the MapCodec in the registry by the type field, maps to vanilla dispatch
+//type and arguments are flattened on the same level and the child codec ignores extra keys, the same convention as PlacementModifierCodec
 internal sealed class PermissionDispatchCodec : ScalarCodec<Permission>
 {
     public override DataResult<Permission> Parse<U>(DynamicOps<U> ops, U input)

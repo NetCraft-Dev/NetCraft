@@ -1,11 +1,11 @@
 namespace NetCraft.Util.Collection;
 
-//Enum集合工具对应原版net.minecraft.util.Util.makeEnumMap/allOfEnumExcept
-//C#用Enum.GetValues获取枚举常量对应原版keyType.getEnumConstants
+//Enum collection helpers, map to vanilla net.minecraft.util.Util.makeEnumMap/allOfEnumExcept
+//C# uses Enum.GetValues to get enum constants, maps to vanilla keyType.getEnumConstants
 public static class EnumCollections
 {
-    //makeEnumMap按枚举键类型构造字典对应原版Util.makeEnumMap
-    //遍历枚举常量调用function构造值
+    //makeEnumMap builds a dictionary keyed by enum type, maps to vanilla Util.makeEnumMap
+    //Iterates enum constants calling function to build values
     public static Dictionary<K, V> MakeEnumMap<K, V>(Func<K, V> function)
         where K : struct, Enum
     {
@@ -15,8 +15,8 @@ public static class EnumCollections
         return map;
     }
 
-    //allOfEnumExcept返回除指定值外所有枚举值对应原版Util.allOfEnumExcept
-    //对应原版EnumSet.complementOf(EnumSet.of(value))
+    //allOfEnumExcept returns all enum values except the given one, maps to vanilla Util.allOfEnumExcept
+    //Maps to vanilla EnumSet.complementOf(EnumSet.of(value))
     public static HashSet<T> AllOfEnumExcept<T>(T value)
         where T : struct, Enum
     {

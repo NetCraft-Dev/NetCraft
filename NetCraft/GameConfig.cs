@@ -2,43 +2,43 @@ using NetCraft.Logging;
 
 namespace NetCraft;
 
-//GameConfig 客户端 options.txt 配置
-//对应原版 net.minecraft.client.Options 简化版
-//仅保留核心渲染与游戏体验字段渲染距离 FOV gamma 难度等
-//原版含 100+ Option 字段 NC 简化版按需扩展
+//GameConfig client options.txt config
+//Simplified version of vanilla net.minecraft.client.Options
+//Keeps only core rendering and gameplay fields: render distance, FOV, gamma, difficulty, etc.
+//Vanilla has 100+ Option fields; NC's simplified version expands on demand
 public sealed class GameConfig
 {
-    //渲染距离单位 chunk 默认 12
+    //Render distance in chunks, default 12
     public int RenderDistance { get; set; } = 12;
 
-    //FOV 默认 70 范围 30-110
+    //FOV default 70, range 30-110
     public int Fov { get; set; } = 70;
 
-    //Gamma 亮度 0-1 默认 0.5
+    //Gamma brightness 0-1, default 0.5
     public float Gamma { get; set; } = 0.5f;
 
-    //是否全屏
+    //Whether fullscreen
     public bool Fullscreen { get; set; }
 
-    //是否启用 VSync
+    //Whether VSync is enabled
     public bool EnableVsync { get; set; } = true;
 
-    //是否 demo 模式
+    //Whether demo mode
     public bool Demo { get; set; }
 
-    //语言代码默认 en_us
+    //Language code, default en_us
     public string Language { get; set; } = "en_us";
 
-    //聊天可见度 0=隐藏 1=系统 2=全部
+    //Chat visibility 0=hidden 1=system 2=all
     public int ChatVisibility { get; set; } = 2;
 
-    //鼠标灵敏度 0-2 默认 1
+    //Mouse sensitivity 0-2, default 1
     public float MouseSensitivity { get; set; } = 1.0f;
 
-    //主手 left/right
+    //Main hand left/right
     public string MainHand { get; set; } = "right";
 
-    //加载路径下的 options.txt 配置文件不存在返回默认配置
+    //Load the options.txt at the given path; if it does not exist, return the default config
     public static GameConfig Load(string path)
     {
         var config = new GameConfig();
@@ -65,7 +65,7 @@ public sealed class GameConfig
         return config;
     }
 
-    //保存当前配置到 options.txt 覆盖已有文件
+    //Save the current config to options.txt, overwriting the existing file
     public void Save(string path)
     {
         var props = new PropertiesConfig();

@@ -4,28 +4,28 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.Timers;
 
-//TimerCallbacks 计划回调的编解码登记表对应原版 net.minecraft.world.level.timers.TimerCallbacks
-//LateBoundIdMapper 换成字典 分派 codec 读 type 字段查表
+//TimerCallbacks codec registry for scheduled callbacks, maps to vanilla net.minecraft.world.level.timers.TimerCallbacks
+//LateBoundIdMapper replaced with a dictionary; the dispatch codec reads the type field and looks it up
 public class TimerCallbacks<C>
 {
-    //ServerCallbacks 服务端回调表 挂 function 与 function_tag 两种
+    //ServerCallbacks server callback table, registers function and function_tag
     public static readonly TimerCallbacks<MinecraftServer> ServerCallbacks = new TimerCallbacks<MinecraftServer>()
         .Register(Identifier.WithDefaultNamespace("function"), FunctionCallback.Codec)
         .Register(Identifier.WithDefaultNamespace("function_tag"), FunctionTagCallback.Codec);
 
     private readonly Dictionary<Identifier, MapCodec<TimerCallback<C>>> _codecs = new();
 
-    //Register 登记一种回调的 codec
+    //Register registers the codec for one callback kind
     public TimerCallbacks<C> Register(Identifier id, MapCodec<TimerCallback<C>> codec)
     {
         _codecs[id] = codec;
         return this;
     }
 
-    //Codec 按 type 字段分派对应原版 LateBoundIdMapper.codec().dispatch
+    //Codec dispatches by the type field, maps to vanilla LateBoundIdMapper.codec().dispatch
     public Codec<TimerCallback<C>> Codec() => new DispatchCodec(this);
 
-    //DispatchCodec 查表分派 编码按 GetCodec 实例反查注册名
+    //DispatchCodec table-based dispatch; encoding maps the GetCodec instance back to its registered name
     private sealed class DispatchCodec(TimerCallbacks<C> owner) : ScalarCodec<TimerCallback<C>>
     {
         public override DataResult<TimerCallback<C>> Parse<U>(DynamicOps<U> ops, U input)

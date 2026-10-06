@@ -1,26 +1,26 @@
 namespace NetCraft.Registry;
 
-//注册表访问入口，继承 HolderLookupProvider 提供按注册表 key 查询注册表并支持冻结
+//Registry access entry point; extends HolderLookupProvider to query registries by registry key and support freezing
 public interface RegistryAccess : HolderLookupProvider
 {
-    //Empty 空注册表访问用于 Login/Handshake 阶段无注册表上下文
+    //Empty empty registry access, used during Login/Handshake when there is no registry context
     public static RegistryAccess Empty { get; } = new ImmutableRegistryAccess(Array.Empty<RegistryEntry>());
 
-    //按注册表 key 查注册表，找不到返回 null
+    //Look up a registry by registry key; returns null if not found
     Registry<E>? Lookup<E>(ResourceKey<Registry<E>> registryKey) where E : class;
 
-    //所有注册表条目
+    //All registry entries
     IEnumerable<RegistryEntry> Registries { get; }
 
-    //HolderLookupProvider.Lookup 直接委托 Lookup<E> 签名一致
+    //HolderLookupProvider.Lookup delegates directly to Lookup<E> since the signatures match
     Registry<T>? HolderLookupProvider.Lookup<T>(ResourceKey<Registry<T>> registryKey) where T : class
         => Lookup<T>(registryKey);
 
-    //HolderLookupProvider.ListRegistryKeys 从 Registries 提取所有注册表标识符
+    //HolderLookupProvider.ListRegistryKeys extracts all registry identifiers from Registries
     IEnumerable<Identifier> HolderLookupProvider.ListRegistryKeys()
         => Registries.Select(e => e.Key);
 
-    //找不到注册表抛异常
+    //Throws if the registry is not found
     Registry<E> LookupOrThrow<E>(ResourceKey<Registry<E>> registryKey) where E : class
     {
         var r = Lookup<E>(registryKey);
@@ -28,17 +28,17 @@ public interface RegistryAccess : HolderLookupProvider
         return r;
     }
 
-    //冻结所有注册表返回不可变 RegistryAccess
+    //Freeze all registries and return an immutable RegistryAccess
     Frozen Freeze();
 }
 
-//冻结的 RegistryAccess，标记接口
+//Frozen RegistryAccess, a marker interface
 public interface Frozen : RegistryAccess
 {
 }
 
-//注册表条目，绑定 key 与 value，原版为泛型 record
-//简化：value 用 object 存储，调用方按需 cast 为 Registry<E>
+//Registry entry binding a key and a value; vanilla uses a generic record
+//Simplified: the value is stored as object and the caller casts to Registry<E> as needed
 public sealed class RegistryEntry
 {
     public Identifier Key { get; }
@@ -53,7 +53,7 @@ public sealed class RegistryEntry
     public override string ToString() => $"{Key}={Value}";
 }
 
-//不可变 RegistryAccess，以 Identifier 为键存注册表
+//Immutable RegistryAccess storing registries keyed by Identifier
 public sealed class ImmutableRegistryAccess : Frozen
 {
     private readonly Dictionary<Identifier, object> _registries;
@@ -71,7 +71,7 @@ public sealed class ImmutableRegistryAccess : Frozen
     public Registry<E>? Lookup<E>(ResourceKey<Registry<E>> registryKey) where E : class
         => _registries.TryGetValue(registryKey.Identifier, out var r) ? r as Registry<E> : null;
 
-    //ListRegistryKeys 直接返回字典键比接口默认实现少一次 Select 投影
+    //ListRegistryKeys returns the dictionary keys directly, saving one Select projection versus the interface default
     public IEnumerable<Identifier> ListRegistryKeys() => _registries.Keys;
 
     public IEnumerable<RegistryEntry> Registries

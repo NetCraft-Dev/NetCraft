@@ -4,8 +4,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.State;
 
-//状态属性非泛型基类，对应原版 Property<?> 用法
-//Property<T> 提供类型安全 API，PropertyBase 提供跨 T 的统一接口
+//Non-generic base class for state properties, following vanilla Property<?> usage
+//Property<T> provides the type-safe API while PropertyBase provides a unified interface across T
 public abstract class PropertyBase
 {
     private readonly Type _valueClass;
@@ -21,16 +21,16 @@ public abstract class PropertyBase
     public string Name => _name;
     public Type ValueClass => _valueClass;
 
-    //所有合法取值（装箱形式）
+    //All legal values (boxed form)
     public abstract IReadOnlyList<object> PossibleValuesAsObjects { get; }
 
-    //按值取字符串名
+    //Get the string name for a value
     public abstract string GetNameForValue(object value);
 
-    //按字符串名取值
+    //Get the value for a string name
     public abstract object? GetValueForName(string name);
 
-    //值在 PossibleValues 中的索引
+    //Index of the value in PossibleValues
     public abstract int GetInternalIndexForValue(object value);
 
     public override bool Equals(object? obj)
@@ -49,13 +49,13 @@ public abstract class PropertyBase
     public override string ToString() => $"{_name}({_valueClass.Name})";
 }
 
-//状态属性泛型抽象，对应原版 Property<T extends Comparable<T>>
-//C# enum 默认实现 IComparable 不实现 IComparable<T> 故约束用非泛型 IComparable 兼容 enum
+//Generic abstract state property, maps to vanilla Property<T extends Comparable<T>>
+//C# enums implement IComparable but not IComparable<T>, so the constraint uses the non-generic IComparable to support enums
 public abstract class Property<T> : PropertyBase where T : IComparable
 {
     protected Property(string name) : base(name, typeof(T)) { }
 
-    //所有合法取值（强类型）
+    //All legal values (strongly typed)
     public abstract IReadOnlyList<T> PossibleValues { get; }
 
     public override IReadOnlyList<object> PossibleValuesAsObjects
@@ -69,11 +69,11 @@ public abstract class Property<T> : PropertyBase where T : IComparable
     public override object? GetValueForName(string name) => TryGetValue(name, out var v) ? v : null;
     public override int GetInternalIndexForValue(object value) => GetInternalIndex((T)value);
 
-    //构造值绑定
+    //Construct a value binding
     public PropertyValue Value(T value) => new(this, value);
 
-    //ValueCodec 属性值的字符串 codec 对应原版 Property.valueCodec
-    //encode 用 GetName 把值转字符串 decode 用 TryGetValue 把字符串转值
+    //ValueCodec string codec for property values, maps to vanilla Property.valueCodec
+    //encode uses GetName to turn a value into a string and decode uses TryGetValue to turn a string back into a value
     public Codec<T> ValueCodec()
         => Codecs.String.ComapFlatMap(
             name => TryGetValue(name, out var v)

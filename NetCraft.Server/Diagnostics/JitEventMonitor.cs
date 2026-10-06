@@ -3,16 +3,16 @@ using NetCraft.Logging;
 
 namespace NetCraft.Server.Diagnostics;
 
-//JitEventMonitor 订阅本进程的 JIT 事件 供内存图打点
-//走 EventListener 而不是 EventPipe 运行时事件源本来就归它管 不必再绕一圈解析
-//层级按 MethodLoadVerbose 的 ReJITID 判: 0 是首次编译 1 是 Tier 1 再往上是对上一层的进一步优化
+//JitEventMonitor subscribes to this process's JIT events to mark points on the memory graph
+//Uses EventListener instead of EventPipe, runtime event sources are already handled there and there is no need to add a parsing layer
+//Tier is determined by ReJITID in MethodLoadVerbose: 0 is the first compile, 1 is Tier 1, anything higher is a further optimization of the previous tier
 public static class JitEventMonitor
 {
-    //JitKeyword 与 NGenKeyword JIT 的方法加载事件按这两组发出来
+    //JitKeyword and NGenKeyword, JIT method load events are emitted under these two groups
     private const EventKeywords Keywords = (EventKeywords)(0x10 | 0x20);
 
-    //WhitelistEnabled 是否只统计自己项目的编译事件 默认开
-    //置 NETCRAFT_JIT_WHITELIST=0 可以放开成统计全部方法 排查第三方库的重编译时用
+    //WhitelistEnabled whether to only count this project's compile events, on by default
+    //Set NETCRAFT_JIT_WHITELIST=0 to count all methods, useful for investigating recompilation in third-party libraries
     private static readonly bool WhitelistEnabled =
         Environment.GetEnvironmentVariable("NETCRAFT_JIT_WHITELIST") is not ("0" or "false" or "False" or "FALSE");
 
@@ -23,28 +23,28 @@ public static class JitEventMonitor
     private static long _totalTier2;
     private static long _totalEvents;
 
-    //Total 累计 Tier 1 重编译次数
+    //Total cumulative Tier 1 recompile count
     public static long Total => Interlocked.Read(ref _total);
 
-    //TotalEvents 累计收到的方法加载事件数 用来确认订阅链路是通的
+    //TotalEvents cumulative method load events received, used to confirm the subscription chain works
     public static long TotalEvents => Interlocked.Read(ref _totalEvents);
 
-    //Start 触发订阅 静态字段初始化时就已经挂上 这里只是把入口补齐便于和 GC 那边对称
+    //Start triggers the subscription, it is already attached during static field initialization, this only fills in the entry point to mirror the GC side
     public static void Start() => _ = Hook;
 
-    //TakePending 取走两次取样之间累计的 Tier1 与 Tier2 及以上次数并清零
+    //TakePending takes the Tier1 and Tier2+ counts accumulated between two samples and resets them
     public static (int Tier1, int Tier2) TakePending()
         => (Interlocked.Exchange(ref _pendingTier1, 0), Interlocked.Exchange(ref _pendingTier2, 0));
 
-    //IsTracked 命名空间白名单 只统计自己项目的编译事件
-    //运行时与第三方库的重编译量大又与 nc 无关 混进来会把基线上的点糊成一片
-    //被 NETCRAFT_JIT_WHITELIST=0 关掉后一律放行
+    //IsTracked namespace whitelist, only counts this project's compile events
+    //Runtime and third-party recompilation is high volume and unrelated to nc, mixing it in would smear the baseline dots together
+    //Once disabled by NETCRAFT_JIT_WHITELIST=0 everything passes
     public static bool IsTracked(string? methodNamespace)
         => !WhitelistEnabled
             || (methodNamespace is not null && methodNamespace.StartsWith("NetCraft", StringComparison.Ordinal));
 
-    //Listener 事件回调 状态全放在静态字段上
-    //EventListener 的基类构造期间就会回调 OnEventSourceCreated 实例字段那时还没初始化
+    //Listener event callback, all state lives in static fields
+    //The EventListener base constructor already calls back into OnEventSourceCreated, when instance fields are not initialized yet
     private sealed class Listener : EventListener
     {
         protected override void OnEventSourceCreated(EventSource source)
@@ -55,7 +55,7 @@ public static class JitEventMonitor
 
         protected override void OnEventWritten(EventWrittenEventArgs e)
         {
-            //MethodLoadVerbose 表示这次编译已经出码 加载完成才带得出 ReJITID
+            //MethodLoadVerbose means the compile has produced code, ReJITID is only available once loading completes
             if (e.EventName is null || !e.EventName.StartsWith("MethodLoadVerbose", StringComparison.Ordinal))
                 return;
             Interlocked.Increment(ref _totalEvents);
@@ -71,13 +71,13 @@ public static class JitEventMonitor
                 Log.Debug($"[JIT] Tier1 {name} #{total}");
                 return;
             }
-            //Tier 2 及以上 对上一层优化结果的再优化 单独计数单独配色
+            //Tier 2 and above, a further optimization of the previous tier's result, counted and colored separately
             Interlocked.Increment(ref _pendingTier2);
             var totalTier2 = Interlocked.Increment(ref _totalTier2);
             Log.Debug($"[JIT] Tier{reJitId} recompiled {name} #{totalTier2}");
         }
 
-        //Payload 按字段名取原始值 缺字段返回 null
+        //Payload fetches the raw value by field name, returns null for a missing field
         private static object? Payload(EventWrittenEventArgs e, string field)
         {
             var names = e.PayloadNames;

@@ -1,11 +1,11 @@
 namespace NetCraft.Resources;
 
-//SimpleReloadInstance 同步重载调度器对应原版同名类精简版
-//按注册顺序遍历 listener 调 Reload 不做异步调度与进度聚合
-//原版用 CompletableFuture 链式调度+AtomicInteger 进度跟踪启动期不需要
+//SimpleReloadInstance, a synchronous reload scheduler, a trimmed-down version of the vanilla class of the same name
+//Walks listeners in registration order and calls Reload, no async scheduling or progress aggregation
+//Vanilla uses chained CompletableFuture scheduling + AtomicInteger progress tracking, not needed at startup
 public static class SimpleReloadInstance
 {
-    //Run 按顺序执行所有 listener 抛异常立即终止后续 listener 不执行
+    //Run executes all listeners in order, a thrown exception aborts immediately and later listeners do not run
     public static void Run(ResourceManager rm, IReadOnlyList<PreparableReloadListener> listeners)
     {
         int total = listeners.Count;

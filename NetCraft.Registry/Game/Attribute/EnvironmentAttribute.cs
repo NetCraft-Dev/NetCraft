@@ -2,7 +2,7 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.Environment;
 
-//IEnvironmentAttribute 环境属性的弱类型视图，供注册表与属性映射表统一存取
+//IEnvironmentAttribute weak-typed view of an environment attribute, for unified access by the registry and the attribute map
 public interface IEnvironmentAttribute
 {
     bool IsSyncable { get; }
@@ -11,14 +11,14 @@ public interface IEnvironmentAttribute
 
     bool IsSpatiallyInterpolated { get; }
 
-    //DecodeEntry 解析该属性在 JSON 中的条目
+    //DecodeEntry parses this attribute's entry in JSON
     DataResult<EnvironmentAttributeMap.Entry> DecodeEntry<U>(DynamicOps<U> ops, U input);
 
-    //EncodeEntry 编码该属性的条目
+    //EncodeEntry encodes this attribute's entry
     DataResult<U> EncodeEntry<U>(DynamicOps<U> ops, EnvironmentAttributeMap.Entry entry);
 }
 
-//EnvironmentAttribute 环境属性定义对应原版 EnvironmentAttribute
+//EnvironmentAttribute environment attribute definition, maps to vanilla EnvironmentAttribute
 public sealed class EnvironmentAttribute<Value> : IEnvironmentAttribute
 {
     private Codec<Value>? _valueCodec;
@@ -49,7 +49,7 @@ public sealed class EnvironmentAttribute<Value> : IEnvironmentAttribute
 
     public static Builder<Value> CreateBuilder(AttributeType<Value> type) => new(type);
 
-    //ValueCodec 值 codec 叠加取值区间校验
+    //ValueCodec value codec with range validation layered on
     public Codec<Value> ValueCodec => _valueCodec ??= new ValidatingCodec<Value>(Type.ValueCodec, ValueRange.Validate);
 
     public Value SanitizeValue(Value value) => ValueRange.Sanitize(value);
@@ -71,7 +71,7 @@ public sealed class EnvironmentAttribute<Value> : IEnvironmentAttribute
         return id is null ? "unregistered" : id.Value.ToString();
     }
 
-    //Builder 环境属性构建器，默认不联网同步、参与位置采样、不空间插值
+    //Builder environment attribute builder; by default not network-synced, participates in positional sampling, not spatially interpolated
     public sealed class Builder<TValue>
     {
         private readonly AttributeType<TValue> _type;

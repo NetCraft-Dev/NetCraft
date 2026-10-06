@@ -3,9 +3,9 @@ using System.Text;
 
 namespace NetCraft.Server.ServerConsole;
 
-//ConsoleLineWriter 接替 Console.Out 把内核日志交给 REPL
-//内核只在 FlushConsole 一处写控制台 整批可能好几行 这里按换行拆开逐条交出去
-//REPL 自己输出用启动时存下的原始 writer 不绕回来 否则会自递归
+//ConsoleLineWriter takes over Console.Out and routes kernel log output to the REPL
+//The kernel writes to the console only at FlushConsole, one batch may span several lines, so this splits by newline and hands them over one by one
+//The REPL writes its own output through the original writer saved at startup and does not route back, to avoid recursion
 public sealed class ConsoleLineWriter : TextWriter
 {
     private readonly ReplConsole _repl;
@@ -27,14 +27,14 @@ public sealed class ConsoleLineWriter : TextWriter
 
     public override void Flush()
     {
-        //没换行收尾的残段也交出去 日志正常不以半行结束 但不赌这一点
+        //Hand over a trailing fragment without a newline too, logs normally do not end mid-line but do not bet on it
         if (_pending.Length == 0) return;
         var line = _pending;
         _pending = string.Empty;
         _repl.WriteLine(line);
     }
 
-    //Append 按换行切成整行 末尾没换行的那截攒着等下一批
+    //Append splits into full lines by newline, the tail without a trailing newline is buffered for the next batch
     private void Append(string text)
     {
         var data = _pending + text;
@@ -43,7 +43,7 @@ public sealed class ConsoleLineWriter : TextWriter
         {
             var index = data.IndexOf('\n', start);
             if (index < 0) break;
-            //Windows 下是 \r\n 行尾的 \r 不带进文本
+            //On Windows line endings are \r\n, the trailing \r is not included in the text
             _repl.WriteLine(data[start..index].TrimEnd('\r'));
             start = index + 1;
         }

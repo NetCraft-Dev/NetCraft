@@ -1,7 +1,7 @@
 namespace NetCraft.Storage.Paletted;
 
-//线性palette对应原版LinearPalette
-//用数组顺序存值按索引查找适合条目少的场景
+//Linear palette, maps to vanilla LinearPalette
+//Stores values in array order and looks up by index, suited to small entry counts
 public sealed class LinearPalette<T> : Palette<T>
 {
     private readonly T?[] _values;
@@ -26,7 +26,7 @@ public sealed class LinearPalette<T> : Palette<T>
         _size = size;
     }
 
-    //顺序查找到返回索引未找到且空间足够则追加否则扩容对应原版idFor
+    //Look up in order and return the index; if absent and space remains append, otherwise resize, maps to vanilla idFor
     public int IdFor(T value, PaletteResize<T> resizeHandler)
     {
         for (var i = 0; i < _size; i++)

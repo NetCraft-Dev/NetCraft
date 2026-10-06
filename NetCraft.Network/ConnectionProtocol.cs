@@ -1,11 +1,11 @@
 namespace NetCraft.Network;
 
-//ConnectionProtocol 协议枚举对应原版 net.minecraft.network.ConnectionProtocol
-//Handshake 握手协议
-//Play 游戏内协议
-//Status 服务器列表协议
-//Login 登录协议
-//Configuration 配置协议
+//ConnectionProtocol protocol enum, maps to vanilla net.minecraft.network.ConnectionProtocol
+//Handshake handshake protocol
+//Play in-game protocol
+//Status server list protocol
+//Login login protocol
+//Configuration configuration protocol
 public enum ConnectionProtocol
 {
     Handshake = 0,
@@ -15,11 +15,11 @@ public enum ConnectionProtocol
     Configuration = 4
 }
 
-//ConnectionProtocolExtensions 协议枚举扩展方法
-//提供 Id 字符串对齐原版 ConnectionProtocol.id()
+//ConnectionProtocolExtensions extension methods for the protocol enum
+//Provides the Id string, aligns with vanilla ConnectionProtocol.id()
 public static class ConnectionProtocolExtensions
 {
-    //Id 返回协议小写名字符串对齐原版 id()
+    //Id returns the lowercase protocol name string, aligns with vanilla id()
     public static string Id(this ConnectionProtocol protocol) => protocol switch
     {
         ConnectionProtocol.Handshake => "handshake",

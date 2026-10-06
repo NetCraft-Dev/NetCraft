@@ -3,11 +3,11 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Storage.Updates;
 
-//BlockUpdateHelper 更新链上的公共动作 对应原版 Block 的静态方法
+//BlockUpdateHelper, common actions in the update chain, maps to the static methods on vanilla Block
 public static class BlockUpdateHelper
 {
-    //UpdateNeighbourShapes 向六方向发形状更新 对应原版 BlockStateBase.updateNeighbourShapes
-    //传给邻接的方向取反向 因为邻接要看的是"从它指向本方块"
+    //UpdateNeighbourShapes sends shape updates in all six directions, maps to vanilla BlockStateBase.updateNeighbourShapes
+    //The direction passed to the neighbor is reversed, because the neighbor needs "from itself toward this block"
     public static void UpdateNeighbourShapes(ServerLevel level, BlockState state, BlockPos pos,
         int updateFlags, int updateLimit)
     {
@@ -18,7 +18,7 @@ public static class BlockUpdateHelper
         }
     }
 
-    //UpdateIndirectNeighbourShapes 间接形状更新 对应原版 updateIndirectNeighbourShapes
+    //UpdateIndirectNeighbourShapes, indirect shape update, maps to vanilla updateIndirectNeighbourShapes
     public static void UpdateIndirectNeighbourShapes(ServerLevel level, BlockState state, BlockPos pos,
         int updateFlags, int updateLimit)
     {
@@ -26,8 +26,8 @@ public static class BlockUpdateHelper
         behaviour.UpdateIndirectNeighbourShapes(level, pos, state, updateFlags, updateLimit);
     }
 
-    //UpdateOrDestroy 形状结果为空则销毁否则写回 对应原版 Block.updateOrDestroy
-    //没注入销毁出口时退化为直接置空 掉落会丢 只在无 Game 层的裸场景出现
+    //UpdateOrDestroy destroys when the shape result is air, otherwise writes it back, maps to vanilla Block.updateOrDestroy
+    //Falls back to just clearing when no destroy sink is injected; drops are lost, only occurs in bare scenarios without the Game layer
     public static void UpdateOrDestroy(BlockState state, BlockState newState, ServerLevel level, BlockPos pos,
         int updateFlags, int updateLimit)
     {

@@ -6,15 +6,15 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Protocol.Configuration;
 
-//BiomeRegistrySynchronization 对齐原版 RegistrySynchronization
-//把 BuiltInRegistries.BIOME 打包为 ClientboundRegistryDataPacket.Entries 字节
-//entries = VarInt(count) + PackedRegistryEntry... 每 entry = id(utf) + optional(Tag)
-//对应原版 PackedRegistryEntry.STREAM_CODEC.apply(ByteBufCodecs.list())
+//BiomeRegistrySynchronization aligns with vanilla RegistrySynchronization
+//Packs BuiltInRegistries.BIOME into the ClientboundRegistryDataPacket.Entries bytes
+//entries = VarInt(count) + PackedRegistryEntry... each entry = id(utf) + optional(Tag)
+//Maps to vanilla PackedRegistryEntry.STREAM_CODEC.apply(ByteBufCodecs.list())
 public static class BiomeRegistrySynchronization
 {
-    //EncodeBiome 编码 Biome 为 NETWORK_CODEC 结构的 CompoundTag
-    //对齐 Biome.NETWORK_CODEC 只编 climate(has_precipitation/temperature/downfall) + effects(watter_color)
-    //temperature_modifier 默认 none attributes 默认 EMPTY 均省略
+    //EncodeBiome encodes a Biome into a CompoundTag shaped like NETWORK_CODEC
+    //Aligns with Biome.NETWORK_CODEC, coding only climate(has_precipitation/temperature/downfall) + effects(watter_color)
+    //temperature_modifier defaults to none and attributes to EMPTY, both omitted
     public static CompoundTag EncodeBiome(Biome biome)
     {
         var tag = new CompoundTag();
@@ -27,9 +27,9 @@ public static class BiomeRegistrySynchronization
         return tag;
     }
 
-    //PackBiomes 按注册顺序把 biome 注册表打包为 registry_data entries 字节
-    //每 entry 写 id(utf 字符串) + 存在标记(1 字节) + anyTag(type byte + payload 无 root name)
-    //原版走 FriendlyByteBuf.writeNbt → NbtIo.writeAnyTag 带 root name 会错位
+    //PackBiomes packs the biome registry into registry_data entries bytes in registration order
+    //Each entry writes id(utf string) + presence flag(1 byte) + anyTag(type byte + payload with no root name)
+    //Vanilla goes through FriendlyByteBuf.writeNbt → NbtIo.writeAnyTag with a root name, which would misalign
     public static byte[] PackBiomes(IEnumerable<KeyValuePair<ResourceKey<Biome>, Biome>> entries)
     {
         var list = new List<KeyValuePair<ResourceKey<Biome>, Biome>>(entries);
@@ -46,9 +46,9 @@ public static class BiomeRegistrySynchronization
         return stream.ToArray();
     }
 
-    //PackEmptyEntries 打包只有 id 无 contents 的注册表 entries 字节
-    //每 entry 写 id(utf) + 存在标记 0 客户端从本地 vanilla 资源加载实际数据(known pack 机制)
-    //服务端只需控制 id 列表与顺序 数据由客户端本地 jar 提供
+    //PackEmptyEntries packs registry entries bytes with only ids and no contents
+    //Each entry writes id(utf) + presence flag 0; the client loads the actual data from local vanilla resources (known pack mechanism)
+    //The server only needs to control the id list and order, the data is provided by the client's local jar
     public static byte[] PackEmptyEntries(IEnumerable<string> ids)
     {
         var list = new List<string>(ids);

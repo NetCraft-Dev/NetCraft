@@ -1,8 +1,8 @@
 namespace NetCraft.Storage;
 
-//扇区位图对应原版RegionBitmap
-//记录MCA文件中已占用的扇区，allocate找连续空闲段
-//原版用BitSet动态扩展，此处用long[]按需翻倍扩容
+//Sector bitmap, maps to vanilla RegionBitmap
+//Records sectors already used in the MCA file; allocate finds a contiguous free run
+//Vanilla uses a BitSet that grows dynamically; here a long[] doubles on demand
 public sealed class RegionBitmap
 {
     private long[] _bits = new long[1];
@@ -29,7 +29,7 @@ public sealed class RegionBitmap
         }
     }
 
-    //从头扫描找连续size个空闲扇区的起点，标记后返回
+    //Scan from the start for a run of size free sectors, mark them and return the start index
     public int Allocate(int size)
     {
         int i = 0;
@@ -58,7 +58,7 @@ public sealed class RegionBitmap
         if (bitIndex >= _length) _length = bitIndex + 1;
     }
 
-    //从from找下一个未置位的位置，超出已用范围视为clear
+    //Find the next clear bit from from; beyond the used range counts as clear
     private int NextClearBit(int from)
     {
         for (int i = from; i < _length; i++)
@@ -66,7 +66,7 @@ public sealed class RegionBitmap
         return _length;
     }
 
-    //从from找下一个已置位的位置，无则返回-1
+    //Find the next set bit from from, or -1 when none
     private int NextSetBit(int from)
     {
         for (int i = from; i < _length; i++)

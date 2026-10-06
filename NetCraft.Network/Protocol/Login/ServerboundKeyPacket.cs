@@ -1,19 +1,19 @@
 namespace NetCraft.Network.Protocol.Login;
 
-//ServerboundKeyPacket 客户端加密密钥包对应原版 net.minecraft.network.protocol.login.ServerboundKeyPacket
-//含加密后的 secretKey 字节和加密后的 challenge 字节
-//简化版不实现 RSA 加密逻辑只保留 byte[] 字段传输
-//原版用 Crypt.encryptUsingKey RSA 加密简化版由调用方提供加密后字节
+//ServerboundKeyPacket client encryption key packet, maps to vanilla net.minecraft.network.protocol.login.ServerboundKeyPacket
+//Contains the encrypted secretKey bytes and the encrypted challenge bytes
+//The simplified form does not implement RSA encryption and only keeps the byte[] fields for transport
+//Vanilla encrypts with Crypt.encryptUsingKey RSA; in the simplified form the caller provides the encrypted bytes
 public sealed record ServerboundKeyPacket(byte[] KeyBytes, byte[] EncryptedChallenge) : Packet<ServerLoginPacketListener>
 {
-    //StreamCodec 包编解码器
+    //StreamCodec packet codec
     public static StreamCodec<FriendlyByteBuf, ServerboundKeyPacket> StreamCodec { get; } = new KeyCodec();
 
     public PacketType<ServerLoginPacketListener> Type => LoginPacketTypes.ServerboundKey;
 
     public void Handle(ServerLoginPacketListener handler) => handler.HandleKey(this);
 
-    //KeyCodec 编解码器读写两个 byte[]
+    //KeyCodec codec reading and writing two byte[]
     private sealed class KeyCodec : StreamCodec<FriendlyByteBuf, ServerboundKeyPacket>
     {
         public ServerboundKeyPacket Decode(FriendlyByteBuf buf)

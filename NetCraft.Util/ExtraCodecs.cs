@@ -2,19 +2,19 @@ using NetCraft.Codec;
 
 namespace NetCraft.Util;
 
-//ExtraCodecs 通用的补充 codec 对应原版 net.minecraft.util.ExtraCodecs
-//只补当前用得到的部分
+//ExtraCodecs general supplementary codec, maps to vanilla net.minecraft.util.ExtraCodecs
+//Only fills in the parts currently needed
 public static class ExtraCodecs
 {
-    //IntRange 限定闭区间的整数 codec 对应原版 ExtraCodecs.intRange
+    //IntRange integer codec limited to a closed interval, maps to vanilla ExtraCodecs.intRange
     public static Codec<int> IntRange(int min, int max) => Codecs.Int.ComapFlatMap(
         value => value >= min && value <= max
             ? DataResult<int>.Success(value)
             : DataResult<int>.Error(() => $"Value {value} outside of range [{min}; {max}]"),
         value => value);
 
-    //GuardedPathCodec 限定在给定目录下的路径 codec 对应原版 ExtraCodecs.guardedPathCodec
-    //相对路径先归一 首段不许是 . 或 .. 也不许为空 再挂到目录下成为绝对路径
+    //GuardedPathCodec path codec restricted to a given directory, maps to vanilla ExtraCodecs.guardedPathCodec
+    //Relative paths are normalized first: the first segment must not be . or .. nor empty, then it is attached under the directory to become absolute
     public static Codec<string> GuardedPathCodec(string directory) => Codecs.String.ComapFlatMap(
         value => ParseGuardedPath(directory, value),
         value => ToRelativePath(directory, value));
@@ -30,7 +30,7 @@ public static class ExtraCodecs
     private static string ToRelativePath(string directory, string value)
         => Path.GetRelativePath(Path.GetFullPath(directory), value).Replace('\\', '/');
 
-    //NormalizeRelative 按段归一 空路径与跳出目录的 .. 都判非法
+    //NormalizeRelative normalizes per segment; empty paths and .. escaping the directory are both rejected
     private static string? NormalizeRelative(string text)
     {
         var segments = new List<string>();

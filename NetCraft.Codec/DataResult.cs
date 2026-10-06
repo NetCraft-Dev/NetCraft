@@ -1,7 +1,7 @@
 namespace NetCraft.Codec;
 
-//序列化结果对应原版com.mojang.serialization.DataResult
-//成功携带值失败携带错误消息可选partial值
+//Serialization result, mirroring vanilla com.mojang.serialization.DataResult
+//Carries a value on success, an error message on failure and an optional partial value
 public sealed class DataResult<T>
 {
     private readonly T? _value;
@@ -22,10 +22,10 @@ public sealed class DataResult<T>
     public static DataResult<T> Error(Func<string> message, T? partialValue)
         => new(partialValue, message(), false);
 
-    //仅成功时返回值失败返回Empty
+    //Returns the value on success and Empty on failure
     public Optional<T> Result() => _success ? Optional<T>.OfNullable(_value) : Optional<T>.Empty();
 
-    //失败时回调errorHandler并返回可能存在的partial值
+    //On failure it invokes errorHandler and returns the partial value if there is one
     public Optional<T> ResultOrPartial(Action<string>? errorHandler = null)
     {
         if (_error is not null) errorHandler?.Invoke(_error);
@@ -40,17 +40,17 @@ public sealed class DataResult<T>
     public T GetOrThrow(Func<string> message)
         => _success && _value is not null ? _value : throw new InvalidOperationException(message());
 
-    //失败抛自定义异常对应原版getOrThrow(ChunkReadException::new)
+    //On failure it throws a custom exception, mirroring vanilla getOrThrow(ChunkReadException::new)
     public T GetOrThrow(Func<string, Exception> exceptionFactory)
         => _success && _value is not null ? _value : throw exceptionFactory(_error ?? "DataResult had no value");
 
-    //失败但有partial值时返回partial失败且无partial抛异常对应原版getPartialOrThrow
+    //On failure it returns the partial value when present and throws otherwise, mirroring vanilla getPartialOrThrow
     public T GetPartialOrThrow()
         => _value is not null
             ? _value
             : throw new InvalidOperationException(_error ?? "DataResult had no value");
 
-    //失败但有partial值时返回partial否则抛exceptionFactory构造的异常
+    //On failure it returns the partial value when present, otherwise throws the exception built by exceptionFactory
     public T GetPartialOrThrow(Func<string, Exception> exceptionFactory)
         => _value is not null ? _value : throw exceptionFactory(_error ?? "DataResult had no value");
 
@@ -62,7 +62,7 @@ public sealed class DataResult<T>
     public DataResult<R> FlatMap<R>(Func<T, DataResult<R>> mapper)
         => _success ? mapper(_value!) : DataResult<R>.Error(() => _error!, default);
 
-    //成功映射success失败用failure返回值对应原版mapOrElse
+    //Maps with success on success and returns failure's value on failure, mirroring vanilla mapOrElse
     public R MapOrElse<R>(Func<T, R> success, Func<string, R> failure)
         => _success ? success(_value!) : failure(_error!);
 }

@@ -2,25 +2,25 @@ namespace NetCraft.DataFixer.Kinds;
 
 using System.Collections.Generic;
 
-//Monoid类型类对应原版com.mojang.datafixers.kinds.Monoid
+//Monoid typeclass maps to vanilla com.mojang.datafixers.kinds.Monoid
 public interface Monoid<T>
 {
-    //单位元
+    //identity element
     T Point();
-    //二元合并
+    //binary combine
     T Add(T first, T second);
 
-    //listMonoid列表拼接Monoid
+    //listMonoid: list concatenation Monoid
     static Monoid<List<T>> ListMonoid<T>() => Monoids.ListMonoid<T>();
 }
 
-//Monoids非泛型静态工具类避免泛型接口Monoid<T>静态方法调用歧义
+//Monoids is a non-generic static helper avoiding ambiguity when calling static methods on the generic interface Monoid<T>
 public static class Monoids
 {
-    //listMonoid列表拼接Monoid
+    //listMonoid: list concatenation Monoid
     public static Monoid<List<T>> ListMonoid<T>() => new ListMonoidImpl<T>();
 
-    //ListMonoidImpl列表拼接实现
+    //ListMonoidImpl: list concatenation implementation
     private sealed class ListMonoidImpl<T> : Monoid<List<T>>
     {
         public List<T> Point() => new();

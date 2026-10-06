@@ -1,8 +1,8 @@
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientboundTransferPacket 传输包对应原版 net.minecraft.network.protocol.common.ClientboundTransferPacket
-//含 string host + int port 服务端请求客户端转移到另一服务器
+//ClientboundTransferPacket transfer packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundTransferPacket
+//Contains string host + int port; the server asks the client to transfer to another server
 public sealed record ClientboundTransferPacket(string Host, int Port) : Packet<ClientCommonPacketListener>
 {
     public const int MaxHostLength = 255;

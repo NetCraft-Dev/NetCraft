@@ -1,8 +1,8 @@
 namespace NetCraft.Network.Chat;
 
-//ChatTypeDecoration 聊天类型装饰对应原版 net.minecraft.network.chat.ChatTypeDecoration
-//translationKey + parameters + style 三元组用于 Bound.decorate 生成翻译组件
-//Parameter 枚举对齐原版 SENDER/TARGET/CONTENT VarInt id 编解码
+//ChatTypeDecoration chat type decoration, maps to vanilla net.minecraft.network.chat.ChatTypeDecoration
+//A translationKey + parameters + style triple, used by Bound.decorate to build the translatable component
+//Parameter enum aligns with vanilla SENDER/TARGET/CONTENT, coded by VarInt id
 public sealed class ChatTypeDecoration
 {
     public string TranslationKey { get; }
@@ -19,30 +19,30 @@ public sealed class ChatTypeDecoration
         Style = style;
     }
 
-    //WithSender 仅 SENDER+CONTENT 参数对齐原版 withSender
+    //WithSender only SENDER+CONTENT parameters, aligns with vanilla withSender
     public static ChatTypeDecoration WithSender(string translationKey)
         => new(translationKey, new List<Parameter> { Parameter.SENDER, Parameter.CONTENT }, Style.Empty);
 
-    //IncomingDirectMessage 灰色斜体 TARGET+CONTENT 对齐原版 incomingDirectMessage
+    //IncomingDirectMessage gray italic TARGET+CONTENT, aligns with vanilla incomingDirectMessage
     public static ChatTypeDecoration IncomingDirectMessage(string translationKey)
         => new(translationKey,
             new List<Parameter> { Parameter.SENDER, Parameter.CONTENT },
             Style.Empty.WithColor(0x808080));
 
-    //OutgoingDirectMessage 灰色斜体 TARGET+CONTENT 对齐原版 outgoingDirectMessage
+    //OutgoingDirectMessage gray italic TARGET+CONTENT, aligns with vanilla outgoingDirectMessage
     public static ChatTypeDecoration OutgoingDirectMessage(string translationKey)
         => new(translationKey,
             new List<Parameter> { Parameter.TARGET, Parameter.CONTENT },
             Style.Empty.WithColor(0x808080));
 
-    //TeamMessage TARGET+SENDER+CONTENT 对齐原版 teamMessage
+    //TeamMessage TARGET+SENDER+CONTENT, aligns with vanilla teamMessage
     public static ChatTypeDecoration TeamMessage(string translationKey)
         => new(translationKey,
             new List<Parameter> { Parameter.TARGET, Parameter.SENDER, Parameter.CONTENT },
             Style.Empty);
 
-    //Parameter 装饰参数枚举对齐原版 ChatTypeDecoration.Parameter
-    //VarInt id 编解码 BY_ID 越界回退 SENDER
+    //Parameter decoration parameter enum, aligns with vanilla ChatTypeDecoration.Parameter
+    //Coded by VarInt id; out-of-range falls back to SENDER via BY_ID
     public enum Parameter
     {
         SENDER = 0,
@@ -51,14 +51,14 @@ public sealed class ChatTypeDecoration
     }
 }
 
-//ParameterExtensions Parameter 扩展方法必须放顶级静态类
+//ParameterExtensions extension methods for Parameter, which must live in a top-level static class
 public static class ParameterExtensions
 {
-    //ById 按 id 查 Parameter 越界回退 SENDER 对齐原版 ByIdMap.OutOfBoundsStrategy.ZERO
+    //ById looks up Parameter by id and falls back to SENDER when out of range, aligns with vanilla ByIdMap.OutOfBoundsStrategy.ZERO
     public static ChatTypeDecoration.Parameter ById(int id)
         => id >= 0 && id <= 2 ? (ChatTypeDecoration.Parameter)id : ChatTypeDecoration.Parameter.SENDER;
 
-    //GetName 返回小写名字对齐原版 getSerializedName
+    //GetName returns the lowercase name, aligns with vanilla getSerializedName
     public static string GetName(this ChatTypeDecoration.Parameter parameter) => parameter switch
     {
         ChatTypeDecoration.Parameter.SENDER => "sender",
@@ -68,8 +68,8 @@ public static class ParameterExtensions
     };
 }
 
-//ChatTypeDecorationCodec 聊天类型装饰编解码 translationKey(字符串) + parameters(VarInt 长度前缀列表) + style
-//Style 简化编解码用 packed byte 标志位 + 必要字段覆盖 color/bold/italic/underlined/strikethrough/obfuscated
+//ChatTypeDecorationCodec codes the chat type decoration: translationKey(string) + parameters(VarInt length-prefixed list) + style
+//The simplified Style codec uses a packed byte of flags + the necessary fields covering color/bold/italic/underlined/strikethrough/obfuscated
 internal sealed class ChatTypeDecorationCodec : StreamCodec<RegistryFriendlyByteBuf, ChatTypeDecoration>
 {
     public ChatTypeDecoration Decode(RegistryFriendlyByteBuf buf)
@@ -92,7 +92,7 @@ internal sealed class ChatTypeDecorationCodec : StreamCodec<RegistryFriendlyByte
         WriteStyle(buf, value.Style);
     }
 
-    //ReadStyle 简化 Style 解码 packed byte 标志位 + 对应字段
+    //ReadStyle simplified Style decode: packed byte flags + corresponding fields
     internal static Style ReadStyle(RegistryFriendlyByteBuf buf)
     {
         byte flags = buf.ReadByte();
@@ -110,7 +110,7 @@ internal sealed class ChatTypeDecorationCodec : StreamCodec<RegistryFriendlyByte
         return style;
     }
 
-    //WriteStyle 简化 Style 编码 packed byte 标志位 + 对应字段
+    //WriteStyle simplified Style encode: packed byte flags + corresponding fields
     internal static void WriteStyle(RegistryFriendlyByteBuf buf, Style style)
     {
         byte flags = 0;

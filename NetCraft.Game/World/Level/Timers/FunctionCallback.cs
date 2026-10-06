@@ -5,11 +5,11 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Game.World.Level.Timers;
 
-//FunctionCallback 函数调用回调对应原版 net.minecraft.world.level.timers.FunctionCallback record
-//到点后经函数管理器执行一次该函数
+//FunctionCallback function call callback, maps to vanilla net.minecraft.world.level.timers.FunctionCallback record
+//When due, executes the function once through the function manager
 public sealed record FunctionCallback : TimerCallback<MinecraftServer>
 {
-    //Codec 单字段 id 对应原版 RecordCodecBuilder.mapCodec
+    //Codec single field id, maps to vanilla RecordCodecBuilder.mapCodec
     public static readonly MapCodec<TimerCallback<MinecraftServer>> Codec =
         RecordCodecBuilder.Of1<TimerCallback<MinecraftServer>, Identifier>(
             IdentifierCodec.Instance.FieldOf("id").ForGetter<TimerCallback<MinecraftServer>, Identifier>(c => ((FunctionCallback)c).FunctionId),

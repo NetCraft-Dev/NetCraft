@@ -2,13 +2,13 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Game.World.Clock;
 
-//ClockState 单时钟持久化状态对应原版 net.minecraft.world.clock.ClockState
-//NBT 字段 total_ticks/partial_tick/rate/paused 与原版 Codec 一致
+//ClockState single-clock persisted state, maps to vanilla net.minecraft.world.clock.ClockState
+//NBT fields total_ticks/partial_tick/rate/paused match the vanilla Codec
 public sealed record ClockState(long TotalTicks, float PartialTick, float Rate, bool Paused)
 {
     public const float DefaultRate = 1f;
 
-    //Save 写入 NBT 缺省字段按原版 optionalFieldOf 默认值补齐
+    //Save writes to NBT; missing fields are filled with defaults like vanilla optionalFieldOf
     public CompoundTag Save(CompoundTag tag)
     {
         tag.PutLong("total_ticks", TotalTicks);
@@ -18,7 +18,7 @@ public sealed record ClockState(long TotalTicks, float PartialTick, float Rate, 
         return tag;
     }
 
-    //Load 从 NBT 恢复 缺省字段对应原版默认 0/0/1/false
+    //Load restores from NBT; missing fields default to 0/0/1/false like vanilla
     public static ClockState Load(CompoundTag tag)
         => new(
             tag.GetLongValue("total_ticks"),

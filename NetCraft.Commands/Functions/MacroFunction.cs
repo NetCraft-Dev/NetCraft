@@ -7,14 +7,14 @@ using NetCraft.Registry;
 
 namespace NetCraft.Commands.Functions;
 
-//MacroFunction 带宏的函数对应原版 net.minecraft.commands.functions.MacroFunction
-//instantiate 按参数取值替换宏行重新解析 实例结果按参数列表缓存最多 8 份
+//MacroFunction a function with macros, maps to vanilla net.minecraft.commands.functions.MacroFunction
+//instantiate substitutes macro lines with the argument values and re-parses; results are cached per argument list, up to 8 entries
 public class MacroFunction<T> : CommandFunction<T>
 {
-    //DecimalFormatString 等价原版 DecimalFormat('#') 且最多 15 位小数 整数不带小数点
+    //DecimalFormatString equivalent to vanilla DecimalFormat('#') with up to 15 fraction digits and no decimal point on integers
     private const string DecimalFormatString = "0.###############";
 
-    //MaxCacheEntries 实例缓存上限
+    //MaxCacheEntries instantiation cache limit
     private const int MaxCacheEntries = 8;
 
     private readonly List<string> _parameters;
@@ -31,7 +31,7 @@ public class MacroFunction<T> : CommandFunction<T>
 
     public Identifier Id => _id;
 
-    //Instantiate 按参数实例化缺参直接炸对应原版 instantiate
+    //Instantiate instantiates with arguments and blows up on missing ones; maps to vanilla instantiate
     public InstantiatedFunction<T> Instantiate(CompoundTag? arguments, CommandDispatcher<T> dispatcher)
     {
         if (arguments is null)
@@ -61,7 +61,7 @@ public class MacroFunction<T> : CommandFunction<T>
         return function;
     }
 
-    //GetCached 取缓存命中则移到队尾
+    //GetCached looks up the cache and moves a hit to the tail
     private InstantiatedFunction<T>? GetCached(List<string> parameterValues)
     {
         foreach (var pair in _cache)
@@ -76,7 +76,7 @@ public class MacroFunction<T> : CommandFunction<T>
         return null;
     }
 
-    //Stringify 参数值转文本浮点走 DECIMAL_FORMAT 对应原版 stringify
+    //Stringify converts an argument value to text; floating points use DECIMAL_FORMAT; maps to vanilla stringify
     private static string Stringify(Tag tag)
     {
         switch (tag)
@@ -110,7 +110,7 @@ public class MacroFunction<T> : CommandFunction<T>
         return new PlainTextFunction<T>(_id.WithPath(id => id + "/" + values.GetHashCode()), newEntries);
     }
 
-    //LookupValues 按下标选值复用输出列表对应原版 lookupValues
+    //LookupValues selects values by index, reusing the output list; maps to vanilla lookupValues
     private static void LookupValues(List<string> values, List<int> indicesToSelect, List<string> selectedValuesOutput)
     {
         selectedValuesOutput.Clear();
@@ -120,17 +120,17 @@ public class MacroFunction<T> : CommandFunction<T>
         }
     }
 
-    //Entry 函数条目抽象
+    //Entry function entry abstraction
     public interface Entry<T2>
     {
-        //Parameters 引用的宏参数下标
+        //Parameters indices of the referenced macro arguments
         List<int> Parameters { get; }
 
-        //UnboundEntryAction 按实参实例化出动作
+        //UnboundEntryAction instantiates an action from the arguments
         UnboundEntryAction<T2> Instantiate(List<string> substitutions, CommandDispatcher<T2> dispatcher, Identifier functionId);
     }
 
-    //MacroEntry 宏行条目
+    //MacroEntry macro line entry
     public sealed class MacroEntry<T2>(
         StringTemplate template, List<int> parameters, T2 compilationContext) : Entry<T2>
     {
@@ -150,7 +150,7 @@ public class MacroFunction<T> : CommandFunction<T>
         }
     }
 
-    //PlainTextEntry 已编译的普通条目
+    //PlainTextEntry already compiled plain entry
     public sealed class PlainTextEntry<T2>(UnboundEntryAction<T2> compiledAction) : Entry<T2>
     {
         public List<int> Parameters => [];

@@ -2,24 +2,24 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Registry.EntityAttribute;
 
-//AttributeMap 实体的属性表 对应原版 AttributeMap
-//实例惰性创建 实体没碰过的属性直接取类型默认表的值
-//服务端还要维护"本刻被改脏的属性"供每刻增量同步 见 AttributesToSync
+//AttributeMap entity attribute map, maps to vanilla AttributeMap
+//Instances are created lazily; attributes the entity never touched read directly from the type's default table
+//The server also maintains "attributes changed this tick" for incremental sync, see AttributesToSync
 public sealed class AttributeMap
 {
-    //AttributesTag 属性存档字段名 对应原版 LivingEntity.TAG_ATTRIBUTES
+    //AttributesTag attribute save field name, maps to vanilla LivingEntity.TAG_ATTRIBUTES
     private const string AttributesTag = "attributes";
 
-    //_attributes 实体自己的实例 只有被取过或被改过的属性才落在这里 对应原版 attributes
+    //_attributes the entity's own instances; only attributes that were read or changed land here, maps to vanilla attributes
     private readonly Dictionary<Attribute, AttributeInstance> _attributes = new();
-    //_attributesToSync 本刻被改脏且需要同步给客户端的属性 对应原版 attributesToSync
+    //_attributesToSync attributes changed this tick that need to sync to the client, maps to vanilla attributesToSync
     private readonly HashSet<AttributeInstance> _attributesToSync = new();
-    //_supplier 该实体类型的属性默认表 实体类型没登记过的属性一律取不到实例
+    //_supplier this entity type's default attribute table; attributes not registered for the type can never get an instance
     private readonly AttributeSupplier _supplier;
 
     public AttributeMap(AttributeSupplier supplier) => _supplier = supplier;
 
-    //GetInstance 取实体自己的实例 没建过就按模板复制一个 该类型没这个属性返回 null 对应原版 getInstance
+    //GetInstance gets the entity's own instance, copying one from the template if not built yet; returns null if the type lacks the attribute, maps to vanilla getInstance
     public AttributeInstance? GetInstance(Attribute attribute)
     {
         if (_attributes.TryGetValue(attribute, out var existing)) return existing;
@@ -28,21 +28,21 @@ public sealed class AttributeMap
         return created;
     }
 
-    //GetValue 取属性最终值 实体有自己的实例就用它 否则回落类型默认表 对应原版 getValue
-    //默认表没登记该属性时再回落属性自身的默认值 调用方不必先 hasAttribute
+    //GetValue gets the attribute's final value; uses the entity's own instance if any, otherwise falls back to the type's default table, maps to vanilla getValue
+    //If the default table lacks the attribute it falls back to the attribute's own default, so callers need not check hasAttribute first
     public double GetValue(Attribute attribute)
         => _attributes.TryGetValue(attribute, out var instance)
             ? instance.Value
             : SupplierHas(attribute) ? _supplier.GetValue(attribute) : attribute.DefaultValue;
 
-    //GetBaseValue 取属性基值 对应原版 getBaseValue
+    //GetBaseValue gets the attribute's base value, maps to vanilla getBaseValue
     public double GetBaseValue(Attribute attribute)
         => _attributes.TryGetValue(attribute, out var instance)
             ? instance.BaseValue
             : SupplierHas(attribute) ? _supplier.GetBaseValue(attribute) : attribute.DefaultValue;
 
-    //ResetBaseValue 把属性基值恢复为该类型默认表的基值 对应原版 resetBaseValue
-    //类型没登记该属性返回 false 实例还没建过就不必恢复直接算成功 与供给方行为一致
+    //ResetBaseValue restores the attribute base value to the type's default table, maps to vanilla resetBaseValue
+    //Returns false if the type does not register the attribute; if no instance exists yet there is nothing to restore, so it succeeds, matching the supplier behavior
     public bool ResetBaseValue(Attribute attribute)
     {
         if (!SupplierHas(attribute)) return false;
@@ -51,12 +51,12 @@ public sealed class AttributeMap
         return true;
     }
 
-    //HasAttribute 实体是否有该属性 对应原版 hasAttribute
+    //HasAttribute whether the entity has the attribute, maps to vanilla hasAttribute
     public bool HasAttribute(Attribute attribute)
         => _attributes.ContainsKey(attribute) || _supplier.HasAttribute(attribute);
 
-    //SyncableAttributes 全部需要同步给客户端的属性 对应原版 getSyncableAttributes
-    //实体配对时按它下发全量 只含已实例化的属性 没被碰过的走客户端本地默认表
+    //SyncableAttributes all attributes that need to sync to the client, maps to vanilla getSyncableAttributes
+    //Sent in full when the entity is paired; includes only instantiated attributes and untouched ones use the client's local default table
     public IReadOnlyList<AttributeInstance> SyncableAttributes
     {
         get
@@ -68,11 +68,11 @@ public sealed class AttributeMap
         }
     }
 
-    //AttributesToSync 本刻被改脏且需要同步的属性 对应原版 getAttributesToSync
+    //AttributesToSync attributes changed this tick that need syncing, maps to vanilla getAttributesToSync
     public IReadOnlyCollection<AttributeInstance> AttributesToSync => _attributesToSync;
 
-    //Pack 打包全部属性实例供存档 只含被改动过的属性 对应原版 pack
-    //没碰过的属性不占存档 读回时按类型默认表取值
+    //Pack packs all attribute instances for saving; includes only changed attributes, maps to vanilla pack
+    //Untouched attributes take no save space and are read back from the type's default table
     public IReadOnlyList<AttributeInstance.Packed> Pack()
     {
         var result = new List<AttributeInstance.Packed>(_attributes.Count);
@@ -80,7 +80,7 @@ public sealed class AttributeMap
         return result;
     }
 
-    //Apply 应用存档读回的属性 该类型没这个属性就丢弃该项 对应原版 apply
+    //Apply applies attributes read back from a save, dropping entries for attributes the type lacks, maps to vanilla apply
     public void Apply(IReadOnlyList<AttributeInstance.Packed> packedAttributes)
     {
         foreach (var packed in packedAttributes)
@@ -90,8 +90,8 @@ public sealed class AttributeMap
         }
     }
 
-    //WriteTo 把属性写进实体存档 对应原版 LivingEntity 存档里的 attributes 字段
-    //属性按注册名写 注册表顺序变化不影响读回 没登记进注册表的属性跳过
+    //WriteTo writes attributes into the entity save, the attributes field in vanilla LivingEntity saves
+    //Attributes are written by registry name so registry order changes do not affect reading back; attributes not registered in the registry are skipped
     public void WriteTo(CompoundTag tag)
     {
         var list = new ListTag();
@@ -100,9 +100,9 @@ public sealed class AttributeMap
             if (BuiltInRegistries.ATTRIBUTE.GetKey(packed.Attribute) is not { } id) continue;
             var entry = new CompoundTag();
             entry.PutString("id", id.ToString());
-            //base 原版总是写出 读回缺失时按 0 处理
+            //base is always written by vanilla; a missing value on read is treated as 0
             entry.PutDouble("base", packed.BaseValue);
-            //modifiers 为空按原版省略该字段
+            //modifiers is omitted when empty, as in vanilla
             if (packed.Modifiers.Count > 0)
             {
                 var modifiers = new ListTag();
@@ -115,8 +115,8 @@ public sealed class AttributeMap
         tag.Put(AttributesTag, list);
     }
 
-    //ReadFrom 从实体存档读回属性 没有该字段就保持当前表不动
-    //单条解不出来只丢那一条 不整份放弃 对应原版 LivingEntity 读回后调 AttributeMap.apply
+    //ReadFrom reads attributes back from the entity save, leaving the current map untouched if the field is absent
+    //A single entry that fails to decode is dropped without discarding the rest, matching vanilla LivingEntity calling AttributeMap.apply after reading
     public void ReadFrom(CompoundTag tag)
     {
         if (tag.GetList(AttributesTag) is not { } list) return;
@@ -126,8 +126,8 @@ public sealed class AttributeMap
         Apply(packed);
     }
 
-    //WriteModifier 写出单个修饰符 对应原版 AttributeModifier.CODEC
-    //operation 用序列化名不用枚举序号 存档不依赖枚举顺序
+    //WriteModifier writes a single modifier, maps to vanilla AttributeModifier.CODEC
+    //operation uses the serialized name rather than the enum ordinal so saves do not depend on enum order
     private static CompoundTag WriteModifier(AttributeModifier modifier)
     {
         var tag = new CompoundTag();
@@ -137,7 +137,7 @@ public sealed class AttributeMap
         return tag;
     }
 
-    //ReadAttribute 读单个属性条目 未注册的属性直接丢掉
+    //ReadAttribute reads a single attribute entry, dropping unregistered attributes
     private static AttributeInstance.Packed? ReadAttribute(CompoundTag tag)
     {
         if (Identifier.TryParse(tag.GetStringValue("id")) is not { } id) return null;
@@ -153,7 +153,7 @@ public sealed class AttributeMap
         return new AttributeInstance.Packed(attribute, baseValue, modifiers);
     }
 
-    //ReadModifier 读单个修饰符 运算名不认识就丢掉该条
+    //ReadModifier reads a single modifier, dropping the entry if the operation name is unknown
     private static AttributeModifier? ReadModifier(CompoundTag tag)
     {
         if (Identifier.TryParse(tag.GetStringValue("id")) is not { } id) return null;
@@ -161,16 +161,16 @@ public sealed class AttributeMap
         return new AttributeModifier(id, tag.GetDouble("amount")?.Value ?? 0.0, operation);
     }
 
-    //ClearAttributesToSync 同步之后清空待同步集合 对应原版发送点的 attributes.clear()
+    //ClearAttributesToSync clears the pending sync set after syncing, matching the vanilla attributes.clear() at the send point
     public void ClearAttributesToSync() => _attributesToSync.Clear();
 
-    //OnAttributeModified 实例被改脏时回调 对应原版 onAttributeModified
-    //只有标记同步的属性才进集合 不同步的属性改了也不该发出去
+    //OnAttributeModified callback when an instance is marked dirty, maps to vanilla onAttributeModified
+    //Only sync-marked attributes enter the set; a non-sync attribute should not be sent even if changed
     private void OnAttributeModified(AttributeInstance instance)
     {
         if (instance.Attribute.ClientSyncable) _attributesToSync.Add(instance);
     }
 
-    //SupplierHas 类型默认表里是否有该属性
+    //SupplierHas whether the type's default table has the attribute
     private bool SupplierHas(Attribute attribute) => _supplier.HasAttribute(attribute);
 }

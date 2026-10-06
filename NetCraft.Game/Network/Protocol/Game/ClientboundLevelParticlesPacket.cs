@@ -2,8 +2,8 @@ using NetCraft.Game.World.Particle;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundLevelParticlesPacket 世界粒子包对应原版 ClientboundLevelParticlesPacket
-//字段顺序与原版 write 一致 overrideLimiter/alwaysShow 两个布尔在前 坐标与散布其后 最后是粒子选项
+//ClientboundLevelParticlesPacket level particles packet, maps to vanilla ClientboundLevelParticlesPacket
+//Field order matches vanilla write: the two booleans overrideLimiter/alwaysShow come first, then the position and spread, and the particle options last
 public sealed record ClientboundLevelParticlesPacket(double X, double Y, double Z, float XDist, float YDist, float ZDist, float MaxSpeed, int Count, bool OverrideLimiter, bool AlwaysShow, ParticleOptions Particle) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<RegistryFriendlyByteBuf, ClientboundLevelParticlesPacket> StreamCodec { get; } = new LevelParticlesCodec();

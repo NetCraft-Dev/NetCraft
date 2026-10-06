@@ -2,9 +2,9 @@ using System.Text;
 
 namespace NetCraft.Util;
 
-//CommandStringReader 字符串读取器对应原版 brigadier StringReader
-//提供游标式解析字符串的支持方法
-//改名 CommandStringReader 避免与 System.IO.StringReader 冲突
+//CommandStringReader string reader, maps to vanilla brigadier StringReader
+//Provides cursor-style helpers for parsing strings
+//Renamed to CommandStringReader to avoid clashing with System.IO.StringReader
 public sealed class CommandStringReader
 {
     private readonly string _str;
@@ -35,25 +35,25 @@ public sealed class CommandStringReader
 
     public char Peek()
     {
-        if (!CanRead()) throw new InvalidOperationException("无字符可读");
+        if (!CanRead()) throw new InvalidOperationException("No characters to read");
         return _str[_cursor];
     }
 
     public char Peek(int offset)
     {
-        if (!CanRead(offset + 1)) throw new InvalidOperationException("无字符可读");
+        if (!CanRead(offset + 1)) throw new InvalidOperationException("No characters to read");
         return _str[_cursor + offset];
     }
 
     public char Read()
     {
-        if (!CanRead()) throw new InvalidOperationException("无字符可读");
+        if (!CanRead()) throw new InvalidOperationException("No characters to read");
         return _str[_cursor++];
     }
 
     public void Skip()
     {
-        if (!CanRead()) throw new InvalidOperationException("无字符可读");
+        if (!CanRead()) throw new InvalidOperationException("No characters to read");
         _cursor++;
     }
 
@@ -65,7 +65,7 @@ public sealed class CommandStringReader
         }
     }
 
-    //ReadString 读带引号或不带引号字符串
+    //ReadString reads a quoted or unquoted string
     public string ReadString()
     {
         if (!CanRead()) return string.Empty;
@@ -77,7 +77,7 @@ public sealed class CommandStringReader
         return ReadUnquotedString();
     }
 
-    //ReadUnquotedString 读isAllowedInUnquotedString允许的字符序列
+    //ReadUnquotedString reads the character sequence allowed by isAllowedInUnquotedString
     public string ReadUnquotedString()
     {
         var start = _cursor;
@@ -88,22 +88,22 @@ public sealed class CommandStringReader
         return _str[start.._cursor];
     }
 
-    //isAllowedInUnquotedString对应原版brigadier StringReader.isAllowedInUnquotedString
-    //只允许字母数字下划线减号小数点加号其他字符停止读取
+    //isAllowedInUnquotedString maps to vanilla brigadier StringReader.isAllowedInUnquotedString
+    //Only allows letters, digits, underscore, minus, dot and plus, stopping at any other character
     public static bool IsAllowedInUnquotedString(char c)
         => c is (>= '0' and <= '9')
             or (>= 'A' and <= 'Z')
             or (>= 'a' and <= 'z')
             or '_' or '-' or '.' or '+';
 
-    //ReadQuotedString 读引号包围的字符串支持转义
+    //ReadQuotedString reads a quote-enclosed string, supports escapes
     public string ReadQuotedString()
     {
         if (!CanRead()) return string.Empty;
         var quote = Read();
         if (quote != '"' && quote != '\'')
         {
-            throw new InvalidOperationException("预期引号");
+            throw new InvalidOperationException("Expected quote");
         }
         var result = new StringBuilder();
         bool escaped = false;
@@ -119,7 +119,7 @@ public sealed class CommandStringReader
                 }
                 else
                 {
-                    throw new InvalidOperationException($"无效转义字符 {c}");
+                    throw new InvalidOperationException($"Invalid escape character {c}");
                 }
             }
             else if (c == '\\')
@@ -135,42 +135,42 @@ public sealed class CommandStringReader
                 result.Append(c);
             }
         }
-        throw new InvalidOperationException("字符串未闭合");
+        throw new InvalidOperationException("Unterminated string");
     }
 
-    //ReadInt 读 int 数字支持负号
+    //ReadInt reads an int number, supports a leading minus
     public int ReadInt()
     {
         var s = ReadNumberToken();
-        if (!int.TryParse(s, out var value)) throw new InvalidOperationException($"无效 int {s}");
+        if (!int.TryParse(s, out var value)) throw new InvalidOperationException($"Invalid int {s}");
         return value;
     }
 
-    //ReadLong 读 long 数字支持负号
+    //ReadLong reads a long number, supports a leading minus
     public long ReadLong()
     {
         var s = ReadNumberToken();
-        if (!long.TryParse(s, out var value)) throw new InvalidOperationException($"无效 long {s}");
+        if (!long.TryParse(s, out var value)) throw new InvalidOperationException($"Invalid long {s}");
         return value;
     }
 
-    //ReadFloat 读 float 数字支持负号小数指数
+    //ReadFloat reads a float number, supports a leading minus, decimal point and exponent
     public float ReadFloat()
     {
         var s = ReadNumberToken();
-        if (!float.TryParse(s, out var value)) throw new InvalidOperationException($"无效 float {s}");
+        if (!float.TryParse(s, out var value)) throw new InvalidOperationException($"Invalid float {s}");
         return value;
     }
 
-    //ReadDouble 读 double 数字支持负号小数指数
+    //ReadDouble reads a double number, supports a leading minus, decimal point and exponent
     public double ReadDouble()
     {
         var s = ReadNumberToken();
-        if (!double.TryParse(s, out var value)) throw new InvalidOperationException($"无效 double {s}");
+        if (!double.TryParse(s, out var value)) throw new InvalidOperationException($"Invalid double {s}");
         return value;
     }
 
-    //ReadNumberToken 读连续数字字符支持负号小数点指数符号
+    //ReadNumberToken reads consecutive numeric characters, supports minus, dot and exponent sign
     private string ReadNumberToken()
     {
         var start = _cursor;
@@ -186,7 +186,7 @@ public sealed class CommandStringReader
                 break;
             }
         }
-        if (_cursor == start) throw new InvalidOperationException("无数字可读");
+        if (_cursor == start) throw new InvalidOperationException("No digits to read");
         return _str[start.._cursor];
     }
 }

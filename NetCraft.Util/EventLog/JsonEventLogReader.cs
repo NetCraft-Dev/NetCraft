@@ -3,18 +3,18 @@ using NetCraft.Codec;
 
 namespace NetCraft.Util.EventLog;
 
-//事件日志读取器对应原版JsonEventLogReader
-//按行取JSON再走codec解码
+//Event log reader, maps to vanilla JsonEventLogReader
+//Reads JSON by line then decodes via the codec
 public interface JsonEventLogReader<T> : IDisposable
 {
-    //取下一个事件，读到底返回default
+    //Reads the next event, returns default at end
     T? Next();
 
-    //按行读的reader，readLine返回null表示读完
+    //Line-based reader, readLine returning null means done
     static JsonEventLogReader<T> Create(Codec<T> codec, Func<string?> readLine, Action? onClose = null)
         => new LineReader(codec, readLine, onClose);
 
-    //默认实现按行解析，一行一个事件
+    //Default implementation parses by line, one event per line
     private sealed class LineReader(Codec<T> codec, Func<string?> readLine, Action? onClose) : JsonEventLogReader<T>
     {
         public T? Next()

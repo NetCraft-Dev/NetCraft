@@ -2,9 +2,9 @@ using System.Text;
 
 namespace NetCraft.Storage;
 
-//DirectoryLock 目录锁对应原版 net.minecraft.world.level.storage.DirectoryLock
-//用 session.lock 文件做独占防止多进程同时打开同一世界
-//跨平台走 FileStream.Lock 托管 API 不依赖平台特定调用
+//DirectoryLock, directory lock, maps to vanilla net.minecraft.world.level.storage.DirectoryLock
+//Uses a session.lock file for exclusivity, preventing multiple processes opening the same world
+//Portably uses the managed FileStream.Lock API, no platform-specific calls
 public sealed class DirectoryLock : IDisposable
 {
     private const string LockFileName = "session.lock";
@@ -15,9 +15,9 @@ public sealed class DirectoryLock : IDisposable
         _stream = stream;
     }
 
-    //Acquire 在指定目录获取锁
-    //目录不存在抛 DirectoryNotFoundException
-    //锁已被占用抛 IOException 提示世界正在被其他进程使用
+    //Acquire takes the lock in the given directory
+    //Throws DirectoryNotFoundException when the directory is missing
+    //Throws IOException when the lock is taken, meaning the world is in use by another process
     public static DirectoryLock Acquire(string dir)
     {
         if (!Directory.Exists(dir))
@@ -31,12 +31,12 @@ public sealed class DirectoryLock : IDisposable
             FileShare.None);
         try
         {
-            //写入世界打开时间戳便于外部诊断
+            //Write the world-open timestamp for external diagnostics
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var bytes = Encoding.UTF8.GetBytes(timestamp.ToString());
             stream.Write(bytes, 0, bytes.Length);
             stream.Flush(true);
-            //独占锁跨平台走托管 Lock API
+            //The exclusive lock uses the managed Lock API for portability
             stream.Lock(0, stream.Length);
         }
         catch

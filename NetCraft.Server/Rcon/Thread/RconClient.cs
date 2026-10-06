@@ -5,9 +5,9 @@ using NetCraft.Game.Server;
 
 namespace NetCraft.Game.Server.Rcon.Thread;
 
-//RconClient 单个 RCON 客户端的会话线程对应原版 net.minecraft.server.rcon.thread.RconClient
-//先鉴权(SERVERDATA_AUTH) 后每次一条命令(SERVERDATA_EXECCOMMAND) 响应按 4096 字符切分
-//一次 TCP 读必须正好含一个整包 包长对不上直接断连 与原版一致
+//RconClient, session thread for a single RCON client, maps to vanilla net.minecraft.server.rcon.thread.RconClient
+//Authenticates first (SERVERDATA_AUTH), then one command per packet (SERVERDATA_EXECCOMMAND), responses split at 4096 characters
+//One TCP read must contain exactly one whole packet, a length mismatch disconnects directly, same as vanilla
 public class RconClient : GenericThread
 {
     private const int ServerdataAuth = 3;
@@ -101,11 +101,11 @@ public class RconClient : GenericThread
         }
         catch (ThreadInterruptedException)
         {
-            //stop 打断同步执行的命令等待 正常关停路径
+            //stop interrupts the synchronous command wait, the normal shutdown path
         }
         catch (Exception e) when (e is SocketException or System.IO.IOException or ObjectDisposedException)
         {
-            //客户端断开与关服时回包写向已关的 socket 都按连接结束处理 与原版吞 IOException 一致
+            //A client disconnect and a response write to a closed socket on shutdown are both treated as connection end, matching vanilla swallowing IOException
         }
         catch (Exception e)
         {
@@ -119,7 +119,7 @@ public class RconClient : GenericThread
         }
     }
 
-    //Send 回一个包 长度与编号都是小端 尾部两个 0 终止符
+    //Send replies with one packet, length and id are little-endian, with two trailing 0 terminators
     private void Send(int requestid, int cmd, string str)
     {
         var bytes = Encoding.UTF8.GetBytes(str);
@@ -141,7 +141,7 @@ public class RconClient : GenericThread
 
     private void SendAuthFailure() => Send(-1, ServerdataAuthResponse, "");
 
-    //SendCmdResponse 超过 4096 字符的回执切多包 对应原版 sendCmdResponse
+    //SendCmdResponse splits replies longer than 4096 characters into packets, maps to vanilla sendCmdResponse
     private void SendCmdResponse(int requestid, string response)
     {
         var len = response.Length;

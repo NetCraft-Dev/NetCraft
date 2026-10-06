@@ -1,32 +1,32 @@
 namespace NetCraft.Network.Protocol;
 
-//ProtocolInfo 协议信息对应原版 net.minecraft.network.protocol.ProtocolInfo
-//绑定上下文后的协议信息包含编解码器和打包信息
-//THandler 是包处理器类型
-//继承 INonGenericProtocol 让 Connection 可以不依赖 THandler 存当前协议
+//ProtocolInfo protocol info, maps to vanilla net.minecraft.network.protocol.ProtocolInfo
+//Protocol info after binding a context, containing the codec and bundling info
+//THandler is the packet handler type
+//Inherits INonGenericProtocol so Connection can store the current protocol without depending on THandler
 public interface ProtocolInfo<THandler> : INonGenericProtocol
 {
-    //Id 协议枚举（new 隐藏 INonGenericProtocol.Id 用泛型协议的 Id）
+    //Id protocol enum (new hides INonGenericProtocol.Id, using the generic protocol's Id)
     new ConnectionProtocol Id { get; }
 
-    //Flow 包方向
+    //Flow packet direction
     PacketFlow Flow { get; }
 
-    //Codec 包编解码器
+    //Codec is the packet codec
     StreamCodec<RegistryFriendlyByteBuf, Packet<THandler>> Codec { get; }
 
-    //BundlerInfo 包打包信息
+    //BundlerInfo packet bundling info
     BundlerInfo<THandler> BundlerInfo { get; }
 
-    //显式实现 INonGenericProtocol.FlowDirection 从 PacketFlow 转换
+    //Explicitly implements INonGenericProtocol.FlowDirection, converted from PacketFlow
     FlowDirection INonGenericProtocol.FlowDirection
         => Flow == PacketFlow.Clientbound ? FlowDirection.Clientbound : FlowDirection.Serverbound;
 
-    //显式实现 INonGenericProtocol.DecodePacket 委托给 Codec.Decode
+    //Explicitly implements INonGenericProtocol.DecodePacket, delegating to Codec.Decode
     object? INonGenericProtocol.DecodePacket(RegistryFriendlyByteBuf buf) => Codec.Decode(buf);
 
-    //显式实现 INonGenericProtocol.EncodePacket 委托给 Codec.Encode
-    //common 包静态类型是 Packet<父监听器> 不能强转 Packet<THandler> 优先走 object 桥接路径
+    //Explicitly implements INonGenericProtocol.EncodePacket, delegating to Codec.Encode
+    //common packets have the static type Packet<parent listener> and cannot be cast to Packet<THandler>, so the object bridge path takes priority
     void INonGenericProtocol.EncodePacket(RegistryFriendlyByteBuf buf, object packet)
     {
         if (Codec is IObjectEncodable encodable)
@@ -37,30 +37,30 @@ public interface ProtocolInfo<THandler> : INonGenericProtocol
         Codec.Encode(buf, (Packet<THandler>)packet);
     }
 
-    //显式实现 INonGenericProtocol.PacketIdFor 取包 Type.Id
+    //Explicitly implements INonGenericProtocol.PacketIdFor, taking the packet's Type.Id
     int INonGenericProtocol.PacketIdFor(object packet)
         => packet is IPacket p ? p.PacketTypeId : ((Packet<THandler>)packet).Type.Id;
 
-    //Details 协议静态详情按方向列出所有包
+    //Details protocol static details listing all packets by direction
     public interface Details
     {
-        //Id 协议枚举
+        //Id protocol enum
         ConnectionProtocol Id { get; }
 
-        //Flow 方向
+        //Flow direction
         PacketFlow Flow { get; }
 
-        //ListPackets 遍历所有包类型及其网络 ID
+        //ListPackets traverses all packet types and their network IDs
         void ListPackets(PacketVisitor output);
 
-        //PacketVisitor 包访问者
+        //PacketVisitor packet visitor
         public interface PacketVisitor
         {
             void Accept(PacketType<THandler> type, int networkId);
         }
     }
 
-    //DetailsProvider 提供 Details
+    //DetailsProvider provides Details
     public interface DetailsProvider
     {
         Details Details { get; }

@@ -2,9 +2,9 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level;
 
-//GameRules 游戏规则定义表对应原版 net.minecraft.world.level.gamerules.GameRules
-//名字 类型 默认值与取值范围对齐原版 26.2 static 块的声明顺序
-//运行时取值由 GameRuleMapData 承载 本类只提供定义 注册与按名查找
+//GameRules game rule definition table, maps to vanilla net.minecraft.world.level.gamerules.GameRules
+//Names, types, defaults and value ranges align with the declaration order of vanilla 26.2 static blocks
+//Runtime values are held by GameRuleMapData; this class only provides definitions, registration and lookup by name
 public static class GameRules
 {
     public static readonly GameRule<object> AdvanceTime = Boolean("advance_time", true);
@@ -67,7 +67,7 @@ public static class GameRules
     public static readonly GameRule<object> UniversalAnger = Boolean("universal_anger", false);
     public static readonly GameRule<object> WaterSourceConversion = Boolean("water_source_conversion", true);
 
-    //All 全部规则按注册顺序排列 顺序与原版 static 块一致
+    //All all rules in registration order, matching the vanilla static block order
     public static readonly GameRule<object>[] All =
     {
         AdvanceTime, AdvanceWeather, AllowEnteringNetherUsingPortals, BlockDrops, BlockExplosionDropDecay,
@@ -85,25 +85,25 @@ public static class GameRules
         TntExplodes, TntExplosionDropDecay, UniversalAnger, WaterSourceConversion,
     };
 
-    //Bootstrap 注册全部规则到 BuiltInRegistries.GAME_RULE 必须在注册表冻结前调用
+    //Bootstrap register all rules into BuiltInRegistries.GAME_RULE, must be called before the registry is frozen
     public static void Bootstrap()
     {
         foreach (var rule in All)
             Registry<GameRule<object>>.Register(BuiltInRegistries.GAME_RULE, rule.Id, rule);
     }
 
-    //Find 按规则名查找 短名与带命名空间的形式都能命中 找不到返回 null
+    //Find lookup by rule name, both short names and namespaced forms match, returns null if not found
     public static GameRule<object>? Find(string name)
     {
         var id = Identifier.TryParse(name.Contains(':') ? name : "minecraft:" + name);
         return id is null ? null : BuiltInRegistries.GAME_RULE.GetValue(id.Value);
     }
 
-    //Boolean 声明布尔规则
+    //Boolean declare a boolean rule
     private static GameRule<object> Boolean(string path, bool defaultValue)
         => new(Identifier.WithDefaultNamespace(path), GameRuleType.Bool, defaultValue);
 
-    //Integer 声明整数规则 不带上界时取 int 最大值 与原版 IntegerArgumentType.integer(min, max) 一致
+    //Integer declare an integer rule, uses int.MaxValue when unbounded, matching vanilla IntegerArgumentType.integer(min, max)
     private static GameRule<object> Integer(string path, int defaultValue, int min, int max = int.MaxValue)
         => new(Identifier.WithDefaultNamespace(path), GameRuleType.Int, defaultValue, min, max);
 }

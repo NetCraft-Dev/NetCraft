@@ -1,7 +1,7 @@
 namespace NetCraft.Registry.Context;
 
-//上下文键对应原版ContextKey
-//泛型参数只是类型标记，集合与表里一律按引用比
+//Context key, maps to vanilla ContextKey
+//The type parameter is only a marker; sets and maps always compare by reference
 public class ContextKey
 {
     private readonly Identifier _name;
@@ -13,7 +13,7 @@ public class ContextKey
     public override string ToString() => $"<parameter {_name}>";
 }
 
-//带类型的上下文键，取值时用它把值转回来
+//Typed context key, used to cast the value back on retrieval
 public sealed class ContextKey<T> : ContextKey
 {
     public ContextKey(Identifier name) : base(name)

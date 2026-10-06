@@ -5,23 +5,23 @@ using NetCraft.Storage.Redstone;
 
 namespace NetCraft.Storage.Updates;
 
-//INeighborUpdate 队列项 对应原版 CollectingNeighborUpdater.NeighborUpdates
+//INeighborUpdate, queue item, maps to vanilla CollectingNeighborUpdater.NeighborUpdates
 internal interface INeighborUpdate
 {
-    //RunNext 执行一步 返回是否还有后续步骤
+    //RunNext runs one step, returns whether more steps remain
     bool RunNext(ServerLevel level);
 }
 
-//NeighborUpdater 更新执行体 对应原版 NeighborUpdater 里的静态方法
+//NeighborUpdater, update executor, maps to the static methods in vanilla NeighborUpdater
 public static class NeighborUpdater
 {
-    //ExecuteUpdate 执行一次邻居更新 对应原版 executeUpdate
-    //异常补上下文后原样抛出 原版在这里抛 ReportedException 语义同样是崩掉而不是吞掉
+    //ExecuteUpdate runs one neighbor update, maps to vanilla executeUpdate
+    //On exception, adds context and rethrows; vanilla throws ReportedException here, likewise crashing instead of swallowing
     public static void ExecuteUpdate(ServerLevel level, BlockState state, BlockPos pos,
         NetCraft.Registry.Block changedBlock, bool movedByPiston)
     {
         if (state.Owner is not IBlockUpdateBehaviour behaviour) return;
-        //邻居通知有没有送到元件上 是判断"排刻前那一跳断没断"的依据
+        //Whether the neighbor notification reached the component is the basis for judging "whether that hop was broken before scheduling"
         if (RedstoneIds.IsRedstoneComponent(state.Owner.Id))
             Log.Debug($"redstone neighbor notify {pos} {state.Owner.Id}:{state.Id} changed={changedBlock.Id}");
         try
@@ -35,15 +35,15 @@ public static class NeighborUpdater
         }
     }
 
-    //ExecuteShapeUpdate 执行一次形状更新 对应原版 executeShapeUpdate
-    //形状结果为空时走销毁否则写回 由 UpdateOrDestroy 决定
+    //ExecuteShapeUpdate runs one shape update, maps to vanilla executeShapeUpdate
+    //When the shape result is air it is destroyed, otherwise written back; decided by UpdateOrDestroy
     public static void ExecuteShapeUpdate(ServerLevel level, Direction direction, BlockPos pos, BlockPos neighbourPos,
         BlockState neighbourState, int updateFlags, int updateLimit)
     {
         var current = level.GetBlockState(pos);
         if (current is null) return;
         var state = current.Value;
-        //flag 128 且目标是红石线时整个跳过 对应原版该分支
+        //Skip entirely when flag 128 is set and the target is redstone wire, maps to that vanilla branch
         if ((updateFlags & BlockUpdateFlags.SkipShapeUpdateOnWire) != 0 && state.Owner.Id == RedstoneIds.Wire)
             return;
         if (state.Owner is not IBlockUpdateBehaviour behaviour) return;

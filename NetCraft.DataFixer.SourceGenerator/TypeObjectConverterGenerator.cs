@@ -6,15 +6,15 @@ using System.Text;
 
 namespace NetCraft.DataFixer.SourceGenerator;
 
-//扫描继承NetCraft.DataFixer.Types.Type<A>的具体类生成TypeObjectConverterFactory
-//对齐Java类型擦除下Type<A>等价Type<Object>的语义提供AsObjectType转换入口
-//当前为最小可行版本只生成默认转换实现后续逐步添加专用case
+//Scan concrete classes inheriting NetCraft.DataFixer.Types.Type<A> and generate TypeObjectConverterFactory
+//Align with Java type erasure semantics where Type<A> is equivalent to Type<Object>, providing the AsObjectType conversion entry
+//Currently a minimal viable version that only generates the default conversion; dedicated cases will be added later
 [Generator]
 public class TypeObjectConverterGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        //扫描所有ClassDeclarationSyntax过滤继承Type<A>的具体类
+        //Scan all ClassDeclarationSyntax and filter concrete classes inheriting Type<A>
         var subclasses = context.SyntaxProvider
             .CreateSyntaxProvider(
                 predicate: (node, _) => node is ClassDeclarationSyntax,
@@ -23,14 +23,14 @@ public class TypeObjectConverterGenerator : IIncrementalGenerator
             .Select((info, _) => info!)
             .Collect();
 
-        //生成TypeObjectConverterFactory
+        //Generate TypeObjectConverterFactory
         context.RegisterSourceOutput(subclasses, (spc, infos) =>
         {
             GenerateFactory(spc, infos);
         });
     }
 
-    //提取继承Type<A>的具体类信息
+    //Extract info on concrete classes inheriting Type<A>
     private static SubclassInfo? ExtractSubclassInfo(GeneratorSyntaxContext ctx)
     {
         var classDecl = (ClassDeclarationSyntax)ctx.Node;
@@ -39,7 +39,7 @@ public class TypeObjectConverterGenerator : IIncrementalGenerator
         if (symbol.IsAbstract) return null;
         if (symbol.TypeKind != TypeKind.Class) return null;
 
-        //向上查找BaseType检查是否直接或间接继承Type<A>
+        //Walk up BaseType to check whether it directly or indirectly inherits Type<A>
         var baseType = symbol.BaseType;
         while (baseType != null)
         {
@@ -52,7 +52,7 @@ public class TypeObjectConverterGenerator : IIncrementalGenerator
         return null;
     }
 
-    //判断symbol是否是NetCraft.DataFixer.Types.Type<A>
+    //Check whether symbol is NetCraft.DataFixer.Types.Type<A>
     private static bool IsTypeA(INamedTypeSymbol symbol)
     {
         return symbol.Name == "Type"
@@ -61,13 +61,13 @@ public class TypeObjectConverterGenerator : IIncrementalGenerator
             && symbol.TypeKind == TypeKind.Class;
     }
 
-    //创建子类信息
+    //Create subclass info
     private static SubclassInfo CreateSubclassInfo(INamedTypeSymbol symbol, INamedTypeSymbol baseType)
     {
-        //完全限定名格式包含外层类与命名空间
+        //Fully qualified name format including containing types and namespace
         var fullName = symbol.ToDisplayString(SymbolDisplayFormat);
         var containingType = symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat) ?? "";
-        //基类Type<X>中X的DisplayString用于判断A是否与子类泛型参数对应
+        //DisplayString of X in base Type<X>, used to tell whether A corresponds to the subclass's type parameter
         var baseArgDisplay = baseType.TypeArguments.Length == 1
             ? baseType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat)
             : "";
@@ -95,19 +95,19 @@ public class TypeObjectConverterGenerator : IIncrementalGenerator
             ctors);
     }
 
-    //判断子类是否直接继承Type<子类第一个泛型参数>
-    //直接继承的子类可以在AsObjectType<A>的switch中用子类<X>匹配
+    //Check whether the subclass directly inherits Type<its first type parameter>
+    //A directly inheriting subclass can be matched in AsObjectType<A>'s switch with subclass<X>
     private static bool IsDirectSubclass(INamedTypeSymbol symbol, INamedTypeSymbol baseType)
     {
         if (symbol.Arity != 1) return false;
         if (baseType.TypeArguments.Length != 1) return false;
         var firstParam = symbol.TypeParameters[0];
         var baseArg = baseType.TypeArguments[0];
-        //基类Type<X>中X必须是子类的第一个泛型参数
+        //X in base Type<X> must be the subclass's first type parameter
         return SymbolEqualityComparer.Default.Equals(baseArg, firstParam);
     }
 
-    //生成TypeObjectConverterFactory代码
+    //Generate TypeObjectConverterFactory code
     private static void GenerateFactory(SourceProductionContext spc, ImmutableArray<SubclassInfo> infos)
     {
         var sb = new StringBuilder();
@@ -118,9 +118,9 @@ public class TypeObjectConverterGenerator : IIncrementalGenerator
         sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine("using NetCraft.DataFixer.Types.Templates;");
         sb.AppendLine();
-        sb.AppendLine("//扫描发现 " + infos.Length + " 个Type<A>具体子类");
-        sb.AppendLine("//直接继承Type<子类第一个泛型参数>的子类可生成switch case");
-        sb.AppendLine("//间接继承如ListType<A>:Type<List<A>>需特殊处理");
+        sb.AppendLine("//Discovered " + infos.Length + " concrete Type<A> subclasses");
+        sb.AppendLine("//A subclass directly inheriting Type<its first type parameter> can generate a switch case");
+        sb.AppendLine("//Indirect inheritance such as ListType<A>:Type<List<A>> needs special handling");
         foreach (var info in infos.OrderBy(i => i.FullName))
         {
             var marker = info.IsDirectSubclass ? "[direct]" : "[indirect]";
@@ -137,9 +137,9 @@ public class TypeObjectConverterGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("public static class TypeObjectConverterFactory");
         sb.AppendLine("{");
-        sb.AppendLine("    //AsObjectType把Type<A>转换为Type<object>");
-        sb.AppendLine("    //A是object且type直接继承Type<object>时原实例直接返回");
-        sb.AppendLine("    //否则用TypeObjectWrapper包装对齐Java类型擦除语义");
+        sb.AppendLine("    //AsObjectType converts Type<A> to Type<object>");
+        sb.AppendLine("    //When A is object and type directly inherits Type<object>, the original instance is returned as is");
+        sb.AppendLine("    //Otherwise wrap with TypeObjectWrapper to align with Java type erasure semantics");
         sb.AppendLine("    public static Type<object> AsObjectType<A>(Type<A> type)");
         sb.AppendLine("    {");
         sb.AppendLine("        if (type == null) return null!;");
@@ -147,8 +147,8 @@ public class TypeObjectConverterGenerator : IIncrementalGenerator
         sb.AppendLine("        return new TypeObjectWrapper(type);");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    //AsObjectTypeUnsafe用Unsafe.As绕过运行时类型检查");
-        sb.AppendLine("    //值类型A可能access violation因PrimitiveType<int>的MethodTable不含Type<object>虚方法槽");
+        sb.AppendLine("    //AsObjectTypeUnsafe uses Unsafe.As to bypass runtime type checks");
+        sb.AppendLine("    //A value type A may access-violate because PrimitiveType<int>'s MethodTable has no Type<object> virtual method slot");
         sb.AppendLine("    public static Type<object> AsObjectTypeUnsafe<A>(Type<A> type)");
         sb.AppendLine("    {");
         sb.AppendLine("        if (type == null) return null!;");
@@ -159,13 +159,13 @@ public class TypeObjectConverterGenerator : IIncrementalGenerator
         spc.AddSource("TypeObjectConverterFactory.g.cs", sb.ToString());
     }
 
-    //SymbolDisplayFormat生成完全限定名包含外层类与命名空间
+    //SymbolDisplayFormat produces fully qualified names including containing types and namespace
     private static readonly SymbolDisplayFormat SymbolDisplayFormat = new SymbolDisplayFormat(
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
         genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
 
-    //子类信息记录netstandard2.0无IsExternalInit不能用record改用普通class
+    //Subclass info; netstandard2.0 lacks IsExternalInit so a plain class is used instead of record
     private sealed class SubclassInfo
     {
         public string FullName { get; }

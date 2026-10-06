@@ -1,13 +1,13 @@
 namespace NetCraft.Network.Protocol.Configuration;
 
-//ConfigurationPacketTypes configuration 阶段所有包类型注册
-//对应原版 ConfigurationProtocols 整合 common + cookie + configuration 三类共 30 个包
-//按原版 ConfigurationProtocols.CLIENTBOUND_TEMPLATE/SERVERBOUND_TEMPLATE 添加顺序分配 id 0-19/0-9
-//common 包暂只注册到 Configuration 协议 Play 阶段需要时另行注册到 Play 协议
-//显式指定 Create<THandler> 类型参数避免 C# 推断失败
+//ConfigurationPacketTypes registration of all packet types in the configuration phase
+//Maps to vanilla ConfigurationProtocols, integrating common + cookie + configuration, 30 packets in total
+//Assigns ids 0-19/0-9 in the add order of vanilla ConfigurationProtocols.CLIENTBOUND_TEMPLATE/SERVERBOUND_TEMPLATE
+//common packets are for now only registered to the Configuration protocol; they are registered to the Play protocol separately when needed in the Play phase
+//Explicitly specify the Create<THandler> type argument to avoid C# inference failure
 public static class ConfigurationPacketTypes
 {
-    //Clientbound (Configuration, Clientbound) 0-19 按原版顺序
+    //Clientbound (Configuration, Clientbound) 0-19 in vanilla order
 
     //ClientboundCookieRequest 0 minecraft:cookie_request
     public static readonly PacketType<ClientCookiePacketListener> ClientboundCookieRequest =
@@ -89,7 +89,7 @@ public static class ConfigurationPacketTypes
     public static readonly PacketType<ClientConfigurationPacketListener> ClientboundCodeOfConduct =
         Create<ClientConfigurationPacketListener>(19, ConnectionProtocol.Configuration, FlowDirection.Clientbound, "code_of_conduct");
 
-    //Serverbound (Configuration, Serverbound) 0-9 按原版 ConfigurationProtocols.SERVERBOUND_TEMPLATE 顺序
+    //Serverbound (Configuration, Serverbound) 0-9 in the order of vanilla ConfigurationProtocols.SERVERBOUND_TEMPLATE
 
     //ServerboundClientInformation 0 minecraft:client_information
     public static readonly PacketType<ServerCommonPacketListener> ServerboundClientInformation =

@@ -2,7 +2,7 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.Environment;
 
-//AmbientSounds 环境音效设置对应原版 AmbientSounds
+//AmbientSounds ambient sound settings, maps to vanilla AmbientSounds
 public sealed class AmbientSounds
 {
     public static readonly AmbientSounds Empty = new(
@@ -38,7 +38,7 @@ public sealed class AmbientSounds
     }
 }
 
-//AmbientMoodSettings 环境氛围音设置对应原版 AmbientMoodSettings
+//AmbientMoodSettings ambient mood sound settings, maps to vanilla AmbientMoodSettings
 public sealed class AmbientMoodSettings
 {
     public static readonly Codec<AmbientMoodSettings> Codec = RecordCodecBuilder.Of4(
@@ -69,7 +69,7 @@ public sealed class AmbientMoodSettings
     }
 }
 
-//AmbientAdditionsSettings 环境附加音设置对应原版 AmbientAdditionsSettings
+//AmbientAdditionsSettings ambient additions sound settings, maps to vanilla AmbientAdditionsSettings
 public sealed class AmbientAdditionsSettings
 {
     public static readonly Codec<AmbientAdditionsSettings> Codec = RecordCodecBuilder.Of2(

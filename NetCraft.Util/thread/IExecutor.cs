@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Thread;
 
-//执行器抽象对应原版java.util.concurrent.Executor
-//提交Action到具体执行线程池由实现决定
+//Executor abstraction, maps to vanilla java.util.concurrent.Executor
+//Submits an Action; the concrete execution thread pool is decided by the implementation
 public interface IExecutor
 {
     string Name { get; }

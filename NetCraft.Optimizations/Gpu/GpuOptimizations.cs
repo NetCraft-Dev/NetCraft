@@ -2,35 +2,35 @@ using NetCraft.Config;
 
 namespace NetCraft.Optimizations.Gpu;
 
-//Gpu 优化模块对应 Vulkan 后端相关优化（[C#内核重写计划.md] 第四节）
-//NetCraft.Gpu 子系统尚未实现本模块仅暴露开关查询 API
-//待 Vulkan 后端就绪后填充实际集成
+//Gpu optimization module, covers the Vulkan backend optimizations (section 4 of the C# kernel rewrite plan)
+//The NetCraft.Gpu subsystem is not implemented yet, this module only exposes the toggle query API
+//The actual integration lands once the Vulkan backend is ready
 public static class GpuOptimizations
 {
     public const string ModuleName = "GPU Backend Optimization";
     public const string TargetSubsystem = "NetCraft.Gpu";
 
-    //对应 Vulkan 命令缓冲用 ObjectPool 池化
-    //开关启用表示命令缓冲分配将走 ObjectPool 路径避免 GC
+    //Vulkan command buffers are pooled with ObjectPool
+    //When the toggle is on, command buffer allocation goes through the ObjectPool path and avoids GC
     public static bool IsVulkanCommandBufferPooledEnabled => OptimizationFlags.VulkanCommandBufferPooled;
 
-    //对应 Vulkan 资源上传用 Span 直接 memcpy
-    //开关启用表示资源上传路径将走 Span 零拷贝
+    //Vulkan resource uploads use Span and a direct memcpy
+    //When the toggle is on, resource uploads go through the zero-copy Span path
     public static bool IsVulkanResourceUploadSpanEnabled => OptimizationFlags.VulkanResourceUploadSpan;
 
-    //对应 Vulkan 多线程命令录制每线程独立 CommandPool
-    //开关启用表示命令录制将走每线程独立 CommandPool 路径
+    //Vulkan multithreaded command recording, one CommandPool per thread
+    //When the toggle is on, command recording goes through the per-thread CommandPool path
     public static bool IsVulkanMultiThreadedRecordingEnabled => OptimizationFlags.VulkanMultiThreadedRecording;
 
-    //对应 framegraph 自动屏障插入
-    //开关启用表示 framegraph 将走自动屏障插入路径
+    //Automatic barrier insertion in the framegraph
+    //When the toggle is on, the framegraph goes through the automatic barrier insertion path
     public static bool IsFrameGraphAutoBarrierEnabled => OptimizationFlags.FrameGraphAutoBarrier;
 
-    //对应 shaderc SPIR-V 编译产物磁盘缓存
-    //开关启用表示 shader 编译将走磁盘缓存路径
+    //On-disk cache for shaderc SPIR-V compilation output
+    //When the toggle is on, shader compilation goes through the on-disk cache path
     public static bool IsSpirvCacheDiskEnabled => OptimizationFlags.SpirvCacheDisk;
 
-    //IsOptimized 检查五开关是否全开判断 Gpu 优化是否启用
+    //IsOptimized checks whether all five toggles are on to decide if Gpu optimization is enabled
     public static bool IsOptimized =>
         IsVulkanCommandBufferPooledEnabled
         && IsVulkanResourceUploadSpanEnabled
@@ -38,7 +38,7 @@ public static class GpuOptimizations
         && IsFrameGraphAutoBarrierEnabled
         && IsSpirvCacheDiskEnabled;
 
-    //GetStats 返回 Gpu 优化统计信息用于诊断
+    //GetStats returns the Gpu optimization stats for diagnostics
     public static GpuOptimizationStats GetStats() => new(
         VulkanCommandBufferPooled: IsVulkanCommandBufferPooledEnabled,
         VulkanResourceUploadSpan: IsVulkanResourceUploadSpanEnabled,
@@ -48,7 +48,7 @@ public static class GpuOptimizations
         IsOptimized: IsOptimized);
 }
 
-//Gpu 优化统计快照
+//Gpu optimization stats snapshot
 public readonly record struct GpuOptimizationStats(
     bool VulkanCommandBufferPooled,
     bool VulkanResourceUploadSpan,

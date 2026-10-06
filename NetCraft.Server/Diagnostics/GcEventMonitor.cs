@@ -7,29 +7,29 @@ using NetCraft.Logging;
 
 namespace NetCraft.Server.Diagnostics;
 
-//GcEventMonitor 订阅本进程的运行时 GC 事件 供内存图在基线上打点
-//走 EventPipe 的 Microsoft-Windows-DotNETRuntime provider 只开 GCKeyword
-//CoreCLR 的 NativeRuntimeEventSource 在非 NativeAOT 下是空实现 EventListener 拿不到这类原生事件
+//GcEventMonitor subscribes to this process's runtime GC events to mark points on the memory graph baseline
+//Goes through the EventPipe Microsoft-Windows-DotNETRuntime provider with only GCKeyword enabled
+//CoreCLR's NativeRuntimeEventSource is an empty implementation outside NativeAOT, so EventListener cannot receive these native events
 public static class GcEventMonitor
 {
     private const string ProviderName = "Microsoft-Windows-DotNETRuntime";
-    //GCKeyword 运行时 GC 事件组
+    //GCKeyword, the runtime GC event group
     private const long GcKeyword = 0x1;
-    //GC 事件量很低 小缓冲足够 开大只是白占内存
+    //GC events are very low volume, a small buffer is enough and a larger one just wastes memory
     private const int CircularBufferMb = 16;
 
     private static readonly Lock Sync = new();
     private static EventPipeSession? _session;
     private static bool _started;
-    //_pending 自上次取样以来的 GC 次数 GUI 每 500ms 取走一次
+    //_pending GC count since the last sample, the GUI takes it every 500ms
     private static int _pending;
     private static long _total;
 
-    //Total 累计 GC 次数
+    //Total cumulative GC count
     public static long Total => Interlocked.Read(ref _total);
 
-    //Start 启动订阅 只生效一次
-    //起不来就降级成"没有红点" 监听本身是调试功能不该把服务端带下去
+    //Start starts the subscription, effective only once
+    //If it fails, degrade to "no red dots", the listener is a debug feature and should not take the server down with it
     public static void Start()
     {
         lock (Sync)
@@ -54,7 +54,7 @@ public static class GcEventMonitor
         }
     }
 
-    //Stop 结束订阅 幂等
+    //Stop ends the subscription, idempotent
     public static void Stop()
     {
         lock (Sync)
@@ -67,17 +67,17 @@ public static class GcEventMonitor
         }
     }
 
-    //TakePending 取走两次取样之间累计的 GC 次数并清零
+    //TakePending takes the GC count accumulated between two samples and resets it
     public static int TakePending() => Interlocked.Exchange(ref _pending, 0);
 
-    //Pump 后台读事件流 与调用方线程无关
+    //Pump reads the event stream on a background thread, independent of the caller thread
     private static void Pump(object? state)
     {
         var source = new EventPipeEventSource((Stream)state!);
         source.Clr.GCStart += OnGcStart;
         try
         {
-            //Process 一直读到 session 关闭 期间事件在回调里处理
+            //Process reads until the session closes, events are handled in callbacks along the way
             source.Process();
         }
         catch (Exception e)
@@ -86,8 +86,8 @@ public static class GcEventMonitor
         }
     }
 
-    //OnGcStart 一次 GC 开始
-    //Depth 就是代际 0/1/2 分别是 Gen0/Gen1/Gen2
+    //OnGcStart, a GC starts
+    //Depth is the generation, 0/1/2 are Gen0/Gen1/Gen2
     private static void OnGcStart(GCStartTraceData data)
     {
         Interlocked.Increment(ref _pending);

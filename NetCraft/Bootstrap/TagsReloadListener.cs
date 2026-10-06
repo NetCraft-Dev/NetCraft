@@ -5,9 +5,9 @@ using NetCraft.Tags;
 
 namespace NetCraft.Bootstrap;
 
-//TagsReloadListener 标签重载监听器包装 LoadBuiltinTags+BindAll
-//每次 Reload 重新扫资源包 tag 文件并绑定到已冻结注册表
-//必须在 BootstrapClass.BootStrap 之后调用因 BindAll 要求 Registry 已 Freeze
+//TagsReloadListener wraps LoadBuiltinTags+BindAll as a tag reload listener
+//Each Reload rescans the resource pack tag files and binds them to the frozen registry
+//Must be called after BootstrapClass.BootStrap because BindAll requires the Registry to be frozen
 public sealed class TagsReloadListener : PreparableReloadListener
 {
     private readonly TagManager _tagManager;
@@ -19,14 +19,14 @@ public sealed class TagsReloadListener : PreparableReloadListener
         _registryAccess = registryAccess;
     }
 
-    //Reload 清空旧 loader 重扫 tag 文件并绑定到注册表
-    //重载场景下 NamedHolderSet.Bind 会被覆盖原版行为一致
+    //Reload clears the old loader, rescans the tag files and binds them to the registry
+    //On reload, NamedHolderSet.Bind is overwritten, matching vanilla behavior
     public void Reload(ResourceManager rm, ReloadContext ctx)
     {
-        //Log.Debug($"TagsReloadListener.Reload 入口 ctx={ctx.Name}");
+        //Log.Debug($"TagsReloadListener.Reload entry ctx={ctx.Name}");
         _tagManager.Reset();
         Bootstrap.LoadBuiltinTags(_tagManager, rm);
         _tagManager.BindAll(_registryAccess);
-        //Log.Debug($"TagsReloadListener.Reload 出口");
+        //Log.Debug($"TagsReloadListener.Reload exit");
     }
 }

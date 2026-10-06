@@ -4,23 +4,23 @@ using System.Text;
 
 namespace NetCraft.Network.Component;
 
-//DataComponentPatch 数据组件补丁对应原版 net.minecraft.core.component.DataComponentPatch
-//存储 DataComponentType 到 Optional 的映射 present 表示新增值 empty 表示移除
-//STREAM_CODEC 编码 positiveCount+negativeCount 前缀 positive 项含 type+value negative 项仅 type
-//DELIMITED_STREAM_CODEC 用于不可信来源长度前缀限制
+//DataComponentPatch data component patch, maps to vanilla net.minecraft.core.component.DataComponentPatch
+//Stores a map from DataComponentType to Optional; present means an added value, empty means removal
+//STREAM_CODEC encodes a positiveCount+negativeCount prefix; positive entries include type+value, negative entries only type
+//DELIMITED_STREAM_CODEC used for length-prefix limits on untrusted sources
 public sealed class DataComponentPatch
 {
-    //Empty 空补丁单例
+    //Empty empty patch singleton
     public static readonly DataComponentPatch Empty = new(new Dictionary<object, Optional<object>>());
 
-    //PersistentCodec 持久化编解码 对应原版 DataComponentPatch.CODEC
+    //PersistentCodec persistence codec, maps to vanilla DataComponentPatch.CODEC
     public static readonly Codec<DataComponentPatch> PersistentCodec = new DataComponentPatchMapCodec();
 
-    //StreamCodec 网络同步编解码
+    //StreamCodec network sync codec
     public static readonly StreamCodec<RegistryFriendlyByteBuf, DataComponentPatch> StreamCodec
         = new DataComponentPatchStreamCodec();
 
-    //DelimitedStreamCodec 不可信来源编解码含长度前缀限制
+    //DelimitedStreamCodec codec for untrusted sources with length-prefix limits
     public static readonly StreamCodec<RegistryFriendlyByteBuf, DataComponentPatch> DelimitedStreamCodec
         = new DataComponentPatchStreamCodec();
 
@@ -31,24 +31,24 @@ public sealed class DataComponentPatch
         _map = map;
     }
 
-    //IsEmpty 是否为空补丁
+    //IsEmpty indicates whether it is an empty patch
     public bool IsEmpty => _map.Count == 0;
 
-    //Get 按 type 取 Optional present 表示新增值 empty 表示移除 不存在返回 null
+    //Get takes Optional by type: present means an added value, empty means removal, and absence returns null
     public Optional<object>? Get<T>(DataComponentType<T> type) where T : class
         => _map.TryGetValue(type, out var value) ? value : null;
 
-    //AsMap 返回内部映射副本
+    //AsMap returns a copy of the internal map
     public IReadOnlyDictionary<object, Optional<object>> AsMap() => _map.ToDictionary(kv => kv.Key, kv => kv.Value);
 
-    //Size 补丁项数
+    //Size is the number of patch entries
     public int Size => _map.Count;
 
-    //EntrySet 补丁项集合
+    //EntrySet is the set of patch entries
     public IEnumerable<KeyValuePair<object, Optional<object>>> EntrySet => _map;
 
-    //GetFrom 取补丁覆盖后的最终值 补丁有该 type 时以补丁为准 否则回退 prototype
-    //对应原版 DataComponentPatch.get
+    //GetFrom gets the final value after patch override; when the patch has the type it wins, otherwise it falls back to prototype
+    //Maps to vanilla DataComponentPatch.get
     public T? GetFrom<T>(DataComponentGetter prototype, DataComponentType<T> type) where T : class
     {
         if (_map.TryGetValue(type, out var value))
@@ -56,7 +56,7 @@ public sealed class DataComponentPatch
         return prototype.Get(type);
     }
 
-    //Forget 丢弃匹配的补丁项 对应原版 forget
+    //Forget discards matching patch entries, maps to vanilla forget
     public DataComponentPatch Forget(Func<object, bool> test)
     {
         if (IsEmpty) return Empty;
@@ -66,7 +66,7 @@ public sealed class DataComponentPatch
         return copy.Count == 0 ? Empty : new DataComponentPatch(copy);
     }
 
-    //Split 拆成新增映射与移除集合 对应原版 split
+    //Split splits into an added map and a removed set, maps to vanilla split
     public SplitResult Split()
     {
         if (IsEmpty) return SplitResult.Empty;
@@ -80,10 +80,10 @@ public sealed class DataComponentPatch
         return new SplitResult(builder.Build(), removed);
     }
 
-    //NewBuilder 造补丁构造器 对应原版 DataComponentPatch.builder
+    //NewBuilder creates a patch builder, maps to vanilla DataComponentPatch.builder
     public static Builder NewBuilder() => new();
 
-    //判等按补丁内容逐项比 对应原版 equals
+    //Equality compares patch content entry by entry, maps to vanilla equals
     public override bool Equals(object? obj)
         => ReferenceEquals(this, obj) || (obj is DataComponentPatch other && MapEquals(other));
 
@@ -99,7 +99,7 @@ public sealed class DataComponentPatch
         return true;
     }
 
-    //哈希与判等一致
+    //The hash is consistent with equality
     public override int GetHashCode()
     {
         var hash = 0;
@@ -108,7 +108,7 @@ public sealed class DataComponentPatch
         return hash;
     }
 
-    //移除项带 ! 前缀 对应原版 toString
+    //Removed entries carry a ! prefix, maps to vanilla toString
     public override string ToString()
     {
         var sb = new StringBuilder();
@@ -125,41 +125,41 @@ public sealed class DataComponentPatch
         return sb.ToString();
     }
 
-    //SplitResult 补丁拆分结果 对应原版 DataComponentPatch.SplitResult
+    //SplitResult patch split result, maps to vanilla DataComponentPatch.SplitResult
     public sealed record SplitResult(DataComponentMap Added, IReadOnlySet<object> Removed)
     {
         public static readonly SplitResult Empty = new(DataComponentMap.Empty, new HashSet<object>());
     }
 
-    //Builder 补丁构造器 对应原版 DataComponentPatch.Builder
+    //Builder patch builder, maps to vanilla DataComponentPatch.Builder
     public sealed class Builder
     {
         private readonly Dictionary<object, Optional<object>> _map = new();
 
-        //Set 写入或覆盖该项
+        //Set writes or overrides the entry
         public Builder Set<T>(DataComponentType<T> type, T value) where T : class
         {
             _map[type] = Optional<object>.Of(value);
             return this;
         }
 
-        //Remove 标记移除该项
+        //Remove marks the entry for removal
         public Builder Remove<T>(DataComponentType<T> type) where T : class
         {
             _map[type] = Optional<object>.Empty();
             return this;
         }
 
-        //Set 按带类型的组件条目写入
+        //Set writes a typed component entry
         public Builder Set<T>(TypedDataComponent<T> component) where T : class => Set(component.Type, component.Value);
 
-        //Build 空补丁返回单例
+        //Build returns the singleton for an empty patch
         public DataComponentPatch Build()
             => _map.Count == 0 ? Empty : new DataComponentPatch(new Dictionary<object, Optional<object>>(_map));
     }
 }
 
-//DataComponentPatchStreamCodec DataComponentPatch 网络编解码实现
+//DataComponentPatchStreamCodec DataComponentPatch network codec implementation
 internal sealed class DataComponentPatchStreamCodec : StreamCodec<RegistryFriendlyByteBuf, DataComponentPatch>
 {
     public DataComponentPatch Decode(RegistryFriendlyByteBuf buf)
@@ -215,28 +215,28 @@ internal sealed class DataComponentPatchStreamCodec : StreamCodec<RegistryFriend
     }
 }
 
-//DataComponentTypeCodecs DataComponentType id 编解码工具
-//encode 时 type 实例查 registry GetId 写 VarInt decode 时读 id 从 registry 取实例
+//DataComponentTypeCodecs DataComponentType id codec utilities
+//On encode a type instance looks up the registry via GetId and writes a VarInt; on decode an id is read and the instance taken from the registry
 public static class DataComponentTypeCodecs
 {
-    //Encode 按 type 实例查 id 写 VarInt
+    //Encode looks up the id by type instance and writes a VarInt
     public static void Encode(RegistryFriendlyByteBuf buf, object type)
     {
         var registry = buf.Lookup(Registries.DATA_COMPONENT_TYPE);
         int id = registry.GetId(type);
         if (id == IdMap<object>.Default)
-            throw new InvalidOperationException($"DataComponentType 未注册: {type}");
+            throw new InvalidOperationException($"DataComponentType not registered: {type}");
         buf.WriteVarInt(id);
     }
 
-    //Decode 读 VarInt id 从 registry 取 DataComponentType 实例
+    //Decode reads a VarInt id and takes the DataComponentType instance from the registry
     public static object Decode(RegistryFriendlyByteBuf buf)
     {
         int id = buf.ReadVarInt();
         var registry = buf.Lookup(Registries.DATA_COMPONENT_TYPE);
         var type = registry.ById(id);
         if (type is null)
-            throw new InvalidOperationException($"未知 DataComponentType id {id}");
+            throw new InvalidOperationException($"unknown DataComponentType id {id}");
         return type;
     }
 }

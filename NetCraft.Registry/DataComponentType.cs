@@ -2,22 +2,22 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry;
 
-//DataComponentType 数据组件类型对应原版 net.minecraft.core.component.DataComponentType
-//接口只定义 Codec 持久化编解码StreamCodec 在 Network 子库的 SimpleDataComponentType 实现
-//Builder.persistent 设 Codec networkSynchronized 设 StreamCodec build 返回 SimpleDataComponentType
-//IsTransient 表示无 Codec 不持久化仅网络同步
+//DataComponentType data component type, maps to vanilla net.minecraft.core.component.DataComponentType
+//The interface defines only the Codec for persistence; StreamCodec is implemented by SimpleDataComponentType in the Network sub-library
+//Builder.persistent sets the Codec, networkSynchronized sets the StreamCodec, and build returns SimpleDataComponentType
+//IsTransient means there is no Codec: not persisted, only network-synced
 public interface DataComponentType<T>
 {
-    //Codec 持久化编解码器 null 表示非持久化组件
+    //Codec persistence codec; null means a non-persistent component
     Codec<T>? Codec { get; }
 
-    //IgnoreSwapAnimation 是否忽略交换动画
+    //IgnoreSwapAnimation whether to ignore the swap animation
     bool IgnoreSwapAnimation { get; }
 
-    //IsTransient 是否非持久化 Codec 为 null 即 transient
+    //IsTransient whether non-persistent; a null Codec means transient
     bool IsTransient => Codec is null;
 
-    //CodecOrThrow 获取 Codec 非持久化抛异常
+    //CodecOrThrow gets the Codec and throws for non-persistent components
     Codec<T> CodecOrThrow()
     {
         if (Codec is null)
@@ -25,43 +25,43 @@ public interface DataComponentType<T>
         return Codec;
     }
 
-    //CODEC 按注册名解析组件类型 对应原版 DataComponentType.CODEC
+    //CODEC resolves a component type by registry name, maps to vanilla DataComponentType.CODEC
     public static readonly Codec<DataComponentType<object>> CODEC = new ComponentTypeByNameCodec();
 
-    //PERSISTENT_CODEC 同 CODEC 但拒绝 transient 组件 对应原版 PERSISTENT_CODEC
+    //PERSISTENT_CODEC same as CODEC but rejects transient components, maps to vanilla PERSISTENT_CODEC
     public static readonly Codec<DataComponentType<object>> PERSISTENT_CODEC = CODEC.ComapFlatMap(
         type => type.IsTransient
             ? DataResult<DataComponentType<object>>.Error(
-                () => $"遇到非持久化组件 {BuiltInRegistries.DATA_COMPONENT_TYPE.GetKey(type)}")
+                () => $"Encountered non-persistent component {BuiltInRegistries.DATA_COMPONENT_TYPE.GetKey(type)}")
             : DataResult<DataComponentType<object>>.Success(type),
         type => type);
 
-    //VALUE_MAP_CODEC 组件类型到值的映射编解码 每种类型用自己的 codec 对应原版 VALUE_MAP_CODEC
+    //VALUE_MAP_CODEC encodes/decodes a component-type-to-value map, each type using its own codec, maps to vanilla VALUE_MAP_CODEC
     public static readonly Codec<Dictionary<DataComponentType<object>, object>> VALUE_MAP_CODEC
         = Codecs.DispatchedMap(PERSISTENT_CODEC, type => type.CodecOrThrow());
 }
 
-//ComponentTypeByNameCodec 组件类型按注册名解析与回写 对应原版 BuiltInRegistries.DATA_COMPONENT_TYPE.byNameCodec
+//ComponentTypeByNameCodec resolves and writes back a component type by registry name, maps to vanilla BuiltInRegistries.DATA_COMPONENT_TYPE.byNameCodec
 internal sealed class ComponentTypeByNameCodec : ScalarCodec<DataComponentType<object>>
 {
     public override DataResult<DataComponentType<object>> Parse<U>(DynamicOps<U> ops, U input)
     {
         var text = ops.GetStringValue(input);
         if (!text.Result().IsPresent)
-            return DataResult<DataComponentType<object>>.Error(() => "组件类型必须是字符串");
+            return DataResult<DataComponentType<object>>.Error(() => "Component type must be a string");
         var id = Identifier.TryParse(text.GetOrThrow());
         if (id is null)
-            return DataResult<DataComponentType<object>>.Error(() => $"非法的组件类型名 {text.GetOrThrow()}");
+            return DataResult<DataComponentType<object>>.Error(() => $"Invalid component type name {text.GetOrThrow()}");
         return BuiltInRegistries.DATA_COMPONENT_TYPE.GetValue(id.Value) is DataComponentType<object> type
             ? DataResult<DataComponentType<object>>.Success(type)
-            : DataResult<DataComponentType<object>>.Error(() => $"未知组件类型 {id}");
+            : DataResult<DataComponentType<object>>.Error(() => $"Unknown component type {id}");
     }
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, DataComponentType<object> value)
     {
         var key = BuiltInRegistries.DATA_COMPONENT_TYPE.GetKey(value);
         return key is null
-            ? DataResult<U>.Error(() => "组件类型未注册 无法编码")
+            ? DataResult<U>.Error(() => "Component type not registered, cannot encode")
             : DataResult<U>.Success(ops.CreateString(key.Value.ToString()));
     }
 }

@@ -6,21 +6,21 @@ using NetCraft.Commands;
 using NetCraft.DataFixer.Util;
 using NetCraft.Network.Chat.Contents;
 
-//文本组件接口对应原版net.minecraft.network.chat.Component
-//继承IMessage和FormattedText承载样式化的多段文本内容
+//Text component interface, maps to vanilla net.minecraft.network.chat.Component
+//Inherits IMessage and FormattedText to carry styled multi-segment text content
 public interface Component : IMessage, FormattedText
 {
-    //样式对应原版getStyle
+    //Style, maps to vanilla getStyle
     Style Style { get; }
 
-    //内容对应原版getContents
+    //Contents, maps to vanilla getContents
     ComponentContents Contents { get; }
 
-    //同级兄弟组件对应原版getSiblings
+    //Sibling components at the same level, maps to vanilla getSiblings
     IReadOnlyList<Component> Siblings { get; }
 
-    //尝试折叠为纯字符串对应原版tryCollapseToString
-    //仅当内容为纯文本且无样式无兄弟时返回字符串否则返回null
+    //Attempts to collapse into a plain string, maps to vanilla tryCollapseToString
+    //Returns a string only when the content is plain text with no style and no siblings, otherwise returns null
     string? TryCollapseToString()
     {
         if (Contents is not PlainTextContents text) return null;
@@ -28,14 +28,14 @@ public interface Component : IMessage, FormattedText
         return text.Text;
     }
 
-    //浅拷贝对应原版plainCopy仅复制内容不含样式和兄弟
+    //Shallow copy, maps to vanilla plainCopy, copying only the content without style or siblings
     MutableComponent PlainCopy() => MutableComponent.Create(Contents);
 
-    //深拷贝对应原版copy复制内容和兄弟和样式
+    //Deep copy, maps to vanilla copy, copying content, siblings, and style
     MutableComponent Copy() => new MutableComponent(Contents, new List<Component>(Siblings), Style);
 
-    //带样式消费者遍历对应原版visit(StyledContentConsumer,Style)
-    //对齐原版先访问自身内容再递归访问兄弟
+    //Styled consumer traversal, maps to vanilla visit(StyledContentConsumer,Style)
+    //Aligns with vanilla by visiting its own content first, then recursively visiting siblings
     new Optional<T> Visit<T>(FormattedText.StyledContentConsumer<T> output, Style parentStyle)
     {
         var selfStyle = Style.ApplyTo(parentStyle);
@@ -49,7 +49,7 @@ public interface Component : IMessage, FormattedText
         return Optional<T>.Empty();
     }
 
-    //无样式消费者遍历对应原版visit(ContentConsumer)
+    //Unstyled consumer traversal, maps to vanilla visit(ContentConsumer)
     new Optional<T> Visit<T>(FormattedText.ContentConsumer<T> output)
     {
         var selfResult = Contents.Visit(output);
@@ -62,17 +62,17 @@ public interface Component : IMessage, FormattedText
         return Optional<T>.Empty();
     }
 
-    //无样式消费者遍历IMessage.GetString通过此路径
+    //IMessage.GetString goes through this unstyled consumer traversal path
     Optional<T> FormattedText.Visit<T>(FormattedText.ContentConsumer<T> output) => Visit(output);
 
-    //带样式消费者遍历FormattedText.Visit委托到Component.Visit
+    //FormattedText.Visit styled consumer traversal delegates to Component.Visit
     Optional<T> FormattedText.Visit<T>(FormattedText.StyledContentConsumer<T> output, Style parentStyle) => Visit(output, parentStyle);
 
-    //IMessage.GetString显式实现委托到Component.GetString
+    //IMessage.GetString is explicitly implemented and delegates to Component.GetString
     string IMessage.GetString() => GetString();
 
-    //拼接字符串对应原版getString
-    //显式声明覆盖IMessage.GetString和FormattedText.GetString消除多重继承二义性
+    //Concatenates to a string, maps to vanilla getString
+    //Explicitly declared to override both IMessage.GetString and FormattedText.GetString, resolving the multiple-inheritance ambiguity
     new string GetString()
     {
         var builder = new StringBuilder();
@@ -84,7 +84,7 @@ public interface Component : IMessage, FormattedText
         return builder.ToString();
     }
 
-    //带长度限制的字符串拼接对应原版getString(int)
+    //Length-limited string concatenation, maps to vanilla getString(int)
     string GetString(int limit)
     {
         var builder = new StringBuilder();
@@ -98,7 +98,7 @@ public interface Component : IMessage, FormattedText
         return builder.ToString();
     }
 
-    //展平为组件列表对应原版toFlatList(Style)
+    //Flattens into a component list, maps to vanilla toFlatList(Style)
     List<Component> ToFlatList(Style rootStyle)
     {
         var result = new List<Component>();
@@ -115,7 +115,7 @@ public interface Component : IMessage, FormattedText
 
     List<Component> ToFlatList() => ToFlatList(Style.Empty);
 
-    //判断是否包含另一组件对应原版contains
+    //Checks whether it contains another component, maps to vanilla contains
     bool Contains(Component other)
     {
         if (Equals(other)) return true;
@@ -134,27 +134,27 @@ public interface Component : IMessage, FormattedText
         return false;
     }
 
-    //null转空组件对应原版nullToEmpty
+    //Turns null into an empty component, maps to vanilla nullToEmpty
     public static Component NullToEmpty(string? text) => text is null ? CommonComponents.Empty : Literal(text);
 
-    //纯文本组件对应原版literal
+    //Plain text component, maps to vanilla literal
     public static MutableComponent Literal(string text) => MutableComponent.Create(PlainTextContents.Create(text));
 
-    //翻译组件对应原版translatable
+    //Translatable component, maps to vanilla translatable
     public static MutableComponent Translatable(string key) => MutableComponent.Create(new TranslatableContents(key, null, TranslatableContents.NoArgs));
 
-    //带参数翻译组件对应原版translatable(String,Object[])
+    //Translatable component with arguments, maps to vanilla translatable(String,Object[])
     public static MutableComponent Translatable(string key, params object[] args) => MutableComponent.Create(new TranslatableContents(key, null, args));
 
-    //带回退文本翻译组件对应原版translatableWithFallback(String,String)
+    //Translatable component with fallback text, maps to vanilla translatableWithFallback(String,String)
     public static MutableComponent TranslatableWithFallback(string key, string? fallback) => MutableComponent.Create(new TranslatableContents(key, fallback, TranslatableContents.NoArgs));
 
-    //带回退文本和参数翻译组件对应原版translatableWithFallback(String,String,Object[])
+    //Translatable component with fallback text and arguments, maps to vanilla translatableWithFallback(String,String,Object[])
     public static MutableComponent TranslatableWithFallback(string key, string? fallback, params object[] args) => MutableComponent.Create(new TranslatableContents(key, fallback, args));
 
-    //空组件对应原版empty
+    //Empty component, maps to vanilla empty
     public static MutableComponent Empty() => MutableComponent.Create(PlainTextContents.Empty);
 
-    //按键绑定组件对应原版keybind
+    //Keybind component, maps to vanilla keybind
     public static MutableComponent Keybind(string name) => MutableComponent.Create(new KeybindContents(name));
 }

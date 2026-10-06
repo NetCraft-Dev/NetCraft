@@ -8,21 +8,21 @@ using StateDirection = NetCraft.Registry.Enums.Direction;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//Blocks 观察者部分 与 Blocks.cs 同一个类分开文件免得主文件太长
+//Blocks observer part; same class as Blocks.cs, split into a separate file to keep the main file short
 public static partial class Blocks
 {
-    //ObserverBlock 观察者 对应原版 ObserverBlock
-    //眼睛朝 FACING 那一面盯着 那边一变就发一次两刻脉冲
-    //输出在 FACING 的反向 也就是眼睛看进去的背面
+    //ObserverBlock observer, maps to vanilla ObserverBlock
+    //The eye watches the FACING side; any change there emits a two-tick pulse
+    //Output is on the opposite of FACING, i.e. the back the eye looks into
     public sealed class ObserverBlock : BlockBehaviour
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("observer");
 
-        //原版观察者硬度 3 需要镐子
+        //Vanilla observer hardness 3, requires a pickaxe
         public override float DestroySpeed => 3f;
         public override bool RequiresCorrectToolForDrops => true;
 
-        //观察者不是导体 原版注册时显式给了 isRedstoneConductor(Blocks::never)
+        //Observers are not conductors; vanilla explicitly passes isRedstoneConductor(Blocks::never) at registration
         public override bool IsRedstoneConductor(ServerLevel level, BlockPos pos, BlockState state) => false;
 
         public override IDictionary<string, PropertyBase> Properties => new Dictionary<string, PropertyBase>
@@ -31,7 +31,7 @@ public static partial class Blocks
             ["powered"] = BlockStateProperties.Powered,
         };
 
-        //原版观察者默认态 FACING=south POWERED=false
+        //Vanilla observer default state FACING=south POWERED=false
         protected override BlockState CreateDefaultState()
             => StateDefinition.PossibleStates[0]
                 .SetValue(BlockStateProperties.FacingProperty, StateDirection.south)
@@ -42,24 +42,24 @@ public static partial class Blocks
         public override int OwnSignal(ServerLevel level, BlockPos pos, BlockState state)
             => state.GetValue(BlockStateProperties.Powered) ? 15 : 0;
 
-        //GetDirectSignal 与自身信号一致 对应原版覆写
+        //GetDirectSignal same as its own signal, maps to the vanilla override
         public override int GetDirectSignal(ServerLevel level, BlockPos pos, BlockState state, Direction direction)
             => GetSignal(level, pos, state, direction);
 
-        //GetSignal 只朝 FACING 的反向输出 对应原版覆写
-        //查询者在方向反侧 与二极管同一套语义
+        //GetSignal outputs only toward the opposite of FACING, maps to the vanilla override
+        //The querier is on the far side of the direction, same semantics as a diode
         public override int GetSignal(ServerLevel level, BlockPos pos, BlockState state, Direction direction)
             => state.GetValue(BlockStateProperties.FacingProperty).ToPrimitive() == direction
                 ? OwnSignal(level, pos, state)
                 : 0;
 
-        //GetStateForPlacement 眼睛朝玩家视线最近的那个方向 对应原版两次 getOpposite 抵消后的结果
-        //原版这里写的是 getNearestLookingDirection().getOpposite().getOpposite() 两次取反等于自身
+        //GetStateForPlacement the eye faces the direction nearest the player's view, maps to the result of vanilla's two getOpposite calls canceling out
+        //Vanilla writes getNearestLookingDirection().getOpposite().getOpposite() here; two negations equal itself
         public override BlockState? GetStateForPlacement(ServerLevel level, BlockPos pos, Direction face,
             Direction horizontalFacing, Direction lookingDirection)
             => DefaultBlockState.SetValue(BlockStateProperties.FacingProperty, lookingDirection.ToState());
 
-        //Tick 通电时到点关掉 断电时打开并排两刻 两次各自都通知输出侧 对应原版 tick
+        //Tick when powered, turns off when due; when unpowered, turns on and schedules two ticks; both notify the output side, maps to vanilla tick
         public override void Tick(ServerLevel level, BlockPos pos, BlockState state, RandomSource random)
         {
             if (state.GetValue(BlockStateProperties.Powered))
@@ -76,8 +76,8 @@ public static partial class Blocks
             UpdateNeighborsInFront(level, pos, state);
         }
 
-        //UpdateShape 被盯的那一面形状变了就起脉冲 对应原版 updateShape
-        //观察者就是靠形状更新通道感知被观察方块变化的
+        //UpdateShape starts a pulse when the watched face changes shape, maps to vanilla updateShape
+        //The observer senses changes in the watched block through the shape update channel
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
         {
@@ -87,14 +87,14 @@ public static partial class Blocks
             return state;
         }
 
-        //StartSignal 还没排刻就排两刻 对应原版 startSignal
+        //StartSignal schedules two ticks if not already scheduled, maps to vanilla startSignal
         private void StartSignal(ServerLevel level, BlockPos pos)
         {
             if (!level.HasScheduledTick(pos, this)) level.ScheduleTick(pos, this, 2);
         }
 
-        //OnPlace 换上的观察者如果停在通电态且没排刻 直接熄掉再通知输出侧 对应原版 onPlace
-        //写回用 KnownShape 让这一步不再触发形状更新 免得刚放上就自己把自己点起来
+        //OnPlace an observer placed while powered with no scheduled tick is switched off and the output side notified, maps to vanilla onPlace
+        //Write back with KnownShape so this step does not trigger a shape update, preventing it from powering itself right after placement
         public override void OnPlace(ServerLevel level, BlockPos pos, BlockState state, BlockState oldState,
             bool movedByPiston)
         {
@@ -105,7 +105,7 @@ public static partial class Blocks
             UpdateNeighborsInFront(level, pos, cleared);
         }
 
-        //AffectNeighborsAfterRemoval 脉冲还没走完就被拆掉 输出侧也要跟着归零 对应原版同名方法
+        //AffectNeighborsAfterRemoval when removed before the pulse finishes, the output side must also drop to zero, maps to the vanilla method of the same name
         public override void AffectNeighborsAfterRemoval(ServerLevel level, BlockPos pos, BlockState state,
             bool movedByPiston)
         {
@@ -113,7 +113,7 @@ public static partial class Blocks
                 UpdateNeighborsInFront(level, pos, state.SetValue(BlockStateProperties.Powered, false));
         }
 
-        //UpdateNeighborsInFront 通知输出侧那格及其邻接 对应原版同名方法
+        //UpdateNeighborsInFront notifies the output-side block and its neighbors, maps to the vanilla method of the same name
         private void UpdateNeighborsInFront(ServerLevel level, BlockPos pos, BlockState state)
         {
             var direction = state.GetValue(BlockStateProperties.FacingProperty).ToPrimitive();

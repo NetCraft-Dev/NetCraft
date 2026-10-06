@@ -2,8 +2,8 @@ using NetCraft.Network.Protocol.Cookie;
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientCommonPacketListener 客户端 common 监听器对应原版 net.minecraft.network.protocol.common.ClientCommonPacketListener
-//继承 ClientCookiePacketListener 加入 common 包的 13 个 handle 方法
+//ClientCommonPacketListener client common listener, maps to vanilla net.minecraft.network.protocol.common.ClientCommonPacketListener
+//Inherits ClientCookiePacketListener and adds the 13 handle methods for common packets
 public interface ClientCommonPacketListener : ClientCookiePacketListener
 {
     void HandleKeepAlive(ClientboundKeepAlivePacket packet);

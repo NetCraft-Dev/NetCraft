@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetSimulationDistancePacket 模拟距离包对应原版 ClientboundSetSimulationDistancePacket
-//字段 SimulationDistance(int)
+//ClientboundSetSimulationDistancePacket simulation distance packet, maps to vanilla ClientboundSetSimulationDistancePacket
+//Field: SimulationDistance(int)
 public sealed record ClientboundSetSimulationDistancePacket(int SimulationDistance) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetSimulationDistancePacket> StreamCodec { get; } = new SetSimulationDistanceCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundSetSimulationDistancePacket(int SimulationDistan
     private sealed class SetSimulationDistanceCodec : StreamCodec<FriendlyByteBuf, ClientboundSetSimulationDistancePacket>
     {
         public ClientboundSetSimulationDistancePacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundSetSimulationDistancePacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

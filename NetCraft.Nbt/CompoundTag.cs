@@ -5,18 +5,18 @@ using NetCraft.Logging;
 
 namespace NetCraft.Nbt;
 
-//CompoundTag（TAG_Compound，ID=10）。对应原版 net.minecraft.nbt.CompoundTag。
-//存储 key-value 字段集合。二进制格式：
-//  [... 字段: [1 byte 类型][2字节 名字长度][名字][值]][1 byte TAG_End]
+//CompoundTag (TAG_Compound, ID=10). Mirrors vanilla net.minecraft.nbt.CompoundTag.
+//Stores a set of key-value fields. Binary format:
+//  [... fields: [1 byte type][2-byte name length][name][value]][1 byte TAG_End]
 public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
 {
     private readonly Dictionary<string, Tag> _tags = new();
 
-    //CompoundTag的Codec对应原版CompoundTag.CODEC
-    //仅在NbtOps下 EncodeStart返回原Tag Parse验证Tag是CompoundTag
+    //Codec for CompoundTag, mirroring vanilla CompoundTag.CODEC
+    //Under NbtOps only: EncodeStart returns the Tag as-is and Parse verifies it is a CompoundTag
     public static readonly Codec<CompoundTag> Codec = new CompoundTagCodec();
 
-    //内构用于ShallowCopy浅拷贝
+    //Internal constructor used by ShallowCopy
     internal CompoundTag(Dictionary<string, Tag> tags) { _tags = tags; }
 
     public CompoundTag() { }
@@ -44,7 +44,7 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
 
     public void Put(string key, Tag tag) => _tags[key] = tag;
 
-    //合并other的字段到当前CompoundTag对应原版merge
+    //Merges the fields of other into this CompoundTag, mirroring vanilla merge
     public void Merge(CompoundTag other)
     {
         foreach (var (key, tag) in other._tags)
@@ -60,7 +60,7 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
     public T? Get<T>(string key) where T : class, Tag
         => _tags.TryGetValue(key, out var t) ? t as T : null;
 
-    // ============ 类型化 getter（便捷访问） ============
+    // ============ typed getters (convenience access) ============
 
     public ByteTag? GetByte(string key) => Get<ByteTag>(key);
     public ShortTag? GetShort(string key) => Get<ShortTag>(key);
@@ -75,7 +75,7 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
     public ListTag? GetList(string key) => Get<ListTag>(key);
     public CompoundTag? GetCompound(string key) => Get<CompoundTag>(key);
 
-    // ============ 类型化 put（便捷写入） ============
+    // ============ typed put (convenience writes) ============
 
     public void PutByte(string key, byte value) => Put(key, new ByteTag(value));
     public void PutShort(string key, short value) => Put(key, new ShortTag(value));
@@ -89,7 +89,7 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
     public void PutIntArray(string key, int[] value) => Put(key, new IntArrayTag(value));
     public void PutLongArray(string key, long[] value) => Put(key, new LongArrayTag(value));
 
-    // ============ 标量便捷 getter（避免 cast） ============
+    // ============ scalar convenience getters (no cast needed) ============
 
     public byte GetByteValue(string key) => GetByte(key)?.Value ?? (byte)0;
     public short GetShortValue(string key) => GetShort(key)?.Value ?? (short)0;
@@ -99,14 +99,14 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
     public double GetDoubleValue(string key) => GetDouble(key)?.Value ?? 0d;
     public string GetStringValue(string key) => GetString(key)?.Value ?? "";
 
-    //带默认值的便捷getter对应原版getIntOr/getLongOr等
+    //Convenience getters with a default value, mirroring vanilla getIntOr/getLongOr and friends
     public byte GetByteOr(string key, byte defaultValue) => GetByte(key)?.Value ?? defaultValue;
     public int GetIntOr(string key, int defaultValue) => GetInt(key)?.Value ?? defaultValue;
     public long GetLongOr(string key, long defaultValue) => GetLong(key)?.Value ?? defaultValue;
     public bool GetBooleanOr(string key, bool defaultValue)
         => TryGetTag(key, out var tag) ? tag is ByteTag b && b.Value != 0 : defaultValue;
 
-    //空容器兜底对应原版getCompoundOrEmpty/getListOrEmpty
+    //Empty container fallbacks, mirroring vanilla getCompoundOrEmpty/getListOrEmpty
     public CompoundTag GetCompoundOrEmpty(string key) => GetCompound(key) ?? new CompoundTag();
     public ListTag GetListOrEmpty(string key) => GetList(key) ?? new ListTag();
 
@@ -121,7 +121,7 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
         output.WriteByte(Tag.TagEnd);
     }
 
-    //判等按键值集合语义 与键序无关 值递归比较 对应原版 CompoundTag.equals
+    //Equality uses key-value set semantics, independent of key order and comparing values recursively. Mirrors vanilla CompoundTag.equals
     public override bool Equals(object? obj)
     {
         if (ReferenceEquals(this, obj)) return true;
@@ -131,7 +131,7 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
         return true;
     }
 
-    //哈希与判等一致 逐键值对异或后求和 因此与键序无关 对应原版 Map.hashCode
+    //Hash matches equality: per-entry XOR then sum, so it is independent of key order. Mirrors vanilla Map.hashCode
     public override int GetHashCode()
     {
         var hash = 0;
@@ -163,7 +163,7 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
         return copy;
     }
 
-    //浅拷贝共享Tag引用用于NbtOps.MergeToMap的prefix处理
+    //Shallow copy sharing Tag references, used for prefix merging in NbtOps.MergeToMap
     public CompoundTag ShallowCopy() => new(new Dictionary<string, Tag>(_tags));
 
     public int SizeInBytes()
@@ -184,7 +184,7 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
         foreach (var (key, tag) in _tags)
         {
             var type = tag.Type;
-            // 两阶段访问：先访问类型，再访问名字（与原版一致）
+            // Two-phase visit: type first, then name (same as vanilla)
             var r1 = visitor.VisitEntry(type);
             if (r1 == StreamTagVisitor.EntryResult.Halt)
                 return StreamTagVisitor.ValueResult.Halt;
@@ -216,7 +216,7 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-    //用Codec把value序列化为Tag存入name字段
+    //Serialize value into a Tag with Codec and store it under the name field
     public void Store<T>(string name, Codec<T> codec, T value)
         => Store(name, codec, NbtOps.Instance, value);
 
@@ -233,7 +233,7 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
         if (value is not null) Store(name, codec, ops, value);
     }
 
-    //用MapCodec编码value并合并到当前CompoundTag
+    //Encode value with MapCodec and merge it into this CompoundTag
     public void Store<T>(MapCodec<T> codec, DynamicOps<Tag> ops, T value)
         => Merge((CompoundTag)codec.EncodeStart(ops, value).GetOrThrow());
 
@@ -281,13 +281,13 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
                     return output.VisitContainerEnd();
 
                 var type = TagTypes.GetType(tagType);
-                // 第一阶段：访问类型（无名字）
+                // Phase 1: visit the type (no name)
                 var r1 = output.VisitEntry(type);
                 if (r1 == StreamTagVisitor.EntryResult.Halt)
                     return StreamTagVisitor.ValueResult.Halt;
                 if (r1 == StreamTagVisitor.EntryResult.Break)
                 {
-                    // 跳过当前 name+value，再跳到容器末尾
+                    // Skip the current name+value, then jump to the end of the container
                     StringTag.SkipString(input);
                     type.Skip(input, accounter);
                     SkipToEndOfCompound(input, accounter);
@@ -295,13 +295,13 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
                 }
                 if (r1 == StreamTagVisitor.EntryResult.Skip)
                 {
-                    // 跳过当前 name+value，继续读下一个字段
+                    // Skip the current name+value and read the next field
                     StringTag.SkipString(input);
                     type.Skip(input, accounter);
                     continue;
                 }
 
-                // 第二阶段：读取名字并访问（有名字）
+                // Phase 2: read the name and visit it (named)
                 var name = input.ReadUtf();
                 accounter.AccountBytes(Tag.StringSize + name.Length * 2L);
                 var r2 = output.VisitEntry(type, name);
@@ -319,7 +319,7 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
                     continue;
                 }
 
-                // 第三阶段：递归解析值
+                // Phase 3: parse the value recursively
                 accounter.AccountBytes(36);
                 var r3 = type.Parse(input, output, accounter);
                 if (r3 == StreamTagVisitor.ValueResult.Halt)
@@ -329,11 +329,11 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
                     SkipToEndOfCompound(input, accounter);
                     return output.VisitContainerEnd();
                 }
-                // r3 == Continue: 继续读下一个字段
+                // r3 == Continue: read the next field
             }
         }
 
-        //跳过当前复合标签剩余的所有字段直到 TAG_End。BREAK/Halt 后用于对齐读取位置。
+        //Skip all remaining fields of this compound tag up to TAG_End. Used after BREAK/Halt to realign the read position.
         private static void SkipToEndOfCompound(INbtReader input, NbtAccounter accounter)
         {
             byte type;
@@ -361,9 +361,9 @@ public sealed class CompoundTag : Tag, IEnumerable<KeyValuePair<string, Tag>>
     }
 }
 
-//CompoundTag的Codec实现对应原版Codec.PASSTHROUGH.comapFlatMap
-//EncodeStart把CompoundTag作为Tag透传仅NbtOps下有效
-//Parse验证Tag类型是CompoundTag否则错误
+//Codec implementation for CompoundTag, mirroring vanilla Codec.PASSTHROUGH.comapFlatMap
+//EncodeStart passes the CompoundTag through as a Tag; valid under NbtOps only
+//Parse verifies the Tag is a CompoundTag and errors otherwise
 internal sealed class CompoundTagCodec : ScalarCodec<CompoundTag>
 {
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, CompoundTag value)

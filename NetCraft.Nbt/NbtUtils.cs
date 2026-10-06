@@ -4,12 +4,12 @@ using NetCraft.Config;
 
 namespace NetCraft.Nbt;
 
-//NBT 工具类。对应原版 net.minecraft.nbt.NbtUtils。
-//提供 Tag 比较、格式化打印、数据版本读写、BlockState 字符串打包等纯 NBT 工具方法。
-//依赖 Block/StateHolder 系统的方法（readBlockState/writeBlockState/writeFluidState），
-//依赖 Component 的方法（toPrettyComponent），
-//依赖 SNBT 解析的方法（structureToSnbt/snbtToStructure/packStructureTemplate/unpackStructureTemplate）
-//暂未翻译，待对应子系统就绪后补全。
+//NBT utility class. Mirrors vanilla net.minecraft.nbt.NbtUtils.
+//Provides pure NBT helpers: Tag comparison, pretty printing, data version read/write and BlockState string packing.
+//Methods that depend on the Block/StateHolder system (readBlockState/writeBlockState/writeFluidState),
+//methods that depend on Component (toPrettyComponent),
+//and methods that depend on SNBT parsing (structureToSnbt/snbtToStructure/packStructureTemplate/unpackStructureTemplate)
+//are not ported yet and will be completed once the matching subsystems are ready.
 public static class NbtUtils
 {
     public const string SnbtDataTag = "data";
@@ -21,14 +21,14 @@ public static class NbtUtils
     private const string ElementSeparator = ",";
     private const string ColonSeparator = ":";
 
-    // MIME 行分隔符（原版 net.minecraft.util.Crypt.MIME_LINE_SEPARATOR）
+    // MIME line separator (vanilla net.minecraft.util.Crypt.MIME_LINE_SEPARATOR)
     private const string MimeLineSeparator = "\r\n";
 
-    //递归比较两个 NBT 是否相等。
-    //对应原版 NbtUtils.compareNbt(Tag, Tag, boolean)。
-    //expected: 期望的 Tag（用作模式）。
-    //actual: 实际的 Tag。
-    //partialListMatches: 若为 true，ListTag 子集匹配即可（actual 顺序无关，期望元素都存在）。
+    //Recursively compare two NBT values for equality.
+    //Mirrors vanilla NbtUtils.compareNbt(Tag, Tag, boolean).
+    //expected: the Tag to match against (used as the pattern).
+    //actual: the Tag being checked.
+    //partialListMatches: when true a ListTag may match as a subset (order does not matter, every expected element must be present).
     public static bool CompareNbt(Tag? expected, Tag? actual, bool partialListMatches)
     {
         if (ReferenceEquals(expected, actual) || expected is null)
@@ -79,9 +79,9 @@ public static class NbtUtils
         return expected.Equals(actual);
     }
 
-    //AreEqual 完整深度相等 对应原版 Tag.equals 的递归语义
-    //与 CompareNbt 的差别是要求键数与元素数都相等 不做子集匹配
-    //NBT 路径与 /data 判断"写入前后是否真的变了"都靠它
+    //AreEqual is full deep equality, matching the recursive semantics of vanilla Tag.equals
+    //Unlike CompareNbt it requires equal key and element counts and does no subset matching
+    //The NBT path and /data rely on it to tell whether a write really changed anything
     public static bool AreEqual(Tag? a, Tag? b)
     {
         if (ReferenceEquals(a, b)) return true;
@@ -121,11 +121,11 @@ public static class NbtUtils
         }
     }
 
-    //格式化打印 NBT。对应原版 NbtUtils.prettyPrint(Tag, boolean)。
+    //Pretty-print NBT. Mirrors vanilla NbtUtils.prettyPrint(Tag, boolean).
     public static string PrettyPrint(Tag tag, bool withBinaryBlobs)
         => PrettyPrint(new StringBuilder(), tag, 0, withBinaryBlobs).ToString();
 
-    //格式化打印 NBT 到 StringBuilder。对应原版 NbtUtils.prettyPrint(StringBuilder, Tag, int, boolean)。
+    //Pretty-print NBT into a StringBuilder. Mirrors vanilla NbtUtils.prettyPrint(StringBuilder, Tag, int, boolean).
     public static StringBuilder PrettyPrint(StringBuilder builder, Tag input, int indent, bool withBinaryBlobs)
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -285,7 +285,7 @@ public static class NbtUtils
         return IndentTo(builder, indent).Append('}');
     }
 
-    //在当前行末尾填充空格到 (2 * indent) 列。对应原版 NbtUtils.indent(int, StringBuilder)。
+    //Pad the current line with spaces up to column (2 * indent). Mirrors vanilla NbtUtils.indent(int, StringBuilder).
     private static StringBuilder IndentTo(StringBuilder builder, int indent)
     {
         var index = LastIndexOf(builder, MimeLineSeparator) + 1;
@@ -295,30 +295,30 @@ public static class NbtUtils
         return builder;
     }
 
-    //StringBuilder 不支持 LastIndexOf，封装为字符串查找。
+    //StringBuilder has no LastIndexOf, so this wraps a string lookup.
     private static int LastIndexOf(StringBuilder builder, string value)
     {
-        // 简化：转字符串查找。StringBuilder 通常较小，性能可接受。
+        // Simplification: convert to a string and search. StringBuilder is usually small, so the cost is acceptable.
         return builder.ToString().LastIndexOf(value, StringComparison.Ordinal);
     }
 
-    // ============ 数据版本读写 ============
+    // ============ data version read/write ============
 
-    //添加当前数据版本到 CompoundTag。对应原版 addCurrentDataVersion(CompoundTag)。
+    //Add the current data version to a CompoundTag. Mirrors vanilla addCurrentDataVersion(CompoundTag).
     public static CompoundTag AddCurrentDataVersion(CompoundTag tag)
         => AddDataVersion(tag, SharedConstants.WorldDataVersion);
 
-    //添加指定数据版本到 CompoundTag。对应原版 addDataVersion(CompoundTag, int)。
+    //Add the given data version to a CompoundTag. Mirrors vanilla addDataVersion(CompoundTag, int).
     public static CompoundTag AddDataVersion(CompoundTag tag, int version)
     {
         tag.PutInt(SharedConstants.DataVersionTag, version);
         return tag;
     }
 
-    //读取 CompoundTag 中的数据版本，默认 -1。对应原版 getDataVersion(CompoundTag)。
+    //Read the data version from a CompoundTag, defaulting to -1. Mirrors vanilla getDataVersion(CompoundTag).
     public static int GetDataVersion(CompoundTag tag) => GetDataVersion(tag, -1);
 
-    //读取 CompoundTag 中的数据版本，缺失返回默认值。对应原版 getDataVersion(CompoundTag, int)。
+    //Read the data version from a CompoundTag, returning the default when absent. Mirrors vanilla getDataVersion(CompoundTag, int).
     public static int GetDataVersion(CompoundTag tag, int @default)
     {
         if (!tag.Contains(SharedConstants.DataVersionTag))
@@ -326,10 +326,10 @@ public static class NbtUtils
         return tag.GetIntValue(SharedConstants.DataVersionTag);
     }
 
-    // ============ BlockState 字符串打包/解包（纯字符串处理，不依赖 Block 系统）============
+    // ============ BlockState string packing/unpacking (pure string handling, no Block system)============
 
-    //将 BlockState CompoundTag 打包为字符串。对应原版 NbtUtils.packBlockState(CompoundTag)。
-    //格式：name{key:value,key:value}
+    //Pack a BlockState CompoundTag into a string. Mirrors vanilla NbtUtils.packBlockState(CompoundTag).
+    //Format: name{key:value,key:value}
     public static string PackBlockState(CompoundTag compound)
     {
         var builder = new StringBuilder(compound.GetStringValue("Name"));
@@ -344,8 +344,8 @@ public static class NbtUtils
         return builder.ToString();
     }
 
-    //将字符串解包为 BlockState CompoundTag。对应原版 NbtUtils.unpackBlockState(String)。
-    //格式：name{key:value,key:value}
+    //Unpack a string into a BlockState CompoundTag. Mirrors vanilla NbtUtils.unpackBlockState(String).
+    //Format: name{key:value,key:value}
     public static CompoundTag UnpackBlockState(string compound)
     {
         var tag = new CompoundTag();

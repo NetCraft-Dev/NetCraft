@@ -1,10 +1,10 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundAnimatePacket 实体动画包对应原版 ClientboundAnimatePacket
-//字段 Id(int) Action(int)
+//ClientboundAnimatePacket entity animation packet, maps to vanilla ClientboundAnimatePacket
+//Fields: Id(int), Action(int)
 public sealed record ClientboundAnimatePacket(int Id, int Action) : Packet<ClientGamePacketListener>
 {
-    //动作常量对齐原版 ClientboundAnimatePacket
+    //Action constants align with vanilla ClientboundAnimatePacket
     public const int SwingMainHand = 0;
     public const int SwingOffHand = 3;
 
@@ -16,7 +16,7 @@ public sealed record ClientboundAnimatePacket(int Id, int Action) : Packet<Clien
 
     private sealed class AnimateCodec : StreamCodec<FriendlyByteBuf, ClientboundAnimatePacket>
     {
-        //原版顺序 VAR_INT 实体id 无符号 byte 动作 动作常量见 SwingMainHand 等
+        //Vanilla order: VAR_INT entity id, unsigned byte action; see SwingMainHand etc. for action constants
         public ClientboundAnimatePacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadVarInt(), buf.ReadByte());
 

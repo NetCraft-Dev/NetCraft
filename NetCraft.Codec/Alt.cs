@@ -1,7 +1,7 @@
 namespace NetCraft.Codec;
 
-//Alt 二选一容器 对应原版 com.mojang.datafixers.util.Either
-//DataFixer 已有一个同名 Either 且绑 DFU 的 HKT 无法共用 故这里另起名
+//Alt is a two-way container, mirroring vanilla com.mojang.datafixers.util.Either
+//DataFixer already has an Either of the same name bound to DFU's HKT and it cannot be reused, hence the different name here
 public sealed class Alt<L, R>
 {
     private readonly bool _isLeft;
@@ -15,33 +15,33 @@ public sealed class Alt<L, R>
         _right = right;
     }
 
-    //Left 构造左值 对应原版 Either.left
+    //Left builds a left value, mirroring vanilla Either.left
     public static Alt<L, R> Left(L value) => new(true, value, default);
 
-    //Right 构造右值 对应原版 Either.right
+    //Right builds a right value, mirroring vanilla Either.right
     public static Alt<L, R> Right(R value) => new(false, default, value);
 
-    //IsLeft 是否为左值
+    //IsLeft reports a left value
     public bool IsLeft => _isLeft;
-    //IsRight 是否为右值
+    //IsRight reports a right value
     public bool IsRight => !_isLeft;
 
-    //GetLeft 取左值 非左值时为空
+    //GetLeft takes the left value, empty when it is not a left
     public Optional<L> GetLeft() => _isLeft ? Optional<L>.OfNullable(_left) : Optional<L>.Empty();
 
-    //GetRight 取右值 非右值时为空
+    //GetRight takes the right value, empty when it is not a right
     public Optional<R> GetRight() => _isLeft ? Optional<R>.Empty() : Optional<R>.OfNullable(_right);
 
-    //Map 两侧分别映射后折叠到同一类型
+    //Map maps both sides and folds them into one type
     public T Map<T>(Func<L, T> left, Func<R, T> right) => _isLeft ? left(_left!) : right(_right!);
 
-    //Unwrap 两侧同类型时取出值 对应原版 Either.unwrap
+    //Unwrap extracts the value when both sides share a type, mirroring vanilla Either.unwrap
     public static U Unwrap<U>(Alt<U, U> alt) => alt._isLeft ? alt._left! : alt._right!;
 
     public override string ToString() => _isLeft ? $"Left[{_left}]" : $"Right[{_right}]";
 }
 
-//EitherCodec 先按左编解码 解析失败退回右 对应原版 Codec.either
+//EitherCodec encodes and decodes the left first and falls back to the right on failure, mirroring vanilla Codec.either
 internal sealed class EitherCodec<L, R> : ScalarCodec<Alt<L, R>>
 {
     private readonly Codec<L> _left;

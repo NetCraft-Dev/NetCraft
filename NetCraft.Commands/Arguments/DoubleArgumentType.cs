@@ -3,8 +3,8 @@ using NetCraft.Commands.Exceptions;
 
 namespace NetCraft.Commands.Arguments;
 
-//DoubleArgumentType 双精度参数类型对应原版com.mojang.brigadier.arguments.DoubleArgumentType
-//限定min/max范围并解析double值越界抛DoubleTooLow/High
+//DoubleArgumentType double argument type, maps to vanilla com.mojang.brigadier.arguments.DoubleArgumentType
+//Constrains the value to min/max, parsing a double and throwing DoubleTooLow/High when out of range
 public sealed class DoubleArgumentType : ArgumentType<double>
 {
     private static readonly IReadOnlyList<string> _examples = new[] { "0", "1.2", ".5", "-1", "-.5", "-1234.56" };

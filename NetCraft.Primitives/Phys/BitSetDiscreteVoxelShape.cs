@@ -1,10 +1,10 @@
 namespace NetCraft.Primitives.Phys;
 
-//BitSetDiscreteVoxelShape 位图离散体素形状 对应原版 BitSetDiscreteVoxelShape
-//x*y*z 个格子各占一位 另存包围盒上下界 省掉 isEmpty 与 firstFull 的整表扫描
+//BitSetDiscreteVoxelShape bitmap discrete voxel shape, maps to vanilla BitSetDiscreteVoxelShape
+//Each of the x*y*z cells takes one bit, the bounding box bounds are stored separately to avoid full-table scans in isEmpty and firstFull
 public sealed class BitSetDiscreteVoxelShape : DiscreteVoxelShape
 {
-    //包围盒上界初值 对应原版 ChunkSkyLightSources.NEGATIVE_INFINITY
+    //Initial value of the bounding box upper bound, maps to vanilla ChunkSkyLightSources.NEGATIVE_INFINITY
     private const int NegativeInfinity = int.MinValue;
 
     private readonly long[] _storage;
@@ -18,7 +18,7 @@ public sealed class BitSetDiscreteVoxelShape : DiscreteVoxelShape
     public BitSetDiscreteVoxelShape(int xSize, int ySize, int zSize) : base(xSize, ySize, zSize)
     {
         _storage = new long[(xSize * ySize * zSize + 63) >> 6];
-        //包围盒按空处理 上界留在 0 下界推到尺寸外
+        //The bounding box treats the shape as empty, the upper bound stays at 0 and the lower bound is pushed outside the size
         _xMin = xSize;
         _yMin = ySize;
         _zMin = zSize;
@@ -47,7 +47,7 @@ public sealed class BitSetDiscreteVoxelShape : DiscreteVoxelShape
         _zMax = source.LastFull(Direction.Axis.Z);
     }
 
-    //WithFilledBounds 直接按给定包围盒造实心块 对应原版 withFilledBounds
+    //WithFilledBounds builds a solid block directly from the given bounding box, maps to vanilla withFilledBounds
     public static BitSetDiscreteVoxelShape WithFilledBounds(int xSize, int ySize, int zSize,
         int xMin, int yMin, int zMin, int xMax, int yMax, int zMax)
     {
@@ -67,7 +67,7 @@ public sealed class BitSetDiscreteVoxelShape : DiscreteVoxelShape
         return shape;
     }
 
-    //位图线性下标 对应原版 getIndex
+    //Bitmap linear index, maps to vanilla getIndex
     private int GetIndex(int x, int y, int z) => (x * YSize + y) * ZSize + z;
 
     private void SetBit(int index) => _storage[index >> 6] |= 1L << index;
@@ -77,7 +77,7 @@ public sealed class BitSetDiscreteVoxelShape : DiscreteVoxelShape
         for (var i = from; i < to; i++) _storage[i >> 6] &= ~(1L << i);
     }
 
-    //NextClearBit 从 from 起第一个空位 对应 BitSet.nextClearBit
+    //NextClearBit the first clear bit from from, maps to BitSet.nextClearBit
     private int NextClearBit(int from)
     {
         var total = _storage.Length * 64;
@@ -92,7 +92,7 @@ public sealed class BitSetDiscreteVoxelShape : DiscreteVoxelShape
     {
         var index = GetIndex(x, y, z);
         _storage[index >> 6] |= 1L << index;
-        //填格同时收紧包围盒
+        //Tighten the bounding box while filling cells
         _xMin = Math.Min(_xMin, x);
         _yMin = Math.Min(_yMin, y);
         _zMin = Math.Min(_zMin, z);
@@ -112,7 +112,7 @@ public sealed class BitSetDiscreteVoxelShape : DiscreteVoxelShape
 
     public override int LastFull(Direction.Axis axis) => axis.Choose(_xMax, _yMax, _zMax);
 
-    //IsInterior 六面都被包住的内部格 对应原版 isInterior 光照遮挡判定用
+    //IsInterior an interior cell enclosed on all six faces, maps to vanilla isInterior, used for light occlusion tests
     public bool IsInterior(int x, int y, int z)
     {
         var inside = x > 0 && x < XSize - 1 && y > 0 && y < YSize - 1 && z > 0 && z < ZSize - 1;
@@ -122,8 +122,8 @@ public sealed class BitSetDiscreteVoxelShape : DiscreteVoxelShape
             && IsFull(x, y, z - 1) && IsFull(x, y, z + 1);
     }
 
-    //Join 两个离散形状按布尔运算合成 对应原版 join
-    //三轴各有一份归并器把两侧的切分点对齐 逐格套 op 决定结果是否实心
+    //Join combines two discrete shapes by a boolean operation, maps to vanilla join
+    //Each of the three axes has a merger aligning both sides' split points, op decides cell by cell whether the result is solid
     public static BitSetDiscreteVoxelShape Join(DiscreteVoxelShape first, DiscreteVoxelShape second,
         IIndexMerger xMerger, IIndexMerger yMerger, IIndexMerger zMerger, BooleanOp op)
     {
@@ -172,8 +172,8 @@ public sealed class BitSetDiscreteVoxelShape : DiscreteVoxelShape
         return shape;
     }
 
-    //ForAllBoxes 把离散格合并成尽量少的盒 对应原版 forAllBoxes
-    //逐个格子处理会把一个实心块拆成 n^3 个盒 这里先沿 Z 合并成条 再沿 X 铺成面 再沿 Y 叠成体
+    //ForAllBoxes merges discrete cells into as few boxes as possible, maps to vanilla forAllBoxes
+    //Processing cell by cell would split a solid block into n^3 boxes, here it merges into strips along Z, spreads them into faces along X, then stacks them into volumes along Y
     internal static void ForAllBoxes(DiscreteVoxelShape voxelShape,
         DiscreteVoxelShape.IntLineConsumer consumer, bool mergeNeighbors)
     {
@@ -217,7 +217,7 @@ public sealed class BitSetDiscreteVoxelShape : DiscreteVoxelShape
         }
     }
 
-    //IsZStripFull 沿 Z 从 startZ 到 endZ 这一段是否全实心 对应原版 isZStripFull
+    //IsZStripFull whether the segment along Z from startZ to endZ is fully solid, maps to vanilla isZStripFull
     private bool IsZStripFull(int startZ, int endZ, int x, int y)
         => x < XSize && y < YSize && NextClearBit(GetIndex(x, y, startZ)) >= GetIndex(x, y, endZ);
 

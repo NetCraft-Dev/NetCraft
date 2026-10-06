@@ -3,8 +3,8 @@ using System.Globalization;
 
 namespace NetCraft.Nbt;
 
-//EndTag（TAG_End，ID=0）。对应原版 net.minecraft.nbt.EndTag。
-//标记 CompoundTag 或 ListTag 的结束。空实现，单例。
+//EndTag (TAG_End, ID=0). Mirrors vanilla net.minecraft.nbt.EndTag.
+//Marks the end of a CompoundTag or ListTag. Empty implementation, a singleton.
 public sealed class EndTag : Tag
 {
     public static readonly EndTag Instance = new();
@@ -15,7 +15,7 @@ public sealed class EndTag : Tag
 
     public TagType Type => EndTagType.Instance;
 
-    public void Write(INbtWriter output) { /* EndTag 不写入任何数据 */ }
+    public void Write(INbtWriter output) { /* EndTag writes no data */ }
 
     public override string ToString() => "END";
 
@@ -53,17 +53,17 @@ public sealed class EndTag : Tag
     }
 }
 
-//<summary>数值 Tag 基类。对应原版 NumericTag。
-//不直接实现 Tag 接口（避免 abstract 方法传递负担），
-//子类通过 : NumericTag, Tag 同时继承基类和实现接口。
+//<summary>Base class for numeric Tags. Mirrors vanilla NumericTag.
+//Does not implement the Tag interface directly (to avoid carrying abstract methods);
+//subclasses use : NumericTag, Tag to inherit the base class and implement the interface in one go.
 public abstract class NumericTag
 {
-    //返回此 Tag 的数值。子类必须实现。
+    //Returns this Tag's numeric value. Subclasses must implement it.
     public abstract Number? AsNumber();
 }
 
-//ByteTag（TAG_Byte，ID=1）。对应原版 net.minecraft.nbt.ByteTag。
-//存储 1 字节有符号整数。不可变，Copy 返回自身。
+//ByteTag (TAG_Byte, ID=1). Mirrors vanilla net.minecraft.nbt.ByteTag.
+//Stores a 1-byte signed integer. Immutable, Copy returns itself.
 public sealed class ByteTag(byte value) : NumericTag, Tag
 {
     public byte Value { get; } = value;
@@ -82,16 +82,16 @@ public sealed class ByteTag(byte value) : NumericTag, Tag
         return cache;
     }
 
-    //0 值单例（等价 ValueOf(0)）。
+    //Singleton for 0 (equivalent to ValueOf(0)).
     public static readonly ByteTag Zero = ValueOf((byte)0);
 
-    //1 值单例（等价 ValueOf(1)）。
+    //Singleton for 1 (equivalent to ValueOf(1)).
     public static readonly ByteTag One = ValueOf((byte)1);
 
-    //获取缓存的 ByteTag 实例。对应原版 ByteTag.valueOf(byte)。
+    //Get a cached ByteTag instance. Mirrors vanilla ByteTag.valueOf(byte).
     public static ByteTag ValueOf(byte value) => _cache[value];
 
-    //获取 0/1 表示的 ByteTag。对应原版 ByteTag.valueOf(boolean)。
+    //Get the 0/1 ByteTag. Mirrors vanilla ByteTag.valueOf(boolean).
     public static ByteTag ValueOf(bool value) => value ? One : Zero;
 
     public void Write(INbtWriter output) => output.WriteByte(Value);
@@ -133,8 +133,8 @@ public sealed class ByteTag(byte value) : NumericTag, Tag
     }
 }
 
-//ShortTag（TAG_Short，ID=2）。对应原版 net.minecraft.nbt.ShortTag。
-//存储 2 字节大端有符号整数。
+//ShortTag (TAG_Short, ID=2). Mirrors vanilla net.minecraft.nbt.ShortTag.
+//Stores a 2-byte big-endian signed integer.
 public sealed class ShortTag(short value) : NumericTag, Tag
 {
     public short Value { get; } = value;
@@ -142,7 +142,7 @@ public sealed class ShortTag(short value) : NumericTag, Tag
     public byte Id => Tag.TagShort;
     public TagType Type => ShortTagType.Instance;
 
-    //工厂方法。对应原版 ShortTag.valueOf(short)。
+    //Factory method. Mirrors vanilla ShortTag.valueOf(short).
     public static ShortTag ValueOf(short value) => new(value);
 
     public void Write(INbtWriter output) => output.WriteShort(Value);
@@ -184,8 +184,8 @@ public sealed class ShortTag(short value) : NumericTag, Tag
     }
 }
 
-//IntTag（TAG_Int，ID=3）。对应原版 net.minecraft.nbt.IntTag。
-//存储 4 字节大端有符号整数。
+//IntTag (TAG_Int, ID=3). Mirrors vanilla net.minecraft.nbt.IntTag.
+//Stores a 4-byte big-endian signed integer.
 public sealed class IntTag(int value) : NumericTag, Tag
 {
     public int Value { get; } = value;
@@ -193,7 +193,7 @@ public sealed class IntTag(int value) : NumericTag, Tag
     public byte Id => Tag.TagInt;
     public TagType Type => IntTagType.Instance;
 
-    //工厂方法。对应原版 IntTag.valueOf(int)。
+    //Factory method. Mirrors vanilla IntTag.valueOf(int).
     public static IntTag ValueOf(int value) => new(value);
 
     public void Write(INbtWriter output) => output.WriteInt(Value);
@@ -235,8 +235,8 @@ public sealed class IntTag(int value) : NumericTag, Tag
     }
 }
 
-//LongTag（TAG_Long，ID=4）。对应原版 net.minecraft.nbt.LongTag。
-//存储 8 字节大端有符号整数。
+//LongTag (TAG_Long, ID=4). Mirrors vanilla net.minecraft.nbt.LongTag.
+//Stores an 8-byte big-endian signed integer.
 public sealed class LongTag(long value) : NumericTag, Tag
 {
     public long Value { get; } = value;
@@ -244,7 +244,7 @@ public sealed class LongTag(long value) : NumericTag, Tag
     public byte Id => Tag.TagLong;
     public TagType Type => LongTagType.Instance;
 
-    //工厂方法。对应原版 LongTag.valueOf(long)。
+    //Factory method. Mirrors vanilla LongTag.valueOf(long).
     public static LongTag ValueOf(long value) => new(value);
 
     public void Write(INbtWriter output) => output.WriteLong(Value);
@@ -286,8 +286,8 @@ public sealed class LongTag(long value) : NumericTag, Tag
     }
 }
 
-//FloatTag（TAG_Float，ID=5）。对应原版 net.minecraft.nbt.FloatTag。
-//存储 4 字节大端 IEEE 754 单精度浮点。
+//FloatTag (TAG_Float, ID=5). Mirrors vanilla net.minecraft.nbt.FloatTag.
+//Stores a 4-byte big-endian IEEE 754 single-precision float.
 public sealed class FloatTag(float value) : NumericTag, Tag
 {
     public float Value { get; } = value;
@@ -295,7 +295,7 @@ public sealed class FloatTag(float value) : NumericTag, Tag
     public byte Id => Tag.TagFloat;
     public TagType Type => FloatTagType.Instance;
 
-    //工厂方法。对应原版 FloatTag.valueOf(float)。
+    //Factory method. Mirrors vanilla FloatTag.valueOf(float).
     public static FloatTag ValueOf(float value) => new(value);
 
     public void Write(INbtWriter output) => output.WriteFloat(Value);
@@ -337,8 +337,8 @@ public sealed class FloatTag(float value) : NumericTag, Tag
     }
 }
 
-//DoubleTag（TAG_Double，ID=6）。对应原版 net.minecraft.nbt.DoubleTag。
-//存储 8 字节大端 IEEE 754 双精度浮点。
+//DoubleTag (TAG_Double, ID=6). Mirrors vanilla net.minecraft.nbt.DoubleTag.
+//Stores an 8-byte big-endian IEEE 754 double-precision float.
 public sealed class DoubleTag(double value) : NumericTag, Tag
 {
     public double Value { get; } = value;
@@ -346,7 +346,7 @@ public sealed class DoubleTag(double value) : NumericTag, Tag
     public byte Id => Tag.TagDouble;
     public TagType Type => DoubleTagType.Instance;
 
-    //工厂方法。对应原版 DoubleTag.valueOf(double)。
+    //Factory method. Mirrors vanilla DoubleTag.valueOf(double).
     public static DoubleTag ValueOf(double value) => new(value);
 
     public void Write(INbtWriter output) => output.WriteDouble(Value);

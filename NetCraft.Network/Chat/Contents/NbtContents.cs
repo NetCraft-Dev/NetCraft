@@ -2,8 +2,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Network.Chat.Contents;
 
-//NBT内容对应原版net.minecraft.network.chat.contents.NbtContents
-//NbtPath 路径 Interpreting 是否作为组件解释 Compiling 路径编译结果 Separator 分隔符 DataSource 数据源占位
+//NBT contents, maps to vanilla net.minecraft.network.chat.contents.NbtContents
+//NbtPath is the path, Interpreting whether to interpret as a component, Compiling the path compilation result, Separator the separator, DataSource a data source placeholder
 public sealed class NbtContents : ComponentContents
 {
     public string NbtPath { get; }

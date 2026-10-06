@@ -2,8 +2,8 @@ using NetCraft.Util;
 
 namespace NetCraft.Resources;
 
-//LinkFSPath 链接文件系统里的路径 对应原版 net.minecraft.server.packs.linkfs.LinkFSPath
-//原版实现 java.nio.file.Path 这里保留路径解析与内容查询行为 内部用 / 分隔的字符串表示
+//LinkFSPath, a path in the link file system, maps to vanilla net.minecraft.server.packs.linkfs.LinkFSPath
+//Vanilla implements java.nio.file.Path, here the path resolution and content query behavior is kept, represented internally as a /-separated string
 public sealed class LinkFSPath
 {
     private static readonly List<string> NoNames = new();
@@ -24,23 +24,23 @@ public sealed class LinkFSPath
 
     public PathContents Contents { get; }
 
-    //IsAbsolute 是否绝对路径 只有相对路径才是 false
+    //IsAbsolute whether this is an absolute path, only a relative path is false
     public bool IsAbsolute => !Contents.IsRelative;
 
-    //CreateRelativePath 造一个不挂在文件树上的相对路径
+    //CreateRelativePath builds a relative path not attached to the file tree
     private LinkFSPath CreateRelativePath(LinkFSPath? parent, string name) => new(FileSystem, name, parent, PathContents.Relative);
 
-    //GetRoot 绝对路径返回文件系统根 相对路径没有根
+    //GetRoot returns the file system root for an absolute path, a relative path has no root
     public LinkFSPath? GetRoot() => IsAbsolute ? FileSystem.RootPath : null;
 
-    //GetFileName 末段名字 包成新的相对路径
+    //GetFileName, the last segment name wrapped as a new relative path
     public LinkFSPath GetFileName() => CreateRelativePath(null, _name);
 
     public LinkFSPath? GetParent() => _parent;
 
     public int GetNameCount() => PathToRoot().Count;
 
-    //GetName 取第 index 段名字
+    //GetName gets the segment name at index
     public LinkFSPath GetName(int index)
     {
         var names = PathToRoot();
@@ -48,7 +48,7 @@ public sealed class LinkFSPath
         return CreateRelativePath(null, names[index]);
     }
 
-    //Subpath 截取 [beginIndex,endIndex) 段
+    //Subpath takes the segments [beginIndex,endIndex)
     public LinkFSPath Subpath(int beginIndex, int endIndex)
     {
         var names = PathToRoot();
@@ -58,7 +58,7 @@ public sealed class LinkFSPath
         return current!;
     }
 
-    //StartsWith 判断前缀 要求同文件系统且绝对属性一致
+    //StartsWith checks the prefix, requires the same file system and matching absolute flag
     public bool StartsWith(LinkFSPath other)
     {
         if (other.IsAbsolute != IsAbsolute) return false;
@@ -73,7 +73,7 @@ public sealed class LinkFSPath
         return true;
     }
 
-    //EndsWith 判断后缀
+    //EndsWith checks the suffix
     public bool EndsWith(LinkFSPath other)
     {
         if (other.IsAbsolute && !IsAbsolute) return false;
@@ -91,7 +91,7 @@ public sealed class LinkFSPath
 
     public LinkFSPath Normalize() => this;
 
-    //Resolve 拼接路径 对方绝对时直接采用
+    //Resolve joins paths, an absolute other is taken as is
     public LinkFSPath Resolve(LinkFSPath other) => other.IsAbsolute ? other : Resolve(other.PathToRoot());
 
     private LinkFSPath Resolve(List<string> names)
@@ -101,7 +101,7 @@ public sealed class LinkFSPath
         return current;
     }
 
-    //ResolveName 挂下一段 命中文件树就复用节点
+    //ResolveName attaches the next segment, reuses the node when it hits the file tree
     public LinkFSPath ResolveName(string name)
     {
         if (Contents.IsRelativeOrMissing) return new LinkFSPath(FileSystem, name, this, Contents);
@@ -112,7 +112,7 @@ public sealed class LinkFSPath
         return new LinkFSPath(FileSystem, name, this, PathContents.Missing);
     }
 
-    //Relativize 求相对路径 要求同一绝对属性且本路径是对方前缀
+    //Relativize computes the relative path, requires the same absolute flag and that this path prefixes the other
     public LinkFSPath Relativize(LinkFSPath other)
     {
         if (IsAbsolute != other.IsAbsolute) throw new ArgumentException("absolute mismatch");
@@ -145,16 +145,16 @@ public sealed class LinkFSPath
 
     public override string ToString() => PathToString();
 
-    //Exists 是否有真实内容
+    //Exists whether there is real content
     public bool Exists() => HasRealContents();
 
-    //GetTargetPath 文件指向的真实路径 目录或不存在返回空
+    //GetTargetPath the real path a file points to, null for a directory or a missing path
     public string? GetTargetPath() => Contents is PathContents.FileContents file ? file.Target : null;
 
-    //GetDirectoryContents 目录内容 非目录返回空
+    //GetDirectoryContents the directory content, null when not a directory
     public PathContents.DirectoryContents? GetDirectoryContents() => Contents as PathContents.DirectoryContents;
 
-    //GetBasicAttributes 取占位属性 不存在的路径抛异常
+    //GetBasicAttributes gets the placeholder attributes, a missing path throws
     public DummyFileAttributes GetBasicAttributes()
     {
         if (Contents is PathContents.DirectoryContents) return DummyFileAttributes.Directory;
@@ -164,7 +164,7 @@ public sealed class LinkFSPath
 
     private bool HasRealContents() => !Contents.IsRelativeOrMissing;
 
-    //PathToRoot 从自身往上收集各段名字 结果缓存
+    //PathToRoot collects segment names from here upward, result cached
     private List<string> PathToRoot()
     {
         if (_name.Length == 0) return NoNames;
@@ -178,7 +178,7 @@ public sealed class LinkFSPath
         return _pathToRoot;
     }
 
-    //PathToString 绝对路径带前缀斜杠 其余直接拼接
+    //PathToString an absolute path gets a leading slash, otherwise segments are concatenated directly
     private string PathToString()
     {
         if (_pathString is null)

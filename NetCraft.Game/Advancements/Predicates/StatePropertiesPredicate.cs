@@ -3,12 +3,12 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Game.Advancements.Predicates;
 
-//StatePropertiesPredicate 方块状态属性谓词 逐条判定状态上的属性取值
-//对应原版 net.minecraft.advancements.predicates.StatePropertiesPredicate
+//StatePropertiesPredicate block state properties predicate, checks the property values on a state item by item
+//maps to vanilla net.minecraft.advancements.predicates.StatePropertiesPredicate
 public sealed record StatePropertiesPredicate(
     IReadOnlyList<StatePropertiesPredicate.PropertyMatcher> Properties)
 {
-    //Codec 属性名到值匹配的映射 对应原版 CODEC
+    //Codec mapping from property name to a value matcher, maps to vanilla CODEC
     public static readonly Codec<StatePropertiesPredicate> Codec = Codecs.UnboundedMap(
         Codecs.String, ValueMatcher.Codec).ComapFlatMap(
         map => DataResult<StatePropertiesPredicate>.Success(new StatePropertiesPredicate(
@@ -16,8 +16,8 @@ public sealed record StatePropertiesPredicate(
         predicate => predicate.Properties.ToDictionary(
             matcher => matcher.Name, matcher => matcher.ValueMatcher));
 
-    //Matches 每条属性都要匹配上 对应原版 matches
-    //本作 BlockState 自带属性集合 属性存在性直接查状态即可
+    //Matches every property must match, maps to vanilla matches
+    //BlockState carries its property set here, so property existence can be checked on the state directly
     public bool Matches(BlockState state)
     {
         foreach (var matcher in Properties)
@@ -28,7 +28,7 @@ public sealed record StatePropertiesPredicate(
         return true;
     }
 
-    //FindProperty 在状态的属性集合里按名字找 对应原版 StateDefinition.getProperty
+    //FindProperty looks a property up by name in the state's property set, maps to vanilla StateDefinition.getProperty
     private static PropertyBase? FindProperty(BlockState state, string name)
     {
         foreach (var property in state.GetProperties())
@@ -36,10 +36,10 @@ public sealed record StatePropertiesPredicate(
         return null;
     }
 
-    //PropertyMatcher 单条属性匹配 对应原版 PropertyMatcher
+    //PropertyMatcher single property match, maps to vanilla PropertyMatcher
     public sealed record PropertyMatcher(string Name, ValueMatcher ValueMatcher)
     {
-        //Match 取状态上该属性的实际值再交给值匹配 对应原版 match
+        //Match reads the actual value on the state and hands it to the value matcher, maps to vanilla match
         public bool Match(BlockState state, PropertyBase property)
         {
             foreach (var entry in state.GetValues())
@@ -49,10 +49,10 @@ public sealed record StatePropertiesPredicate(
         }
     }
 
-    //ValueMatcher 属性值匹配 精确或区间 对应原版 ValueMatcher
+    //ValueMatcher property value match, exact or ranged, maps to vanilla ValueMatcher
     public abstract record ValueMatcher
     {
-        //Codec 先按精确解析 失败退回区间 对应原版 CODEC
+        //Codec parses as exact first and falls back to ranged, maps to vanilla CODEC
         public static readonly Codec<ValueMatcher> Codec = Codecs.Either(
             ExactMatcher.Codec, RangedMatcher.Codec).ComapFlatMap(
             alt => DataResult<ValueMatcher>.Success(
@@ -61,27 +61,27 @@ public sealed record StatePropertiesPredicate(
                 ? Alt<ExactMatcher, RangedMatcher>.Left(exact)
                 : Alt<ExactMatcher, RangedMatcher>.Right((RangedMatcher)matcher));
 
-        //Matches 按属性的合法取值判定 对应原版 match
+        //Matches decided against the property's legal values, maps to vanilla match
         public abstract bool Matches(object actual, PropertyBase property);
     }
 
-    //ExactMatcher 精确等值 对应原版 ExactMatcher
+    //ExactMatcher exact equality, maps to vanilla ExactMatcher
     public sealed record ExactMatcher(string Value) : ValueMatcher
     {
-        //Codec 单个属性值名 对应原版 CODEC
+        //Codec a single property value name, maps to vanilla CODEC
         public static readonly Codec<ExactMatcher> Codec = Codecs.String.ComapFlatMap(
             value => DataResult<ExactMatcher>.Success(new ExactMatcher(value)),
             matcher => matcher.Value);
 
-        //Matches 实际值的名字与期望一致 名字非法时永远不等
+        //Matches the actual value's name equals the expected one; never equal when the name is invalid
         public override bool Matches(object actual, PropertyBase property)
             => property.GetNameForValue(actual) == Value;
     }
 
-    //RangedMatcher 区间匹配 对应原版 RangedMatcher
+    //RangedMatcher ranged match, maps to vanilla RangedMatcher
     public sealed record RangedMatcher(Optional<string> MinValue, Optional<string> MaxValue) : ValueMatcher
     {
-        //Codec 字段名 min 与 max 对应原版 CODEC
+        //Codec field names min/max, maps to vanilla CODEC
         public static readonly Codec<RangedMatcher> Codec = RecordCodecBuilder.Of2(
             Codecs.String.OptionalFieldOf("min")
                 .ForGetter((RangedMatcher matcher) => matcher.MinValue),
@@ -89,7 +89,7 @@ public sealed record StatePropertiesPredicate(
                 .ForGetter((RangedMatcher matcher) => matcher.MaxValue),
             (minValue, maxValue) => new RangedMatcher(minValue, maxValue));
 
-        //Matches 实际值落在上下界之间 边界名取不到即不匹配 对应原版 match
+        //Matches the actual value falls between the bounds; no match when a bound name is unknown, maps to vanilla match
         public override bool Matches(object actual, PropertyBase property)
         {
             var comparable = (IComparable)actual;

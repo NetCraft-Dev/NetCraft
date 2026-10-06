@@ -1,7 +1,7 @@
 namespace NetCraft.Storage;
 
-//BorderStatus 边界变化状态对应原版 net.minecraft.world.level.border.BorderStatus
-//客户端按状态取边界墙颜色 颜色值与原版一致
+//BorderStatus, border change state, maps to vanilla net.minecraft.world.level.border.BorderStatus
+//The client picks the border wall color by state; the color values match vanilla
 public enum BorderStatus
 {
     Growing,
@@ -9,10 +9,10 @@ public enum BorderStatus
     Stationary,
 }
 
-//BorderStatus 扩展提供状态色 对应原版 getColor
+//BorderStatus extensions providing the state color, maps to vanilla getColor
 public static class BorderStatusExtensions
 {
-    //GetColor 边界墙颜色 0x40FF00 生长 0xFF3000 收缩 0x20A0FF 静止
+    //GetColor, border wall color: 0x40FF00 growing, 0xFF3000 shrinking, 0x20A0FF stationary
     public static int GetColor(this BorderStatus status) => status switch
     {
         BorderStatus.Growing => 4259712,

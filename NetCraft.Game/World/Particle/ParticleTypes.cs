@@ -3,18 +3,18 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Particle;
 
-//ParticleTypes 内置粒子类型注册与粒子选项流编解码 对应原版 net.minecraft.core.particles.ParticleTypes
-//注册顺序严格按原版静态字段声明顺序 注册表 id 即客户端注册表 id 错位客户端会认错粒子
-//参数形态未移植的类型仍占 id 但参数编解码抛异常 见 UnsupportedParticleType
+//ParticleTypes built-in particle types registration plus particle option stream codec, maps to vanilla net.minecraft.core.particles.ParticleTypes
+//Registration order strictly follows the vanilla static field declaration order; the registry id must equal the client registry id or the client identifies the wrong particle
+//Types whose parameter shape is not ported still occupy an id but throw on parameter encode/decode, see UnsupportedParticleType
 public static class ParticleTypes
 {
     private static bool _bootstrapped;
 
-    //StreamCodec 粒子选项编解码 对应原版 ParticleTypes.STREAM_CODEC
-    //先写 VarInt 类型注册表 id 再交类型自身写参数 无参数类型只写 id
+    //StreamCodec particle option codec, maps to vanilla ParticleTypes.STREAM_CODEC
+    //Writes the type registry id as a VarInt first, then lets the type write its parameters; parameterless types write only the id
     public static readonly StreamCodec<RegistryFriendlyByteBuf, ParticleOptions> StreamCodec = new ParticleOptionsCodec();
 
-    //Bootstrap 按原版声明顺序登记全部内置粒子类型 幂等
+    //Bootstrap registers all built-in particle types in vanilla declaration order, idempotent
     public static void Bootstrap()
     {
         if (_bootstrapped) return;
@@ -26,7 +26,7 @@ public static class ParticleTypes
         Simple("sulfur_bubbles", false);                                  //4
         Simple("noxious_gas", false);                                     //5
         Simple("noxious_gas_cloud", false);                               //6
-        //geyser 系列参数是向量与目标点 依赖不存在的间歇泉子系统
+        //geyser series parameters are a vector and a target point, depending on a nonexistent geyser subsystem
         Unsupported("geyser", true);                                      //7
         Unsupported("geyser_base", true);                                 //8
         Unsupported("geyser_poof", true);                                 //9
@@ -35,7 +35,7 @@ public static class ParticleTypes
         Simple("copper_fire_flame", false);                               //12
         Simple("crit", false);                                            //13
         Simple("damage_indicator", true);                                 //14
-        //dragon_breath 的 PowerParticleOption 参数为 float 本包范围外 见报告
+        //dragon_breath's PowerParticleOption parameter is a float, out of this package's scope, see the report
         Unsupported("dragon_breath", false);                              //15
         Simple("dripping_lava", false);                                   //16
         Simple("falling_lava", false);                                    //17
@@ -44,7 +44,7 @@ public static class ParticleTypes
         Simple("falling_water", false);                                   //20
         DustType("dust", false);                                          //21
         DustColorTransitionType("dust_color_transition", false);           //22
-        //effect/instant_effect 的 SpellParticleOption 参数为颜色与强度 本包范围外
+        //effect/instant_effect's SpellParticleOption parameter is a color and strength, out of this package's scope
         Unsupported("effect", false);                                     //23
         Simple("elder_guardian", true);                                   //24
         Simple("enchanted_hit", false);                                   //25
@@ -67,7 +67,7 @@ public static class ParticleTypes
         Simple("pale_oak_leaves", false);                                 //42
         ColorType("tinted_leaves", false);                                //43
         Simple("sculk_soul", false);                                      //44
-        //sculk_charge 参数是 roll 角度 未在本次范围
+        //sculk_charge's parameter is a roll angle, out of this scope
         Unsupported("sculk_charge", true);                                //45
         Simple("sculk_charge_pop", true);                                 //46
         Simple("soul_fire_flame", false);                                 //47
@@ -78,9 +78,9 @@ public static class ParticleTypes
         Simple("heart", false);                                           //52
         Unsupported("instant_effect", false);                             //53
         ItemType("item", false);                                          //54
-        //vibration 参数是位置来源 依赖不存在的 PositionSource
+        //vibration's parameter is a position source, depending on a nonexistent PositionSource
         Unsupported("vibration", true);                                   //55
-        //trail 参数是目标坐标与颜色 依赖不存在的向量序列化
+        //trail's parameters are a target coordinate and a color, depending on nonexistent vector serialization
         Unsupported("trail", false);                                      //56
         Simple("pause_mob_growth", false);                                //57
         Simple("reset_mob_growth", false);                                //58
@@ -137,7 +137,7 @@ public static class ParticleTypes
         Simple("wax_off", true);                                          //109
         Simple("electric_spark", true);                                   //110
         Simple("scrape", true);                                           //111
-        //shriek 参数是延迟刻数 未在本次范围
+        //shriek's parameter is a delay in ticks, out of this scope
         Unsupported("shriek", false);                                     //112
         Simple("egg_crack", false);                                       //113
         Simple("dust_plume", false);                                      //114
@@ -153,7 +153,7 @@ public static class ParticleTypes
         Simple("sulfur_cube_goo", false);                                 //124
     }
 
-    //Find 按注册名取粒子类型 未注册或非本子系统实现返回 null
+    //Find fetches the particle type by registry name; returns null when unregistered or not implemented by this subsystem
     public static ParticleType? Find(Identifier id)
         => BuiltInRegistries.PARTICLE_TYPE.GetValue(id) as ParticleType;
 
@@ -178,7 +178,7 @@ public static class ParticleTypes
     private static UnsupportedParticleType Unsupported(string path, bool overrideLimiter)
         => Register(path, new UnsupportedParticleType(path, overrideLimiter));
 
-    //Register 按调用顺序登记 注册表 id 由登记顺序决定
+    //Register registered in call order; the registry id is decided by registration order
     private static T Register<T>(string path, T type) where T : ParticleType
     {
         var id = Identifier.WithDefaultNamespace(path);
@@ -188,14 +188,14 @@ public static class ParticleTypes
         return type;
     }
 
-    //ParticleOptionsCodec 粒子选项编解码对应原版 ByteBufCodecs.registry + dispatch 组合
+    //ParticleOptionsCodec particle option codec, maps to the vanilla ByteBufCodecs.registry + dispatch combination
     private sealed class ParticleOptionsCodec : StreamCodec<RegistryFriendlyByteBuf, ParticleOptions>
     {
         public ParticleOptions Decode(RegistryFriendlyByteBuf buf)
         {
             var id = buf.ReadVarInt();
             var type = BuiltInRegistries.PARTICLE_TYPE.ById(id) as ParticleType
-                ?? throw new InvalidOperationException($"未知粒子类型 id {id}");
+                ?? throw new InvalidOperationException($"unknown particle type id {id}");
             return type.ReadParameters(buf);
         }
 
@@ -203,7 +203,7 @@ public static class ParticleTypes
         {
             var type = value.Type;
             var id = BuiltInRegistries.PARTICLE_TYPE.GetId(type);
-            if (id < 0) throw new InvalidOperationException($"粒子类型未注册: {type}");
+            if (id < 0) throw new InvalidOperationException($"particle type not registered: {type}");
             buf.WriteVarInt(id);
             type.WriteParameters(buf, value);
         }

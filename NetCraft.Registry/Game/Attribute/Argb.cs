@@ -2,7 +2,7 @@ using NetCraft.Util;
 
 namespace NetCraft.Registry.Environment;
 
-//Argb 颜色通道位运算，移植原版 ARGB 中环境属性用到的部分
+//Argb color channel bit operations, porting the parts of vanilla ARGB used by environment attributes
 internal static class Argb
 {
     public static int Alpha(int color) => (int)((uint)color >> 24);
@@ -16,10 +16,10 @@ internal static class Argb
     public static int Color(int alpha, int red, int green, int blue)
         => ((alpha & 255) << 24) | ((red & 255) << 16) | ((green & 255) << 8) | (blue & 255);
 
-    //Opaque 把不透明通道置满
+    //Opaque fills the alpha channel to full
     public static int Opaque(int color) => color | unchecked((int)0xFF000000);
 
-    //Transparent 只保留 rgb 通道
+    //Transparent keeps only the rgb channels
     public static int Transparent(int color) => color & 16777215;
 
     public static int Multiply(int lhs, int rhs)
@@ -33,11 +33,11 @@ internal static class Argb
             (Blue(lhs) * Blue(rhs)) / 255);
     }
 
-    //AddRgb 逐通道相加并饱和
+    //AddRgb adds channel by channel with saturation
     public static int AddRgb(int lhs, int rhs)
         => Color(Alpha(lhs), Math.Min(Red(lhs) + Red(rhs), 255), Math.Min(Green(lhs) + Green(rhs), 255), Math.Min(Blue(lhs) + Blue(rhs), 255));
 
-    //SubtractRgb 逐通道相减并夹到 0
+    //SubtractRgb subtracts channel by channel, clamped to 0
     public static int SubtractRgb(int lhs, int rhs)
         => Color(Alpha(lhs), Math.Max(Red(lhs) - Red(rhs), 0), Math.Max(Green(lhs) - Green(rhs), 0), Math.Max(Blue(lhs) - Blue(rhs), 0));
 
@@ -50,14 +50,14 @@ internal static class Argb
             Math.Clamp((int)(Green(color) * scaleGreen), 0, 255),
             Math.Clamp((int)(Blue(color) * scaleBlue), 0, 255));
 
-    //Greyscale 按感知权重转灰
+    //Greyscale converts to gray using perceptual weights
     public static int Greyscale(int color)
     {
         var greyscale = (int)((Red(color) * 0.3f) + (Green(color) * 0.59f) + (Blue(color) * 0.11f));
         return Color(Alpha(color), greyscale, greyscale, greyscale);
     }
 
-    //AlphaBlend 按源 alpha 把源叠到目标上
+    //AlphaBlend composites the source onto the destination by source alpha
     public static int AlphaBlend(int destination, int source)
     {
         var destinationAlpha = Alpha(destination);
@@ -75,7 +75,7 @@ internal static class Argb
     private static int AlphaBlendChannel(int resultAlpha, int sourceAlpha, int destination, int source)
         => ((source * sourceAlpha) + (destination * (resultAlpha - sourceAlpha))) / resultAlpha;
 
-    //SrgbLerp 逐通道线性插值
+    //SrgbLerp linear interpolation channel by channel
     public static int SrgbLerp(float alpha, int p0, int p1)
         => Color(
             Mth.LerpInt(alpha, Alpha(p0), Alpha(p1)),

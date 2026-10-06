@@ -1,7 +1,7 @@
-//Network 协议层全局 using 简化协议文件引用
-//连接层协议(handshake/status/ping/login/common/cookie/configuration)搬进本库后需要这套
-//故意不含 NetCraft.Network.Chat 它的 Component 与 NetCraft.Network.Component 命名空间同名
-//在 NetCraft.Network.* 下会被解析成命名空间 需要的文件自己 using 或用全限定名
+//Network global usings for the protocol layer to simplify protocol file references
+//Needed after the connection-layer protocols (handshake/status/ping/login/common/cookie/configuration) were moved into this library
+//Deliberately excludes NetCraft.Network.Chat, whose Component clashes with the NetCraft.Network.Component namespace name
+//Under NetCraft.Network.* it would resolve to the namespace, so files that need it must use their own using or a fully qualified name
 global using NetCraft.Config;
 global using NetCraft.Network;
 global using NetCraft.Network.Protocol;

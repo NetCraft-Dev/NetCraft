@@ -1,14 +1,14 @@
 namespace NetCraft.Game.World.Effect;
 
-//MobEffect 药水效果基类 对应原版 net.minecraft.world.effect.MobEffect
-//实现 Registry 层占位接口 NetCraft.Registry.MobEffect 让效果可进 MOB_EFFECT 注册表
-//同命名空间已有 MobEffect 类 引用注册表元素类型时必须写全限定名
+//MobEffect mob effect base class, maps to vanilla net.minecraft.world.effect.MobEffect
+//Implements the Registry-layer placeholder interface NetCraft.Registry.MobEffect so effects can enter the MOB_EFFECT registry
+//The same namespace already has a MobEffect class, so registry element types must be referenced with the fully qualified name
 public class MobEffect : NetCraft.Registry.MobEffect
 {
-    //Category 效果分类 决定有益/有害/中性
+    //Category effect category; decides beneficial/harmful/neutral
     public MobEffectCategory Category { get; }
 
-    //Color 效果颜色 客户端按它上色图标与粒子
+    //Color effect color; the client tints the icon and particles with it
     public int Color { get; }
 
     public MobEffect(MobEffectCategory category, int color)
@@ -17,19 +17,19 @@ public class MobEffect : NetCraft.Registry.MobEffect
         Color = color;
     }
 
-    //IsInstantaneous 是否瞬时效果 瞬时效果没有持续时间不逐刻结算
+    //IsInstantaneous whether it is an instantaneous effect; instantaneous effects have no duration and do not tick
     public virtual bool IsInstantaneous => false;
 
-    //IsBeneficial 是否正面效果
+    //IsBeneficial whether it is a positive effect
     public bool IsBeneficial => Category == MobEffectCategory.Beneficial;
 
-    //IsHarmful 是否负面效果
+    //IsHarmful whether it is a negative effect
     public bool IsHarmful => Category == MobEffectCategory.Harmful;
 
-    //NeedsBlend 是否需要在客户端淡入淡出 由 SetBlendDuration 置位
+    //NeedsBlend whether it needs to fade in/out on the client; set by SetBlendDuration
     public bool NeedsBlend { get; private set; }
 
-    //SetBlendDuration 标记该效果需要混合渲染 对应原版 setBlendDuration 的三个时长参数
+    //SetBlendDuration marks the effect as needing blend rendering, maps to the three duration arguments of vanilla setBlendDuration
     public MobEffect SetBlendDuration(int duration)
     {
         NeedsBlend = true;
@@ -37,7 +37,7 @@ public class MobEffect : NetCraft.Registry.MobEffect
     }
 }
 
-//InstantaneousMobEffect 瞬时效果基类 对应原版 InstantaneousMobEffect
+//InstantaneousMobEffect instantaneous effect base class, maps to vanilla InstantaneousMobEffect
 public class InstantaneousMobEffect : MobEffect
 {
     public InstantaneousMobEffect(MobEffectCategory category, int color) : base(category, color) { }
@@ -45,7 +45,7 @@ public class InstantaneousMobEffect : MobEffect
     public override bool IsInstantaneous => true;
 }
 
-//HealOrHarmMobEffect 瞬间治疗/伤害效果 对应原版 HealOrHarmMobEffect
+//HealOrHarmMobEffect instant heal/harm effect, maps to vanilla HealOrHarmMobEffect
 public sealed class HealOrHarmMobEffect : InstantaneousMobEffect
 {
     public HealOrHarmMobEffect(MobEffectCategory category, int color) : base(category, color) { }

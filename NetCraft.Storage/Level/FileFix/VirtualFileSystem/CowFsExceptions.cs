@@ -1,9 +1,9 @@
 namespace NetCraft.Storage;
 
-//CowFS 系列异常 对应原版 net.minecraft.util.filefix.virtualfilesystem.exception 包
-//原版各自继承 java.nio.file 的异常 这里按语义映射到对应的 BCL 基类
+//The CowFS exception family, maps to the vanilla net.minecraft.util.filefix.virtualfilesystem.exception package
+//Vanilla each extends a java.nio.file exception; here they map by semantics to the corresponding BCL base classes
 
-//CowFSFileSystemException 虚拟文件系统通用错误
+//CowFSFileSystemException, generic virtual filesystem error
 public class CowFSFileSystemException : IOException
 {
     public CowFSFileSystemException(string message) : base(message)
@@ -11,7 +11,7 @@ public class CowFSFileSystemException : IOException
     }
 }
 
-//CowFSCreationException 构建虚拟文件系统失败
+//CowFSCreationException, failed to build the virtual filesystem
 public class CowFSCreationException : CowFSFileSystemException
 {
     public CowFSCreationException(string message) : base(message)
@@ -19,7 +19,7 @@ public class CowFSCreationException : CowFSFileSystemException
     }
 }
 
-//CowFSSymlinkException 构建时遇到符号链接
+//CowFSSymlinkException, hit a symlink during build
 public class CowFSSymlinkException : CowFSCreationException
 {
     public CowFSSymlinkException(string message) : base(message)
@@ -27,7 +27,7 @@ public class CowFSSymlinkException : CowFSCreationException
     }
 }
 
-//CowFSNotDirectoryException 期望目录却拿到文件
+//CowFSNotDirectoryException, expected a directory but got a file
 public class CowFSNotDirectoryException : IOException
 {
     public CowFSNotDirectoryException(string message) : base(message)
@@ -35,7 +35,7 @@ public class CowFSNotDirectoryException : IOException
     }
 }
 
-//CowFSNoSuchFileException 路径不存在
+//CowFSNoSuchFileException, path does not exist
 public class CowFSNoSuchFileException : IOException
 {
     public CowFSNoSuchFileException(string message) : base(message)
@@ -43,7 +43,7 @@ public class CowFSNoSuchFileException : IOException
     }
 }
 
-//CowFSIllegalArgumentException 传入了别的文件系统的路径
+//CowFSIllegalArgumentException, a path from another filesystem was passed in
 public class CowFSIllegalArgumentException : ArgumentException
 {
     public CowFSIllegalArgumentException(string message) : base(message)
@@ -51,7 +51,7 @@ public class CowFSIllegalArgumentException : ArgumentException
     }
 }
 
-//CowFSFileAlreadyExistsException 目标已存在
+//CowFSFileAlreadyExistsException, target already exists
 public class CowFSFileAlreadyExistsException : IOException
 {
     public CowFSFileAlreadyExistsException(string message) : base(message)
@@ -59,7 +59,7 @@ public class CowFSFileAlreadyExistsException : IOException
     }
 }
 
-//CowFSDirectoryNotEmptyException 目录非空不能删
+//CowFSDirectoryNotEmptyException, directory not empty and cannot be deleted
 public class CowFSDirectoryNotEmptyException : IOException
 {
     public CowFSDirectoryNotEmptyException(string message) : base(message)

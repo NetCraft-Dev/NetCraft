@@ -6,9 +6,9 @@ using System.Linq;
 using NetCraft.Codec;
 using T = NetCraft.DataFixer.Types;
 
-//Comp函数复合对应原版com.mojang.datafixers.functions.Comp
-//多个PointFree<A->B>顺序复合为一个PointFree<A->B>
-//_functions用object[]对齐原版PointFree<? extends Function<?, ?>>[]类型擦除语义
+//Comp function composition maps to vanilla com.mojang.datafixers.functions.Comp
+//composes multiple PointFree<A->B> in order into a single PointFree<A->B>
+//_functions uses object[] to align with the type-erasure semantics of vanilla PointFree<? extends Function<?, ?>>[]
 public sealed class Comp<A, B> : PointFree<Func<A, B>>
 {
     private readonly object[] _functions;
@@ -24,7 +24,7 @@ public sealed class Comp<A, B> : PointFree<Func<A, B>>
 
     public override T.Type<Func<A, B>> Type() => _type;
 
-    //all对所有function应用规则复合时展开嵌套Comp
+    //all applies the rule to every function; expands nested Comp while composing
     public override Optional<PointFree<Func<A, B>>> All(PointFreeRule rule)
     {
         var newFunctions = new List<object>(_functions.Length);
@@ -56,7 +56,7 @@ public sealed class Comp<A, B> : PointFree<Func<A, B>>
         return Optional<PointFree<Func<A, B>>>.Of(this);
     }
 
-    //one对首个命中function替换若结果是Comp展开插入
+    //one replaces the first matching function; if the result is a Comp, expand and splice it in
     public override Optional<PointFree<Func<A, B>>> One(PointFreeRule rule)
     {
         for (int i = 0; i < _functions.Length; i++)
@@ -93,15 +93,15 @@ public sealed class Comp<A, B> : PointFree<Func<A, B>>
         return Optional<PointFree<Func<A, B>>>.Empty();
     }
 
-    //eval按逆序应用每个function把input逐次变换
+    //eval applies each function in reverse order, transforming input step by step
     public override Func<DynamicOps<object>, Func<A, B>> Eval()
         => ops => input =>
         {
             object value = input!;
             for (int i = _functions.Length - 1; i >= 0; i--)
             {
-                //_functions[i]可能是Apply等PointFree子类强转PointFree<Func<object,object>>失败
-                //用Unsafe.As绕过运行时类型检查对齐Java类型擦除
+                //_functions[i] may be a PointFree subclass such as Apply, so casting to PointFree<Func<object,object>> fails
+                //use Unsafe.As to bypass the runtime type check and align with Java type erasure
                 var fObj = (object)_functions[i];
                 var f = System.Runtime.CompilerServices.Unsafe.As<object, PointFree<Func<object, object>>>(ref fObj);
                 value = f.EvalCached()(ops)(value);

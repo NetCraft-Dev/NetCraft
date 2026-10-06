@@ -3,8 +3,8 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetPlayerInventoryPacket 玩家背包设置包对应原版 ClientboundSetPlayerInventoryPacket
-//字段 Slot(int) Contents(ItemStack) Slot VarInt Contents ItemStack.OptionalStreamCodec
+//ClientboundSetPlayerInventoryPacket player inventory set packet, maps to vanilla ClientboundSetPlayerInventoryPacket
+//Fields: Slot(int), Contents(ItemStack); Slot is VarInt, Contents uses ItemStack.OptionalStreamCodec
 public sealed record ClientboundSetPlayerInventoryPacket(int Slot, ItemStack Contents) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<RegistryFriendlyByteBuf, ClientboundSetPlayerInventoryPacket> StreamCodec { get; } = new SetPlayerInventoryCodec();

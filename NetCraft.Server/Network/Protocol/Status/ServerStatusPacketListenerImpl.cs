@@ -4,9 +4,9 @@ using NetCraft.Network;
 
 namespace NetCraft.Network.Protocol.Status;
 
-//ServerStatusPacketListenerImpl 服务端 status 监听器实现
-//响应 ServerboundStatusRequestPacket 返回 ServerStatus JSON
-//ping 请求暂空实现因 StatusProtocols 不注册 ping 包流程跑不到
+//ServerStatusPacketListenerImpl, the server status listener implementation
+//Responds to ServerboundStatusRequestPacket with the ServerStatus JSON
+//Ping requests are left unimplemented because StatusProtocols does not register the ping packet and that path is unreachable
 public sealed class ServerStatusPacketListenerImpl : ServerStatusPacketListener
 {
     private readonly Connection _connection;
@@ -18,10 +18,10 @@ public sealed class ServerStatusPacketListenerImpl : ServerStatusPacketListener
         _status = status;
     }
 
-    //HandleStatusRequest 回 ClientboundStatusResponsePacket 含 ServerStatus JSON
+    //HandleStatusRequest replies with ClientboundStatusResponsePacket carrying the ServerStatus JSON
     public void HandleStatusRequest(ServerboundStatusRequestPacket packet)
     {
-        //Log.Debug("HandleStatusRequest 入口");
+        //Log.Debug("HandleStatusRequest entry");
         try
         {
             _connection.Send(new ClientboundStatusResponsePacket(_status));
@@ -30,10 +30,10 @@ public sealed class ServerStatusPacketListenerImpl : ServerStatusPacketListener
         {
             Log.Warning($"Failed to send status response {e.Message}");
         }
-        //Log.Debug("HandleStatusRequest 出口");
+        //Log.Debug("HandleStatusRequest exit");
     }
 
-    //HandlePingRequest 回 ClientboundPongResponsePacket 回传 time 供客户端算延迟
+    //HandlePingRequest replies with ClientboundPongResponsePacket, echoing time so the client can compute latency
     public void HandlePingRequest(ServerboundPingRequestPacket packet)
     {
         Log.Debug($"HandlePingRequest entry time={packet.Time}");
@@ -45,7 +45,7 @@ public sealed class ServerStatusPacketListenerImpl : ServerStatusPacketListener
         {
             Log.Warning($"Failed to send pong response {e.Message}");
         }
-        //Log.Debug("HandlePingRequest 出口");
+        //Log.Debug("HandlePingRequest exit");
     }
 
     public void OnDisconnect(string reason)

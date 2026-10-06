@@ -2,21 +2,21 @@ using System.Collections.Concurrent;
 
 namespace NetCraft.Registry;
 
-//资源键对应原版ResourceKey
-//由Registry注册表名和Identifier路径组成，全局intern去重
-//原版用通配符池加unchecked cast此处用per-T池语义更精确
+//Resource key, maps to vanilla ResourceKey
+//Made of a Registry name and an Identifier path; globally interned for deduplication
+//Vanilla uses a wildcard pool with an unchecked cast; a per-T pool here is more precise
 public sealed class ResourceKey<T> : IEquatable<ResourceKey<T>> where T : class
 {
     private static readonly ConcurrentDictionary<InternKey, ResourceKey<T>> _pool = new();
 
-    //根注册表名minecraft:root对应原版Registries.ROOT_REGISTRY_NAME
-    //内联避免ResourceKey与Registries循环静态依赖
+    //Root registry name minecraft:root, maps to vanilla Registries.ROOT_REGISTRY_NAME
+    //Inlined to avoid a circular static dependency between ResourceKey and Registries
     internal static readonly Identifier RootRegistryName = Identifier.WithDefaultNamespace("root");
 
-    //所属注册表名root注册表元素时为minecraft:root
+    //Owning registry name; minecraft:root for elements of the root registry
     public Identifier Registry { get; }
 
-    //注册表内路径
+    //Path within the registry
     public Identifier Identifier { get; }
 
     private ResourceKey(Identifier registryName, Identifier identifier)
@@ -25,33 +25,33 @@ public sealed class ResourceKey<T> : IEquatable<ResourceKey<T>> where T : class
         Identifier = identifier;
     }
 
-    //在指定注册表内创建元素键
+    //Create an element key in the given registry
     public static ResourceKey<T> Create(ResourceKey<Registry<T>> registryName, Identifier location)
         => CreateInternal(registryName.Identifier, location);
 
-    //内部工厂按registryName和identifier在当前T池中取或建
+    //Internal factory; get or create in the current T pool by registryName and identifier
     internal static ResourceKey<T> CreateInternal(Identifier registryName, Identifier identifier)
         => _pool.GetOrAdd(new InternKey(registryName, identifier), k => new ResourceKey<T>(k.Registry, k.Identifier));
 
-    //判断是否属于registry比较registry名
+    //Whether it belongs to a registry; compares registry names
     public bool IsFor(ResourceKey<Registry<T>> registry) => Registry == registry.Identifier;
 
-    //尝试转型为registry对应类型
+    //Try to cast to the registry's target type
     public ResourceKey<E>? Cast<E>(ResourceKey<Registry<E>> registry)
         where E : class
         => Registry == registry.Identifier ? (ResourceKey<E>)(object)this : null;
 
-    //在另一注册表内创建派生键追加后缀
+    //Create a derived key in another registry by appending a suffix
     public ResourceKey<E> Dependent<E>(ResourceKey<Registry<E>> registryKey, string suffix)
         where E : class
         => ResourceKey<E>.CreateInternal(registryKey.Identifier, Identifier.WithSuffix(suffix));
 
-    //在另一注册表内创建派生键变换path
+    //Create a derived key in another registry by transforming the path
     public ResourceKey<E> Dependent<E>(ResourceKey<Registry<E>> registryKey, Func<string, string> decoration)
         where E : class
         => ResourceKey<E>.CreateInternal(registryKey.Identifier, Identifier.WithPath(decoration));
 
-    //该键所属注册表的键registry为root identifier为registry名
+    //The key of the registry this key belongs to; registry is root and identifier is the registry name
     public ResourceKey<Registry<T>> RegistryKey() => ResourceKey<Registry<T>>.CreateInternal(RootRegistryName, Registry);
 
     public override string ToString() => $"ResourceKey[{Registry} / {Identifier}]";
@@ -64,6 +64,6 @@ public sealed class ResourceKey<T> : IEquatable<ResourceKey<T>> where T : class
         => ReferenceEquals(left, right) || (left is not null && right is not null && left.Equals(right));
     public static bool operator !=(ResourceKey<T>? left, ResourceKey<T>? right) => !(left == right);
 
-    //intern池key由两个Identifier组成
+    //Interning pool key made of two Identifiers
     private sealed record InternKey(Identifier Registry, Identifier Identifier);
 }

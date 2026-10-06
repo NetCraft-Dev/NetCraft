@@ -4,11 +4,11 @@ using NetCraft.Util.Profiling.Metrics;
 
 namespace NetCraft.Util.Profiling;
 
-//活跃profiler对应原版net.minecraft.util.profiling.ActiveProfiler
-//记录路径耗时/counters/chartedPaths并生成FilledProfileResults
+//Active profiler, maps to vanilla net.minecraft.util.profiling.ActiveProfiler
+//Records path timings/counters/chartedPaths and produces FilledProfileResults
 public sealed class ActiveProfiler : ProfileCollector
 {
-    private const long WarningTimeNanos = 100_000_000L; //100ms纳秒
+    private const long WarningTimeNanos = 100_000_000L; //100ms in nanoseconds
 
     private readonly Func<int> _getTickTime;
     private readonly Func<long> _getRealTime;
@@ -153,8 +153,8 @@ public sealed class ActiveProfiler : ProfileCollector
 
     public ISet<Pair<string, MetricCategory>> GetChartedPaths() => _chartedPaths;
 
-    //路径条目对应原版ActiveProfiler.PathEntry
-    //累积耗时/调用次数/最大最小/counters
+    //Path entry, maps to vanilla ActiveProfiler.PathEntry
+    //Cumulative time/call count/min-max/counters
     public sealed class PathEntry : ProfilerPathEntry
     {
         internal long _accumulatedDuration;

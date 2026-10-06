@@ -2,7 +2,7 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.Flag;
 
-//内置特性开关对应原版FeatureFlags
+//Built-in feature flags, maps to vanilla FeatureFlags
 public static class FeatureFlags
 {
     public static readonly FeatureFlag VANILLA;
@@ -34,7 +34,7 @@ public static class FeatureFlags
         DEFAULT_FLAGS = VANILLA_SET;
     }
 
-    //请求集合里有而允许集合里没有的开关名，逗号分隔
+    //Names present in the requested set but not the allowed set, comma-separated
     public static string PrintMissingFlags(FeatureFlagSet allowedFlags, FeatureFlagSet requestedFlags)
         => PrintMissingFlags(REGISTRY, allowedFlags, requestedFlags);
 
@@ -45,6 +45,6 @@ public static class FeatureFlags
         return string.Join(", ", requested.Where(id => !allowed.Contains(id)).Select(id => id.ToString()));
     }
 
-    //超出原版开关集合就是实验性内容
+    //Anything beyond the vanilla flag set is experimental
     public static bool IsExperimental(FeatureFlagSet features) => !features.IsSubsetOf(VANILLA_SET);
 }

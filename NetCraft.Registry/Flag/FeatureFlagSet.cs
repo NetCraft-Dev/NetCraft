@@ -1,12 +1,12 @@
 namespace NetCraft.Registry.Flag;
 
-//特性开关集合对应原版FeatureFlagSet
-//一个long当位图，空集合的宇宙为null
+//Feature flag set, maps to vanilla FeatureFlagSet
+//A single long serves as the bitmap; the empty set's universe is null
 public sealed class FeatureFlagSet
 {
     private static readonly FeatureFlagSet Empty = new(null, 0L);
 
-    //掩码只有64位，一个宇宙最多放64个开关
+    //The mask is only 64 bits, so one universe holds at most 64 flags
     public const int MaxContainerSize = 64;
 
     private readonly FeatureFlagUniverse? _universe;
@@ -19,7 +19,7 @@ public sealed class FeatureFlagSet
         _mask = mask;
     }
 
-    //按开关列表建集合，列表为空给空集合
+    //Build a set from a flag list; an empty list gives the empty set
     internal static FeatureFlagSet Create(FeatureFlagUniverse universe, IReadOnlyCollection<FeatureFlag> flags)
         => flags.Count == 0 ? Empty : new FeatureFlagSet(universe, ComputeMask(universe, 0L, flags));
 
@@ -33,7 +33,7 @@ public sealed class FeatureFlagSet
         return new FeatureFlagSet(flag.Universe, mask);
     }
 
-    //把同一个宇宙的开关掩码或到一起，混了别的宇宙直接报错
+    //OR together flag masks from the same universe; mixing another universe is an error
     private static long ComputeMask(FeatureFlagUniverse universe, long mask, IEnumerable<FeatureFlag> flags)
     {
         foreach (var flag in flags)
@@ -50,7 +50,7 @@ public sealed class FeatureFlagSet
 
     public bool IsEmpty() => Equals(Empty);
 
-    //本集合里的位对方全都有
+    //Every bit in this set is also in the other
     public bool IsSubsetOf(FeatureFlagSet set)
     {
         if (_universe is null) return true;

@@ -1,13 +1,13 @@
 using System.Threading;
 using NetCraft.Logging;
-//命名空间 Thread 与原版 rcon.thread 子包对齐 本文件要用 System.Threading.Thread 只能起别名
+//The Thread namespace aligns with the vanilla rcon.thread subpackage, this file needs System.Threading.Thread so an alias is required
 using ThreadType = System.Threading.Thread;
 
 namespace NetCraft.Game.Server.Rcon.Thread;
 
-//GenericThread 长驻线程基座对应原版 net.minecraft.server.rcon.thread.GenericThread
-//running 置假后子类循环自己退出 stop 每秒 join 一次 五秒后打断
-//未捕获异常记日志不带走进程 对应原版 DefaultUncaughtExceptionHandlerWithName
+//GenericThread, base for long-lived threads, maps to vanilla net.minecraft.server.rcon.thread.GenericThread
+//After running is set false the subclass loop exits itself, stop joins once per second and interrupts after five seconds
+//Uncaught exceptions are logged and do not take down the process, maps to vanilla DefaultUncaughtExceptionHandlerWithName
 public abstract class GenericThread
 {
     private static int _uniqueThreadId;
@@ -19,13 +19,13 @@ public abstract class GenericThread
 
     protected GenericThread(string name) => _name = name;
 
-    //ThreadName 线程显示名 供子类打日志
+    //ThreadName the thread display name, for subclasses to log
     protected string ThreadName => _name;
 
-    //Running 循环继续标志
+    //Running loop continuation flag
     protected volatile bool Running;
 
-    //Start 起线程已在跑则无事发生 对应原版 start 查询线程要先起 socket 故可重写
+    //Start starts the thread, nothing happens if already running, maps to vanilla start, overridable since the query thread must open a socket first
     public virtual bool Start()
     {
         lock (_gate)
@@ -43,7 +43,7 @@ public abstract class GenericThread
         }
     }
 
-    //Stop 停线程 每秒等一次 join 五秒后打断 对应原版 stop
+    //Stop stops the thread, joins once per second and interrupts after five seconds, maps to vanilla stop
     public virtual void Stop()
     {
         lock (_gate)
@@ -69,10 +69,10 @@ public abstract class GenericThread
         }
     }
 
-    //IsRunning 是否在跑
+    //IsRunning whether it is running
     public bool IsRunning() => Running;
 
-    //RunGuarded 兜住未捕获异常
+    //RunGuarded catches uncaught exceptions
     private void RunGuarded()
     {
         try
@@ -81,7 +81,7 @@ public abstract class GenericThread
         }
         catch (ThreadInterruptedException)
         {
-            //stop 打断阻塞中的循环体 正常退出路径
+            //stop interrupts the blocked loop body, the normal exit path
         }
         catch (Exception e)
         {
@@ -89,6 +89,6 @@ public abstract class GenericThread
         }
     }
 
-    //Run 子类循环体
+    //Run the subclass loop body
     protected abstract void Run();
 }

@@ -1,38 +1,38 @@
 namespace NetCraft.Config;
-//修复行为开关（对应原版SharedConstants.FIX_*与26.x实际修复的bug）
-//默认值反映是否启用对应bug修复，原版未启用的保持false以维持兼容行为
+//Behavior fix switches (map to vanilla SharedConstants.FIX_* plus the bugs actually fixed in 26.x)
+//Defaults reflect whether the corresponding bug fix is enabled, ones vanilla leaves off stay false to preserve compatible behavior
 public static class Fixes
 {
-    //TNT复制修复，原版默认false以保持可刷行为
-    //启用后TNT被piston推动时不会保留原实体，从而破坏TNT复制机
+    //TNT dupe fix, vanilla defaults to false to keep duping possible
+    //When enabled a TNT entity pushed by a piston no longer keeps the original entity, which breaks TNT dupers
     public const bool TntDupe = false;
-    //沙子/重力方块复制修复，原版默认false以保持可刷行为
-    //启用后重力方块被piston推动时不会重复生成
+    //Sand/gravity block dupe fix, vanilla defaults to false to keep duping possible
+    //When enabled a gravity block pushed by a piston is no longer respawned
     public const bool SandDupe = false;
-    //蝙蝠刷线机修复，已在26.2实装
-    //对应原版Entity.isIgnoringBlockTriggers()在Bat中返回true
-    //蝙蝠不再触发绊线/压力板，刷线机因此失效
+    //Bat string farm fix, shipped in 26.2
+    //Maps to vanilla Entity.isIgnoringBlockTriggers() returning true for Bat
+    //Bats no longer trigger tripwires/pressure plates, so string farms stop working
     public const bool BatStringFarm = true;
-    //Marker盔甲架不触发压力板，已在26.2实装
-    //对应原版ArmorStand.isIgnoringBlockTriggers()返回isMarker()
+    //Marker armor stands no longer trigger pressure plates, shipped in 26.2
+    //Maps to vanilla ArmorStand.isIgnoringBlockTriggers() returning isMarker()
     public const bool MarkerArmorStandNoTrigger = true;
-    //Display/Interaction/Marker/OminousItemSpawner不触发方块触发器，已在26.2实装
-    //对应原版这些实体的isIgnoringBlockTriggers()返回true
+    //Display/Interaction/Marker/OminousItemSpawner no longer trigger block triggers, shipped in 26.2
+    //Maps to vanilla isIgnoringBlockTriggers() returning true for these entities
     public const bool NonInteractiveEntityNoTrigger = true;
-    //活塞推动绊线钩不触发更新，已在原版实装
-    //对应原版TripWireHookBlock.affectNeighborsAfterRemoval中movedByPiston=true直接返回
+    //A piston pushing a tripwire hook no longer triggers updates, shipped in vanilla
+    //Maps to vanilla TripWireHookBlock.affectNeighborsAfterRemoval returning early when movedByPiston is true
     public const bool PistonPushedTripwireHookNoUpdate = true;
-    //修复下落的方块在piston推动时不掉落方块实体，已在原版实装
+    //Fix falling blocks not dropping a block entity when pushed by a piston, shipped in vanilla
     public const bool FallingBlockPistonDupe = true;
-    //修复村民交易时物品NBT复制漏洞
+    //Fix the item NBT duplication exploit during villager trades
     public const bool VillagerTradeNbtDupe = true;
-    //修复shulker box物品内容在特定条件下被复制的问题
+    //Fix shulker box item contents being duplicated under certain conditions
     public const bool ShulkerBoxDupe = true;
-    //修复实体在区块边界传送时的位置同步问题
+    //Fix position desync when an entity teleports across a chunk border
     public const bool EntityChunkBorderTeleportSync = true;
-    //修复低分辨率屏幕下文本渲染被裁剪的问题
+    //Fix text rendering being clipped on low-resolution screens
     public const bool LowResolutionTextClipping = true;
-    //修复worldgen在高度边界处溢出，属于non-determinism修复
-    //注意：启用后世界生成将与原版存在微小差异
+    //Fix worldgen overflow at height boundaries, a non-determinism fix
+    //Note: enabling this introduces minor differences from vanilla world generation
     public const bool WorldgenBoundaryOverflow = false;
 }

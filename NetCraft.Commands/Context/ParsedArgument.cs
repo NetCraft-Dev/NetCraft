@@ -1,8 +1,8 @@
 namespace NetCraft.Commands.Context;
 
-//ParsedArgument 已解析参数对应原版com.mojang.brigadier.context.ParsedArgument
-//持StringRange标记解析片段范围与解析结果
-//拆非泛型基类与泛型派生对应Java ParsedArgument<S,?>通配
+//ParsedArgument maps to vanilla com.mojang.brigadier.context.ParsedArgument
+//Holds a StringRange marking the parsed fragment and the parse result
+//Split into a non-generic base and a generic subclass, mirroring Java's ParsedArgument<S,?> wildcard
 public abstract class ParsedArgument<S>
 {
     public StringRange Range { get; }
@@ -24,7 +24,7 @@ public abstract class ParsedArgument<S>
     public override int GetHashCode() => HashCode.Combine(Range, GetResult());
 }
 
-//ParsedArgument<S,T> 强类型派生持具体解析结果供CommandContext.getArgument按Class校验
+//ParsedArgument<S,T> strongly typed subclass holding the concrete parse result, checked by CommandContext.getArgument against the Class
 public sealed class ParsedArgument<S, T> : ParsedArgument<S>
 {
     private readonly T _result;

@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundPlayerRotationPacket 玩家旋转包对应原版 ClientboundPlayerRotationPacket
-//字段 YRot(float) RelativeY(boolean) XRot(float) RelativeX(boolean)
+//ClientboundPlayerRotationPacket player rotation packet, maps to vanilla ClientboundPlayerRotationPacket
+//Fields: YRot(float), RelativeY(boolean), XRot(float), RelativeX(boolean)
 public sealed record ClientboundPlayerRotationPacket(float YRot, bool RelativeY, float XRot, bool RelativeX) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundPlayerRotationPacket> StreamCodec { get; } = new PlayerRotationCodec();
@@ -12,7 +12,7 @@ public sealed record ClientboundPlayerRotationPacket(float YRot, bool RelativeY,
 
     private sealed class PlayerRotationCodec : StreamCodec<FriendlyByteBuf, ClientboundPlayerRotationPacket>
     {
-        //原版顺序 float 偏航 布尔 偏航是否相对 float 俯仰 布尔 俯仰是否相对
+        //Vanilla order: float yaw, boolean yaw-relative, float pitch, boolean pitch-relative
         public ClientboundPlayerRotationPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadFloat(), buf.ReadBoolean(), buf.ReadFloat(), buf.ReadBoolean());
 

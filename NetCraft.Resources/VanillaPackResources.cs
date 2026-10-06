@@ -2,9 +2,9 @@ using NetCraft.Registry;
 
 namespace NetCraft.Resources;
 
-//VanillaPackResources 原版内置资源包对应原版 net.minecraft.server.packs.VanillaPackResources
-//原版从jar内assets/data目录加载C#简化为从指定根目录读取默认资源
-//PackId固定vanilla表示原版内置资源优先级最低被其他资源包覆盖
+//VanillaPackResources, the built-in vanilla resource pack, maps to vanilla net.minecraft.server.packs.VanillaPackResources
+//Vanilla loads from the assets/data directories inside the jar, C# simplifies this to reading default resources from a given root directory
+//PackId is fixed to vanilla, the built-in pack has the lowest priority and is overridden by other resource packs
 public sealed class VanillaPackResources : PackResources
 {
     private readonly FolderPackResources _delegate;

@@ -3,22 +3,22 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Util.Random;
 
-//位置性随机工厂接口对应原版net.minecraft.world.level.levelgen.PositionalRandomFactory
-//按位置或字符串生成稳定RandomSource用于世界生成保持确定性
+//Positional random factory interface, maps to vanilla net.minecraft.world.level.levelgen.PositionalRandomFactory
+//Generates a stable RandomSource from position or string, used by worldgen to stay deterministic
 public interface PositionalRandomFactory
 {
-    //fromHashOf按字符串哈希生成随机源
+    //fromHashOf generates a random source from a string hash
     RandomSource FromHashOf(string name);
 
-    //fromSeed按种子生成随机源
+    //fromSeed generates a random source from a seed
     RandomSource FromSeed(long seed);
 
-    //at按坐标生成随机源
+    //at generates a random source from coordinates
     RandomSource At(int x, int y, int z);
 
-    //parityConfigString输出奇偶校验信息用于调试对应原版parityConfigString
+    //parityConfigString outputs parity check info for debugging, maps to vanilla parityConfigString
     void ParityConfigString(StringBuilder sb);
 
-    //at按BlockPos重载对应原版at(BlockPos)
+    //at BlockPos overload, maps to vanilla at(BlockPos)
     RandomSource At(Vec3i pos) => At(pos.X, pos.Y, pos.Z);
 }

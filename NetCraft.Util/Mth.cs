@@ -4,12 +4,12 @@ using System.Runtime.CompilerServices;
 
 namespace NetCraft.Util;
 
-//数学工具集对应原版net.minecraft.util.Mth
-//移植三角函数查表/插值/角度/位运算/随机等纯数学方法
-//不移植依赖游戏类型的方法rayIntersectsAABB/lerp(Vec3)/rotationAroundAxis/mulAndTruncate
+//Math helper set, maps to vanilla net.minecraft.util.Mth
+//Ports pure math methods: trig lookup tables, interpolation, angles, bit ops, random, etc.
+//Does not port methods that depend on game types: rayIntersectsAABB/lerp(Vec3)/rotationAroundAxis/mulAndTruncate
 public static partial class Mth
 {
-    //常量对应原版PI/HALF_PI/TWO_PI/DEG_TO_RAD/RAD_TO_DEG/EPSILON
+    //Constants map to vanilla PI/HALF_PI/TWO_PI/DEG_TO_RAD/RAD_TO_DEG/EPSILON
     public const float Pi = 3.1415927f;
     public const float HalfPi = 1.5707964f;
     public const float TwoPi = 6.2831855f;
@@ -17,7 +17,7 @@ public static partial class Mth
     public const float RadToDeg = 57.295776f;
     public const float Epsilon = 1.0E-5f;
 
-    //SIN查表参数对应原版SIN_QUANTIZATION/SIN_MASK/COS_OFFSET/SIN_SCALE
+    //SIN lookup table parameters, map to vanilla SIN_QUANTIZATION/SIN_MASK/COS_OFFSET/SIN_SCALE
     private const int SinQuantization = 65536;
     private const int SinMask = 65535;
     private const int CosOffset = 16384;
@@ -25,10 +25,10 @@ public static partial class Mth
     private const double OneSixth = 0.16666666666666666d;
     private const double FracBias = 4.805340802404319232E-308d;
 
-    //LUT_SIZE查表大小对应原版LUT_SIZE
+    //LUT_SIZE lookup table size, maps to vanilla LUT_SIZE
     private const int LutSize = 257;
 
-    //UUID版本与变体掩码对应原版UUID_VERSION/UUID_VERSION_TYPE_4/UUID_VARIANT/UUID_VARIANT_2
+    //UUID version and variant masks, map to vanilla UUID_VERSION/UUID_VERSION_TYPE_4/UUID_VARIANT/UUID_VARIANT_2
     private const long UuidVersion = 61440;
     private const long UuidVersionType4 = 16384;
     private const long UuidVariant = -4611686018427387904L;
@@ -36,15 +36,15 @@ public static partial class Mth
 
     public static readonly float SqrtOfTwo = (float)Math.Sqrt(2.0f);
 
-    //SIN查表对应原版SIN数组按角度索引取正弦值
-    //字段名带下划线避免与Sin方法同名冲突C#不允许字段和方法同名
+    //SIN lookup table, maps to vanilla SIN array; indexes by angle to get sine
+    //Field name uses an underscore to avoid clashing with the Sin method; C# disallows a field and method with the same name
     private static readonly float[] _sin = BuildSinTable();
 
-    //DeBruijn位顺序表对应原版MULTIPLY_DE_BRUIJN_BIT_POSITION用于ceillog2
+    //DeBruijn bit position table, maps to vanilla MULTIPLY_DE_BRUIJN_BIT_POSITION, used by ceillog2
     private static readonly int[] MultiplyDeBruijnBitPosition =
         { 0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9 };
 
-    //ASIN/COS查表对应原版ASIN_TAB/COS_TAB用于atan2快速近似
+    //ASIN/COS lookup tables, map to vanilla ASIN_TAB/COS_TAB, used for fast atan2 approximation
     private static readonly double[] AsinTab = new double[LutSize];
     private static readonly double[] CosTab = new double[LutSize];
 
@@ -59,7 +59,7 @@ public static partial class Mth
         }
     }
 
-    //buildSinTable构造SIN查表对应原版Util.make(new float[65536])
+    //buildSinTable builds the SIN lookup table, maps to vanilla Util.make(new float[65536])
     private static float[] BuildSinTable()
     {
         var sin = new float[SinQuantization];
@@ -68,66 +68,66 @@ public static partial class Mth
         return sin;
     }
 
-    //sin查表法正弦对应原版sin(double)
-    //角度转索引按位与避免越界
+    //sin table-lookup sine, maps to vanilla sin(double)
+    //Converts angle to index with a bitwise AND to avoid out-of-bounds
     public static float Sin(double i)
         => _sin[(int)(((long)(i * SinScale)) & SinMask)];
 
-    //cos查表法余弦对应原版cos(double)
-    //cos(x)=sin(x+pi/2)用偏移COS_OFFSET实现
+    //cos table-lookup cosine, maps to vanilla cos(double)
+    //cos(x)=sin(x+pi/2) implemented via the COS_OFFSET offset
     public static float Cos(double i)
         => _sin[(int)(((long)((i * SinScale) + CosOffset)) & SinMask)];
 
-    //sqrt平方根对应原版sqrt(float)
+    //sqrt square root, maps to vanilla sqrt(float)
     public static float Sqrt(float x) => (float)Math.Sqrt(x);
 
-    //floor向下取整对应原版floor(float)
+    //floor rounds down, maps to vanilla floor(float)
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int Floor(float v) => (int)Math.Floor(v);
 
-    //floor向下取整对应原版floor(double)
+    //floor rounds down, maps to vanilla floor(double)
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int Floor(double v) => (int)Math.Floor(v);
 
-    //lfloor long向下取整对应原版lfloor
+    //lfloor long round-down, maps to vanilla lfloor
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static long LFloor(double v) => (long)Math.Floor(v);
 
-    //abs绝对值对应原版abs(float)
+    //abs absolute value, maps to vanilla abs(float)
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float Abs(float v) => Math.Abs(v);
 
-    //abs绝对值对应原版abs(int)
+    //abs absolute value, maps to vanilla abs(int)
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int Abs(int v) => Math.Abs(v);
 
-    //ceil向上取整对应原版ceil(float)
+    //ceil rounds up, maps to vanilla ceil(float)
     public static int Ceil(float v) => (int)Math.Ceiling(v);
 
-    //ceil向上取整对应原版ceil(double)
+    //ceil rounds up, maps to vanilla ceil(double)
     public static int Ceil(double v) => (int)Math.Ceiling(v);
 
-    //ceilLong向上取整返回long对应原版ceilLong
+    //ceilLong rounds up and returns long, maps to vanilla ceilLong
     public static long CeilLong(double v) => (long)Math.Ceiling(v);
 
-    //clamp int范围限制对应原版clamp(int,int,int)
+    //clamp int range clamp, maps to vanilla clamp(int,int,int)
     public static int Clamp(int value, int min, int max)
         => Math.Min(Math.Max(value, min), max);
 
-    //clamp long范围限制对应原版clamp(long,long,long)
+    //clamp long range clamp, maps to vanilla clamp(long,long,long)
     public static long Clamp(long value, long min, long max)
         => Math.Min(Math.Max(value, min), max);
 
-    //clamp float范围限制对应原版clamp(float,float,float)
+    //clamp float range clamp, maps to vanilla clamp(float,float,float)
     public static float Clamp(float value, float min, float max)
         => value < min ? min : Math.Min(value, max);
 
-    //clamp double范围限制对应原版clamp(double,double,double)
+    //clamp double range clamp, maps to vanilla clamp(double,double,double)
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static double Clamp(double value, double min, double max)
         => value < min ? min : Math.Min(value, max);
 
-    //clampedLerp带边界限制的线性插值对应原版clampedLerp(double)
+    //clampedLerp linear interpolation with boundary clamping, maps to vanilla clampedLerp(double)
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static double ClampedLerp(double factor, double min, double max)
     {
@@ -136,7 +136,7 @@ public static partial class Mth
         return Lerp(factor, min, max);
     }
 
-    //clampedLerp带边界限制的线性插值对应原版clampedLerp(float)
+    //clampedLerp linear interpolation with boundary clamping, maps to vanilla clampedLerp(float)
     public static float ClampedLerp(float factor, float min, float max)
     {
         if (factor < 0.0f) return min;
@@ -144,21 +144,21 @@ public static partial class Mth
         return Lerp(factor, min, max);
     }
 
-    //absMax取两数绝对值较大者对应原版absMax(int)
+    //absMax larger absolute value of two numbers, maps to vanilla absMax(int)
     public static int AbsMax(int a, int b) => Math.Max(Math.Abs(a), Math.Abs(b));
 
-    //absMax取两数绝对值较大者对应原版absMax(float)
+    //absMax larger absolute value of two numbers, maps to vanilla absMax(float)
     public static float AbsMax(float a, float b) => Math.Max(Math.Abs(a), Math.Abs(b));
 
-    //absMax取两数绝对值较大者对应原版absMax(double)
+    //absMax larger absolute value of two numbers, maps to vanilla absMax(double)
     public static double AbsMax(double a, double b) => Math.Max(Math.Abs(a), Math.Abs(b));
 
-    //chessboardDistance棋盘距离对应原版chessboardDistance
+    //chessboardDistance chessboard distance, maps to vanilla chessboardDistance
     public static int ChessboardDistance(int x0, int z0, int x1, int z1)
         => AbsMax(x1 - x0, z1 - z0);
 
-    //floorDiv向下整除对应原版floorDiv(int,int)
-    //Java Math.floorDiv 对负数向下取整 C# 用 (a - (b-1)) / b 当 a%b!=0 时降1
+    //floorDiv round-down division, maps to vanilla floorDiv(int,int)
+    //Java Math.floorDiv rounds negatives down; C# uses (a - (b-1)) / b, decrementing by 1 when a%b!=0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int FloorDiv(int a, int b)
     {
@@ -167,59 +167,59 @@ public static partial class Mth
         return q;
     }
 
-    //nextInt区间随机整数对应原版nextInt(RandomSource,int,int)
+    //nextInt random integer in a range, maps to vanilla nextInt(RandomSource,int,int)
     public static int NextInt(RandomSource random, int minInclusive, int maxInclusive)
     {
         if (minInclusive >= maxInclusive) return minInclusive;
         return random.NextInt(maxInclusive - minInclusive + 1) + minInclusive;
     }
 
-    //nextFloat区间随机浮点对应原版nextFloat
+    //nextFloat random float in a range, maps to vanilla nextFloat
     public static float NextFloat(RandomSource random, float min, float max)
     {
         if (min >= max) return min;
         return random.NextFloat() * (max - min) + min;
     }
 
-    //nextDouble区间随机双精度对应原版nextDouble
+    //nextDouble random double in a range, maps to vanilla nextDouble
     public static double NextDouble(RandomSource random, double min, double max)
     {
         if (min >= max) return min;
         return random.NextDouble() * (max - min) + min;
     }
 
-    //equal近似相等对应原版equal(float,float)
+    //equal approximate equality, maps to vanilla equal(float,float)
     public static bool Equal(float a, float b) => Math.Abs(b - a) < 1.0E-5f;
 
-    //equal近似相等对应原版equal(double,double)
+    //equal approximate equality, maps to vanilla equal(double,double)
     public static bool Equal(double a, double b) => Math.Abs(b - a) < 9.999999747378752E-6d;
 
-    //positiveModulo正模运算对应原版positiveModulo(int)
-    //Java Math.floorMod C# 用 ((a % b) + b) % b
+    //positiveModulo positive modulo, maps to vanilla positiveModulo(int)
+    //Java Math.floorMod; C# uses ((a % b) + b) % b
     public static int PositiveModulo(int input, int mod)
         => ((input % mod) + mod) % mod;
 
-    //positiveModulo正模运算对应原版positiveModulo(float)
+    //positiveModulo positive modulo, maps to vanilla positiveModulo(float)
     public static float PositiveModulo(float input, float mod)
         => ((input % mod) + mod) % mod;
 
-    //positiveModulo正模运算对应原版positiveModulo(double)
+    //positiveModulo positive modulo, maps to vanilla positiveModulo(double)
     public static double PositiveModulo(double input, double mod)
         => ((input % mod) + mod) % mod;
 
-    //isMultipleOf判断整除对应原版isMultipleOf
+    //isMultipleOf tests divisibility, maps to vanilla isMultipleOf
     public static bool IsMultipleOf(int dividend, int divisor)
         => dividend % divisor == 0;
 
-    //packDegrees角度压缩到byte对应原版packDegrees
+    //packDegrees packs an angle into a byte, maps to vanilla packDegrees
     public static byte PackDegrees(float angle)
         => (byte)Floor(angle * 256.0f / 360.0f);
 
-    //unpackDegrees解压byte到角度对应原版unpackDegrees
+    //unpackDegrees unpacks a byte into an angle, maps to vanilla unpackDegrees
     public static float UnpackDegrees(byte rot)
         => rot * 360 / 256.0f;
 
-    //wrapDegrees角度归一化到[-180,180)对应原版wrapDegrees(int)
+    //wrapDegrees normalizes an angle to [-180,180), maps to vanilla wrapDegrees(int)
     public static int WrapDegrees(int angle)
     {
         var n = angle % 360;
@@ -228,7 +228,7 @@ public static partial class Mth
         return n;
     }
 
-    //wrapDegrees角度归一化对应原版wrapDegrees(long)
+    //wrapDegrees normalizes an angle, maps to vanilla wrapDegrees(long)
     public static float WrapDegrees(long angle)
     {
         var n = (float)(angle % 360);
@@ -237,7 +237,7 @@ public static partial class Mth
         return n;
     }
 
-    //wrapDegrees角度归一化对应原版wrapDegrees(float)
+    //wrapDegrees normalizes an angle, maps to vanilla wrapDegrees(float)
     public static float WrapDegrees(float angle)
     {
         var n = angle % 360.0f;
@@ -246,7 +246,7 @@ public static partial class Mth
         return n;
     }
 
-    //wrapDegrees角度归一化对应原版wrapDegrees(double)
+    //wrapDegrees normalizes an angle, maps to vanilla wrapDegrees(double)
     public static double WrapDegrees(double angle)
     {
         var n = angle % 360.0d;
@@ -255,7 +255,7 @@ public static partial class Mth
         return n;
     }
 
-    //wrapDegrees90角度归一化到[-45,45)对应原版wrapDegrees90
+    //wrapDegrees90 normalizes an angle to [-45,45), maps to vanilla wrapDegrees90
     public static float WrapDegrees90(float angle)
     {
         var n = angle % 90.0f;
@@ -264,15 +264,15 @@ public static partial class Mth
         return n;
     }
 
-    //degreesDifference角度差归一化对应原版degreesDifference
+    //degreesDifference normalizes the angle difference, maps to vanilla degreesDifference
     public static float DegreesDifference(float fromAngle, float toAngle)
         => WrapDegrees(toAngle - fromAngle);
 
-    //degreesDifferenceAbs角度差绝对值对应原版degreesDifferenceAbs
+    //degreesDifferenceAbs absolute angle difference, maps to vanilla degreesDifferenceAbs
     public static float DegreesDifferenceAbs(float angleA, float angleB)
         => Abs(DegreesDifference(angleA, angleB));
 
-    //rotateIfNecessary按最大角差限制旋转对应原版rotateIfNecessary
+    //rotateIfNecessary limits rotation to the maximum angle difference, maps to vanilla rotateIfNecessary
     public static float RotateIfNecessary(float baseAngle, float targetAngle, float maxAngleDiff)
     {
         var delta = DegreesDifference(baseAngle, targetAngle);
@@ -280,7 +280,7 @@ public static partial class Mth
         return targetAngle - clamped;
     }
 
-    //approach逐步接近目标值对应原版approach
+    //approach steps toward a target value, maps to vanilla approach
     public static float Approach(float current, float target, float increment)
     {
         var inc = Abs(increment);
@@ -289,19 +289,19 @@ public static partial class Mth
         return Clamp(current - inc, target, current);
     }
 
-    //approachDegrees角度逐步接近对应原版approachDegrees
+    //approachDegrees steps an angle toward a target, maps to vanilla approachDegrees
     public static float ApproachDegrees(float current, float target, float increment)
     {
         var difference = DegreesDifference(current, target);
         return Approach(current, current + difference, increment);
     }
 
-    //getInt安全解析整数对应原版getInt
-    //原版用NumberUtils.toInt C# 用 int.TryParse
+    //getInt safely parses an integer, maps to vanilla getInt
+    //Vanilla uses NumberUtils.toInt; C# uses int.TryParse
     public static int GetInt(string input, int def)
         => int.TryParse(input, out var v) ? v : def;
 
-    //smallestEncompassingPowerOfTwo最小包含2的幂对应原版smallestEncompassingPowerOfTwo
+    //smallestEncompassingPowerOfTwo smallest enclosing power of two, maps to vanilla smallestEncompassingPowerOfTwo
     public static int SmallestEncompassingPowerOfTwo(int input)
     {
         var result = input - 1;
@@ -312,7 +312,7 @@ public static partial class Mth
         return (result | (result >> 16)) + 1;
     }
 
-    //smallestSquareSide最小正方形边长对应原版smallestSquareSide
+    //smallestSquareSide smallest enclosing square side, maps to vanilla smallestSquareSide
     public static int SmallestSquareSide(int itemCount)
     {
         if (itemCount < 0)
@@ -320,33 +320,33 @@ public static partial class Mth
         return Ceil(Math.Sqrt(itemCount));
     }
 
-    //isPowerOfTwo判断2的幂对应原版isPowerOfTwo(int)
+    //isPowerOfTwo tests for a power of two, maps to vanilla isPowerOfTwo(int)
     public static bool IsPowerOfTwo(int input)
         => input != 0 && (input & (input - 1)) == 0;
 
-    //isPowerOfTwo判断2的幂对应原版isPowerOfTwo(long)
+    //isPowerOfTwo tests for a power of two, maps to vanilla isPowerOfTwo(long)
     public static bool IsPowerOfTwo(long input)
         => input != 0 && (input & (input - 1)) == 0;
 
-    //ceillog2向上log2对应原版ceillog2
+    //ceillog2 ceiling log2, maps to vanilla ceillog2
     public static int CeilLog2(int input)
     {
         var v = IsPowerOfTwo(input) ? input : SmallestEncompassingPowerOfTwo(input);
         return MultiplyDeBruijnBitPosition[(int)(((long)v * 125613361) >> 27) & 31];
     }
 
-    //log2向下log2对应原版log2
+    //log2 floor log2, maps to vanilla log2
     public static int Log2(int input)
         => CeilLog2(input) - (IsPowerOfTwo(input) ? 0 : 1);
 
-    //frac取小数部分对应原版frac(float)
+    //frac fractional part, maps to vanilla frac(float)
     public static float Frac(float num) => num - Floor(num);
 
-    //frac取小数部分对应原版frac(double)
+    //frac fractional part, maps to vanilla frac(double)
     public static double Frac(double num) => num - LFloor(num);
 
-    //getSeed按位置生成稳定种子对应原版getSeed(int,int,int)
-    //原版算术依赖int乘法wrap再扩展到long再long乘法wrap默认unchecked保证一致
+    //getSeed derives a stable seed from a position, maps to vanilla getSeed(int,int,int)
+    //Vanilla arithmetic relies on int multiply wrap then widening to long then long multiply wrap; defaults to unchecked to stay consistent
     public static long GetSeed(int x, int y, int z)
     {
         unchecked
@@ -357,11 +357,11 @@ public static partial class Mth
         }
     }
 
-    //getSeed按Vec3i生成种子对应原版getSeed(Vec3i)
+    //getSeed derives a seed from a Vec3i, maps to vanilla getSeed(Vec3i)
     public static long GetSeed(Vec3i vec) => GetSeed(vec.X, vec.Y, vec.Z);
 
-    //createInsecureUUID生成不安全UUID对应原版createInsecureUUID
-    //C# Guid内部两个long字段直接构造
+    //createInsecureUUID generates an insecure UUID, maps to vanilla createInsecureUUID
+    //C# constructs a Guid directly from its two internal long fields
     public static Guid CreateInsecureUuid(RandomSource random)
     {
         var most = (random.NextLong() & (~UuidVersion)) | UuidVersionType4;
@@ -371,16 +371,16 @@ public static partial class Mth
             (byte)(least >> 32), (byte)(least >> 24), (byte)(least >> 16), (byte)(least >> 8), (byte)least);
     }
 
-    //inverseLerp反向插值对应原版inverseLerp(double)
+    //inverseLerp inverse interpolation, maps to vanilla inverseLerp(double)
     public static double InverseLerp(double value, double min, double max)
         => (value - min) / (max - min);
 
-    //inverseLerp反向插值对应原版inverseLerp(float)
+    //inverseLerp inverse interpolation, maps to vanilla inverseLerp(float)
     public static float InverseLerp(float value, float min, float max)
         => (value - min) / (max - min);
 
-    //atan2快速反正切对应原版atan2
-    //用ASIN_TAB/COS_TAB查表+一次Newton迭代
+    //atan2 fast arctangent, maps to vanilla atan2
+    //Uses ASIN_TAB/COS_TAB lookup plus one Newton iteration
     public static double Atan2(double y, double x)
     {
         var d2 = x * x + y * y;
@@ -408,15 +408,15 @@ public static partial class Mth
         return theta;
     }
 
-    //invSqrt平方根倒数对应原版invSqrt(float)
-    //C#无Math.invsqrt用1/sqrt替代
+    //invSqrt inverse square root, maps to vanilla invSqrt(float)
+    //C# has no Math.invsqrt, uses 1/sqrt instead
     public static float InvSqrt(float x) => 1.0f / (float)Math.Sqrt(x);
 
-    //invSqrt平方根倒数对应原版invSqrt(double)
+    //invSqrt inverse square root, maps to vanilla invSqrt(double)
     public static double InvSqrt(double x) => 1.0 / Math.Sqrt(x);
 
-    //fastInvSqrt快速平方根倒数对应原版fastInvSqrt
-    //位运算魔数近似Newton迭代一次
+    //fastInvSqrt fast inverse square root, maps to vanilla fastInvSqrt
+    //Bit-twiddling magic-number approximation with one Newton iteration
     public static double FastInvSqrt(double x)
     {
         var xhalf = 0.5d * x;
@@ -425,7 +425,7 @@ public static partial class Mth
         return x2 * (1.5d - xhalf * x2 * x2);
     }
 
-    //fastInvCubeRoot快速立方根倒数对应原版fastInvCubeRoot
+    //fastInvCubeRoot fast inverse cube root, maps to vanilla fastInvCubeRoot
     public static float FastInvCubeRoot(float x)
     {
         var i = BitConverter.SingleToInt32Bits(x);
@@ -434,13 +434,13 @@ public static partial class Mth
         return 0.6666667f * y2 + 1.0f / (3.0f * y2 * y2 * x);
     }
 
-    //hsvToRgb HSV转RGB int对应原版hsvToRgb
-    //alpha固定0委托hsvToArgb
+    //hsvToRgb HSV to RGB int, maps to vanilla hsvToRgb
+    //alpha fixed at 0, delegates to hsvToArgb
     public static int HsvToRgb(float hue, float saturation, float value)
         => HsvToArgb(hue, saturation, value, 0);
 
-    //hsvToArgb HSV转ARGB int对应原版hsvToArgb
-    //手动展开6种情况ARGB.color内联计算
+    //hsvToArgb HSV to ARGB int, maps to vanilla hsvToArgb
+    //Manually unrolls 6 cases, computing ARGB.color inline
     public static int HsvToArgb(float hue, float saturation, float value, int alpha)
     {
         var h = ((int)(hue * 6.0f)) % 6;
@@ -465,7 +465,7 @@ public static partial class Mth
         return (alpha << 24) | (r << 16) | (g << 8) | b;
     }
 
-    //murmurHash3Mixer MurmurHash3混合器对应原版murmurHash3Mixer
+    //murmurHash3Mixer MurmurHash3 mixer, maps to vanilla murmurHash3Mixer
     public static int MurmurHash3Mixer(int hash)
     {
         unchecked
@@ -476,8 +476,8 @@ public static partial class Mth
         }
     }
 
-    //binarySearch二分查找对应原版binarySearch
-    //condition.test为true时左移否则右移
+    //binarySearch binary search, maps to vanilla binarySearch
+    //Shifts left when condition.test is true, otherwise right
     public static int BinarySearch(int from, int to, Func<int, bool> condition)
     {
         var i = to - from;
@@ -496,69 +496,69 @@ public static partial class Mth
         return from;
     }
 
-    //lerpInt整数线性插值对应原版lerpInt
+    //lerpInt integer linear interpolation, maps to vanilla lerpInt
     public static int LerpInt(float alpha, int p0, int p1)
         => p0 + Floor(alpha * (p1 - p0));
 
-    //lerpDiscrete整数离散插值对应原版lerpDiscrete
+    //lerpDiscrete integer discrete interpolation, maps to vanilla lerpDiscrete
     public static int LerpDiscrete(float alpha, int p0, int p1)
     {
         var delta = p1 - p0;
         return p0 + Floor(alpha * (delta - 1)) + (alpha > 0.0f ? 1 : 0);
     }
 
-    //lerp float线性插值对应原版lerp(float)
+    //lerp float linear interpolation, maps to vanilla lerp(float)
     public static float Lerp(float alpha, float p0, float p1)
         => p0 + alpha * (p1 - p0);
 
-    //lerp double线性插值对应原版lerp(double)
+    //lerp double linear interpolation, maps to vanilla lerp(double)
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static double Lerp(double alpha, double p0, double p1)
         => p0 + alpha * (p1 - p0);
 
-    //lerp2 双线性插值对应原版lerp2
+    //lerp2 bilinear interpolation, maps to vanilla lerp2
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static double Lerp2(double alpha1, double alpha2, double x00, double x10, double x01, double x11)
         => Lerp(alpha2, Lerp(alpha1, x00, x10), Lerp(alpha1, x01, x11));
 
-    //lerp3 三线性插值对应原版lerp3
+    //lerp3 trilinear interpolation, maps to vanilla lerp3
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static double Lerp3(double a1, double a2, double a3,
         double x000, double x100, double x010, double x110,
         double x001, double x101, double x011, double x111)
         => Lerp(a3, Lerp2(a1, a2, x000, x100, x010, x110), Lerp2(a1, a2, x001, x101, x011, x111));
 
-    //catmullrom Catmull-Rom样条插值对应原版catmullrom
+    //catmullrom Catmull-Rom spline interpolation, maps to vanilla catmullrom
     public static float CatmullRom(float alpha, float p0, float p1, float p2, float p3)
         => 0.5f * (2.0f * p1 + (p2 - p0) * alpha +
             ((((2.0f * p0) - (5.0f * p1) + (4.0f * p2) - p3) * alpha * alpha)) +
             ((((3.0f * p1) - p0 - (3.0f * p2) + p3) * alpha * alpha * alpha)));
 
-    //smoothstep平滑插值对应原版smoothstep
+    //smoothstep smooth interpolation, maps to vanilla smoothstep
     public static double Smoothstep(double x)
         => x * x * x * ((x * ((x * 6.0d) - 15.0d)) + 10.0d);
 
-    //smoothstepDerivative平滑插值导数对应原版smoothstepDerivative
+    //smoothstepDerivative smooth interpolation derivative, maps to vanilla smoothstepDerivative
     public static double SmoothstepDerivative(double x)
         => 30.0d * x * x * (x - 1.0d) * (x - 1.0d);
 
-    //sign符号函数对应原版sign
+    //sign sign function, maps to vanilla sign
     public static int Sign(double number)
     {
         if (number == 0.0d) return 0;
         return number > 0.0d ? 1 : -1;
     }
 
-    //rotLerp旋转角度线性插值对应原版rotLerp(float)
+    //rotLerp rotation angle linear interpolation, maps to vanilla rotLerp(float)
     public static float RotLerp(float a, float from, float to)
         => from + a * WrapDegrees(to - from);
 
-    //rotLerp旋转角度线性插值对应原版rotLerp(double)
+    //rotLerp rotation angle linear interpolation, maps to vanilla rotLerp(double)
     public static double RotLerp(double a, double from, double to)
         => from + a * WrapDegrees(to - from);
 
-    //rotLerpRad弧度旋转线性插值对应原版rotLerpRad
-    //循环归一化到[-pi,pi)
+    //rotLerpRad radian rotation linear interpolation, maps to vanilla rotLerpRad
+    //Normalizes cyclically to [-pi,pi)
     public static float RotLerpRad(float a, float from, float to)
     {
         var f = to - from;
@@ -567,66 +567,66 @@ public static partial class Mth
         return from + a * f;
     }
 
-    //triangleWave三角波对应原版triangleWave
+    //triangleWave triangle wave, maps to vanilla triangleWave
     public static float TriangleWave(float index, float period)
         => (Math.Abs(index % period - period * 0.5f) - period * 0.25f) / (period * 0.25f);
 
-    //square平方对应原版square(float)
+    //square square, maps to vanilla square(float)
     public static float Square(float x) => x * x;
 
-    //cube立方对应原版cube
+    //cube cube, maps to vanilla cube
     public static float Cube(float x) => x * x * x;
 
-    //square平方对应原版square(double)
+    //square square, maps to vanilla square(double)
     public static double Square(double x) => x * x;
 
-    //square平方对应原版square(int)
+    //square square, maps to vanilla square(int)
     public static int Square(int x) => x * x;
 
-    //square平方对应原版square(long)
+    //square square, maps to vanilla square(long)
     public static long Square(long x) => x * x;
 
-    //clampedMap带边界范围映射对应原版clampedMap(double)
+    //clampedMap clamped range mapping, maps to vanilla clampedMap(double)
     public static double ClampedMap(double value, double fromMin, double fromMax, double toMin, double toMax)
         => ClampedLerp(InverseLerp(value, fromMin, fromMax), toMin, toMax);
 
-    //clampedMap带边界范围映射对应原版clampedMap(float)
+    //clampedMap clamped range mapping, maps to vanilla clampedMap(float)
     public static float ClampedMap(float value, float fromMin, float fromMax, float toMin, float toMax)
         => ClampedLerp(InverseLerp(value, fromMin, fromMax), toMin, toMax);
 
-    //map范围映射对应原版map(double)
+    //map range mapping, maps to vanilla map(double)
     public static double Map(double value, double fromMin, double fromMax, double toMin, double toMax)
         => Lerp(InverseLerp(value, fromMin, fromMax), toMin, toMax);
 
-    //map范围映射对应原版map(float)
+    //map range mapping, maps to vanilla map(float)
     public static float Map(float value, float fromMin, float fromMax, float toMin, float toMax)
         => Lerp(InverseLerp(value, fromMin, fromMax), toMin, toMax);
 
-    //wobble坐标抖动对应原版wobble
-    //原版用createThreadLocalInstance C# 简化为RandomSource.Create按坐标种子确定
+    //wobble coordinate jitter, maps to vanilla wobble
+    //Vanilla uses createThreadLocalInstance; C# simplifies to RandomSource.Create determined by the coordinate seed
     public static double Wobble(double coord)
     {
         var r = RandomSource.Create(Floor(coord * 3000.0d));
         return coord + ((2.0d * r.NextDouble() - 1.0d) * 1.0E-7d) / 2.0d;
     }
 
-    //roundToward向上取整到倍数对应原版roundToward(int)
+    //roundToward rounds up to a multiple, maps to vanilla roundToward(int)
     public static int RoundToward(int input, int multiple)
         => PositiveCeilDiv(input, multiple) * multiple;
 
-    //roundToward向上取整到倍数对应原版roundToward(long)
+    //roundToward rounds up to a multiple, maps to vanilla roundToward(long)
     public static long RoundToward(long input, long multiple)
         => PositiveCeilDiv(input, multiple) * multiple;
 
-    //positiveCeilDiv正向上整除对应原版positiveCeilDiv(int)
+    //positiveCeilDiv positive ceiling division, maps to vanilla positiveCeilDiv(int)
     public static int PositiveCeilDiv(int input, int divisor)
         => -FloorDiv(-input, divisor);
 
-    //positiveCeilDiv正向上整除对应原版positiveCeilDiv(long)
+    //positiveCeilDiv positive ceiling division, maps to vanilla positiveCeilDiv(long)
     public static long PositiveCeilDiv(long input, long divisor)
         => -FloorDivLong(-input, divisor);
 
-    //floorDivLong long向下整除对应原版Math.floorDiv(long,long)
+    //floorDivLong long round-down division, maps to vanilla Math.floorDiv(long,long)
     private static long FloorDivLong(long a, long b)
     {
         var q = a / b;
@@ -634,42 +634,42 @@ public static partial class Mth
         return q;
     }
 
-    //randomBetweenInclusive闭区间随机整数对应原版randomBetweenInclusive
+    //randomBetweenInclusive closed-interval random integer, maps to vanilla randomBetweenInclusive
     public static int RandomBetweenInclusive(RandomSource random, int min, int maxInclusive)
         => random.NextInt(maxInclusive - min + 1) + min;
 
-    //randomBetween区间随机浮点对应原版randomBetween
+    //randomBetween random float in a range, maps to vanilla randomBetween
     public static float RandomBetween(RandomSource random, float min, float maxExclusive)
         => random.NextFloat() * (maxExclusive - min) + min;
 
-    //normal正态分布随机对应原版normal
+    //normal normal-distribution random, maps to vanilla normal
     public static float Normal(RandomSource random, float mean, float deviation)
         => mean + (float)random.NextGaussian() * deviation;
 
-    //lengthSquared 2D长度平方对应原版lengthSquared(double,double)
+    //lengthSquared 2D squared length, maps to vanilla lengthSquared(double,double)
     public static double LengthSquared(double x, double y) => x * x + y * y;
 
-    //length 2D长度对应原版length(double,double)
+    //length 2D length, maps to vanilla length(double,double)
     public static double Length(double x, double y) => Math.Sqrt(LengthSquared(x, y));
 
-    //length 2D float长度对应原版length(float,float)
+    //length 2D float length, maps to vanilla length(float,float)
     public static float Length(float x, float y) => (float)Math.Sqrt(LengthSquared(x, y));
 
-    //lengthSquared 3D长度平方对应原版lengthSquared(double,double,double)
+    //lengthSquared 3D squared length, maps to vanilla lengthSquared(double,double,double)
     public static double LengthSquared(double x, double y, double z) => x * x + y * y + z * z;
 
-    //length 3D长度对应原版length(double,double,double)
+    //length 3D length, maps to vanilla length(double,double,double)
     public static double Length(double x, double y, double z) => Math.Sqrt(LengthSquared(x, y, z));
 
-    //lengthSquared 3D float长度平方对应原版lengthSquared(float,float,float)
+    //lengthSquared 3D float squared length, maps to vanilla lengthSquared(float,float,float)
     public static float LengthSquared(float x, float y, float z) => x * x + y * y + z * z;
 
-    //quantize按分辨率量化对应原版quantize
+    //quantize quantizes by resolution, maps to vanilla quantize
     public static int Quantize(double value, int quantizeResolution)
         => Floor(value / quantizeResolution) * quantizeResolution;
 
-    //outFromOrigin从原点向外迭代对应原版outFromOrigin
-    //原版用IntStream.iterate C# 用yield return模拟
+    //outFromOrigin iterates outward from the origin, maps to vanilla outFromOrigin
+    //Vanilla uses IntStream.iterate; C# simulates it with yield return
     public static IEnumerable<int> OutFromOrigin(int origin, int lowerBound, int upperBound, int stepSize = 1)
     {
         if (lowerBound > upperBound)

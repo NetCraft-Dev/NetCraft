@@ -15,53 +15,53 @@ using NetCraft.Logging;
 
 namespace NetCraft.Server.Gui;
 
-//ServerLogPage 日志页 左边按级别过滤 上边正则搜索 下边是过滤后的日志
-//与主页日志区共用 LogStore 那一份缓冲 渲染也同一套 差别只在没有命令输入区
-//过滤器与搜索都只影响这一页 主页那份照旧是全量
+//ServerLogPage, the log page, level filters on the left, regex search on top, filtered logs below
+//Shares the LogStore buffer with the main page log area and uses the same rendering, the only difference is the missing command input area
+//Filters and search affect only this page, the main page stays full
 public sealed partial class ServerLogPage : UserControl
 {
-    //显示上限 与 LogStore 的缓存上限一致 超出从头部丢
+    //Display cap, aligned with the LogStore cache cap, overflow drops from the head
     private const int MaxLines = 20000;
-    //每帧放行一小批 与主页日志区同样的节奏
+    //Release a small batch each frame, the same pace as the main page log area
     private static readonly TimeSpan FlushInterval = TimeSpan.FromMilliseconds(16);
-    //搜索防抖 每敲一个键都重排两千行会把输入拖出顿挫感
+    //Search debounce, reordering two thousand lines on every keystroke would make typing feel choppy
     private static readonly TimeSpan SearchDelay = TimeSpan.FromMilliseconds(160);
     private const int MaxPerFlush = 200;
-    //放行行数不超过这个值才做入场动画 积压时动画只会帮倒忙
+    //The entrance animation runs only when the released line count is at or below this, animating during a backlog only hurts
     private const int AnimatedBatchLimit = 6;
     private const int MaxPending = 4000;
-    //单行最多标这么多处命中 搜一个常见字母时一行能命中上千处 没必要全标
+    //Max matches marked per row, a common letter can hit thousands of places in one row and there is no need to mark them all
     private const int MaxMatchesPerRow = 200;
-    //底部的容差 小于它就算贴着
+    //Bottom tolerance, anything below it counts as at the bottom
     private const double BottomTolerance = 4;
 
     private readonly LogStore _store;
-    //_pending 日志由输出线程写 UI 线程读
+    //_pending logs are written by the output thread and read by the UI thread
     private readonly Queue<LogStore.Entry> _pending = new();
     private readonly Lock _pendingLock = new();
     private readonly DispatcherTimer _flush;
     private readonly DispatcherTimer _searchDelay;
-    //_all 收到过的全部行 过滤与搜索都在这上面挑 视图只是它的子集
+    //_all every row received, filtering and search pick from it, the view is just a subset
     private readonly List<LogRow> _all = new();
-    //_hits 命中搜索的行 按视图顺序排 上下跳转就靠它
+    //_hits rows matching the search, ordered by view order, used for jumping up and down
     private readonly List<LogRow> _hits = new();
     private readonly RangeObservableCollection<LogRow> _view = new();
-    //_active 选中的级别 空集表示不过滤
+    //_active selected levels, an empty set means no filtering
     private readonly HashSet<LogLevel> _active = new();
     private Regex? _search;
     private int _hitIndex;
-    //_searchDirty 输入改过但还没搜 回车时据此决定是跳第一处还是下一处
+    //_searchDirty the input changed but has not been searched, Enter uses it to decide whether to jump to the first or next match
     private bool _searchDirty;
-    //_follow 是否粘着最新一行 只在用户真的挪了视口时改
-    //每帧现算 Extent/Offset 是不行的: 新日志一插进来 Extent 就变大而 Offset 不动
-    //只要有一帧判成"不在底部"就再也回不来 用户不动 Offset 而 Extent 一直涨 于是一路被甩开
+    //_follow whether to stick to the newest line, changed only when the user actually moves the viewport
+    //Computing Extent/Offset per frame does not work: inserting a new log grows Extent while Offset stays put
+    //One frame judged as "not at the bottom" is unrecoverable, the user does not move Offset while Extent keeps growing, so it is flung off the whole way
     private bool _follow = true;
-    //_scroll 内部滚动条 由 ScrollChanged 惰性拿到 不在每帧去遍历可视树
+    //_scroll the internal scrollbar, obtained lazily by ScrollChanged rather than walking the visual tree every frame
     private ScrollViewer? _scroll;
     private double _lastOffsetY;
 
-    //Scroll 取内部滚动条 拿不到时才去可视树里翻一次并缓存
-    //挂进可视树之前翻不到 那时保持 null 下一次用到再翻
+    //Scroll gets the internal scrollbar, only walking the visual tree and caching it when unavailable
+    //It cannot be found before being attached to the visual tree, so it stays null then and is searched on next use
     private ScrollViewer? Scroll
         => _scroll ??= LogLines.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
 
@@ -70,8 +70,8 @@ public sealed partial class ServerLogPage : UserControl
         _store = store;
         InitializeComponent();
         LogLines.ItemsSource = _view;
-        //挂在 ListBox 上接内部滚动条冒泡上来的事件 免得到 Loaded 里再去树里翻
-        //handledEventsToo: 万一滚动条那边把事件标了 handled 也要收到 收不到就退化成永远跟随
+        //Attach to the ListBox to receive the bubbled event from the internal scrollbar, avoiding a tree walk in Loaded
+        //handledEventsToo: receive it even if the scrollbar marked the event handled, otherwise it degrades to always following
         LogLines.AddHandler(ScrollViewer.ScrollChangedEvent, OnScrollChanged,
             RoutingStrategies.Bubble, handledEventsToo: true);
 
@@ -81,7 +81,7 @@ public sealed partial class ServerLogPage : UserControl
         PrevButton.Click += (_, _) => JumpMatch(-1);
         NextButton.Click += (_, _) => JumpMatch(1);
 
-        //构造期先把缓冲里的行全接过来 此刻过滤器为空 等于全部显示
+        //Take all rows from the buffer during construction, the filters are empty right now which means everything is shown
         foreach (var entry in _store.Snapshot())
         {
             var row = MakeRow(entry, animate: false);
@@ -91,8 +91,8 @@ public sealed partial class ServerLogPage : UserControl
         _view.ReplaceAll(_all);
         UpdateMatchLabel();
         _store.LineAdded += OnLine;
-        //历史在构造期填入 那会儿还没测量 直接滚到底是空操作
-        //等布局跑完再排一次 否则开窗停在最老的一行
+        //History is filled during construction when nothing is measured yet, scrolling to the end is a no-op then
+        //Post it again after layout completes, otherwise the window opens stuck on the oldest line
         LogLines.Loaded += (_, _) =>
             Dispatcher.UIThread.Post(ScrollToEnd, DispatcherPriority.Loaded);
 
@@ -107,7 +107,7 @@ public sealed partial class ServerLogPage : UserControl
         };
     }
 
-    //Detach 解订阅 窗口关闭时调 否则这个页面会被日志系统一直引用着
+    //Detach unsubscribes, called when the window closes, otherwise this page is held forever by the logging system
     public void Detach()
     {
         _store.LineAdded -= OnLine;
@@ -115,8 +115,8 @@ public sealed partial class ServerLogPage : UserControl
         _searchDelay.Stop();
     }
 
-    //BuildFilters 按可用的级别生成过滤开关
-    //DBG 只在开了调试模式时放出来 常规模式控制台根本不产 Debug 日志 摆一个常暗的按钮没意义
+    //BuildFilters builds the filter toggles for the available levels
+    //DBG is exposed only with debug mode on, the console never emits Debug logs in normal mode and an always-dim button is pointless
     private void BuildFilters()
     {
         var levels = new List<LogLevel> { LogLevel.Info, LogLevel.Warning, LogLevel.Error, LogLevel.Critical };
@@ -130,9 +130,9 @@ public sealed partial class ServerLogPage : UserControl
                 HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                 Classes = { "levelToggle", LevelClass(level) },
             };
-            //闭包要的是这一轮的级别 循环变量直接捕进去会全是最后一个
-            //盯属性变化而不是 Click: 那样不用去猜 Click 是在切换 IsChecked 之前还是之后发的
-            //读到的永远是切换后的值
+            //The closure needs this round's level, capturing the loop variable directly would make them all the last one
+            //Watch the property change rather than Click: that avoids guessing whether Click fires before or after toggling IsChecked
+            //So the value read is always the post-toggle one
             var captured = level;
             toggle.PropertyChanged += (_, e) =>
             {
@@ -150,8 +150,8 @@ public sealed partial class ServerLogPage : UserControl
         Rebuild();
     }
 
-    //Rebuild 按当前过滤器与搜索重排视图
-    //整体重排而不是打补丁 这两件事都是低频动作 换来的逻辑简单值这个开销
+    //Rebuild rearranges the view by the current filters and search
+    //A full rearrange rather than patching, both are low-frequency actions and the simpler logic is worth the cost
     private void Rebuild()
     {
         _hits.Clear();
@@ -159,7 +159,7 @@ public sealed partial class ServerLogPage : UserControl
         var shown = new List<LogRow>(_all.Count);
         foreach (var row in _all)
         {
-            //先一律复位 这行可能因为过滤器或搜索变化而退出视图
+            //Reset everything first, this row may leave the view due to a filter or search change
             row.Matches = Array.Empty<(int, int)>();
             row.InView = false;
             if (_active.Count > 0 && !_active.Contains(row.Level)) continue;
@@ -177,11 +177,11 @@ public sealed partial class ServerLogPage : UserControl
         }
         _view.ReplaceAll(shown);
         UpdateMatchLabel();
-        //重建后视图整体换过 高度全变了 粘着底部的话要重新贴一次 否则会停回最老的一行
+        //After a rebuild the whole view is swapped and heights change entirely, if stuck to the bottom it must be re-pinned otherwise it stops back on the oldest line
         if (_follow) ScrollToEnd();
     }
 
-    //RestartSearch 输入变化后重启防抖 连着敲字只会在停手后搜一次
+    //RestartSearch restarts the debounce after an input change, typing continuously searches once after you stop
     private void RestartSearch()
     {
         _searchDirty = true;
@@ -189,7 +189,7 @@ public sealed partial class ServerLogPage : UserControl
         _searchDelay.Start();
     }
 
-    //ApplySearch 编译正则并重排 正则不合法就退回不过滤 只在输入框上标红提示
+    //ApplySearch compiles the regex and rearranges, an invalid regex falls back to no filtering and only marks the box red
     private void ApplySearch()
     {
         var pattern = SearchBox.Text?.Trim() ?? string.Empty;
@@ -220,20 +220,20 @@ public sealed partial class ServerLogPage : UserControl
         if (e.Key == Key.Escape)
         {
             e.Handled = true;
-            //清空后 TextChanged 会走一遍 这里不重复触发
+            //Clearing runs TextChanged once, do not trigger it again here
             SearchBox.Text = string.Empty;
             return;
         }
         if (e.Key != Key.Enter) return;
         e.Handled = true;
-        //回车不等防抖 立刻搜一次再跳 刚改过就跳第一处 没改就跳下一处
+        //Enter does not wait for the debounce, it searches immediately then jumps, to the first match if just changed or the next one if not
         var fresh = _searchDirty;
         _searchDelay.Stop();
         ApplySearch();
         JumpMatch(fresh ? 0 : 1);
     }
 
-    //JumpMatch 在命中之间循环跳转 列表只滚到可见 不做居中
+    //JumpMatch cycles through matches, the list only scrolls to visible without centering
     private void JumpMatch(int delta)
     {
         if (_hits.Count == 0) return;
@@ -244,16 +244,16 @@ public sealed partial class ServerLogPage : UserControl
 
     private void UpdateMatchLabel()
     {
-        //没有搜索就不显示 搜索了但一处没中要说清 空着会让人以为还在算
+        //Hidden without a search, and a search with no match must say so, leaving it blank looks like it is still computing
         if (_search is null) MatchLabel.Text = string.Empty;
         else MatchLabel.Text = _hits.Count == 0 ? Loc.Get("netcraft.gui.log.no_match") : $"{_hitIndex + 1}/{_hits.Count}";
-        //当前显示了几行比总数少多少 过滤到底有没有生效看这一行最直接
+        //How many rows are shown versus the total, this line is the most direct way to see whether filtering works
         FilterStats.Text = Loc.Format("netcraft.gui.log.filter_stats", _view.Count, _all.Count);
     }
 
-    //FindMatches 在可见文本上跑正则 返回命中区间
-    //零宽命中(^ 或 a* 这种)只给位置不给长度 直接丢掉 插出来会是一段空的高亮
-    //单行命中过多就截断 搜一个常见字母时一行能命中上千处
+    //FindMatches runs the regex on the visible text and returns match ranges
+    //Zero-width matches (like ^ or a*) give a position without a length, they are dropped since inserting them yields an empty highlight
+    //Too many matches in one row are truncated, a common letter can hit thousands of places in one row
     private List<(int Start, int Length)> FindMatches(string text)
     {
         var result = new List<(int, int)>();
@@ -271,14 +271,14 @@ public sealed partial class ServerLogPage : UserControl
     {
         lock (_pendingLock)
         {
-            //积压到顶就丢最老的 日志暴涨时保最新的一批才有意义
+            //Drop the oldest when the backlog peaks, keeping the newest batch matters when logs surge
             if (_pending.Count >= MaxPending) _pending.Dequeue();
             _pending.Enqueue(entry);
         }
     }
 
-    //FlushPending 每帧把积压的日志放行一小批
-    //被过滤器挡下的行照旧进全量缓冲 只是不进视图 这样回头取消过滤还能看见它们
+    //FlushPending releases a small batch of the backlog each frame
+    //Rows blocked by a filter still enter the full buffer, they just do not enter the view so removing the filter later shows them again
     private void FlushPending()
     {
         List<LogStore.Entry> batch;
@@ -289,14 +289,14 @@ public sealed partial class ServerLogPage : UserControl
             batch = new List<LogStore.Entry>(take);
             for (var i = 0; i < take; i++) batch.Add(_pending.Dequeue());
         }
-        //跟不跟随由 _follow 说了算 它只被用户的实际滚动动作改过 见 OnScrollChanged
+        //Whether to follow is decided by _follow, which is changed only by actual user scrolling, see OnScrollChanged
         var animate = batch.Count <= AnimatedBatchLimit;
         var added = new List<LogRow>(batch.Count);
         foreach (var entry in batch)
         {
             var row = MakeRow(entry, animate);
-            //这里只入全量缓冲 裁剪留到整批插完之后做一次
-            //摆在循环里就成了每插一行裁一次 满上限后每行都要动一次视图 高频下抖得厉害
+            //Only the full buffer is filled here, trimming is deferred to once after the whole batch is inserted
+            //In the loop it would trim per inserted row, and at the cap every row would touch the view once, jittering badly at high rates
             _all.Add(row);
             if (_active.Count > 0 && !_active.Contains(row.Level)) continue;
             row.InView = true;
@@ -313,13 +313,13 @@ public sealed partial class ServerLogPage : UserControl
         }
         TrimToLimit();
         if (added.Count > 0) _view.AddRange(added);
-        //没有新行进视图时不要碰滚动条 过滤态下大部分帧都是这样 空滚一次就是白跑一次布局
+        //Do not touch the scrollbar when no new row enters the view, most frames are like that under filtering and an empty scroll wastes a layout pass
         if (_follow && added.Count > 0) ScrollToEnd();
         UpdateMatchLabel();
     }
 
-    //TrimToLimit 裁掉最老的那些行 视图与命中表都要跟着清
-    //_view 是 _all 的子集且同序 数出前 over 条里有几条在视图上就能整批从头删
+    //TrimToLimit trims the oldest rows, the view and the hit table must be cleared along with it
+    //_view is a subset of _all in the same order, counting how many of the first over entries are in the view allows a batch removal from the head
     private void TrimToLimit()
     {
         var over = _all.Count - MaxLines;
@@ -337,9 +337,9 @@ public sealed partial class ServerLogPage : UserControl
         else _hitIndex = 0;
     }
 
-    //ScrollToEnd 滚到最新一行
-    //已经贴着底部就不再动: 每帧强滚一次本身就是抖动源 虚拟化下滚动还会顺带带出一轮布局
-    //拿不到滚动条时退回 ScrollIntoView 列表还没挂进可视树时走这一支
+    //ScrollToEnd scrolls to the newest line
+    //It does nothing when already at the bottom: forcing a scroll every frame is itself a jitter source and under virtualization scrolling also triggers a layout pass
+    //When the scrollbar is unavailable it falls back to ScrollIntoView, taken when the list is not yet attached to the visual tree
     private void ScrollToEnd()
     {
         if (Scroll is not { } scroll)
@@ -352,9 +352,9 @@ public sealed partial class ServerLogPage : UserControl
         scroll.Offset = new Vector(scroll.Offset.X, target);
     }
 
-    //OnScrollChanged 视口真的被挪动时更新跟随状态
-    //先按 Extent/Viewport 的增量把被动挪动滤掉: 插入新行或裁掉旧行都会让 Extent 变
-    //那种变化会把 Offset 一起带偏 跟用户拖视口是两回事 混在一起判等于自己把自己的跟随关掉
+    //OnScrollChanged updates the follow state when the viewport is genuinely moved
+    //Filter out passive movement by the Extent/Viewport delta first: inserting a new line or trimming an old one changes Extent
+    //That change also drags Offset along and is different from a user dragging the viewport, judging them together would turn off following by itself
     private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
         if (e.Source is ScrollViewer scroll) _scroll = scroll;
@@ -362,9 +362,9 @@ public sealed partial class ServerLogPage : UserControl
         if (Math.Abs(e.ExtentDelta.Y) > 0.5 || Math.Abs(e.ViewportDelta.Y) > 0.5) return;
         var y = _scroll.Offset.Y;
         if (Math.Abs(y - _lastOffsetY) < 0.5) return;
-        //到底部(或接近底部)一律恢复跟随 用户往上滚就停止 其余情况(程序往下滚)保持原状
-        //不能写成"没到底就置假": 滚动定位落到的位置未必正好是最后一像素
-        //只要有一帧判假就再也回不来 用户不动 Offset 而 Extent 一直涨 于是一路被甩开
+        //At the bottom (or near it) following is always restored, scrolling up stops it, and any other case (programmatic scroll down) keeps the status quo
+        //It must not be written as "set false when not at the bottom": the scroll position may not land exactly on the last pixel
+        //One frame judged false is unrecoverable, the user does not move Offset while Extent keeps growing, so it is flung off the whole way
         var up = y < _lastOffsetY;
         _lastOffsetY = y;
         if (y + _scroll.Viewport.Height >= _scroll.Extent.Height - BottomTolerance) _follow = true;
@@ -374,13 +374,13 @@ public sealed partial class ServerLogPage : UserControl
     private static LogRow MakeRow(LogStore.Entry entry, bool animate)
         => new(entry.Text, entry.Level, animate);
 
-    //OnRowPrepared 新行第一次挂进可见区时播一次入场动画
-    //虚拟化会把滚出屏幕的容器回收 滚动时重挂是常事 用 IsNew 挡一道只放行真正的新行
+    //OnRowPrepared plays the entrance animation the first time a new row enters the visible area
+    //Virtualization recycles containers that scroll off screen and reattachment is common during scrolling, IsNew gates it to truly new rows
     private void OnRowPrepared(object? sender, ContainerPreparedEventArgs e)
     {
         if (e.Container is not ListBoxItem item || item.DataContext is not LogRow row || !row.IsNew) return;
         row.IsNew = false;
-        //先把起始值写到本地 动画起来之前那一帧才不会闪出完整的一行
+        //Write the start value locally first so the frame before the animation does not flash a fully drawn row
         item.Opacity = 0;
         item.RenderTransform = new TranslateTransform(0, 6);
         LogRowAnimation.Play(item);
@@ -395,7 +395,7 @@ public sealed partial class ServerLogPage : UserControl
         _ => "INFO",
     };
 
-    //LevelClass 样式用的类名 与日志行里那支级别色对上
+    //LevelClass the class name used for styles, matching the level color in log rows
     private static string LevelClass(LogLevel level) => level switch
     {
         LogLevel.Debug => "dbg",

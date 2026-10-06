@@ -2,8 +2,8 @@ using NetCraft.Commands.Functions;
 
 namespace NetCraft.Commands.Execution.Tasks;
 
-//CallFunction 一次函数调用动作对应原版 net.minecraft.commands.execution.tasks.CallFunction
-//开新帧把函数条目逐条排进队列 returnParentFrame 表示返回时直接废弃到父帧
+//CallFunction a single function call action, maps to vanilla net.minecraft.commands.execution.tasks.CallFunction
+//Opens a new frame and enqueues the function entries one by one; returnParentFrame means discarding straight to the parent frame on return
 public class CallFunction<T>
 {
     private readonly InstantiatedFunction<T> _function;
@@ -32,7 +32,7 @@ public class CallFunction<T>
             (frame1, entryAction) => new CommandQueueEntry<T>(frame1, entryAction.Bind(sender)));
     }
 
-    //Bind 包装成未绑定动作委托
+    //Bind wraps it into an unbound action delegate
     public UnboundEntryAction<T> ToUnboundAction()
         => Execute;
 }

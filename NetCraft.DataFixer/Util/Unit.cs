@@ -1,6 +1,6 @@
 namespace NetCraft.DataFixer.Util;
 
-//单元类型对应原版Unit单例
+//unit type maps to the vanilla Unit singleton
 public readonly struct Unit : IEquatable<Unit>
 {
     public static readonly Unit Instance = default;

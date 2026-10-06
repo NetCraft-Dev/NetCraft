@@ -2,35 +2,35 @@ using NetCraft.Codec;
 
 namespace NetCraft.Game.World.Level;
 
-//GameType 游戏模式对标原版 net.minecraft.world.level.GameType
-//静态实例模式替代 enum 携带 id/name/shortName 与能力标志
-//id 与网络协议/Player.GameMode int 一致 0=生存 1=创造 2=冒险 3=旁观
+//GameType game mode, maps to vanilla net.minecraft.world.level.GameType
+//Static instance pattern replaces enum, carries id/name/shortName plus capability flags
+//id matches network protocol / Player.GameMode int: 0=survival 1=creative 2=adventure 3=spectator
 public sealed class GameType
 {
-    //Survival 生存 可构建可破坏
+    //Survival can build and break
     public static readonly GameType Survival = new(0, "survival", "s");
-    //Creative 创造 可飞行 instabuild
+    //Creative can fly, instabuild
     public static readonly GameType Creative = new(1, "creative", "c");
-    //Adventure 冒险 限制放置方块
+    //Adventure restricted block placing
     public static readonly GameType Adventure = new(2, "adventure", "a");
-    //Spectator 旁观 无碰撞可飞行不可交互
+    //Spectator no collision, can fly, cannot interact
     public static readonly GameType Spectator = new(3, "spectator", "sp");
 
-    //All 全部模式按 id 升序供遍历
+    //All all modes in ascending id order for iteration
     private static readonly GameType[] s_all = { Survival, Creative, Adventure, Spectator };
 
-    //Codec 按名称编解码 对应原版 GameType.CODEC
+    //Codec encode/decode by name, maps to vanilla GameType.CODEC
     public static readonly Codec<GameType> Codec = Codecs.String.ComapFlatMap(
         name => ByName(name) is { } type
             ? DataResult<GameType>.Success(type)
-            : DataResult<GameType>.Error(() => $"未知的游戏模式: {name}"),
+            : DataResult<GameType>.Error(() => $"Unknown game mode: {name}"),
         type => type.Name);
 
-    //Id 数字 id 与协议一致
+    //Id numeric id, matches protocol
     public int Id { get; }
-    //Name 全名如 survival
+    //Name full name such as survival
     public string Name { get; }
-    //ShortName 短名如 s
+    //ShortName short name such as s
     public string ShortName { get; }
 
     private GameType(int id, string name, string shortName)
@@ -40,16 +40,16 @@ public sealed class GameType
         ShortName = shortName;
     }
 
-    //IsCreative 创造或旁观 原版 isCreative 语义
+    //IsCreative creative or spectator, vanilla isCreative semantics
     public bool IsCreative => this == Creative || this == Spectator;
-    //IsSurvival 生存或冒险 原版 isSurvival 语义
+    //IsSurvival survival or adventure, vanilla isSurvival semantics
     public bool IsSurvival => this == Survival || this == Adventure;
-    //IsBlockPlacingRestricted 冒险或旁观限制放置/破坏 原版 isBlockPlacingRestricted 语义
+    //IsBlockPlacingRestricted adventure or spectator restrict placing/breaking, vanilla isBlockPlacingRestricted semantics
     public bool IsBlockPlacingRestricted => this == Adventure || this == Spectator;
-    //IsFlyAllowed 创造或旁观可飞行 原版 isFlyAllowed 语义
+    //IsFlyAllowed creative or spectator can fly, vanilla isFlyAllowed semantics
     public bool IsFlyAllowed => this == Creative || this == Spectator;
 
-    //ById 按数字 id 查模式 未找到返回 null
+    //ById lookup mode by numeric id, returns null if not found
     public static GameType? ById(int id)
     {
         foreach (var type in s_all)
@@ -57,8 +57,8 @@ public sealed class GameType
         return null;
     }
 
-    //ByName 按名称或短名解析忽略大小写 未找到返回 null
-    //原版 byName 遍历匹配 name/shortName equalsIgnoreCase
+    //ByName resolve by name or short name, case-insensitive, returns null if not found
+    //vanilla byName iterates matching name/shortName equalsIgnoreCase
     public static GameType? ByName(string? name)
     {
         if (string.IsNullOrWhiteSpace(name)) return null;

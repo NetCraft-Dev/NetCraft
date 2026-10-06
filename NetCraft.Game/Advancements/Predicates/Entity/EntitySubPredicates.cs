@@ -3,11 +3,11 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Advancements.Predicates.Entity;
 
-//EntitySubPredicates 实体子谓词注册 对应原版 net.minecraft.advancements.predicates.entity.EntitySubPredicates
-//注册名沿用原版 未实现的类型待实体底座补齐后再登记
+//EntitySubPredicates entity sub-predicate registration, maps to vanilla net.minecraft.advancements.predicates.entity.EntitySubPredicates
+//Registry names follow vanilla; unimplemented types are registered once the entity base is complete
 public static class EntitySubPredicates
 {
-    //Bootstrap 把已实现的子谓词登记进 ENTITY_SUB_PREDICATE_TYPE
+    //Bootstrap registers the implemented sub-predicates into ENTITY_SUB_PREDICATE_TYPE
     public static void Bootstrap()
     {
         Register("entity_type", EntityTypePredicate.Codec);
@@ -24,13 +24,13 @@ public static class EntitySubPredicates
         Register("effects", EntityEffectsPredicate.Codec);
     }
 
-    //Register 把具体子谓词的 codec 适配成接口版后按名登记
+    //Register adapts a concrete sub-predicate's codec into the interface version and registers it by name
     private static void Register<T>(string name, Codec<T> codec) where T : class, EntitySubPredicate
         => Registry<Codec<EntitySubPredicate>>.Register(BuiltInRegistries.ENTITY_SUB_PREDICATE_TYPE, name,
             new EntitySubPredicateCodecAdapter<T>(codec));
 }
 
-//EntitySubPredicateCodecAdapter 把具体子谓词类型的 codec 适配成接口版 供子谓词注册表分派
+//EntitySubPredicateCodecAdapter adapts a concrete sub-predicate type's codec into the interface version, for the sub-predicate registry to dispatch
 internal sealed class EntitySubPredicateCodecAdapter<T> : ScalarCodec<EntitySubPredicate>
     where T : class, EntitySubPredicate
 {

@@ -2,13 +2,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundStopSoundPacket 停止声音包对应原版 ClientboundStopSoundPacket
-//字段 Name(音效标识) Source(音效分类) 都可为空
+//ClientboundStopSoundPacket stop sound packet, maps to vanilla ClientboundStopSoundPacket
+//Fields: Name (sound identifier), Source (sound category); both may be empty
 public sealed record ClientboundStopSoundPacket(Identifier? Name, SoundSource? Source) : Packet<ClientGamePacketListener>
 {
-    //StopSourceFlag 位掩码 bit0 表示带 Source
+    //StopSourceFlag bitmask bit0 means a Source is present
     private const byte StopSourceFlag = 1;
-    //StopNameFlag 位掩码 bit1 表示带 Name
+    //StopNameFlag bitmask bit1 means a Name is present
     private const byte StopNameFlag = 2;
 
     public static StreamCodec<FriendlyByteBuf, ClientboundStopSoundPacket> StreamCodec { get; } = new StopSoundCodec();

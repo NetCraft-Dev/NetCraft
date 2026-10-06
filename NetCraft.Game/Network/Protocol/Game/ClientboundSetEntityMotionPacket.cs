@@ -2,8 +2,8 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetEntityMotionPacket 实体动量包对应原版 ClientboundSetEntityMotionPacket
-//字段 id VarInt movement Vec3 走低精度量化编码 对应原版 Vec3.LP_STREAM_CODEC
+//ClientboundSetEntityMotionPacket entity motion packet, maps to vanilla ClientboundSetEntityMotionPacket
+//Fields: id VarInt, movement Vec3 using low-precision quantized encoding, maps to vanilla Vec3.LP_STREAM_CODEC
 public sealed record ClientboundSetEntityMotionPacket(int Id, Vec3 Movement) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetEntityMotionPacket> StreamCodec { get; } = new SetEntityMotionCodec();

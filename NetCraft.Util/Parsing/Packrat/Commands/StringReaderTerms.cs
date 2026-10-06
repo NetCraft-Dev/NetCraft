@@ -2,8 +2,8 @@ using NetCraft.Util;
 
 namespace NetCraft.Util.Parsing.Packrat.Commands;
 
-//StringReader项工具对应原版net.minecraft.util.parsing.packrat.commands.StringReaderTerms
-//提供word/character/characters等终结符工厂供Grammar构造
+//StringReader term helpers, map to vanilla net.minecraft.util.parsing.packrat.commands.StringReaderTerms
+//Provides terminal factories like word/character/characters for Grammar construction
 public static class StringReaderTerms
 {
     public static Term<CommandStringReader> Word(string value)
@@ -15,7 +15,7 @@ public static class StringReaderTerms
     public static Term<CommandStringReader> Characters(char v1, char v2)
         => new CharArrayTerminalCharacters([v1, v2], c => c == v1 || c == v2);
 
-    //createReader创建CommandStringReader并设置cursor供DelayedException工厂使用
+    //createReader creates a CommandStringReader and sets the cursor, for the DelayedException factory
     public static CommandStringReader CreateReader(string contents, int cursor)
     {
         var reader = new CommandStringReader(contents);
@@ -81,7 +81,7 @@ public static class StringReaderTerms
         }
     }
 
-    //CharArrayTerminalCharacters基于字符数组构造TerminalCharacters
+    //CharArrayTerminalCharacters builds TerminalCharacters from a char array
     private sealed class CharArrayTerminalCharacters : TerminalCharacters
     {
         private readonly Func<char, bool> _acceptor;
@@ -96,7 +96,7 @@ public static class StringReaderTerms
     }
 }
 
-//DelayedException静态工厂延迟到此处实现依赖StringReaderTerms.CreateReader
+//The DelayedException static factory is implemented here to depend on StringReaderTerms.CreateReader
 public static class DelayedExceptionFactories
 {
     public static DelayedException<CommandSyntaxException> Create(SimpleCommandExceptionType type)

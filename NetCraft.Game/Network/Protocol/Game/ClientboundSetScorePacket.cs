@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetScorePacket 分数设置包对应原版 ClientboundSetScorePacket
-//字段 Owner(String) ObjectiveName(String) Score(int) Display(Optional<Component>) NumberFormat(Optional<NumberFormat>)
+//ClientboundSetScorePacket set score packet, maps to vanilla ClientboundSetScorePacket
+//Fields: Owner(String), ObjectiveName(String), Score(int), Display(Optional<Component>), NumberFormat(Optional<NumberFormat>)
 public sealed record ClientboundSetScorePacket(string Owner, string ObjectiveName, int Score, object Display, object NumberFormat) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetScorePacket> StreamCodec { get; } = new SetScoreCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundSetScorePacket(string Owner, string ObjectiveNam
     private sealed class SetScoreCodec : StreamCodec<FriendlyByteBuf, ClientboundSetScorePacket>
     {
         public ClientboundSetScorePacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundSetScorePacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

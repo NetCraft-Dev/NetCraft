@@ -5,7 +5,7 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.Block.Entity;
 
-//Occupant 蜂巢里一只蜜蜂的存档 对应原版 BeehiveBlockEntity.Occupant
+//Occupant saved data for one bee inside a hive, maps to vanilla BeehiveBlockEntity.Occupant
 public sealed record Occupant(TypedEntityData<Holder<EntityType<object>>> EntityData, int TicksInHive, int MinTicksInHive)
 {
     internal static readonly StreamCodec<RegistryFriendlyByteBuf, Holder<EntityType<object>>> EntityTypeCodec
@@ -17,20 +17,20 @@ public sealed record Occupant(TypedEntityData<Holder<EntityType<object>>> Entity
     internal static readonly Codec<TypedEntityData<Holder<EntityType<object>>>> EntityDataPersistentCodec
         = TypedEntityData<Holder<EntityType<object>>>.CodecOf(HolderSetCodecs.EntityTypeRef);
 
-    //Codec 持久化编解码 对应原版 Occupant.CODEC
+    //Codec persistent codec, maps to vanilla Occupant.CODEC
     public static readonly Codec<Occupant> Codec = RecordCodecBuilder.Of3(
         EntityDataPersistentCodec.FieldOf("entity_data").ForGetter((Occupant occupant) => occupant.EntityData),
         Codecs.Int.FieldOf("ticks_in_hive").ForGetter((Occupant occupant) => occupant.TicksInHive),
         Codecs.Int.FieldOf("min_ticks_in_hive").ForGetter((Occupant occupant) => occupant.MinTicksInHive),
         (entityData, ticksInHive, minTicksInHive) => new Occupant(entityData, ticksInHive, minTicksInHive));
 
-    //ListCodec 列表编解码 对应原版 Occupant.LIST_CODEC
+    //ListCodec list codec, maps to vanilla Occupant.LIST_CODEC
     public static readonly Codec<IReadOnlyList<Occupant>> ListCodec = Codec.ListOf();
 
     public static readonly StreamCodec<RegistryFriendlyByteBuf, Occupant> StreamCodec = new OccupantStreamCodec();
 }
 
-//OccupantStreamCodec 对应原版 STREAM_CODEC 实体数据 巢内时长 最短时长
+//OccupantStreamCodec maps to vanilla STREAM_CODEC: entity data, ticks in hive, min ticks in hive
 internal sealed class OccupantStreamCodec : StreamCodec<RegistryFriendlyByteBuf, Occupant>
 {
     public Occupant Decode(RegistryFriendlyByteBuf buf)

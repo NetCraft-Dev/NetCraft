@@ -1,11 +1,11 @@
 namespace NetCraft.Registry;
 
-//Timeline 时间线对应原版 net.minecraft.world.timeline.Timeline
-//把一个世界时钟划分为周期 periodTicks 并定义周期内的时间标记
-//原版另有 EnvironmentAttribute 轨道用于客户端环境采样 此处不移植
+//Timeline timeline, maps to vanilla net.minecraft.world.timeline.Timeline
+//Divides a world clock into periods (periodTicks) and defines the time markers within a period
+//Vanilla also has EnvironmentAttribute tracks for client environment sampling, not ported here
 public sealed class Timeline
 {
-    //TimeMarkerInfo 标记定义 ticks 为周期内位置 showInCommands 控制命令建议可见性
+    //TimeMarkerInfo marker definition; ticks is the position within the period and showInCommands controls command suggestion visibility
     public sealed record TimeMarkerInfo(int Ticks, bool ShowInCommands);
 
     private readonly Dictionary<ResourceKey<ClockTimeMarker>, TimeMarkerInfo> _timeMarkers;
@@ -21,16 +21,16 @@ public sealed class Timeline
         TimeMarkers = _timeMarkers;
     }
 
-    //Clock 所属世界时钟
+    //Clock the owning world clock
     public Holder<WorldClock> Clock { get; }
 
-    //PeriodTicks 周期刻数 null 表示非周期时间线
+    //PeriodTicks period tick count; null means an aperiodic timeline
     public int? PeriodTicks { get; }
 
-    //TimeMarkers 周期内时间标记定义只读视图
+    //TimeMarkers read-only view of the time marker definitions within the period
     public IReadOnlyDictionary<ResourceKey<ClockTimeMarker>, TimeMarkerInfo> TimeMarkers { get; }
 
-    //GetPeriodCount 已走过的完整周期数 非周期时间线返回 0
+    //GetPeriodCount number of complete periods elapsed; returns 0 for an aperiodic timeline
     public int GetPeriodCount(ClockManager clockManager)
     {
         if (PeriodTicks is null)
@@ -38,7 +38,7 @@ public sealed class Timeline
         return (int)(GetTotalTicks(clockManager) / PeriodTicks.Value);
     }
 
-    //GetCurrentTicks 当前周期内刻数 非周期时间线返回总刻数
+    //GetCurrentTicks ticks within the current period; returns total ticks for an aperiodic timeline
     public long GetCurrentTicks(ClockManager clockManager)
     {
         var totalTicks = GetTotalTicks(clockManager);
@@ -47,7 +47,7 @@ public sealed class Timeline
 
     public long GetTotalTicks(ClockManager clockManager) => clockManager.GetTotalTicks(Clock);
 
-    //RegisterTimeMarkers 把周期内标记展开成 ClockTimeMarker 交给回调注册
+    //RegisterTimeMarkers expands the markers within the period into ClockTimeMarkers and hands them to the callback to register
     public void RegisterTimeMarkers(Action<ResourceKey<ClockTimeMarker>, ClockTimeMarker> output)
     {
         foreach (var (key, info) in _timeMarkers)

@@ -3,19 +3,19 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Storage.Light;
 
-//LayerLightEventListener 单层光照监听对应原版 net.minecraft.world.level.lighting.LayerLightEventListener
-//在 LightEventListener 之上增加按层读取光照数据的能力
+//LayerLightEventListener, per-layer light listener, maps to vanilla net.minecraft.world.level.lighting.LayerLightEventListener
+//Adds per-layer light data reads on top of LightEventListener
 public interface LayerLightEventListener : LightEventListener
 {
-    //getDataLayerData 取区段的层数据不存在返回 null
+    //getDataLayerData returns the section's layer data, or null when absent
     DataLayer? GetDataLayerData(SectionPos pos);
 
-    //getLightValue 取方块坐标上的光照等级
+    //getLightValue returns the light level at a block pos
     int GetLightValue(BlockPos pos);
 }
 
-//DummyLightLayerEventListener 空实现对应原版 LayerLightEventListener.DummyLightLayerEventListener
-//供光照未启用时占位避免调用方到处判空
+//DummyLightLayerEventListener, empty implementation, maps to vanilla LayerLightEventListener.DummyLightLayerEventListener
+//Placeholder for when lighting is disabled, so callers need not null-check everywhere
 public sealed class DummyLightLayerEventListener : LayerLightEventListener
 {
     public static readonly DummyLightLayerEventListener Instance = new();

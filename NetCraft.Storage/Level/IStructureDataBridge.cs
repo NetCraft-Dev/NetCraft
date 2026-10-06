@@ -3,15 +3,15 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Storage;
 
-//IStructureDataBridge 结构数据与区块存储之间的桥 由 Game 层实现
-//结构片段的具体类型只有 Game 层认识 Storage 层只搬运 structures 段的 NBT
-//对应原版 LevelChunk 自己持有 structureStarts/structureReferences 的职责
+//IStructureDataBridge, bridge between structure data and chunk storage, implemented by the Game layer
+//Only the Game layer knows the concrete structure piece types; the Storage layer just moves the NBT of the structures section
+//Maps to vanilla LevelChunk holding structureStarts/structureReferences itself
 public interface IStructureDataBridge
 {
-    //Pack 取该区块的装配结果与跨区块引用打包成 structures 段
-    //直接写盘的是这份 NBT 结构内容不含任何游戏对象
+    //Pack packages the chunk's placements and cross-chunk references into the structures section
+    //This NBT is what gets written to disk; the structure content holds no game objects
     CompoundTag Pack(ChunkPos pos);
 
-    //Restore 把读档得到的 structures 段还原进结构表 未知结构名由实现跳过
+    //Restore applies the structures section read from disk back into the structure table; unknown structure names are skipped by the implementation
     void Restore(ChunkPos pos, CompoundTag tag);
 }

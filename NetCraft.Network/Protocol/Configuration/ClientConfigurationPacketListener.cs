@@ -1,8 +1,8 @@
 namespace NetCraft.Network.Protocol.Configuration;
 
-//ClientConfigurationPacketListener 客户端 configuration 监听器
-//对应原版 net.minecraft.network.protocol.configuration.ClientConfigurationPacketListener
-//继承 ClientCommonPacketListener 加入 6 个 configuration 包的 handle 方法
+//ClientConfigurationPacketListener client configuration listener
+//Maps to vanilla net.minecraft.network.protocol.configuration.ClientConfigurationPacketListener
+//Inherits ClientCommonPacketListener and adds the 6 handle methods for configuration packets
 public interface ClientConfigurationPacketListener : ClientCommonPacketListener
 {
     void HandleCodeOfConduct(ClientboundCodeOfConductPacket packet);

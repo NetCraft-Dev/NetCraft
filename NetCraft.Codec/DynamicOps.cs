@@ -1,7 +1,7 @@
 namespace NetCraft.Codec;
 
-//抽象类型操作接口对应原版com.mojang.serialization.DynamicOps
-//定义如何创建/读取/合并某种类型T的元素NbtOps实现DynamicOps<Tag>
+//Abstract type-operation interface, mirroring vanilla com.mojang.serialization.DynamicOps
+//Defines how to create/read/merge elements of some type T; NbtOps implements DynamicOps<Tag>
 public interface DynamicOps<T>
 {
     T Empty();
@@ -24,7 +24,7 @@ public interface DynamicOps<T>
 
     T CreateBoolean(bool value);
 
-    //原版createNumeric接收Number统一用double
+    //Vanilla createNumeric takes a Number; this port uses double throughout
     T CreateNumeric(double value);
 
     T CreateString(string value);
@@ -33,22 +33,22 @@ public interface DynamicOps<T>
 
     T CreateMap(IEnumerable<Pair<T, T>> map);
 
-    //createByteList默认转CreateList+CreateByte对应原版createByteList
+    //createByteList defaults to CreateList + CreateByte, mirroring vanilla createByteList
     T CreateByteList(IEnumerable<byte> stream) => CreateList(stream.Select(CreateByte));
 
-    //createIntList默认转CreateList+CreateInt对应原版createIntList
+    //createIntList defaults to CreateList + CreateInt, mirroring vanilla createIntList
     T CreateIntList(IEnumerable<int> stream) => CreateList(stream.Select(CreateInt));
 
-    //createLongList默认转CreateList+CreateLong对应原版createLongList
+    //createLongList defaults to CreateList + CreateLong, mirroring vanilla createLongList
     T CreateLongList(IEnumerable<long> stream) => CreateList(stream.Select(CreateLong));
 
-    //原版getNumberValue返回Number简化为double
+    //Vanilla getNumberValue returns a Number, simplified to double here
     DataResult<double> GetNumberValue(T input);
 
-    //原版getNumberValue取long的精确版本
-    //走NumberValue会经过double超过53位的整数被舍入
-    //区块block_states的data与heightmaps都是int64位打包数据丢精度会让索引错乱
-    //整数原生格式如NbtOps必须覆写此方法
+    //Exact version of vanilla getNumberValue for longs
+    //Going through NumberValue passes an integer through double, so values wider than 53 bits get rounded
+    //Chunk block_states data and heightmaps are 64-bit packed ints, and losing precision would scramble the indices
+    //Ops with a native integer format, such as NbtOps, must override this method
     DataResult<long> GetLongValue(T input) => GetNumberValue(input).Map(v => (long)v);
 
     DataResult<string> GetStringValue(T input);
@@ -73,9 +73,9 @@ public interface DynamicOps<T>
 
     T Remove(T input, string key);
 
-    //把当前ops的input转换为目标ops的元素
+    //Convert input of the current ops into an element of the target ops
     U ConvertTo<U>(DynamicOps<U> ops, T input);
 
-    //返回record builder用于MapCodec累积字段对应原版mapBuilder
+    //Returns a record builder for MapCodec field accumulation, mirroring vanilla mapBuilder
     RecordBuilder<T> MapBuilder();
 }

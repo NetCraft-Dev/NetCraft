@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetBorderSizePacket 边界大小包对应原版 ClientboundSetBorderSizePacket
-//字段 Size(double)
+//ClientboundSetBorderSizePacket border size packet, maps to vanilla ClientboundSetBorderSizePacket
+//Field: Size(double)
 public sealed record ClientboundSetBorderSizePacket(double Size) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetBorderSizePacket> StreamCodec { get; } = new SetBorderSizeCodec();

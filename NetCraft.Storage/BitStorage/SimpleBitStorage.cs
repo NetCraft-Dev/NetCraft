@@ -1,11 +1,11 @@
 namespace NetCraft.Storage;
 
-//基础位存储对应原版net.minecraft.util.SimpleBitStorage
-//每元素占固定bits紧凑存储在long数组中
+//Simple bit storage, maps to vanilla net.minecraft.util.SimpleBitStorage
+//Each element takes fixed bits, densely packed in a long array
 public sealed class SimpleBitStorage : BitStorage
 {
-    //MAGIC数组对应原版static MAGIC查表用valuesPerLong-1索引
-    //值含负数0xFFFFFFFF作为uint处理C#用int保留位模式
+    //MAGIC array maps to vanilla static MAGIC, indexed by valuesPerLong-1
+    //Values include negative 0xFFFFFFFF handled as uint; C# keeps int to preserve the bit pattern
     private static readonly int[] Magic = BuildMagic();
 
     private readonly long[] _data;
@@ -17,13 +17,13 @@ public sealed class SimpleBitStorage : BitStorage
     private readonly uint _divideAdd;
     private readonly int _divideShift;
 
-    //初始化异常对应原版InitializationException
+    //Initialization exception, maps to vanilla InitializationException
     public sealed class InitializationException : Exception
     {
         public InitializationException(string message) : base(message) { }
     }
 
-    //从int[] values构建紧凑存储对应原版(bits,size,values)
+    //Build packed storage from int[] values, maps to vanilla (bits,size,values)
     public SimpleBitStorage(int bits, int size, int[] values) : this(bits, size, (long[]?)null)
     {
         var outputIndex = 0;
@@ -48,7 +48,7 @@ public sealed class SimpleBitStorage : BitStorage
 
     public SimpleBitStorage(int bits, int size) : this(bits, size, (long[]?)null) { }
 
-    //从long[] data构建紧凑存储对应原版(bits,size,data)
+    //Build packed storage from long[] data, maps to vanilla (bits,size,data)
     public SimpleBitStorage(int bits, int size, long[]? data)
     {
         if (bits < 1 || bits > 32)
@@ -173,8 +173,8 @@ public sealed class SimpleBitStorage : BitStorage
             throw new ArgumentOutOfRangeException(nameof(value));
     }
 
-    //MAGIC表对应原版static MAGIC数组
-    //包含divideMul/divideAdd/divideShift三元组供CellIndex快速除法
+    //MAGIC table maps to vanilla static MAGIC array
+    //Holds the divideMul/divideAdd/divideShift triplets for fast division in CellIndex
     private static int[] BuildMagic()
     {
         return new int[]

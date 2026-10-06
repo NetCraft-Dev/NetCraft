@@ -1,13 +1,13 @@
 namespace NetCraft.Primitives;
 
-//方块位置对应原版net.minecraft.core.BlockPos
-//原版继承Vec3i这里readonly struct不能继承所以直接持有X/Y/Z字段并复用Vec3i方法
-//含asLong/getX/getY/getZ位运算pack对应原版压缩存储
+//Block position, maps to vanilla net.minecraft.core.BlockPos
+//Vanilla extends Vec3i, here a readonly struct cannot inherit so it directly holds X/Y/Z fields and reuses the Vec3i methods
+//Includes asLong/getX/getY/getZ bitwise packing, maps to the vanilla compressed storage
 public readonly struct BlockPos : IEquatable<BlockPos>
 {
     public static readonly BlockPos Zero = new(0, 0, 0);
 
-    //PACKED_HORIZONTAL_LENGTH原版依赖Level.MAX_LEVEL_SIZE这里固定为26对齐原版默认值
+    //PACKED_HORIZONTAL_LENGTH vanilla depends on Level.MAX_LEVEL_SIZE, fixed to 26 here to align with the vanilla default
     public const int PackedHorizontalLength = 26;
     public const int PackedYLength = 64 - 2 * PackedHorizontalLength;
     private const long PackedXMask = (1 << PackedHorizontalLength) - 1;
@@ -30,10 +30,10 @@ public readonly struct BlockPos : IEquatable<BlockPos>
 
     public BlockPos(Vec3i vec) : this(vec.X, vec.Y, vec.Z) { }
 
-    //asVec3i转Vec3i
+    //asVec3i converts to Vec3i
     public Vec3i AsVec3i() => new(X, Y, Z);
 
-    //asLong把BlockPos压缩为long对应原版序列化存储
+    //asLong packs the BlockPos into a long, maps to the vanilla serialized storage
     public long AsLong()
     {
         long x = X & PackedXMask;
@@ -42,7 +42,7 @@ public readonly struct BlockPos : IEquatable<BlockPos>
         return (y << 0) | (z << ZOffset) | (x << XOffset);
     }
 
-    //fromLong从long解压为BlockPos
+    //fromLong unpacks a long into a BlockPos
     public static BlockPos FromLong(long packed)
     {
         int x = (int)((packed << (64 - XOffset - PackedHorizontalLength)) >> (64 - PackedHorizontalLength));
@@ -51,7 +51,7 @@ public readonly struct BlockPos : IEquatable<BlockPos>
         return new BlockPos(x, y, z);
     }
 
-    //getX从packed取X
+    //getX reads X from packed
     public static int GetX(long packed)
         => (int)((packed << (64 - XOffset - PackedHorizontalLength)) >> (64 - PackedHorizontalLength));
 
@@ -61,7 +61,7 @@ public readonly struct BlockPos : IEquatable<BlockPos>
     public static int GetZ(long packed)
         => (int)((packed << (64 - ZOffset - PackedHorizontalLength)) >> (64 - PackedHorizontalLength));
 
-    //offset按方向偏移返回新BlockPos
+    //offset returns a new BlockPos offset by a direction
     public BlockPos Offset(Direction direction) => new(X + direction.StepX, Y + direction.StepY, Z + direction.StepZ);
 
     public BlockPos Offset(int x, int y, int z)
@@ -72,14 +72,14 @@ public readonly struct BlockPos : IEquatable<BlockPos>
     public BlockPos Relative(Direction direction, int steps)
         => steps == 0 ? this : new BlockPos(X + direction.StepX * steps, Y + direction.StepY * steps, Z + direction.StepZ * steps);
 
-    //offsetPacked静态偏移packed long对应原版offset(long, Direction)
+    //offsetPacked static offset of a packed long, maps to vanilla offset(long, Direction)
     public static long Offset(long packed, Direction direction)
         => Offset(packed, direction.StepX, direction.StepY, direction.StepZ);
 
     public static long Offset(long packed, int stepX, int stepY, int stepZ)
         => AsLong(GetX(packed) + stepX, GetY(packed) + stepY, GetZ(packed) + stepZ);
 
-    //asLong静态构造packed long对应原版asLong
+    //asLong static constructor of a packed long, maps to vanilla asLong
     public static long AsLong(int x, int y, int z)
     {
         long xPacked = x & PackedXMask;
@@ -88,7 +88,7 @@ public readonly struct BlockPos : IEquatable<BlockPos>
         return (yPacked << 0) | (zPacked << ZOffset) | (xPacked << XOffset);
     }
 
-    //getFlatIndex 清掉低 4 位把 y 对齐到区段底部对应原版 getFlatIndex
+    //getFlatIndex clears the low 4 bits to align y to the bottom of the section, maps to vanilla getFlatIndex
     public static long GetFlatIndex(long packed) => packed & -16;
 
     public override int GetHashCode() => (int)(AsLong() ^ (AsLong() >> 32));

@@ -2,8 +2,8 @@ using NetCraft.Util;
 
 namespace NetCraft.Storage;
 
-//CopyOnWriteFSProvider 写时复制文件系统的访问入口 对应原版 net.minecraft.util.filefix.virtualfilesystem.CopyOnWriteFSProvider
-//原版继承 FileSystemProvider 这里只保留开流 列目录 增删移 查访问这些会被用到的行为
+//CopyOnWriteFSProvider, access entry point of the copy-on-write filesystem, maps to vanilla net.minecraft.util.filefix.virtualfilesystem.CopyOnWriteFSProvider
+//Vanilla extends FileSystemProvider; here only the used behaviors are kept: open stream, list directory, add/remove/move, check access
 public sealed class CopyOnWriteFSProvider
 {
     public const string Scheme = "x-mc-copy-on-write";
@@ -14,7 +14,7 @@ public sealed class CopyOnWriteFSProvider
 
     public string GetScheme() => Scheme;
 
-    //OpenChannel 打开文件流 写前先确保复制进临时目录 新建时把节点挂进文件树
+    //OpenChannel opens a file stream; before writing ensure it is copied into the temp directory, and when creating attach the node to the file tree
     public Stream OpenChannel(CopyOnWriteFSPath path, bool write, bool create)
     {
         var node = _fs.FileTree.ByPathOrNull(path);
@@ -33,7 +33,7 @@ public sealed class CopyOnWriteFSProvider
         return result;
     }
 
-    //NewDirectoryStream 列出目录下的子路径
+    //NewDirectoryStream lists the child paths of a directory
     public IReadOnlyList<CopyOnWriteFSPath> NewDirectoryStream(CopyOnWriteFSPath dir, Func<CopyOnWriteFSPath, bool>? filter = null)
     {
         var directoryNode = _fs.FileTree.DirectoryByPath(dir);
@@ -45,7 +45,7 @@ public sealed class CopyOnWriteFSProvider
         return result;
     }
 
-    //CreateDirectory 建空目录 同名已存在抛异常
+    //CreateDirectory creates an empty directory, throws when the name already exists
     public void CreateDirectory(CopyOnWriteFSPath dir)
     {
         var parentPath = dir.GetParent() ?? throw new CowFSFileAlreadyExistsException(dir.ToString());
@@ -55,7 +55,7 @@ public sealed class CopyOnWriteFSProvider
         parentFolder.AddChild(new DirectoryNode(dir));
     }
 
-    //Delete 摘掉节点 根节点与非空目录都拒绝
+    //Delete detaches a node; both the root node and a non-empty directory are rejected
     public void Delete(CopyOnWriteFSPath path)
     {
         var node = _fs.FileTree.ByPath(path);
@@ -72,7 +72,7 @@ public sealed class CopyOnWriteFSProvider
         node.Parent.RemoveChild(name);
     }
 
-    //Move 改挂节点 目标已存在时按 replaceExisting 决定覆盖还是报错
+    //Move re-attaches a node; when the target exists, replaceExisting decides overwrite or error
     public void Move(CopyOnWriteFSPath source, CopyOnWriteFSPath target, bool replaceExisting)
     {
         if (source.IsRoot()) throw new CowFSFileSystemException($"{source}: can't move root directory");
@@ -92,7 +92,7 @@ public sealed class CopyOnWriteFSProvider
         targetParent.AddChild(sourceNode);
     }
 
-    //CheckAccess 目录看临时目录 文件看真实存储 写访问要求不作只读
+    //CheckAccess: directories check the temp directory, files check the real storage; write access requires not read-only
     public void CheckAccess(CopyOnWriteFSPath path, bool read)
     {
         var node = _fs.FileTree.ByPath(path);
@@ -105,7 +105,7 @@ public sealed class CopyOnWriteFSProvider
         if (!File.Exists(target) && !Directory.Exists(target)) throw new FileNotFoundException(target);
     }
 
-    //ReadAttributes 目录与文件各给一份占位属性
+    //ReadAttributes gives a placeholder attribute set for directories and files
     public DummyFileAttributes ReadAttributes(CopyOnWriteFSPath path)
     {
         var node = _fs.FileTree.ByPath(path);
@@ -114,7 +114,7 @@ public sealed class CopyOnWriteFSProvider
 
     public CopyOnWriteFSPath GetRealPath(CopyOnWriteFSPath path) => _fs.FileTree.ByPath(path.ToAbsolutePath()).Path;
 
-    //OpenStream 真实文件流 写独占 读共享
+    //OpenStream, the real file stream: exclusive for write, shared for read
     private static Stream OpenStream(string path, bool write, bool create)
     {
         var mode = write && create ? FileMode.OpenOrCreate : FileMode.Open;

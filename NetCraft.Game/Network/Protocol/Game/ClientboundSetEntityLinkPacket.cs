@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetEntityLinkPacket 实体链接包对应原版 ClientboundSetEntityLinkPacket
-//字段 SourceId(int) DestId(int)
+//ClientboundSetEntityLinkPacket entity link packet, maps to vanilla ClientboundSetEntityLinkPacket
+//Fields: SourceId(int), DestId(int)
 public sealed record ClientboundSetEntityLinkPacket(int SourceId, int DestId) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetEntityLinkPacket> StreamCodec { get; } = new SetEntityLinkCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundSetEntityLinkPacket(int SourceId, int DestId) : 
     private sealed class SetEntityLinkCodec : StreamCodec<FriendlyByteBuf, ClientboundSetEntityLinkPacket>
     {
         public ClientboundSetEntityLinkPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundSetEntityLinkPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

@@ -1,8 +1,8 @@
 namespace NetCraft.Util.Parsing.Packrat;
 
-//解析规则名原子对应原版net.minecraft.util.parsing.packrat.Atom
-//Atom非泛型基类用作Dictionary key
-//Atom<T>带类型参数子类提供强类型访问
+//Parsing rule name atom, maps to vanilla net.minecraft.util.parsing.packrat.Atom
+//Atom non-generic base class used as a Dictionary key
+//Atom<T> typed subclass providing strongly-typed access
 public abstract class Atom
 {
     public string Name { get; }

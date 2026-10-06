@@ -2,8 +2,8 @@ using System.Collections;
 
 namespace NetCraft.Primitives.Phys;
 
-//AbstractDoubleList 只读 double 序列基类 对应原版 AbstractDoubleList
-//子类只给索引器与 Count 枚举按索引顺序遍历
+//AbstractDoubleList readonly double sequence base class, maps to vanilla AbstractDoubleList
+//Subclasses only provide the indexer and Count, enumeration walks in index order
 public abstract class AbstractDoubleList : IReadOnlyList<double>
 {
     public abstract double this[int index] { get; }

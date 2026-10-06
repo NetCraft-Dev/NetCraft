@@ -1,9 +1,9 @@
 namespace NetCraft.Network.Protocol.Ping;
 
-//ServerPingPacketListener 服务端 ping 监听器对应原版 net.minecraft.network.protocol.ping.ServerPingPacketListener
-//继承 PacketListener 基础接口处理 ServerboundPingRequestPacket
+//ServerPingPacketListener server-side ping listener, maps to vanilla net.minecraft.network.protocol.ping.ServerPingPacketListener
+//Inherits the basic PacketListener interface to handle ServerboundPingRequestPacket
 public interface ServerPingPacketListener : PacketListener
 {
-    //HandlePingRequest 处理 ping 请求包
+    //HandlePingRequest handles the ping request packet
     void HandlePingRequest(ServerboundPingRequestPacket packet);
 }

@@ -1,7 +1,7 @@
 namespace NetCraft.Storage;
 
-//LongOrderedSet 保序去重的 long 集合对应原版 LongLinkedOpenHashSet 用到的部分
-//只需要按插入顺序出队与 O(1) 去重 哈希表存节点加链表保序就够
+//LongOrderedSet, order-preserving deduplicating long set, covering the part of vanilla LongLinkedOpenHashSet that is used
+//Only insertion-order dequeue and O(1) dedup are needed; a hash map of nodes plus a linked list for order suffices
 internal sealed class LongOrderedSet
 {
     private readonly Dictionary<long, LinkedListNode<long>> _nodes;
@@ -11,7 +11,7 @@ internal sealed class LongOrderedSet
 
     public bool IsEmpty => _order.Count == 0;
 
-    //Add 不存在才追加到队尾返回是否新增
+    //Add appends to the tail only when absent, returns whether it was added
     public bool Add(long value)
     {
         if (_nodes.ContainsKey(value)) return false;
@@ -19,7 +19,7 @@ internal sealed class LongOrderedSet
         return true;
     }
 
-    //Remove 按值移除返回是否存在
+    //Remove removes by value, returns whether it existed
     public bool Remove(long value)
     {
         if (!_nodes.Remove(value, out var node)) return false;
@@ -27,7 +27,7 @@ internal sealed class LongOrderedSet
         return true;
     }
 
-    //RemoveFirst 取队首即最先进队的元素
+    //RemoveFirst takes the head, i.e. the earliest enqueued element
     public long RemoveFirst()
     {
         var node = _order.First!;

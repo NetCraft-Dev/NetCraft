@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ServerboundCustomClickActionPacket 自定义点击动作包对应原版 net.minecraft.network.protocol.common.ServerboundCustomClickActionPacket
-//含 Identifier id + byte[] payload 客户端通知服务端自定义点击事件
+//ServerboundCustomClickActionPacket custom click action packet, maps to vanilla net.minecraft.network.protocol.common.ServerboundCustomClickActionPacket
+//Contains Identifier id + byte[] payload; the client notifies the server of a custom click event
 public sealed record ServerboundCustomClickActionPacket(Identifier Id, byte[] Payload) : Packet<ServerCommonPacketListener>
 {
     public const int MaxPayloadLength = 32767;

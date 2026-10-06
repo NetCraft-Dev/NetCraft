@@ -4,35 +4,35 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Storage.Light;
 
-//LayerLightSectionStorage 单层光照区段存储对应原版 net.minecraft.world.level.lighting.LayerLightSectionStorage
-//职责是层状态管理(SectionState 位打包)与 DataLayer 的 visible/updating 双缓冲
-//原版把存储与引擎放在同一包内互相访问 这里对应放开到 protected internal
+//LayerLightSectionStorage, single-layer light section storage, maps to vanilla net.minecraft.world.level.lighting.LayerLightSectionStorage
+//Responsible for layer state management (SectionState bit packing) and the visible/updating double buffer of DataLayer
+//Vanilla keeps storage and engine in the same package with mutual access; here that is opened up to protected internal
 public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerStorageMap<TSelf>
 {
     private readonly LightLayer _layer;
     protected readonly LightChunkGetter ChunkSource;
 
-    //visibleSectionData 是供外部读取的快照 updatingSectionData 是光照引擎增量写入的副本
-    //原版 visible 声明为 volatile 是因为光照线程化 这里是同步实现无并发场景
+    //visibleSectionData is the snapshot for external reads; updatingSectionData is the copy the light engine writes incrementally
+    //Vanilla declares visible volatile because lighting is threaded; this is a synchronous implementation with no concurrency
     protected TSelf VisibleSectionData;
     protected readonly TSelf UpdatingSectionData;
 
     private bool _hasInconsistencies;
 
-    //区段状态表 值 0 表示不存在 对应原版 Long2ByteMap 的 defaultReturnValue(0)
+    //Section state table; a value of 0 means absent, maps to defaultReturnValue(0) of the vanilla Long2ByteMap
     protected readonly Dictionary<long, byte> SectionStates = new();
 
     private readonly HashSet<long> _columnsWithSources = new();
     protected readonly HashSet<long> ChangedSections = new();
     protected readonly HashSet<long> SectionsAffectedByLightUpdates = new();
 
-    //queuedSections 待写入的层数据 原版用同步 map 因多线程访问 同步实现下用普通字典
+    //queuedSections, layer data pending write; vanilla uses a synchronized map for multithreaded access, this synchronous implementation uses a plain dictionary
     protected readonly Dictionary<long, DataLayer> QueuedSections = new();
 
     private readonly HashSet<long> _columnsToRetainQueuedDataFor = new();
     private readonly HashSet<long> _toRemove = new();
 
-    //getLightValue 子类按层语义读取指定方块节点的光照等级
+    //getLightValue: subclasses read the light level of the given block node per layer semantics
     protected internal abstract int GetLightValue(long blockNode);
 
     protected LayerLightSectionStorage(LightLayer lightLayer, LightChunkGetter lightChunkGetter, TSelf map)
@@ -43,7 +43,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
         VisibleSectionData = map.Copy();
     }
 
-    //hasInconsistencies 是否有待落地的区段增删
+    //hasInconsistencies, whether there are section add/removes pending landing
     protected internal bool HasInconsistencies => _hasInconsistencies;
 
     protected internal bool StoringLightForSection(long sectionNode) => GetDataLayer(sectionNode, true) is not null;
@@ -53,7 +53,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
 
     protected DataLayer? GetDataLayer(TSelf sections, long sectionNode) => sections.GetLayer(sectionNode);
 
-    //getDataLayerToWrite 取待写层 首次写入时复制一份避免污染 visible 快照
+    //getDataLayerToWrite gets the layer to write; on first write it copies to avoid polluting the visible snapshot
     protected internal DataLayer? GetDataLayerToWrite(long sectionNode)
     {
         var dataLayer = UpdatingSectionData.GetLayer(sectionNode);
@@ -66,7 +66,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
         return dataLayer;
     }
 
-    //getDataLayerData 优先返回队列中的层数据 供外部读取最新但未落地的结果
+    //getDataLayerData returns queued layer data first, so external reads get the latest not-yet-landed result
     public DataLayer? GetDataLayerData(long sectionNode)
         => QueuedSections.TryGetValue(sectionNode, out var layer) ? layer : GetDataLayer(sectionNode, false);
 
@@ -94,7 +94,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
         SectionPos.AroundAndAtBlockPos(blockNode, node => SectionsAffectedByLightUpdates.Add(node));
     }
 
-    //markSectionAndNeighborsAsAffected 标记该区段与 26 邻居为受光照更新影响
+    //markSectionAndNeighborsAsAffected marks the section and its 26 neighbors as affected by light updates
     protected void MarkSectionAndNeighborsAsAffected(long sectionNode)
     {
         var x = SectionPos.GetX(sectionNode);
@@ -109,7 +109,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
     protected virtual DataLayer CreateDataLayer(long sectionNode)
         => QueuedSections.TryGetValue(sectionNode, out var queuedLayer) ? queuedLayer : new DataLayer();
 
-    //markNewInconsistencies 落地区段增删 原版参数 LightEngine 未被使用故不保留
+    //markNewInconsistencies lands section add/removes; the vanilla LightEngine parameter is unused and so not kept
     protected internal void MarkNewInconsistencies()
     {
         if (!_hasInconsistencies) return;
@@ -131,7 +131,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
         }
         _toRemove.Clear();
 
-        //把队列里的层数据写入更新侧 只处理已存光的区段
+        //Write the queued layer data into the updating side; only sections already storing light are handled
         foreach (var sectionNode in QueuedSections.Keys.ToList())
         {
             if (!StoringLightForSection(sectionNode)) continue;
@@ -145,10 +145,10 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
         }
     }
 
-    //onNodeAdded 子类补充区段新增时的层语义
+    //onNodeAdded: subclasses add layer semantics when a section is added
     protected virtual void OnNodeAdded(long sectionNode) { }
 
-    //onNodeRemoved 子类补充区段移除时的层语义
+    //onNodeRemoved: subclasses add layer semantics when a section is removed
     protected virtual void OnNodeRemoved(long sectionNode) { }
 
     protected internal void SetLightEnabled(long zeroNode, bool enable)
@@ -162,7 +162,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
 
     protected internal bool LightOnInColumn(long sectionZeroNode) => _columnsWithSources.Contains(sectionZeroNode);
 
-    //retainData 区段移除时是否保留队列数据
+    //retainData, whether to keep queued data when a section is removed
     public void RetainData(long zeroNode, bool retain)
     {
         if (retain) _columnsToRetainQueuedDataFor.Add(zeroNode);
@@ -182,7 +182,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
         }
     }
 
-    //updateSectionStatus 区段空/非空变化时同步自身与 26 邻居的邻居计数
+    //updateSectionStatus syncs the neighbor counts of itself and its 26 neighbors when a section's empty flag changes
     protected internal void UpdateSectionStatus(long sectionNode, bool sectionEmpty)
     {
         var state = GetSectionState(sectionNode);
@@ -236,7 +236,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
         _hasInconsistencies = true;
     }
 
-    //swapSectionMap 把更新侧快照成 visible 并回调所有受影响区段的光照更新
+    //swapSectionMap snapshots the updating side into visible and calls back light updates for all affected sections
     protected internal void SwapSectionMap()
     {
         if (ChangedSections.Count > 0)
@@ -252,8 +252,8 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
 
     public SectionType GetDebugSectionType(long sectionNode) => SectionState.GetType(GetSectionState(sectionNode));
 
-    //SectionState 区段状态位打包对应原版 SectionState
-    //高 3 位保留 第 5 位是 hasData 标志 低 5 位是 26 邻居中有数据的数量
+    //SectionState, section state bit packing, maps to vanilla SectionState
+    //The top 3 bits are reserved, bit 5 is the hasData flag, and the low 5 bits are the count of the 26 neighbors that have data
     protected static class SectionState
     {
         private const int MaxNeighbors = 26;
@@ -266,7 +266,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
         public static byte SetNeighborCount(byte state, int neighborCount)
         {
             if (neighborCount < 0 || neighborCount > MaxNeighbors)
-                throw new ArgumentOutOfRangeException(nameof(neighborCount), "邻居数量必须落在 [0; 26]");
+                throw new ArgumentOutOfRangeException(nameof(neighborCount), "Neighbor count must be within [0; 26]");
             return (byte)((state & -32) | (neighborCount & NeighborCountBits));
         }
 
@@ -279,7 +279,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
     }
 }
 
-//SectionType 区段光照状态类别对应原版 SectionType
+//SectionType, section light state category, maps to vanilla SectionType
 public enum SectionType
 {
     Empty,

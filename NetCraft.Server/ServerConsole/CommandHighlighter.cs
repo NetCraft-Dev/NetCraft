@@ -6,28 +6,28 @@ using NetCraft.Game.Server;
 
 namespace NetCraft.Server.ServerConsole;
 
-//ICommandHighlighter 输入行语法着色
+//ICommandHighlighter, syntax coloring for the input line
 public interface ICommandHighlighter
 {
-    //Highlight 给整行套色返回带 ANSI 的文本
-    //可见字符一个不多一个不少 调用方仍按原文本长度算光标位置
+    //Highlight colors the whole line and returns text with ANSI
+    //Visible characters are neither added nor removed, the caller still computes the cursor position from the original text length
     string Highlight(string text);
 }
 
-//CommandHighlighter 用 brigadier 解析结果给输入行上色
-//算法取自 Paper 的 BrigadierCommandHighlighter
-//字面量节点保持默认色 参数节点按出现顺序在调色板里轮换 没解析到的尾巴标红
+//CommandHighlighter colors the input line using brigadier parse results
+//The algorithm comes from Paper's BrigadierCommandHighlighter
+//Literal nodes keep the default color, argument nodes rotate through the palette in order of appearance, and an unparsed tail is marked red
 public sealed class CommandHighlighter : ICommandHighlighter
 {
-    //参数层级轮换用的调色板 与 Paper 一致
+    //Palette used to rotate argument levels, same as Paper
     private static readonly int[] Colors = { 6, 3, 2, 5, 4 };
 
-    //解析不动的部分标红 对应 Paper 的 foreground(1)
+    //Unparseable parts are marked red, maps to Paper's foreground(1)
     private const string ErrorColor = "\u001B[31m";
     private const string Reset = "\u001B[0m";
 
     private readonly CommandManager _commands;
-    //_source 解析用的控制台命令源 构造一次就够 每按一键都新建没必要
+    //_source the console command source used for parsing, built once, no need to recreate it per keypress
     private readonly ServerCommandSource _source;
 
     public CommandHighlighter(DedicatedServer server)
@@ -47,7 +47,7 @@ public sealed class CommandHighlighter : ICommandHighlighter
         }
         catch (Exception)
         {
-            //解析器不该把控制台线程带走 真出事就整行标红
+            //The parser must not take down the console thread, if it really fails the whole line is marked red
             return ErrorColor + text + Reset;
         }
 
@@ -58,11 +58,11 @@ public sealed class CommandHighlighter : ICommandHighlighter
         {
             var start = parsed.Range.Start;
             if (start >= text.Length) break;
-            //节点之间若有重叠或倒序就跳过 不能让切片命令抛出去
+            //Skip overlapping or out-of-order nodes, slicing must not throw
             if (start < pos) continue;
             var end = Math.Min(parsed.Range.End, text.Length);
 
-            //间隔的空白与字面量都用默认样式
+            //Gaps of whitespace and literals both use the default style
             if (start > pos) builder.Append(text, pos, start - pos);
             if (parsed.Node is LiteralCommandNode<CommandSourceStack>)
             {
@@ -79,7 +79,7 @@ public sealed class CommandHighlighter : ICommandHighlighter
             pos = end;
         }
 
-        //剩下没被解析到的尾巴是半个命令或写错的参数 标红提示
+        //The unparsed tail left over is half a command or a mistyped argument, marked red as a hint
         if (pos < text.Length)
         {
             builder.Append(ErrorColor);

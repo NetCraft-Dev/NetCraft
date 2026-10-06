@@ -1,7 +1,7 @@
 namespace NetCraft.Nbt;
 
-//数值包装类型。对应 Java 的 java.lang.Number。
-//NBT 的 NumericTag 用此返回数字值（保留原始类型信息）。
+//Numeric wrapper type. Mirrors Java's java.lang.Number.
+//NumericTag uses it to return numeric values while keeping the original type information.
 public readonly struct Number
 {
     public double Value { get; }

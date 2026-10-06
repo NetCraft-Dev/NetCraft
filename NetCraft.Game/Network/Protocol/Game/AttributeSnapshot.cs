@@ -1,17 +1,17 @@
 using NetCraft.Registry;
-//属性类型自带命名空间 与环境属性里同名类型分开 这里只取需要的三个
+//The attribute types have their own namespace, kept separate from the same-named types in the environment attributes; only the three needed ones are taken here
 using AttributeDef = NetCraft.Registry.EntityAttribute.Attribute;
 using AttributeModifier = NetCraft.Registry.EntityAttribute.AttributeModifier;
 using AttributeOperation = NetCraft.Registry.EntityAttribute.AttributeOperation;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//AttributeSnapshot 单条属性快照 对应原版 ClientboundUpdateAttributesPacket.AttributeSnapshot
-//线上传的是属性引用 基值 与该属性上的全部修饰符 属性走注册表 id 不走 Identifier
+//AttributeSnapshot a single attribute snapshot, maps to vanilla ClientboundUpdateAttributesPacket.AttributeSnapshot
+//On the wire this carries the attribute reference, base value, and all modifiers on the attribute; the attribute uses a registry id, not an Identifier
 public sealed record AttributeSnapshot(AttributeDef Attribute, double Base,
     IReadOnlyList<AttributeModifier> Modifiers)
 {
-    //Write 按原版 AttributeSnapshot.STREAM_CODEC 写 属性写注册表 id 修饰符写 id 数值 运算
+    //Write follows vanilla AttributeSnapshot.STREAM_CODEC; the attribute writes a registry id, modifiers write id, amount, operation
     public void Write(FriendlyByteBuf buf)
     {
         buf.WriteVarInt(BuiltInRegistries.ATTRIBUTE.GetIdOrThrow(Attribute));
@@ -25,7 +25,7 @@ public sealed record AttributeSnapshot(AttributeDef Attribute, double Base,
         }
     }
 
-    //Read 按原版解码 属性 id 越界直接抛 对应原版 holderRegistry 的 byId 行为
+    //Read decodes like vanilla; an out-of-range attribute id throws immediately, matching vanilla holderRegistry.byId behavior
     public static AttributeSnapshot Read(FriendlyByteBuf buf)
     {
         var attribute = BuiltInRegistries.ATTRIBUTE.ByIdOrThrow(buf.ReadVarInt());

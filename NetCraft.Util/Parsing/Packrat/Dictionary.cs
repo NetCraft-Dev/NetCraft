@@ -1,8 +1,8 @@
 namespace NetCraft.Util.Parsing.Packrat;
 
-//规则字典对应原版net.minecraft.util.parsing.packrat.Dictionary
-//用Dictionary<Atom,Entry>按Atom注册NamedRule提供named前向引用
-//Entry非泛型基类做存储Entry<S,T>子类提供强类型访问
+//Rule dictionary, maps to vanilla net.minecraft.util.parsing.packrat.Dictionary
+//Uses Dictionary<Atom,Entry> to register NamedRule by Atom, providing named forward references
+//Entry non-generic base class for storage, Entry<S,T> subclass provides strongly-typed access
 public sealed class Dictionary<S>
 {
     private readonly Dictionary<Atom, Entry> _terms = new();
@@ -66,7 +66,7 @@ public sealed class Dictionary<S>
         => new ReferenceTerm<S, T>(GetOrCreateEntry(nameToParse), nameToStore);
 }
 
-//Reference引用Term指向其他NamedRule解析后存到nameToStore
+//Reference references a Term pointing to another NamedRule, storing the parse result into nameToStore
 public sealed class ReferenceTerm<S, T> : Term<S>
 {
     public Entry<S, T> RuleToParse { get; }
@@ -87,7 +87,7 @@ public sealed class ReferenceTerm<S, T> : Term<S>
     }
 }
 
-//Entry非泛型基类支持异构存储
+//Entry non-generic base class supporting heterogeneous storage
 public abstract class Entry
 {
     public Atom Name { get; }
@@ -98,7 +98,7 @@ public abstract class Entry
     public abstract void SetValue(object value);
 }
 
-//Entry<S,T>强类型子类实现NamedRule<S,T>
+//Entry<S,T> strongly-typed subclass implementing NamedRule<S,T>
 public class Entry<S, T> : Entry, NamedRule<S, T>
 {
     private Rule<S, T>? _value;

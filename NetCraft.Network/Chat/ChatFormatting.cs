@@ -2,9 +2,9 @@ namespace NetCraft.Network.Chat;
 
 using System.Text.RegularExpressions;
 
-//聊天格式化代码对应原版net.minecraft.ChatFormatting
-//原版§+字符前缀的格式化代码枚举用于旧式文本样式
-//Java enum带字段C#不支持改sealed class with static readonly instances
+//Chat formatting codes, maps to vanilla net.minecraft.ChatFormatting
+//The vanilla enum of § + character formatting codes, used for legacy text styling
+//Java enums with fields are unsupported in C#, so it becomes a sealed class with static readonly instances
 public sealed class ChatFormatting
 {
     public static readonly ChatFormatting Black = new('0', "black");
@@ -55,19 +55,19 @@ public sealed class ChatFormatting
     public string Name => _name;
     private string ToStringValue { get; }
 
-    //所有格式化代码值对应原版values()
+    //All formatting code values, maps to vanilla values()
     public static IReadOnlyList<ChatFormatting> Values() => AllValues;
 
     public override string ToString() => ToStringValue;
 
-    //移除字符串中所有格式化代码对应原版stripFormatting
+    //Removes all formatting codes from a string, maps to vanilla stripFormatting
     public static string? StripFormatting(string? input)
     {
         if (input is null) return null;
         return StripFormattingPattern.Replace(input, string.Empty);
     }
 
-    //按代码字符查找对应原版getByCode
+    //Looks up by code character, maps to vanilla getByCode
     public static ChatFormatting? GetByCode(char code)
     {
         var sanitized = char.ToLowerInvariant(code);
@@ -78,7 +78,7 @@ public sealed class ChatFormatting
         return null;
     }
 
-    //按名称查找对应原版getByName
+    //Looks up by name, maps to vanilla getByName
     public static ChatFormatting? GetByName(string name)
     {
         foreach (var format in AllValues)
@@ -88,6 +88,6 @@ public sealed class ChatFormatting
         return null;
     }
 
-    //格式化代码查找用switch不适用因为C#无法对sealed实例做模式匹配的范围判断
-    //改用GetByCode返回null实现等价语义
+    //switch is unsuitable for formatting code lookup because C# cannot range-match sealed instances in a pattern
+    //Instead GetByCode returns null to achieve equivalent semantics
 }

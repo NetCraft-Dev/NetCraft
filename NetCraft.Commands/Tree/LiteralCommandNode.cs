@@ -5,9 +5,9 @@ using NetCraft.Commands.Suggestion;
 
 namespace NetCraft.Commands.Tree;
 
-//LiteralCommandNode 字面量节点对应原版com.mojang.brigadier.tree.LiteralCommandNode
-//精确匹配字面量文本大小写敏感parse失败抛literalIncorrect
-//listSuggestions按剩余文本前缀匹配预计算lowercase避免重复
+//LiteralCommandNode maps to vanilla com.mojang.brigadier.tree.LiteralCommandNode
+//Matches the literal text exactly and case-sensitively; a failed parse throws literalIncorrect
+//listSuggestions prefix-matches the remaining text against a precomputed lowercase to avoid repeating work
 public sealed class LiteralCommandNode<S> : CommandNode<S>
 {
     private readonly string _literal;
@@ -36,7 +36,7 @@ public sealed class LiteralCommandNode<S> : CommandNode<S>
         throw CommandSyntaxException.BuiltInExceptions.LiteralIncorrect().CreateWithContext(reader, _literal);
     }
 
-    //ParseLiteral 私有解析literal文本返回结束cursor或-1不匹配回退cursor
+    //ParseLiteral parses the literal text privately, returning the end cursor or -1 on mismatch with the cursor rolled back
     private int ParseLiteral(StringReader reader)
     {
         var start = reader.Cursor;

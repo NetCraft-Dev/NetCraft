@@ -4,8 +4,8 @@ using NetCraft.Commands.Exceptions;
 
 namespace NetCraft.Commands;
 
-//StringReader 字符串读取器对应原版com.mojang.brigadier.StringReader
-//游标式解析字符串所有数值读取抛CommandSyntaxException携带cursor上下文
+//StringReader string reader, maps to vanilla com.mojang.brigadier.StringReader
+//Cursor-based string parsing; every numeric read throws a CommandSyntaxException carrying cursor context
 public sealed class StringReader : IImmutableStringReader
 {
     public const char SYNTAX_ESCAPE = '\\';
@@ -52,7 +52,7 @@ public sealed class StringReader : IImmutableStringReader
 
     public void Skip() => _cursor++;
 
-    //IsAllowedNumber 数字字符允许0-9小数点负号
+    //IsAllowedNumber numeric characters allow 0-9, the decimal point and a minus sign
     public static bool IsAllowedNumber(char c) => c is >= '0' and <= '9' or '.' or '-';
 
     public static bool IsQuotedStringStart(char c) => c == SYNTAX_DOUBLE_QUOTE || c == SYNTAX_SINGLE_QUOTE;
@@ -157,7 +157,7 @@ public sealed class StringReader : IImmutableStringReader
         }
     }
 
-    //IsAllowedInUnquotedString 无引号字符串允许字符0-9A-Za-z下划线减号小数点加号
+    //IsAllowedInUnquotedString unquoted strings allow 0-9, A-Z, a-z, underscore, minus, decimal point and plus
     public static bool IsAllowedInUnquotedString(char c)
         => c is (>= '0' and <= '9')
             or (>= 'A' and <= 'Z')

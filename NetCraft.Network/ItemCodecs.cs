@@ -2,12 +2,12 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network;
 
-//ItemCodecs Item 相关网络编解码对应原版 Item.STREAM_CODEC 静态字段
-//原版 Item.STREAM_CODEC 在 Item 类内 NetCraft 因 Registry 不依赖 Network 放 Network 子库
-//HolderCodec 从 RegistryFriendlyByteBuf 读 id 转 Holder<Item>
+//ItemCodecs network codecs for Item, maps to the vanilla Item.STREAM_CODEC static field
+//Vanilla Item.STREAM_CODEC lives in the Item class; since NetCraft's Registry does not depend on Network, it goes in the Network sublibrary
+//HolderCodec reads an id from RegistryFriendlyByteBuf and turns it into Holder<Item>
 public static class ItemCodecs
 {
-    //StreamCodec Holder<Item> 编解码用 ByteBufCodecs.Holder 从 ITEM 注册表查
+    //StreamCodec codec for Holder<Item> using ByteBufCodecs.Holder to look up the ITEM registry
     public static readonly StreamCodec<RegistryFriendlyByteBuf, Holder<Item>> StreamCodec
         = ByteBufCodecs.Holder(Registries.ITEM);
 }

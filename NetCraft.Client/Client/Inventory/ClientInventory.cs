@@ -3,11 +3,11 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.Client.Inventory;
 
-//ClientInventory 客户端物品栏缓存对应原版 LocalPlayer 的 Inventory 与当前打开的菜单槽位
-//菜单槽位由 ClientboundContainerSetContent/SetSlot 填充 玩家物品栏由 ClientboundSetPlayerInventory 填充
+//ClientInventory client inventory cache, maps to vanilla LocalPlayer's Inventory and the currently open menu slots
+//Menu slots are filled by ClientboundContainerSetContent/SetSlot; the player inventory is filled by ClientboundSetPlayerInventory
 public sealed class ClientInventory
 {
-    //PlayerSlotCount 玩家物品栏槽位数 布局与 PlayerInventory 一致
+    //PlayerSlotCount number of player inventory slots, layout matches PlayerInventory
     public const int PlayerSlotCount = PlayerInventory.TotalSize;
 
     private readonly List<ItemStack> _menuSlots = new();
@@ -18,23 +18,23 @@ public sealed class ClientInventory
         for (var i = 0; i < _playerSlots.Length; i++) _playerSlots[i] = ItemStack.Empty;
     }
 
-    //ContainerId 当前菜单 id 未收到内容包时是 -1
+    //ContainerId current menu id; -1 before a content packet is received
     public int ContainerId { get; private set; } = -1;
 
-    //StateId 服务端最近一次同步的状态号
+    //StateId the state id last synced by the server
     public int StateId { get; private set; }
 
-    //Carried 光标物品
+    //Carried cursor item
     public ItemStack Carried { get; private set; } = ItemStack.Empty;
 
-    //MenuSlots 菜单槽位只读视图 顺序与服务端菜单槽位号一致
+    //MenuSlots read-only view of menu slots, order matches the server's menu slot numbers
     public IReadOnlyList<ItemStack> MenuSlots => _menuSlots;
 
-    //GetPlayerItem 取玩家物品栏槽位 越界返回空栈
+    //GetPlayerItem gets a player inventory slot; out of range returns an empty stack
     public ItemStack GetPlayerItem(int slot)
         => (uint)slot < PlayerSlotCount ? _playerSlots[slot] : ItemStack.Empty;
 
-    //SetContent 应用容器全量内容
+    //SetContent applies the full container contents
     public void SetContent(int containerId, int stateId, IReadOnlyList<ItemStack> items, ItemStack carried)
     {
         ContainerId = containerId;
@@ -44,7 +44,7 @@ public sealed class ClientInventory
         Carried = carried;
     }
 
-    //SetSlot 应用单槽变更 槽号 -1 表示光标物品
+    //SetSlot applies a single-slot change; slot -1 means the cursor item
     public void SetSlot(int slot, ItemStack stack)
     {
         if (slot == AbstractContainerMenu.CarriedSlotIndex)
@@ -56,7 +56,7 @@ public sealed class ClientInventory
         _menuSlots[slot] = stack;
     }
 
-    //SetPlayerSlot 应用玩家物品栏单槽变更
+    //SetPlayerSlot applies a single player inventory slot change
     public void SetPlayerSlot(int slot, ItemStack stack)
     {
         if ((uint)slot >= PlayerSlotCount) return;

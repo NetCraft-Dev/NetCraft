@@ -1,13 +1,13 @@
 namespace NetCraft.Network.Protocol.Login;
 
-//ServerboundLoginAcknowledgedPacket 客户端登录确认包对应原版 net.minecraft.network.protocol.login.ServerboundLoginAcknowledgedPacket
-//无 payload 单例模式 IsTerminal true 表示 LOGIN 阶段结束切换到 CONFIGURATION
+//ServerboundLoginAcknowledgedPacket client login acknowledged packet, maps to vanilla net.minecraft.network.protocol.login.ServerboundLoginAcknowledgedPacket
+//No payload, singleton pattern; IsTerminal true means the LOGIN phase ends and it switches to CONFIGURATION
 public sealed record ServerboundLoginAcknowledgedPacket : Packet<ServerLoginPacketListener>
 {
-    //Instance 单例实例
+    //Instance singleton instance
     public static readonly ServerboundLoginAcknowledgedPacket Instance = new();
 
-    //StreamCodec 恒定值编解码器
+    //StreamCodec constant-value codec
     public static StreamCodec<FriendlyByteBuf, ServerboundLoginAcknowledgedPacket> StreamCodec { get; }
         = new UnitStreamCodec<FriendlyByteBuf, ServerboundLoginAcknowledgedPacket>(Instance);
 
@@ -15,7 +15,7 @@ public sealed record ServerboundLoginAcknowledgedPacket : Packet<ServerLoginPack
 
     public PacketType<ServerLoginPacketListener> Type => LoginPacketTypes.ServerboundLoginAcknowledged;
 
-    //IsTerminal 登录确认后切换到 CONFIGURATION
+    //IsTerminal switches to CONFIGURATION after login acknowledgement
     public bool IsTerminal => true;
 
     public void Handle(ServerLoginPacketListener handler) => handler.HandleLoginAcknowledgement(this);

@@ -2,16 +2,16 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft;
 
-//NcLanguage 只按语言目录装表 不碰资源包
-//资源包还没挂上但日志已经要出文案时用它 启动最早期就能把 NC 自有文案装上
-//语言码在语言目录里没有对应文件时退回 en_us
+//NcLanguage loads tables only from the language directory, without touching resource packs
+//Used when resource packs are not attached yet but logs already need text; installs NC's own text at the earliest startup stage
+//Falls back to en_us when the language code has no matching file in the language directory
 public static class NcLanguage
 {
-    //Load 按语言码装表并替换当前实例
+    //Load installs the table for the language code and replaces the current instance
     public static void Load(string code) => Language.Inject(Build(code));
 
-    //Build 装表但不替换当前实例 供测试用
-    //languageRoot 为空时用程序根目录的 lang/ 测试可指定临时目录避免污染
+    //Build installs the table without replacing the current instance, for testing
+    //When languageRoot is empty, uses the program root's lang/; tests can point to a temp directory to avoid pollution
     public static Language Build(string code, string? languageRoot = null)
     {
         var entries = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -22,7 +22,7 @@ public static class NcLanguage
         return Language.FromEntries(entries);
     }
 
-    //Resolve 语言码不被支持时退回 en_us
+    //Resolve falls back to en_us when the language code is unsupported
     public static string Resolve(string code, string? languageRoot = null)
         => string.Equals(code, Language.Default, StringComparison.Ordinal) || NcLanguageFiles.Exists(code, languageRoot)
             ? code

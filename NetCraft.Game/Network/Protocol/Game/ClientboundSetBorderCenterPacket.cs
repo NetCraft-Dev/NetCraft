@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetBorderCenterPacket 边界中心包对应原版 ClientboundSetBorderCenterPacket
-//字段 NewCenterX(double) NewCenterZ(double)
+//ClientboundSetBorderCenterPacket border center packet, maps to vanilla ClientboundSetBorderCenterPacket
+//Fields: NewCenterX(double), NewCenterZ(double)
 public sealed record ClientboundSetBorderCenterPacket(double NewCenterX, double NewCenterZ) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetBorderCenterPacket> StreamCodec { get; } = new SetBorderCenterCodec();

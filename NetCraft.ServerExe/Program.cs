@@ -7,15 +7,15 @@ using NetCraft.ModLoader;
 
 namespace NetCraft.ServerExe;
 
-//Program 服务端独立启动入口
-//只做进程入口与模组引导 真正的服务端实现留在 NetCraft.Server 类库里
+//Program standalone server entry point
+//Only handles the process entry and mod bootstrap; the real server implementation stays in the NetCraft.Server class library
 public static class Program
 {
-    //Main 进程入口
-    //第一件事注册内核程序集解析回调：内核程序集已挪出 deps.json，
-    //运行时靠回调从 kernel 目录与主库内嵌资源取字节 必须早于任何内核类型被解析。
-    //JIT 会解析方法体里出现的全部类型 所以下面两层都禁止内联，
-    //否则 ServerMain 会被提前解析 直接绕过改写把未注入的 NetCraft.Server 拉起来。
+    //Main process entry
+    //First thing is registering the kernel assembly resolution callback: kernel assemblies were moved out of deps.json,
+    //so at runtime the callback fetches their bytes from the kernel directory and the main library's embedded resources. This must run before any kernel type is resolved.
+    //The JIT resolves every type appearing in a method body, so the two layers below are marked no-inline,
+    //otherwise ServerMain gets resolved early and bypasses the rewrite, bringing up an un-injected NetCraft.Server.
     public static int Main(string[] args)
     {
         EmbeddedAssemblyLoader.Initialize();
@@ -23,8 +23,8 @@ public static class Program
         return Launch(args);
     }
 
-    //BootMods 模组引导 这一层只碰加载器 不碰服务端类型
-    //--debug 必须在这里就放开日志出口 注入早于内核 Initialize 晚一步整段 debug 记录都会丢
+    //BootMods mod bootstrap; this layer only touches the loader, not server types
+    //--debug must open the log output here: injection runs before kernel Initialize, and one step late drops the whole run of debug records
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void BootMods(string[] args)
     {
@@ -41,7 +41,7 @@ public static class Program
         ModBootstrap.Run(ModEnvironment.Server);
     }
 
-    //Launch 服务端启动流程 到这层才允许解析 NetCraft.Server
+    //Launch server startup flow; only at this layer is resolving NetCraft.Server allowed
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static int Launch(string[] args)
     {

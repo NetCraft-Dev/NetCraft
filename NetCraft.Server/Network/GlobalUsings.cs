@@ -1,5 +1,5 @@
-//Server/Network 子目录全局 using 简化服务端协议文件引用
-//与 Game/Network/GlobalUsings.cs 同源 服务端协议实现搬到本库后需要同一套
+//Global usings for the Server/Network subdirectory, simplifies references in the server protocol files
+//Same source as Game/Network/GlobalUsings.cs, the server protocol implementations moved into this library and need the same set
 global using NetCraft.Config;
 global using NetCraft.Network;
 global using NetCraft.Network.Protocol;

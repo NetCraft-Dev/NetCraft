@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundDeleteChatPacket 删除聊天包对应原版 ClientboundDeleteChatPacket
-//字段 MessageSignature(MessageSignature.Packed)
+//ClientboundDeleteChatPacket delete chat packet, maps to vanilla ClientboundDeleteChatPacket
+//Field: MessageSignature(MessageSignature.Packed)
 public sealed record ClientboundDeleteChatPacket(object MessageSignature) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundDeleteChatPacket> StreamCodec { get; } = new DeleteChatCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundDeleteChatPacket(object MessageSignature) : Pack
     private sealed class DeleteChatCodec : StreamCodec<FriendlyByteBuf, ClientboundDeleteChatPacket>
     {
         public ClientboundDeleteChatPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundDeleteChatPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

@@ -4,7 +4,7 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry.Environment;
 
-//ValidatingCodec 给已有 codec 追加解码校验对应原版 Codec.validate
+//ValidatingCodec adds decode validation to an existing codec, maps to vanilla Codec.validate
 internal sealed class ValidatingCodec<T> : ScalarCodec<T>
 {
     private readonly Codec<T> _inner;
@@ -23,7 +23,7 @@ internal sealed class ValidatingCodec<T> : ScalarCodec<T>
         => _inner.EncodeStart(ops, value);
 }
 
-//ObjectValueCodec 把 Codec<T> 擦除为 Codec<object>，供修饰符库统一 Argument 类型
+//ObjectValueCodec erases Codec<T> to Codec<object> so the modifier library unifies the Argument type
 internal sealed class ObjectValueCodec<T> : ScalarCodec<object>
 {
     private readonly Codec<T> _inner;
@@ -37,7 +37,7 @@ internal sealed class ObjectValueCodec<T> : ScalarCodec<object>
         => _inner.EncodeStart(ops, (T)value);
 }
 
-//CompactListCodec 单元素与数组都接受对应原版 ExtraCodecs.compactListCodec
+//CompactListCodec accepts both a single element and an array, maps to vanilla ExtraCodecs.compactListCodec
 internal sealed class CompactListCodec<T> : ScalarCodec<IReadOnlyList<T>>
 {
     private readonly Codec<T> _elementCodec;
@@ -56,14 +56,14 @@ internal sealed class CompactListCodec<T> : ScalarCodec<IReadOnlyList<T>>
         => _elementCodec.ListOf().EncodeStart(ops, value);
 }
 
-//HexColorCodec 十六进制颜色串对应原版 ExtraCodecs.hexColor
-//6 位输出 rgb 形态，8 位输出 argb 形态
+//HexColorCodec hex color string, maps to vanilla ExtraCodecs.hexColor
+//6 digits output the rgb form and 8 digits the argb form
 internal sealed class HexColorCodec : ScalarCodec<int>
 {
-    //StringRgb 对应原版 ExtraCodecs.STRING_RGB_COLOR
+    //StringRgb maps to vanilla ExtraCodecs.STRING_RGB_COLOR
     public static readonly Codec<int> StringRgb = Codecs.WithAlternative(new HexColorCodec(6), Codecs.Int);
 
-    //StringArgb 对应原版 ExtraCodecs.STRING_ARGB_COLOR
+    //StringArgb maps to vanilla ExtraCodecs.STRING_ARGB_COLOR
     public static readonly Codec<int> StringArgb = Codecs.WithAlternative(new HexColorCodec(8), Codecs.Int);
 
     private readonly int _digits;
@@ -99,8 +99,8 @@ internal sealed class HexColorCodec : ScalarCodec<int>
             : "#" + value.ToString("x8", CultureInfo.InvariantCulture)));
 }
 
-//SoundEventIdCodec 音效 id 弱引用对应原版 SoundEvent.CODEC 的注册表引用形态
-//本仓库暂无声效注册表数据，直接按 Identifier 弱引用
+//SoundEventIdCodec sound event id weak reference, the registry-reference form of vanilla SoundEvent.CODEC
+//This repository has no sound event registry data yet, so it uses a weak Identifier reference directly
 internal sealed class SoundEventIdCodec : ScalarCodec<Identifier>
 {
     public static readonly SoundEventIdCodec Instance = new();
@@ -122,7 +122,7 @@ internal sealed class SoundEventIdCodec : ScalarCodec<Identifier>
         => DataResult<U>.Success(ops.CreateString(value.ToString()));
 }
 
-//ParticleIdCodec 粒子 id 弱引用，接受 id 字符串或带 type 的粒子对象
+//ParticleIdCodec particle id weak reference, accepting an id string or a particle object with a type
 internal sealed class ParticleIdCodec : ScalarCodec<Identifier>
 {
     public static readonly ParticleIdCodec Instance = new();
@@ -144,16 +144,16 @@ internal sealed class ParticleIdCodec : ScalarCodec<Identifier>
         => DataResult<U>.Success(ops.CreateString(value.ToString()));
 }
 
-//AttributeValueCodecs 环境属性常用取值 codec
+//AttributeValueCodecs common value codecs for environment attributes
 internal static class AttributeValueCodecs
 {
-    //UnitFloat [0,1] 浮点
+    //UnitFloat [0,1] float
     public static readonly Codec<float> UnitFloat = new ValidatingCodec<float>(Codecs.Float,
         value => value >= 0.0f && value <= 1.0f
             ? DataResult<float>.Success(value)
             : DataResult<float>.Error(() => $"{value} is not in range [0; 1]"));
 
-    //NonNegativeInt 非负整数对应原版 ExtraCodecs.NON_NEGATIVE_INT
+    //NonNegativeInt non-negative integer, maps to vanilla ExtraCodecs.NON_NEGATIVE_INT
     public static readonly Codec<int> NonNegativeInt = new ValidatingCodec<int>(Codecs.Int,
         value => value >= 0
             ? DataResult<int>.Success(value)

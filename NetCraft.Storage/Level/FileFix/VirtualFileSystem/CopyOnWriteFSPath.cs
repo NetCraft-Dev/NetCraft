@@ -1,7 +1,7 @@
 namespace NetCraft.Storage;
 
-//CopyOnWriteFSPath 写时复制文件系统里的路径 对应原版 net.minecraft.util.filefix.virtualfilesystem.CopyOnWriteFSPath
-//原版实现 java.nio.file.Path 底层借 backing 文件系统 这里内部用 / 分隔的字符串表示
+//CopyOnWriteFSPath, a path in the copy-on-write filesystem, maps to vanilla net.minecraft.util.filefix.virtualfilesystem.CopyOnWriteFSPath
+//Vanilla implements java.nio.file.Path on top of a backing filesystem; here it is represented internally as a /-separated string
 public sealed class CopyOnWriteFSPath
 {
     private readonly string _path;
@@ -16,7 +16,7 @@ public sealed class CopyOnWriteFSPath
 
     public CopyOnWriteFileSystem FileSystem { get; }
 
-    //Of 多段拼出路径 前导斜杠表示绝对
+    //Of builds a path from multiple segments; a leading slash means absolute
     public static CopyOnWriteFSPath Of(CopyOnWriteFileSystem fileSystem, string first, params string[] more)
     {
         var isAbsolute = false;
@@ -34,7 +34,7 @@ public sealed class CopyOnWriteFSPath
 
     public CopyOnWriteFSPath? GetRoot() => _isAbsolute ? FileSystem.RootPath : null;
 
-    //IsRoot 根路径没有段名
+    //IsRoot, the root path has no segment name
     public bool IsRoot() => GetNameCount() == 0;
 
     public CopyOnWriteFSPath? GetFileName()
@@ -90,7 +90,7 @@ public sealed class CopyOnWriteFSPath
         return true;
     }
 
-    //Normalize 消掉 . 与 .. 绝对路径上越界的 .. 直接并到根
+    //Normalize removes . and ..; on an absolute path an out-of-range .. is folded into the root
     public CopyOnWriteFSPath Normalize()
     {
         var normalized = NormalizeSegments(_path, _isAbsolute);
@@ -143,10 +143,10 @@ public sealed class CopyOnWriteFSPath
 
     public override string ToString() => _isAbsolute ? "/" + _path : _path;
 
-    //Segments 拆分路径段 空路径没有段
+    //Segments splits the path into segments; an empty path has none
     private List<string> Segments() => _path.Length == 0 ? new List<string>() : _path.Split('/').ToList();
 
-    //Combine 用斜杠拼段并丢掉空段
+    //Combine joins segments with slashes and drops empty ones
     private static string Combine(IEnumerable<string> segments) => string.Join('/', segments.Where(segment => segment.Length > 0));
 
     private static string JoinPaths(string left, string right)
@@ -156,7 +156,7 @@ public sealed class CopyOnWriteFSPath
         return left + "/" + right;
     }
 
-    //NormalizeSegments 段式归一 相对路径头部多余的 .. 保留
+    //NormalizeSegments, segment-wise normalization; leading extra .. on a relative path is kept
     private static string NormalizeSegments(string path, bool isAbsolute)
     {
         var stack = new List<string>();

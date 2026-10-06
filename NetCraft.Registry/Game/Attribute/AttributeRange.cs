@@ -3,29 +3,29 @@ using NetCraft.Util;
 
 namespace NetCraft.Registry.Environment;
 
-//AttributeRange 属性值合法区间对应原版 AttributeRange
+//AttributeRange valid range for attribute values, maps to vanilla AttributeRange
 public interface AttributeRange<Value>
 {
-    //Validate 校验值是否落在区间内
+    //Validate checks whether the value falls within the range
     DataResult<Value> Validate(Value value);
 
-    //Sanitize 把值夹到区间内
+    //Sanitize clamps the value into the range
     Value Sanitize(Value value);
 
-    //Any 不限制取值
+    //Any does not restrict the value
     static AttributeRange<Value> Any() => AnyRange<Value>.Instance;
 
-    //OfFloat 闭区间 [minValue, maxValue]
+    //OfFloat closed range [minValue, maxValue]
     static AttributeRange<float> OfFloat(float minValue, float maxValue) => new FloatRange(minValue, maxValue);
 
-    //UnitFloat 单位区间 [0,1]
+    //UnitFloat unit range [0,1]
     static AttributeRange<float> UnitFloat => FloatRange.Unit;
 
-    //NonNegativeFloat 非负区间 [0,+inf]
+    //NonNegativeFloat non-negative range [0,+inf]
     static AttributeRange<float> NonNegativeFloat => FloatRange.NonNegative;
 }
 
-//AnyRange 任意值都合法
+//AnyRange any value is valid
 internal sealed class AnyRange<Value> : AttributeRange<Value>
 {
     public static readonly AnyRange<Value> Instance = new();
@@ -35,7 +35,7 @@ internal sealed class AnyRange<Value> : AttributeRange<Value>
     public Value Sanitize(Value value) => value;
 }
 
-//FloatRange 浮点闭区间
+//FloatRange closed float range
 internal sealed class FloatRange : AttributeRange<float>
 {
     public static readonly FloatRange Unit = new(0.0f, 1.0f);

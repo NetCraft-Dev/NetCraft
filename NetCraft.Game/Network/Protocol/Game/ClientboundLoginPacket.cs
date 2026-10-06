@@ -4,9 +4,9 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundLoginPacket 登录包对应原版 ClientboundLoginPacket
-//字段 PlayerId(VarInt) Hardcore(boolean) Levels(ResourceKey<Level>[]) MaxPlayers(VarInt) ChunkRadius(VarInt) SimulationDistance(VarInt)
-//ReducedDebugInfo(boolean) ShowDeathScreen(boolean) DoLimitedCrafting(boolean) CommonPlayerSpawnInfo EnforcesSecureChat(boolean)
+//ClientboundLoginPacket login packet, maps to vanilla ClientboundLoginPacket
+//Fields: PlayerId(VarInt), Hardcore(boolean), Levels(ResourceKey<Level>[]), MaxPlayers(VarInt), ChunkRadius(VarInt), SimulationDistance(VarInt)
+//ReducedDebugInfo(boolean), ShowDeathScreen(boolean), DoLimitedCrafting(boolean), CommonPlayerSpawnInfo, EnforcesSecureChat(boolean)
 public sealed record ClientboundLoginPacket(
     int PlayerId,
     bool Hardcore,
@@ -30,7 +30,7 @@ public sealed record ClientboundLoginPacket(
     {
         public ClientboundLoginPacket Decode(FriendlyByteBuf buf)
         {
-            //S4 原版 playerId 是 writeInt 4 字节非 VarInt
+            //S4 vanilla playerId is writeInt 4 bytes, not VarInt
             var playerId = buf.ReadInt();
             var hardcore = buf.ReadBoolean();
             var levelCount = buf.ReadVarInt();
@@ -44,7 +44,7 @@ public sealed record ClientboundLoginPacket(
             var showDeathScreen = buf.ReadBoolean();
             var doLimitedCrafting = buf.ReadBoolean();
             var spawnInfo = CommonPlayerSpawnInfo.StaticCodec.Decode(buf);
-            //S4 26.2 有 onlineMode + enforcesSecureChat 两个布尔 onlineMode 解码后丢弃
+            //S4 26.2 has two booleans onlineMode + enforcesSecureChat; onlineMode is discarded after decoding
             buf.ReadBoolean();
             var enforcesSecureChat = buf.ReadBoolean();
             return new ClientboundLoginPacket(playerId, hardcore, levels, maxPlayers, chunkRadius,
@@ -54,7 +54,7 @@ public sealed record ClientboundLoginPacket(
 
         public void Encode(FriendlyByteBuf buf, ClientboundLoginPacket value)
         {
-            //S4 原版 writeInt(playerId) 4 字节
+            //S4 vanilla writeInt(playerId) 4 bytes
             buf.WriteInt(value.PlayerId);
             buf.WriteBoolean(value.Hardcore);
             buf.WriteVarInt(value.Levels.Count);
@@ -67,7 +67,7 @@ public sealed record ClientboundLoginPacket(
             buf.WriteBoolean(value.ShowDeathScreen);
             buf.WriteBoolean(value.DoLimitedCrafting);
             CommonPlayerSpawnInfo.StaticCodec.Encode(buf, value.CommonPlayerSpawnInfo);
-            //S4 26.2 onlineMode 布尔 离线服 false
+            //S4 26.2 onlineMode boolean, false for an offline server
             buf.WriteBoolean(false);
             buf.WriteBoolean(value.EnforcesSecureChat);
         }

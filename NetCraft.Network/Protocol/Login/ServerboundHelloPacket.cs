@@ -1,20 +1,20 @@
 namespace NetCraft.Network.Protocol.Login;
 
-//ServerboundHelloPacket 客户端登录 hello 包对应原版 net.minecraft.network.protocol.login.ServerboundHelloPacket
-//含 name 玩家名 16 字符上限和 profileId 玩家 UUID
+//ServerboundHelloPacket client login hello packet, maps to vanilla net.minecraft.network.protocol.login.ServerboundHelloPacket
+//Contains name, the player name with a 16-character limit, and profileId, the player UUID
 public sealed record ServerboundHelloPacket(string Name, Guid ProfileId) : Packet<ServerLoginPacketListener>
 {
-    //MaxNameLength 玩家名最大 16 字符
+    //MaxNameLength maximum player name 16 characters
     public const int MaxNameLength = 16;
 
-    //StreamCodec 包编解码器
+    //StreamCodec packet codec
     public static StreamCodec<FriendlyByteBuf, ServerboundHelloPacket> StreamCodec { get; } = new HelloCodec();
 
     public PacketType<ServerLoginPacketListener> Type => LoginPacketTypes.ServerboundHello;
 
     public void Handle(ServerLoginPacketListener handler) => handler.HandleHello(this);
 
-    //HelloCodec 编解码器读写 name + UUID
+    //HelloCodec codec reading and writing name + UUID
     private sealed class HelloCodec : StreamCodec<FriendlyByteBuf, ServerboundHelloPacket>
     {
         public ServerboundHelloPacket Decode(FriendlyByteBuf buf)

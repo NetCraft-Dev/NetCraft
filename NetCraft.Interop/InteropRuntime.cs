@@ -3,13 +3,13 @@ using System.Text;
 
 namespace NetCraft.Interop;
 
-//InteropRuntime 互操作运行时工具
-//提供 UTF-8/UTF-16 编码转换与平台信息查询
-//禁止平台特定 P/Invoke 所有 API 均用 .NET 跨平台标准库
+//InteropRuntime interop runtime utilities
+//Provides UTF-8/UTF-16 encoding conversion and platform info queries
+//Platform-specific P/Invoke is forbidden, all APIs use the .NET cross-platform standard library
 public static class InteropRuntime
 {
-    //StringToUtf8NativeAlloc 用 NativeMemory 分配 UTF-8 字节串
-    //返回的字节流需调用方用 NativeMemory.Free 释放
+    //StringToUtf8NativeAlloc allocates a UTF-8 byte string with NativeMemory
+    //The caller must free the returned byte buffer with NativeMemory.Free
     public static unsafe byte* StringToUtf8NativeAlloc(string s)
     {
         var byteCount = Encoding.UTF8.GetByteCount(s);
@@ -22,7 +22,7 @@ public static class InteropRuntime
         return ptr;
     }
 
-    //Utf8PtrToString 从 NativeMemory 分配的 UTF-8 字节流转 .NET string
+    //Utf8PtrToString converts a UTF-8 byte buffer allocated with NativeMemory to a .NET string
     public static unsafe string Utf8PtrToString(byte* ptr)
     {
         if (ptr == null) return string.Empty;
@@ -31,15 +31,15 @@ public static class InteropRuntime
         return Encoding.UTF8.GetString(ptr, len);
     }
 
-    //StringToUtf8Managed 转 UTF-8 到托管 byte[] 不分配非托管内存
+    //StringToUtf8Managed converts to UTF-8 in a managed byte[] without allocating unmanaged memory
     public static byte[] StringToUtf8Managed(string s)
         => Encoding.UTF8.GetBytes(s);
 
-    //Utf8ManagedToString 从托管 byte[] 转 .NET string
+    //Utf8ManagedToString converts a managed byte[] to a .NET string
     public static string Utf8ManagedToString(byte[] bytes)
         => Encoding.UTF8.GetString(bytes);
 
-    //StringToUtf16NativeAlloc 用 NativeMemory 分配 UTF-16 字符串
+    //StringToUtf16NativeAlloc allocates a UTF-16 string with NativeMemory
     public static unsafe char* StringToUtf16NativeAlloc(string s)
     {
         var charCount = s.Length;
@@ -52,7 +52,7 @@ public static class InteropRuntime
         return ptr;
     }
 
-    //Utf16PtrToString 从 UTF-16 char* 转 .NET string
+    //Utf16PtrToString converts a UTF-16 char* to a .NET string
     public static unsafe string Utf16PtrToString(char* ptr)
     {
         if (ptr == null) return string.Empty;
@@ -61,16 +61,16 @@ public static class InteropRuntime
         return new string(ptr, 0, len);
     }
 
-    //IsWindows 是否运行在 Windows 平台
+    //IsWindows whether running on Windows
     public static bool IsWindows => OperatingSystem.IsWindows();
 
-    //IsLinux 是否运行在 Linux 平台
+    //IsLinux whether running on Linux
     public static bool IsLinux => OperatingSystem.IsLinux();
 
-    //IsMacOS 是否运行在 macOS 平台
+    //IsMacOS whether running on macOS
     public static bool IsMacOS => OperatingSystem.IsMacOS();
 
-    //PlatformSuffix 平台特定动态库后缀（dll/so/dylib）
+    //PlatformSuffix platform-specific dynamic library suffix (dll/so/dylib)
     public static string PlatformSuffix
     {
         get
@@ -81,7 +81,7 @@ public static class InteropRuntime
         }
     }
 
-    //PlatformPrefix 平台特定动态库前缀（Linux/macOS 为 lib Windows 无前缀）
+    //PlatformPrefix platform-specific dynamic library prefix (lib on Linux/macOS, none on Windows)
     public static string PlatformPrefix
     {
         get
@@ -91,7 +91,7 @@ public static class InteropRuntime
         }
     }
 
-    //PlatformLibraryName 按平台规则合成动态库名称
+    //PlatformLibraryName composes a dynamic library name following platform rules
     public static string PlatformLibraryName(string baseName)
         => $"{PlatformPrefix}{baseName}.{PlatformSuffix}";
 }

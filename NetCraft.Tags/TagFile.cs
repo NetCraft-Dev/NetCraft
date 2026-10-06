@@ -3,13 +3,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Tags;
 
-//TagFile 标签文件格式对应原版 net.minecraft.tags.TagFile
-//含 replace 标志和 values 列表
-//JSON 格式对齐原版 {"replace": bool, "values": ["id", "#tag", "!id", {"id": "...", "required": false}]}
+//TagFile tag file format, maps to vanilla net.minecraft.tags.TagFile
+//Contains a replace flag and a values list
+//JSON format aligns with vanilla {"replace": bool, "values": ["id", "#tag", "!id", {"id": "...", "required": false}]}
 public sealed record TagFile(bool Replace, List<TagEntry> Entries)
 {
-    //FromJson 从 JSON 字符串解析 TagFile
-    //字段名是 values 原版数据包全用这个名字 读 entries 会让所有标签解析成空集合
+    //FromJson parses a TagFile from a JSON string
+    //The field name is values, vanilla data packs always use that name, reading entries would parse every tag into an empty collection
     public static TagFile FromJson(string json)
     {
         using var doc = JsonDocument.Parse(json);
@@ -26,8 +26,8 @@ public sealed record TagFile(bool Replace, List<TagEntry> Entries)
         return new TagFile(replace, entries);
     }
 
-    //ReadEntry 读一个标签项 字符串走前缀编码 对象取 id/tag/required 三个字段
-    //required 原版缺省是真 与本项目的 ! 前缀同义(元素缺失要报错)
+    //ReadEntry reads one tag entry, strings use the prefix encoding while objects take the id/tag/required fields
+    //required defaults to true in vanilla, same meaning as the ! prefix in this project (a missing element must be reported)
     private static TagEntry ReadEntry(JsonElement element)
     {
         if (element.ValueKind == JsonValueKind.String) return TagEntry.FromString(element.GetString()!);
@@ -37,7 +37,7 @@ public sealed record TagFile(bool Replace, List<TagEntry> Entries)
         return new TagEntry(Identifier.Parse(id), required, isTag);
     }
 
-    //ToJson 序列化为 JSON 字符串
+    //ToJson serializes to a JSON string
     public string ToJson()
     {
         using var stream = new MemoryStream();

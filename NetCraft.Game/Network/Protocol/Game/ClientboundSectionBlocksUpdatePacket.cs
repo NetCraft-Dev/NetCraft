@@ -2,8 +2,8 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSectionBlocksUpdatePacket 区块段方块更新包对应原版 ClientboundSectionBlocksUpdatePacket
-//字段 sectionPos SectionPos packedChanges long 数组每项 (stateId<<12)|position 用 VarLong 编解码
+//ClientboundSectionBlocksUpdatePacket section blocks update packet, maps to vanilla ClientboundSectionBlocksUpdatePacket
+//Fields: sectionPos SectionPos, packedChanges long array where each entry is (stateId<<12)|position, encoded as VarLong
 public sealed record ClientboundSectionBlocksUpdatePacket(SectionPos SectionPos, long[] PackedChanges) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSectionBlocksUpdatePacket> StreamCodec { get; } = new SectionBlocksUpdateCodec();

@@ -1,6 +1,6 @@
 namespace NetCraft.Storage;
 
-//DirectoryNode 写时复制文件树里的目录节点 对应原版 net.minecraft.util.filefix.virtualfilesystem.DirectoryNode
+//DirectoryNode, directory node in the copy-on-write file tree, maps to vanilla net.minecraft.util.filefix.virtualfilesystem.DirectoryNode
 public sealed class DirectoryNode : Node
 {
     private readonly Dictionary<string, Node> _childNodes = new();
@@ -22,7 +22,7 @@ public sealed class DirectoryNode : Node
 
     public Node? GetChild(string name) => _childNodes.GetValueOrDefault(name);
 
-    //DirectoryByPath 按路径取目录 命中文件时抛异常
+    //DirectoryByPath gets a directory by path, throws when a file is hit
     public DirectoryNode DirectoryByPath(CopyOnWriteFSPath path)
     {
         var node = ByPath(path);
@@ -30,7 +30,7 @@ public sealed class DirectoryNode : Node
         throw new CowFSNotDirectoryException($"{path} was a file, expected directory");
     }
 
-    //FileByPath 按路径取文件 非文件一律当不存在
+    //FileByPath gets a file by path; anything that is not a file counts as absent
     public FileNode FileByPath(CopyOnWriteFSPath path)
     {
         var node = ByPathOrNull(path);
@@ -45,7 +45,7 @@ public sealed class DirectoryNode : Node
         throw new CowFSNoSuchFileException(path.ToString());
     }
 
-    //ByPathOrNull 逐段下钻 途中遇到文件且还没走完就当作不存在
+    //ByPathOrNull descends segment by segment; if a file is hit before the path is consumed it counts as absent
     public Node? ByPathOrNull(CopyOnWriteFSPath path)
     {
         var nameCount = path.GetNameCount();

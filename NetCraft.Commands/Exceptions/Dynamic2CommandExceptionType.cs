@@ -2,8 +2,8 @@ using NetCraft.Commands;
 
 namespace NetCraft.Commands.Exceptions;
 
-//Dynamic2CommandExceptionType 双参动态异常类型对应原版Dynamic2CommandExceptionType
-//按两个参数通过Func生成Message创建CommandSyntaxException
+//Dynamic2CommandExceptionType two-argument dynamic exception type, maps to vanilla Dynamic2CommandExceptionType
+//Produces a Message from two arguments via a Func and creates a CommandSyntaxException
 public sealed class Dynamic2CommandExceptionType : ICommandExceptionType
 {
     private readonly Func<object, object, IMessage> _function;

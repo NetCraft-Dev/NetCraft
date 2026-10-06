@@ -5,8 +5,8 @@ using NetCraft.Util.Parsing.Packrat.Commands;
 
 namespace NetCraft.Nbt;
 
-//SNBT内置操作集合对应原版net.minecraft.nbt.SnbtOperations
-//定义bool/uuid两个内置操作供SnbtGrammar调用
+//Built-in SNBT operations, mirroring vanilla net.minecraft.nbt.SnbtOperations
+//Defines the bool/uuid built-ins used by SnbtGrammar
 public static class SnbtOperations
 {
     public const string BuiltinTrue = "true";
@@ -28,13 +28,13 @@ public static class SnbtOperations
         new[] { BuiltinFalse, BuiltinTrue }.Concat(BuiltinOperations.Keys.Select(k => k.Id));
 }
 
-//内置操作接口对应原版SnbtOperations.BuiltinOperation
+//Built-in operation interface, mirroring vanilla SnbtOperations.BuiltinOperation
 public interface BuiltinOperation
 {
     T? Run<T>(DynamicOps<T> ops, List<T> arguments, ParseState<CommandStringReader> state);
 }
 
-//BuiltinKey操作标识对应原版SnbtOperations.BuiltinKey
+//BuiltinKey operation identifier, mirroring vanilla SnbtOperations.BuiltinKey
 public sealed class BuiltinKey
 {
     public string Id { get; }
@@ -96,7 +96,7 @@ internal sealed class UuidOperation : BuiltinOperation
         }
     }
 
-    //Guid转4个int数组对应原版UUIDUtil.uuidToIntArray
+    //Guid to an array of 4 ints, mirroring vanilla UUIDUtil.uuidToIntArray
     private static IEnumerable<int> GuidToIntArray(Guid guid)
     {
         var bytes = guid.ToByteArray();

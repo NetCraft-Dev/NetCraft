@@ -1,8 +1,8 @@
 namespace NetCraft.Storage.Paletted;
 
-//单值palette对应原版SingleValuePalette
-//只存一个值适合所有storage都用同一个值的常见情况
-//C#未约束泛型T?对struct T不生成Nullable<T>故用_hasValue标记替代_value is null判断
+//Single-value palette, maps to vanilla SingleValuePalette
+//Stores a single value, for the common case where all storage uses the same value
+//C# unconstrained generic T? does not produce Nullable<T> for struct T, so a _hasValue flag replaces the _value is null check
 public sealed class SingleValuePalette<T> : Palette<T>
 {
     private bool _hasValue;
@@ -19,7 +19,7 @@ public sealed class SingleValuePalette<T> : Palette<T>
         }
     }
 
-    //已存值或还没值时直接返回0否则触发扩容对应原版idFor
+    //Return 0 when a value is stored or none is stored yet, otherwise trigger a resize, maps to vanilla idFor
     public int IdFor(T value, PaletteResize<T> resizeHandler)
     {
         if (!_hasValue || EqualityComparer<T>.Default.Equals(_value, value))

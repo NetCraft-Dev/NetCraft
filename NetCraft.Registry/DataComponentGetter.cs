@@ -1,17 +1,17 @@
 namespace NetCraft.Registry;
 
-//DataComponentGetter 只读组件取值接口 对应原版 net.minecraft.core.component.DataComponentGetter
-//Get 由实现方提供 getOrDefault 与 getTyped 是默认方法
+//DataComponentGetter read-only component access interface, maps to vanilla net.minecraft.core.component.DataComponentGetter
+//Get is provided by the implementer; getOrDefault and getTyped are default methods
 public interface DataComponentGetter
 {
-    //Get 按 type 取值 不存在返回 null
+    //Get returns the value by type; returns null if absent
     T? Get<T>(DataComponentType<T> type) where T : class;
 
-    //GetOrDefault 缺失时用兜底值
+    //GetOrDefault uses the fallback when missing
     T GetOrDefault<T>(DataComponentType<T> type, T fallback) where T : class
         => Get(type) ?? fallback;
 
-    //GetTyped 取带类型的组件条目 缺失返回 null
+    //GetTyped gets the typed component entry; returns null if absent
     TypedDataComponent<T>? GetTyped<T>(DataComponentType<T> type) where T : class
         => Get(type) is { } value ? new TypedDataComponent<T>(type, value) : null;
 }

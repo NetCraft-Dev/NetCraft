@@ -7,48 +7,48 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Game.World.Phys.Collision;
 
-//CollisionContext 碰撞上下文 对应原版 net.minecraft.world.phys.shapes.CollisionContext
-//同一个方块对不同实体可能给出不同碰撞形状 脚手架的下落放宽 台阶的朝向判断都要问它
+//CollisionContext collision context, maps to vanilla net.minecraft.world.phys.shapes.CollisionContext
+//The same block may give different collision shapes to different entities; scaffolding's descending relaxation and stairs' facing checks all ask it
 public abstract class CollisionContext
 {
-    //IsDescending 是否在下落 对应原版 isDescending
+    //IsDescending whether it is descending, maps to vanilla isDescending
     public abstract bool IsDescending();
 
-    //IsAbove 实体是否位于形状顶面之上 越界时的取值由调用方给 对应原版 isAbove
+    //IsAbove whether the entity is above the shape's top face; the out-of-bounds value is given by the caller, maps to vanilla isAbove
     public abstract bool IsAbove(VoxelShape shape, BlockPos pos, bool defaultValue);
 
-    //IsHoldingItem 主手是否拿着指定物品 对应原版 isHoldingItem
+    //IsHoldingItem whether the main hand holds the given item, maps to vanilla isHoldingItem
     public abstract bool IsHoldingItem(Item item);
 
-    //AlwaysCollideWithFluid 是否与流体也发生碰撞 对应原版 alwaysCollideWithFluid
+    //AlwaysCollideWithFluid whether it also collides with fluids, maps to vanilla alwaysCollideWithFluid
     public abstract bool AlwaysCollideWithFluid();
 
-    //CanStandOnFluid 能否站在该流体上 对应原版 canStandOnFluid
+    //CanStandOnFluid whether it can stand on the fluid, maps to vanilla canStandOnFluid
     public abstract bool CanStandOnFluid(FluidState fluidStateAbove, FluidState fluid);
 
-    //GetCollisionShape 取方块在当前上下文下的碰撞形状 对应原版 getCollisionShape
+    //GetCollisionShape gets the block's collision shape in the current context, maps to vanilla getCollisionShape
     public abstract VoxelShape GetCollisionShape(BlockState state, CollisionGetter getter, BlockPos pos);
 
-    //IsPlacement 是否为放置预览上下文 对应原版 isPlacement
+    //IsPlacement whether it is a placement preview context, maps to vanilla isPlacement
     public virtual bool IsPlacement => false;
 
-    //Empty 无实体的空上下文
+    //Empty empty context without an entity
     public static CollisionContext Empty => EntityCollisionContext.EmptyWithoutFluidCollisions;
 
-    //EmptyWithFluidCollisions 无实体且与流体也发生碰撞的空上下文
+    //EmptyWithFluidCollisions empty context without an entity that also collides with fluids
     public static CollisionContext EmptyWithFluidCollisions => EntityCollisionContext.EmptyWithFluidCollisions;
 
-    //Of 按实体建上下文 原版对实验性矿车会切 MinecartCollisionContext 矿车体系未接入一律走普通上下文
+    //Of builds a context from an entity; vanilla switches to MinecartCollisionContext for experimental minecarts, but the minecart system is not wired up so the normal context is always used
     public static CollisionContext Of(NetCraft.Registry.Entity entity)
         => new EntityCollisionContext(entity, false, false);
 
     public static CollisionContext Of(NetCraft.Registry.Entity entity, bool alwaysCollideWithFluid)
         => new EntityCollisionContext(entity, alwaysCollideWithFluid, false);
 
-    //PositionContext 只带高度坐标的上下文 方块是否需要面对水平碰撞靠它区分
+    //PositionContext context carrying only the height coordinate; used to distinguish whether a block needs to face a horizontal collision
     public static CollisionContext PositionContext(double y) => new PositionCollisionContext(y);
 
-    //PlacementContext 放置预览上下文 物品体系接入前主手物品一律按空栈
+    //PlacementContext placement preview context; before the item system is wired up the main hand item is always an empty stack
     public static CollisionContext PlacementContext(Player? player)
         => new EntityCollisionContext(
             player?.IsDescending() ?? false,
@@ -58,7 +58,7 @@ public abstract class CollisionContext
             false,
             player);
 
-    //WithPosition 带指定高度的实体上下文 移动前碰撞要用进入本刻前的位置
+    //WithPosition entity context with a given height; collisions before moving must use the position before entering this tick
     public static CollisionContext WithPosition(NetCraft.Registry.Entity? entity, double position)
         => new EntityCollisionContext(
             entity?.IsDescending() ?? false,

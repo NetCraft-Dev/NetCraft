@@ -2,8 +2,8 @@ using System.Runtime.CompilerServices;
 
 namespace NetCraft.Util.Profiling.Metrics;
 
-//指标注册表对应原版net.minecraft.util.profiling.metrics.MetricsRegistry
-//WeakReference管理ProfilerMeasured实例聚合同名采样器
+//Metrics registry, maps to vanilla net.minecraft.util.profiling.metrics.MetricsRegistry
+//WeakReference manages ProfilerMeasured instances, aggregating same-named samplers
 public sealed class MetricsRegistry
 {
     public static readonly MetricsRegistry Instance = new();
@@ -18,7 +18,7 @@ public sealed class MetricsRegistry
     public List<MetricSampler> GetRegisteredSamplers()
     {
         var samplersByName = new Dictionary<string, List<MetricSampler>>();
-        //ConditionalWeakTable无直接枚举API需要通过弱引用快照
+        //ConditionalWeakTable has no direct enumeration API, requires a weak-reference snapshot
         foreach (var measured in SnapshotMeasured())
         {
             foreach (var sampler in measured.ProfiledMetrics())
@@ -36,7 +36,7 @@ public sealed class MetricsRegistry
 
     private List<ProfilerMeasured> SnapshotMeasured()
     {
-        //ConditionalWeakTable.NET 10支持Enumerate若不可用返回空列表
+        //ConditionalWeakTable on .NET 10 supports Enumerate, returns an empty list if unavailable
         var result = new List<ProfilerMeasured>();
         try
         {
@@ -47,7 +47,7 @@ public sealed class MetricsRegistry
         }
         catch
         {
-            //Enumerate不可用或失败时返回空
+            //Returns empty when Enumerate is unavailable or fails
         }
         return result;
     }
@@ -64,8 +64,8 @@ public sealed class MetricsRegistry
         return result;
     }
 
-    //聚合采样器对应原版MetricsRegistry.AggregatedMetricSampler
-    //多个同名采样器求平均值
+    //Aggregated sampler, maps to vanilla MetricsRegistry.AggregatedMetricSampler
+    //Averages multiple same-named samplers
     internal sealed class AggregatedMetricSampler : MetricSampler
     {
         private readonly List<MetricSampler> _delegates;
@@ -97,7 +97,7 @@ public sealed class MetricsRegistry
         }
     }
 
-    //聚合阈值测试任一子采样器触发即触发
+    //Aggregated threshold test triggers when any sub-sampler triggers
     private sealed class AggregateThresholdTest : MetricSampler.ThresholdTest
     {
         private readonly List<MetricSampler> _delegates;

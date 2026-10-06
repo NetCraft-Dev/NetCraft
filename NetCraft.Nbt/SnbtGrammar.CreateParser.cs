@@ -5,10 +5,10 @@ using NetCraft.Util.Parsing.Packrat.Commands;
 
 namespace NetCraft.Nbt;
 
-//SnbtGrammar的createParser规则注册对应原版createParser方法
+//Rule registration for SnbtGrammar's createParser, mirroring the vanilla createParser method
 public static partial class SnbtGrammar
 {
-    //CreateParser注册所有解析规则并构造Grammar<T>供TagParser使用
+    //CreateParser registers every parse rule and builds a Grammar<T> for TagParser
     public static Grammar<T> CreateParser<T>(DynamicOps<T> ops)
     {
         var trueValue = ops.CreateBoolean(true);
@@ -167,8 +167,8 @@ public static partial class SnbtGrammar
                     return char.ConvertFromUtf32(codePoint);
                 }
                 var character = scope.GetOrThrow(stringUnicodeName);
-                //C#无Character.codePointOf等价方法对齐Java按名字查codepoint
-                //\N{name}转义是边缘功能暂不支持直接报错
+                //C# has no Character.codePointOf equivalent, so this looks up the code point by name like Java
+                //The \N{name} escape is an edge feature that is not supported yet, so it errors out directly
                 state.ErrorCollector.Store(state.Mark(), ErrorInvalidCharacterName);
                 return default!;
             });

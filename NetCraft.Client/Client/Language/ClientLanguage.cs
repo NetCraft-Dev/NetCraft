@@ -3,22 +3,22 @@ using NetCraft.Resources;
 
 namespace NetCraft.Game.Client.Language;
 
-//ClientLanguage 客户端语言表对应原版 net.minecraft.client.resources.language.ClientLanguage
-//作为资源重载监听器挂在重载链上 每次重载按当前语言码重新装配语言表并替换全局实例
-//原版重载时同时刷新可选语言清单 这里一并读 pack.mcmeta 的 language 段
+//ClientLanguage client language table, maps to vanilla net.minecraft.client.resources.language.ClientLanguage
+//Attached to the reload chain as a resource reload listener; each reload reassembles the language table for the current language code and replaces the global instance
+//Vanilla refreshes the available-languages list on reload; here the language section of pack.mcmeta is read as well
 public sealed class ClientLanguage : PreparableReloadListener
 {
-    //LanguageCode 当前语言码对应原版 Minecraft.options.languageCode 切换语言改这个再触发重载
+    //LanguageCode current language code, maps to vanilla Minecraft.options.languageCode; to switch languages change this and trigger a reload
     public string LanguageCode { get; set; }
 
-    //AvailableLanguages 资源包声明的可选语言 尚未重载过时为空表
+    //AvailableLanguages languages declared by resource packs; empty before the first reload
     public IReadOnlyDictionary<string, LanguageInfo> AvailableLanguages => _available.Languages;
 
     private LanguageMetadataSection _available = LanguageMetadataSection.Empty;
 
     public ClientLanguage(string languageCode) => LanguageCode = languageCode;
 
-    //Reload 按当前语言码装配并替换全局实例 语言码没有对应文件时表里只剩 en_us 兜底
+    //Reload assembles and replaces the global instance for the current language code; when the code has no matching file only en_us remains as fallback
     public void Reload(ResourceManager rm, ReloadContext ctx)
     {
         LanguageTable.Load(rm, LanguageCode);

@@ -2,7 +2,7 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.Environment;
 
-//AmbientParticle 环境粒子设置对应原版 AmbientParticle
+//AmbientParticle ambient particle settings, maps to vanilla AmbientParticle
 public sealed class AmbientParticle
 {
     public static readonly Codec<AmbientParticle> Codec = RecordCodecBuilder.Of2(
@@ -10,7 +10,7 @@ public sealed class AmbientParticle
         AttributeValueCodecs.UnitFloat.FieldOf("probability").ForGetter((AmbientParticle v) => v.Probability),
         (particle, probability) => new AmbientParticle(particle, probability));
 
-    //本仓库无粒子类型注册表数据，粒子用 Identifier 弱引用
+    //This repository has no particle type registry data, so particles use a weak Identifier reference
     public Identifier Particle { get; }
 
     public float Probability { get; }

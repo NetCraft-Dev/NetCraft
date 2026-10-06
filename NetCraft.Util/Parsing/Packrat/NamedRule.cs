@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Parsing.Packrat;
 
-//命名规则对应原版net.minecraft.util.parsing.packrat.NamedRule
-//绑定Atom名与Rule值作为字典注册项
+//Named rule, maps to vanilla net.minecraft.util.parsing.packrat.NamedRule
+//Binds an Atom name to a Rule value as a dictionary registration entry
 public interface NamedRule<S, T>
 {
     Atom<T> Name { get; }

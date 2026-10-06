@@ -2,12 +2,12 @@ using System.Collections.Concurrent;
 
 namespace NetCraft.Util.Collection;
 
-//记忆化工具对应原版net.minecraft.util.Util.memoize
-//用ConcurrentDictionary缓存函数结果重复调用直接命中缓存
+//Memoization helper, maps to vanilla net.minecraft.util.Util.memoize
+//Uses ConcurrentDictionary to cache function results, repeated calls hit the cache directly
 public static class Memoize
 {
-    //memoize单参数函数记忆化对应原版Util.memoize(Function)
-    //C#用ConcurrentDictionary.GetOrAdd替代Java ConcurrentHashMap.computeIfAbsent
+    //memoize single-argument function memoization, maps to vanilla Util.memoize(Function)
+    //C# uses ConcurrentDictionary.GetOrAdd instead of Java ConcurrentHashMap.computeIfAbsent
     public static Func<T, R> MemoizeFunction<T, R>(Func<T, R> function)
         where T : notnull
     {
@@ -15,8 +15,8 @@ public static class Memoize
         return arg => cache.GetOrAdd(arg, function);
     }
 
-    //memoize双参数函数记忆化对应原版Util.memoize(BiFunction)
-    //用Pair作key缓存双参数结果
+    //memoize two-argument function memoization, maps to vanilla Util.memoize(BiFunction)
+    //Uses a Pair as key to cache two-argument results
     public static Func<T, U, R> MemoizeBiFunction<T, U, R>(Func<T, U, R> function)
         where T : notnull
         where U : notnull

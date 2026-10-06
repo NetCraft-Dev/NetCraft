@@ -1,8 +1,8 @@
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientboundClearDialogPacket 清除对话框包对应原版 net.minecraft.network.protocol.common.ClientboundClearDialogPacket
-//含 int id 服务端请求客户端关闭指定对话框
+//ClientboundClearDialogPacket clear dialog packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundClearDialogPacket
+//Contains an int id; the server asks the client to close the given dialog
 public sealed record ClientboundClearDialogPacket(int Id) : Packet<ClientCommonPacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundClearDialogPacket> StreamCodec { get; } = new ClearDialogCodec();

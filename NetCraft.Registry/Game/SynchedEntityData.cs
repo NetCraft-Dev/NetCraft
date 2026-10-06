@@ -1,44 +1,44 @@
 namespace NetCraft.Registry;
 
-//SynchedValue 一条实体元数据 对应原版 SynchedEntityData.DataValue
-//SerializerId 是 Game 层 EntityDataSerializers 的注册序号 Registry 层只透传不解释
+//SynchedValue a single entity metadata entry, maps to vanilla SynchedEntityData.DataValue
+//SerializerId is the Game layer EntityDataSerializers registry index; the Registry layer only passes it through without interpreting it
 public readonly record struct SynchedValue(byte Index, int SerializerId, object Value);
 
-//SynchedEntityData 实体元数据容器 对应原版 net.minecraft.network.syncher.SynchedEntityData
-//子类构造时 Define 声明条目 之后 Set 改值 Version 自增
-//追踪器记录上次下发时的版本 版本不同就重发全部条目 省去增量与全量的两套路径
+//SynchedEntityData entity metadata container, maps to vanilla net.minecraft.network.syncher.SynchedEntityData
+//Subclasses Define entries at construction, then Set changes values and Version increments
+//The tracker records the version at the last send; a version mismatch resends all entries, avoiding separate incremental and full paths
 public sealed class SynchedEntityData
 {
-    //按索引有序存放 下发顺序与原版按索引升序一致
+    //Stored ordered by index; the send order matches vanilla's ascending index order
     private readonly SortedDictionary<byte, SynchedValue> _values = new();
 
-    //Version 值变化计数 观察者比对它判断有没有变化
+    //Version change counter; observers compare it to tell whether anything changed
     public int Version { get; private set; }
 
-    //Define 声明条目 对应原版 define
+    //Define declares an entry, maps to vanilla define
     public void Define(byte index, int serializerId, object value)
     {
         _values[index] = new SynchedValue(index, serializerId, value);
         Version++;
     }
 
-    //Get 取条目值 未声明说明索引写错直接抛 避免静默拿到错值
+    //Get returns the entry value; an undeclared index means a wrong index, so it throws instead of silently returning a wrong value
     public object Get(byte index)
         => _values.TryGetValue(index, out var value)
             ? value.Value
-            : throw new InvalidOperationException($"实体元数据 {index} 未声明");
+            : throw new InvalidOperationException($"Entity metadata {index} not defined");
 
-    //Set 改条目值 值没变不计数 对应原版 set 只在有差异时标脏
+    //Set changes the entry value; no change means no count increment, matching vanilla set marking dirty only on difference
     public void Set(byte index, object value)
     {
         if (!_values.TryGetValue(index, out var current))
-            throw new InvalidOperationException($"实体元数据 {index} 未声明");
+            throw new InvalidOperationException($"Entity metadata {index} not defined");
         if (Equals(current.Value, value)) return;
         _values[index] = current with { Value = value };
         Version++;
     }
 
-    //CollectAll 按索引升序取全部条目
+    //CollectAll returns all entries in ascending index order
     public List<SynchedValue> CollectAll()
     {
         var result = new List<SynchedValue>(_values.Count);
@@ -47,10 +47,10 @@ public sealed class SynchedEntityData
     }
 }
 
-//ISyncedEntity 带同步元数据的实体
-//追踪器只认这个接口 不再按 ServerPlayer/ItemEntity 之类的具体类型逐个特判
+//ISyncedEntity an entity with synced metadata
+//The tracker only knows this interface and no longer special-cases concrete types like ServerPlayer/ItemEntity
 public interface ISyncedEntity
 {
-    //SyncedData 实体元数据容器
+    //SyncedData entity metadata container
     SynchedEntityData SyncedData { get; }
 }

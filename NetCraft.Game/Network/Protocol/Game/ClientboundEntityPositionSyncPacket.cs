@@ -2,10 +2,10 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundEntityPositionSyncPacket 实体位置同步包对应原版 ClientboundEntityPositionSyncPacket
-//服务端权威位置跳变走它 客户端处理时会同步重置位置基准 VecDeltaCodec
-//传送包只做插值不重置基准 拿它同步大位移会让之后每个增量包都基于旧基准 偏移量固定等于这次位移
-//字段 id VarInt values 位置/速度/朝向 onGround Boolean
+//ClientboundEntityPositionSyncPacket entity position sync packet, maps to vanilla ClientboundEntityPositionSyncPacket
+//Used for authoritative server position jumps; the client resets its position baseline in sync via VecDeltaCodec
+//The teleport packet only interpolates and does not reset the baseline; using it for a large displacement makes every later delta packet use the old baseline, with the offset permanently equal to that displacement
+//Fields: id VarInt, values position/velocity/rotation, onGround Boolean
 public sealed record ClientboundEntityPositionSyncPacket(int Id, Vec3 Position, Vec3 DeltaMovement,
     float YRot, float XRot, bool OnGround) : Packet<ClientGamePacketListener>
 {

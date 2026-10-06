@@ -1,13 +1,13 @@
 namespace NetCraft.Commands.Execution.Tasks;
 
-//IsolatedCall 隔离帧调用对应原版 net.minecraft.commands.execution.tasks.IsolatedCall
-//开一层新帧把控制权交给任务生产者 输出回调挂在新帧上 返回值不外泄
+//IsolatedCall isolated frame call, maps to vanilla net.minecraft.commands.execution.tasks.IsolatedCall
+//Opens a new frame and hands control to the task producer; the output callback hangs off the new frame and the return value does not leak
 public class IsolatedCall<T>
 {
     private readonly TaskProducer _taskProducer;
     private readonly CommandResultCallback _output;
 
-    //TaskProducer 往隔离帧里排动作的生产者
+    //TaskProducer producer that enqueues actions into the isolated frame
     public delegate void TaskProducer(ExecutionControl<T> output);
 
     public IsolatedCall(TaskProducer taskProducer, CommandResultCallback output)
@@ -23,7 +23,7 @@ public class IsolatedCall<T>
         _taskProducer(ExecutionControl<T>.Create(context, newFrame));
     }
 
-    //Bind 包装成队列动作
+    //Bind wraps it into a queue action
     public EntryAction<T> ToEntryAction()
         => Execute;
 }

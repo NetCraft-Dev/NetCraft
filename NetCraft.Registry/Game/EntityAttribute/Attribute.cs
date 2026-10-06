@@ -4,11 +4,11 @@ using NetCraft.Util;
 
 namespace NetCraft.Registry.EntityAttribute;
 
-//Attribute 实体属性 对应原版 net.minecraft.world.entity.ai.attributes.Attribute
-//持默认值与是否同步客户端 取值统一经 SanitizeValue 钳制
+//Attribute entity attribute, maps to vanilla net.minecraft.world.entity.ai.attributes.Attribute
+//Holds the default value and whether it syncs to the client; values are always clamped through SanitizeValue
 public class Attribute
 {
-    //Sentiment 属性倾向 决定数值增减提示的配色 对应原版 Attribute.Sentiment
+    //Sentiment attribute sentiment, determining the color of increase/decrease hints, maps to vanilla Attribute.Sentiment
     public enum Sentiment
     {
         Positive,
@@ -22,63 +22,63 @@ public class Attribute
         DefaultValue = defaultValue;
     }
 
-    //DescriptionId 语言键 对应原版 getDescriptionId
+    //DescriptionId language key, maps to vanilla getDescriptionId
     public string DescriptionId { get; }
 
-    //DefaultValue 默认值 对应原版 getDefaultValue
+    //DefaultValue default value, maps to vanilla getDefaultValue
     public double DefaultValue { get; }
 
-    //ClientSyncable 是否把取值同步给客户端 对应原版 isClientSyncable
+    //ClientSyncable whether the value syncs to the client, maps to vanilla isClientSyncable
     public bool ClientSyncable { get; private set; }
 
-    //ValueSentiment 属性倾向 对应原版 sentiment
+    //ValueSentiment attribute sentiment, maps to vanilla sentiment
     public Sentiment ValueSentiment { get; private set; } = Sentiment.Positive;
 
-    //SetSyncable 设置是否同步 对应原版 setSyncable
+    //SetSyncable sets whether it syncs, maps to vanilla setSyncable
     public Attribute SetSyncable(bool syncable)
     {
         ClientSyncable = syncable;
         return this;
     }
 
-    //SetSentiment 设置倾向 对应原版 setSentiment
+    //SetSentiment sets the sentiment, maps to vanilla setSentiment
     public Attribute SetSentiment(Sentiment sentiment)
     {
         ValueSentiment = sentiment;
         return this;
     }
 
-    //SanitizeValue 钳制取值 基类不钳制 对应原版 sanitizeValue
+    //SanitizeValue clamps the value; the base class does not clamp, maps to vanilla sanitizeValue
     public virtual double SanitizeValue(double value) => value;
 }
 
-//RangedAttribute 带区间的属性 对应原版 RangedAttribute
-//取值越界钳制回区间 取到 NaN 时用下界
+//RangedAttribute ranged attribute, maps to vanilla RangedAttribute
+//Out-of-range values are clamped back into the range; NaN falls back to the lower bound
 public sealed class RangedAttribute : Attribute
 {
     public RangedAttribute(string descriptionId, double defaultValue, double minValue, double maxValue)
         : base(descriptionId, defaultValue)
     {
-        //原版在构造里直接抛 三个断言都要留 否则注册表里会静默出现越界默认值
-        if (minValue > maxValue) throw new ArgumentException($"最小值不能大于最大值 {descriptionId}");
-        if (defaultValue < minValue) throw new ArgumentException($"默认值不能小于最小值 {descriptionId}");
-        if (defaultValue > maxValue) throw new ArgumentException($"默认值不能大于最大值 {descriptionId}");
+        //Vanilla throws right in the constructor; all three assertions are kept, otherwise an out-of-range default would silently appear in the registry
+        if (minValue > maxValue) throw new ArgumentException($"Min value cannot be greater than max value {descriptionId}");
+        if (defaultValue < minValue) throw new ArgumentException($"Default value cannot be less than min value {descriptionId}");
+        if (defaultValue > maxValue) throw new ArgumentException($"Default value cannot be greater than max value {descriptionId}");
         MinValue = minValue;
         MaxValue = maxValue;
     }
 
-    //MinValue 下界 对应原版 getMinValue
+    //MinValue lower bound, maps to vanilla getMinValue
     public double MinValue { get; }
 
-    //MaxValue 上界 对应原版 getMaxValue
+    //MaxValue upper bound, maps to vanilla getMaxValue
     public double MaxValue { get; }
 
     public override double SanitizeValue(double value)
         => double.IsNaN(value) ? MinValue : Mth.Clamp(value, MinValue, MaxValue);
 }
 
-//AttributeOperation 修饰符运算方式 对应原版 AttributeModifier.Operation
-//声明顺序即运算顺序 先加数值 再乘基值 最后连乘总值 不能重排
+//AttributeOperation modifier operation, maps to vanilla AttributeModifier.Operation
+//Declaration order is the operation order: add value, then multiply base, then multiply total; cannot be reordered
 public enum AttributeOperation
 {
     AddValue,
@@ -86,29 +86,29 @@ public enum AttributeOperation
     AddMultipliedTotal,
 }
 
-//AttributeModifier 属性修饰符 对应原版 AttributeModifier
-//id 标识 amount 数值 operation 决定运算方式 三值相等即同一个修饰符
+//AttributeModifier attribute modifier, maps to vanilla AttributeModifier
+//id identifies, amount is the value, operation determines the computation; equal on all three means the same modifier
 public sealed record AttributeModifier(Identifier Id, double Amount, AttributeOperation Operation)
 {
-    //OperationCodec 运算方式按序列化名编解码 对应原版 Operation.CODEC
-    //必须先于 MapCodec 声明 静态字段按声明顺序初始化
+    //OperationCodec encodes/decodes the operation by serialized name, maps to vanilla Operation.CODEC
+    //Must be declared before MapCodec since static fields initialize in declaration order
     public static readonly Codec<AttributeOperation> OperationCodec = Codecs.String.ComapFlatMap(
         name => TryFromName(name) is { } operation
             ? DataResult<AttributeOperation>.Success(operation)
-            : DataResult<AttributeOperation>.Error(() => $"未知的运算方式: {name}"),
+            : DataResult<AttributeOperation>.Error(() => $"Unknown operation: {name}"),
         GetSerializedName);
 
-    //MapCodec 持久化编解码 id 加数值加运算 对应原版 MAP_CODEC
+    //MapCodec persistence codec with id, amount and operation, maps to vanilla MAP_CODEC
     public static readonly Codec<AttributeModifier> MapCodec = RecordCodecBuilder.Of3(
         IdentifierCodec.Instance.FieldOf("id").ForGetter((AttributeModifier modifier) => modifier.Id),
         Codecs.Double.FieldOf("amount").ForGetter((AttributeModifier modifier) => modifier.Amount),
         OperationCodec.FieldOf("operation").ForGetter((AttributeModifier modifier) => modifier.Operation),
         (id, amount, operation) => new AttributeModifier(id, amount, operation));
 
-    //Codec 与 MapCodec 同体 对应原版 CODEC
+    //Codec is identical to MapCodec, maps to vanilla CODEC
     public static readonly Codec<AttributeModifier> Codec = MapCodec;
 
-    //GetSerializedName 运算的序列化名 对应原版 StringRepresentable 的取值
+    //GetSerializedName serialized name of the operation, maps to vanilla StringRepresentable's value
     public static string GetSerializedName(AttributeOperation operation) => operation switch
     {
         AttributeOperation.AddMultipliedBase => "add_multiplied_base",
@@ -116,7 +116,7 @@ public sealed record AttributeModifier(Identifier Id, double Amount, AttributeOp
         _ => "add_value",
     };
 
-    //TryFromName 按序列化名解析运算 未知名字返回 null
+    //TryFromName parses the operation by serialized name, returning null for unknown names
     public static AttributeOperation? TryFromName(string name) => name switch
     {
         "add_value" => AttributeOperation.AddValue,

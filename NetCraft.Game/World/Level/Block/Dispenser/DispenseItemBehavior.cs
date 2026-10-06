@@ -4,28 +4,28 @@ using NetCraft.Primitives;
 using NetCraft.Registry.Enums;
 using NetCraft.Registry.State;
 using NetCraft.Storage;
-//方向同时存在于 Primitives 与 Registry.Enums 这里几何与状态各取所需
+//Direction exists in both Primitives and Registry.Enums; geometry and state each use what they need here
 using Direction = NetCraft.Primitives.Direction;
-//命名空间段 Items 与注册表类同名 取物品实例必须走别名
+//The namespace segment Items clashes with the registry class, so item instances must go through the alias
 using NCItems = NetCraft.Game.World.Items.Items;
 
 namespace NetCraft.Game.World.Level.Block.Dispenser;
 
-//DispenseItemBehavior 发射器对某件物品的发射行为 对应原版 net.minecraft.core.dispenser.DispenseItemBehavior
-//返回值会写回发射器槽位 消耗掉的物品要自己从栈里扣
+//DispenseItemBehavior dispense behavior for one item, maps to vanilla net.minecraft.core.dispenser.DispenseItemBehavior
+//The return value is written back to the dispenser slot; consumed items must be subtracted from the stack yourself
 public interface DispenseItemBehavior
 {
-    //Dispense 处理一次发射
+    //Dispense handles one dispense
     ItemStack Dispense(BlockSource source, ItemStack dispensed);
 }
 
-//DefaultDispenseItemBehavior 默认发射行为 把一件物品丢在发射器前方 对应原版同名类
+//DefaultDispenseItemBehavior default dispense behavior, drops one item in front of the dispenser, maps to the vanilla class of the same name
 public class DefaultDispenseItemBehavior : DispenseItemBehavior
 {
-    //DefaultAccuracy 丢出物的散射程度 对应原版 6
+    //DefaultAccuracy scatter of the drop, maps to vanilla 6
     private const int DefaultAccuracy = 6;
 
-    //Dispense 执行行为并补上声音与动画 对应原版 dispense
+    //Dispense runs the behavior and adds sound and animation, maps to vanilla dispense
     public ItemStack Dispense(BlockSource source, ItemStack dispensed)
     {
         var result = Execute(source, dispensed);
@@ -34,7 +34,7 @@ public class DefaultDispenseItemBehavior : DispenseItemBehavior
         return result;
     }
 
-    //Execute 默认实现丢出一件物品 对应原版 execute
+    //Execute default implementation drops one item, maps to vanilla execute
     protected virtual ItemStack Execute(BlockSource source, ItemStack dispensed)
     {
         var direction = FacingOf(source.State).ToPrimitive();
@@ -43,19 +43,19 @@ public class DefaultDispenseItemBehavior : DispenseItemBehavior
         return dispensed;
     }
 
-    //PlaySound 播发射音效 对应原版 playDefaultSound 的世界事件 1000
+    //PlaySound plays the dispense sound, maps to world event 1000 of vanilla playDefaultSound
     protected virtual void PlaySound(BlockSource source)
         => source.Level.LevelEvent(1000, source.Pos, 0);
 
-    //PlayAnimation 播发射动画 对应原版 playDefaultAnimation 的世界事件 2000
+    //PlayAnimation plays the dispense animation, maps to world event 2000 of vanilla playDefaultAnimation
     protected virtual void PlayAnimation(BlockSource source)
         => source.Level.LevelEvent(2000, source.Pos, FacingOf(source.State).ToPrimitive().Id3D);
 
-    //SpawnItem 把物品实体丢在落点上 初速按朝向加三角分布散布 对应原版 spawnItem
+    //SpawnItem drops the item entity at the landing point, initial velocity along the facing with triangular spread, maps to vanilla spawnItem
     public static void SpawnItem(ServerLevel level, ItemStack stack, int accuracy, Direction direction, Vec3 position)
     {
         if (stack.IsEmpty() || level is not PersistentServerLevel persistent) return;
-        //竖直朝向时落点少降一点 免得贴着自己脚下 对应原版那个 0.125 与 0.15625 的分支
+        //For vertical facings the spawn point drops less to avoid landing at its own feet, maps to the 0.125 versus 0.15625 branch in vanilla
         var spawnY = direction.AxisValue == Direction.Axis.Y ? position.Y - 0.125 : position.Y - 0.15625;
         var drop = new ItemEntity(EntityTypes.ITEM, position.X, spawnY, position.Z, stack);
         var pow = Random.Shared.NextDouble() * 0.1 + 0.2;
@@ -68,7 +68,7 @@ public class DefaultDispenseItemBehavior : DispenseItemBehavior
         persistent.AddEntity(drop);
     }
 
-    //SplitOne 从栈里取出一件并扣减原栈 对应原版 ItemStack.split(1)
+    //SplitOne takes one from the stack and decrements it, maps to vanilla ItemStack.split(1)
     protected static ItemStack SplitOne(ItemStack stack)
     {
         if (stack.IsEmpty()) return ItemStack.Empty;
@@ -77,17 +77,17 @@ public class DefaultDispenseItemBehavior : DispenseItemBehavior
         return one;
     }
 
-    //FacingOf 读方块状态里的朝向 方块状态用 Registry.Enums.Direction
+    //FacingOf reads the facing from the block state; block states use Registry.Enums.Direction
     protected static NetCraft.Registry.Enums.Direction FacingOf(BlockState state)
         => state.GetValue(BlockStateProperties.FacingProperty);
 
-    //Triangle 三角分布随机 对应原版 RandomSource.triangle
+    //Triangle triangular distribution random, maps to vanilla RandomSource.triangle
     private static double Triangle(double mean, double deviation)
         => mean + deviation * (Random.Shared.NextDouble() - Random.Shared.NextDouble());
 }
 
-//ProjectileDispenseBehavior 把投射物类物品射出去 对应原版 ProjectileDispenseBehavior
-//落点 初速 散布都取自物品自己的 DispenseConfig
+//ProjectileDispenseBehavior shoots projectile items, maps to vanilla ProjectileDispenseBehavior
+//Landing point, initial velocity and spread all come from the item's own DispenseConfig
 public sealed class ProjectileDispenseBehavior : DefaultDispenseItemBehavior
 {
     private readonly ProjectileItem _item;
@@ -110,16 +110,16 @@ public sealed class ProjectileDispenseBehavior : DefaultDispenseItemBehavior
         return dispensed;
     }
 
-    //PlaySound 投射物类发射换成发射器射击音效 配置里指定事件号时优先 对应原版 playSound
+    //PlaySound projectile dispenses use the dispenser shoot sound; an event id in the config takes priority, maps to vanilla playSound
     protected override void PlaySound(BlockSource source)
         => source.Level.LevelEvent(_config.OverrideDispenseEvent ?? 1002, source.Pos, 0);
 }
 
-//DispenseBehaviors 内置发射行为登记 对应原版 DispenseItemBehavior.bootStrap
-//本作只登记能真的射出去的物品 药水 烟花 船 矿车 刷怪蛋等要等对应实体与组件体系接入再补
+//DispenseBehaviors built-in dispense behavior registration, maps to vanilla DispenseItemBehavior.bootStrap
+//Here only items that can actually fire are registered; potions, fireworks, boats, minecarts, spawn eggs and the like wait until the matching entity and component systems land
 public static class DispenseBehaviors
 {
-    //Bootstrap 给投射物类物品挂发射行为 必须在物品注册表填好之后调
+    //Bootstrap attaches dispense behaviors to projectile items; must be called after the item registry is filled
     public static void Bootstrap()
     {
         Blocks.DispenserBlock.RegisterProjectileBehavior((ProjectileItem)NCItems.ARROW);

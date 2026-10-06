@@ -4,8 +4,8 @@ using NetCraft.Commands.Context;
 
 namespace NetCraft.Commands.Arguments;
 
-//StringArgumentType 字符串参数类型对应原版com.mojang.brigadier.arguments.StringArgumentType
-//按StringType分三种解析模式并支持转义
+//StringArgumentType string argument type, maps to vanilla com.mojang.brigadier.arguments.StringArgumentType
+//Uses StringType to choose between three parsing modes with escape support
 public sealed class StringArgumentType : ArgumentType<string>
 {
     private readonly StringType _type;
@@ -47,7 +47,7 @@ public sealed class StringArgumentType : ArgumentType<string>
 
     public override string ToString() => "string()";
 
-    //EscapeIfRequired 含非无引号允许字符则调用Escape转义
+    //EscapeIfRequired calls Escape when the input contains characters not allowed unquoted
     public static string EscapeIfRequired(string input)
     {
         foreach (var c in input)
@@ -60,7 +60,7 @@ public sealed class StringArgumentType : ArgumentType<string>
         return input;
     }
 
-    //Escape 用双引号包裹并转义反斜杠与双引号
+    //Escape wraps the input in double quotes, escaping backslashes and double quotes
     private static string Escape(string input)
     {
         var result = new StringBuilder("\"");

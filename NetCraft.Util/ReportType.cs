@@ -1,12 +1,12 @@
 namespace NetCraft.Util;
 
-//ReportType 报告类型 对应原版 net.minecraft.ReportType
-//一个类型带一个头部标题与一组随机文案 崩溃报告开头那两行就是它
+//ReportType report type, maps to vanilla net.minecraft.ReportType
+//A type carries a header title and a set of random comments; it is the first two lines of a crash report
 public sealed class ReportType
 {
     private const string FallbackComment = "Witty comment unavailable :(";
 
-    //Crash 崩溃报告 客户端与服务端共用
+    //Crash crash report, shared by client and server
     public static readonly ReportType Crash = new("NetCraft Crash Report", new[]
     {
         "Who set us up the TNT?",
@@ -45,7 +45,7 @@ public sealed class ReportType
         "But it works on my machine.",
     });
 
-    //NetworkProtocolError 协议解析出错时用 与服务端清单里的 network 子系统对应
+    //NetworkProtocolError used when protocol parsing fails, corresponds to the network subsystem in the server list
     public static readonly ReportType NetworkProtocolError = new("NetCraft Network Protocol Error Report", new[]
     {
         "0xBADF00D",
@@ -69,7 +69,7 @@ public sealed class ReportType
         "I heard pigeons are more reliable",
     });
 
-    //ChunkIoError 区块读写出错时用 存档那一侧的问题单独归类
+    //ChunkIoError used when chunk IO fails, classifies the world save side separately
     public static readonly ReportType ChunkIoError = new("NetCraft Chunk IO Error Report", new[]
     {
         "I have failed you!",
@@ -98,7 +98,7 @@ public sealed class ReportType
 
     public string Header { get; }
 
-    //GetErrorComment 随机取一条文案 对应原版 getErrorComment
+    //GetErrorComment picks a random comment, maps to vanilla getErrorComment
     public string GetErrorComment()
     {
         try
@@ -113,8 +113,8 @@ public sealed class ReportType
         }
     }
 
-    //AppendHeader 写报告头 对应原版 appendHeader
-    //两行一个横线标题加一条随机文案 之后是调用方给的补充说明
+    //AppendHeader writes the report header, maps to vanilla appendHeader
+    //Two lines: a dashed title plus a random comment, followed by the extra comments from the caller
     public void AppendHeader(System.Text.StringBuilder builder, IReadOnlyList<string> extraComments)
     {
         var newLine = Environment.NewLine;

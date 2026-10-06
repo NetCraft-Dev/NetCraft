@@ -2,7 +2,7 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry;
 
-//Precipitation 降水形态对应原版 Biome.Precipitation
+//Precipitation precipitation form, maps to vanilla Biome.Precipitation
 public enum Precipitation
 {
     None,
@@ -10,19 +10,19 @@ public enum Precipitation
     Snow
 }
 
-//TemperatureModifier 温度修正对应原版 Biome.TemperatureModifier
-//只有 frozen_ocean/deep_frozen_ocean 的真实数据用到 frozen
+//TemperatureModifier temperature modifier, maps to vanilla Biome.TemperatureModifier
+//Only the real data for frozen_ocean/deep_frozen_ocean uses frozen
 public enum TemperatureModifier
 {
     None,
     Frozen
 }
 
-//ClimateSettings 群系气候设置对应原版 Biome.ClimateSettings
-//四个字段内联进 Biome.DirectCodec 即直接是群系 JSON 的顶层字段
+//ClimateSettings biome climate settings, maps to vanilla Biome.ClimateSettings
+//The four fields are inlined into Biome.DirectCodec and are directly top-level fields of the biome JSON
 public sealed class ClimateSettings
 {
-    //TemperatureModifierCodec 温度修正枚举 codec
+    //TemperatureModifierCodec temperature modifier enum codec
     public static readonly Codec<TemperatureModifier> TemperatureModifierCodec = new StringEnumCodec<TemperatureModifier>(
         (TemperatureModifier.None, "none"),
         (TemperatureModifier.Frozen, "frozen"));
@@ -52,7 +52,7 @@ public sealed class ClimateSettings
         Downfall = downfall;
     }
 
-    //GetSerializedName 降水形态序列化名对应原版 StringRepresentable
+    //GetSerializedName precipitation form serialized name, maps to vanilla StringRepresentable
     public static string GetSerializedName(Precipitation precipitation) => precipitation switch
     {
         Precipitation.Rain => "rain",

@@ -4,8 +4,8 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Storage.Light;
 
-//BlockLightSectionStorage 方块光区段存储对应原版 net.minecraft.world.level.lighting.BlockLightSectionStorage
-//方块光没有任何"上方全亮"的语义 读不到层数据即 0
+//BlockLightSectionStorage, block light section storage, maps to vanilla net.minecraft.world.level.lighting.BlockLightSectionStorage
+//Block light has no "fully lit from above" semantics; a missing layer reads as 0
 public class BlockLightSectionStorage : LayerLightSectionStorage<BlockLightSectionStorage.BlockDataLayerStorageMap>
 {
     public BlockLightSectionStorage(LightChunkGetter chunkSource)
@@ -24,8 +24,8 @@ public class BlockLightSectionStorage : LayerLightSectionStorage<BlockLightSecti
             SectionPos.SectionRelative(BlockPos.GetZ(blockNode)));
     }
 
-    //BlockDataLayerStorageMap 方块光层映射对应原版同名嵌套类
-    //原版为 protected 嵌套类 C# 跨程序集构造需公开
+    //BlockDataLayerStorageMap, block light layer map, maps to the vanilla nested class of the same name
+    //Vanilla is a protected nested class; C# needs it public to construct across assemblies
     public sealed class BlockDataLayerStorageMap : DataLayerStorageMap<BlockDataLayerStorageMap>
     {
         public BlockDataLayerStorageMap() { }

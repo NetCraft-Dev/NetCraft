@@ -2,8 +2,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Network.Chat.Contents;
 
-//按键绑定内容对应原版net.minecraft.network.chat.contents.KeybindContents
-//Name 按键名运行时由 KeybindMapping 翻译为本地化文本
+//Keybind contents, maps to vanilla net.minecraft.network.chat.contents.KeybindContents
+//Name is the key name, translated at runtime into localized text by KeybindMapping
 public sealed record KeybindContents(string Name) : ComponentContents
 {
     public MapCodec<ComponentContents> Codec() => throw new NotImplementedException();

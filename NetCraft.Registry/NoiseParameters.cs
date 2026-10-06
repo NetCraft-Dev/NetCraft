@@ -2,14 +2,14 @@ using NetCraft.Codec;
 
 namespace NetCraft.Game.World.Level.LevelGen.Synth;
 
-//NoiseParameters 噪声参数对应原版 NormalNoise.NoiseParameters
-//持有 firstOctave 与 amplitudes 描述 NormalNoise 倍频配置
-//从 Game 层下移到 Registry 层供 Registries.NOISE 引用避免循环依赖
-//命名空间保持 Synth 子空间使 NormalNoise 与测试引用零改动
+//NoiseParameters noise parameters, maps to vanilla NormalNoise.NoiseParameters
+//Holds firstOctave and amplitudes describing the NormalNoise octave configuration
+//Moved down from the Game layer to the Registry layer so Registries.NOISE can reference it and avoid a circular dependency
+//Namespace stays under the Synth subspace so NormalNoise and test references are unchanged
 public sealed class NoiseParameters
 {
-    //Codec 噪声参数 JSON 编解码对应原版 NoiseParameters.CODEC
-    //字段 firstOctave(int) + amplitudes(double 列表) 与 data/minecraft/worldgen/noise/*.json 一致
+    //Codec for noise parameter JSON, maps to vanilla NoiseParameters.CODEC
+    //Fields are firstOctave(int) + amplitudes(list of double), matching data/minecraft/worldgen/noise/*.json
     public static readonly Codec<NoiseParameters> Codec = RecordCodecBuilder.Of2(
         Codecs.Int.FieldOf("firstOctave").ForGetter<NoiseParameters, int>(p => p.FirstOctave),
         Codecs.Double.ListOf().FieldOf("amplitudes").ForGetter<NoiseParameters, IReadOnlyList<double>>(p => p.Amplitudes),

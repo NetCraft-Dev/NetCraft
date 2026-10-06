@@ -4,9 +4,9 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Storage.Light;
 
-//ServerLightChunkGetter 服务端光照区块提供者对应原版 ServerChunkCache 作为 LightChunkGetter 的角色
-//按区块坐标查已加载区块转成光照视图 未加载返回 null 由引擎按完全不透明处理
-//查询必须是只读的 触发加载会沿邻居链递归生成导致栈溢出
+//ServerLightChunkGetter, server-side light chunk provider, maps to vanilla ServerChunkCache in its LightChunkGetter role
+//Looks up loaded chunks by chunk pos and turns them into light views; returns null when not loaded, which the engine treats as fully opaque
+//The lookup must be read-only; triggering a load would recursively generate along the neighbor chain and overflow the stack
 public sealed class ServerLightChunkGetter : LightChunkGetter, BlockGetter
 {
     private readonly Func<int, int, ChunkAccess?> _chunkLookup;
@@ -24,13 +24,13 @@ public sealed class ServerLightChunkGetter : LightChunkGetter, BlockGetter
     public int MaxSectionY { get; }
     public int SectionsCount { get; }
 
-    //LightUpdateCallback 光照引擎每轮传播后回调受影响区段 由区块缓存接管用于下发增量光照包
+    //LightUpdateCallback, called for affected sections after each propagation round of the light engine; the chunk cache uses it to send incremental light packets
     public Action<LightLayer, SectionPos>? LightUpdateCallback { get; set; }
 
-    //onLightUpdate 转发光照变化通知 不再让默认空实现把通知丢掉
+    //onLightUpdate forwards the light change notification, no longer letting the default no-op drop it
     public void OnLightUpdate(LightLayer layer, SectionPos pos) => LightUpdateCallback?.Invoke(layer, pos);
 
-    //getChunkForLighting 视图按区块缓存 天光光源高度图构建代价高不能每次重建
+    //getChunkForLighting caches views per chunk; building the sky light source heightmap is expensive and must not be redone each time
     public LightChunk? GetChunkForLighting(int chunkX, int chunkZ)
     {
         var key = ChunkPos.Pack(chunkX, chunkZ);
@@ -42,7 +42,7 @@ public sealed class ServerLightChunkGetter : LightChunkGetter, BlockGetter
         return view;
     }
 
-    //Track 登记正在计算光照的区块 此时区块尚未并入已加载缓存靠光照取块器查不到自身
+    //Track registers a chunk currently computing light; the chunk is not yet in the loaded cache, so the light chunk getter cannot find it
     public void Track(ChunkAccess chunk)
         => _views[ChunkPos.Pack(chunk.Pos.X, chunk.Pos.Z)] = new ServerLightChunk(chunk);
 
@@ -51,10 +51,10 @@ public sealed class ServerLightChunkGetter : LightChunkGetter, BlockGetter
     public BlockState GetBlockState(int x, int y, int z)
         => _chunkLookup(x >> 4, z >> 4)?.GetSection(y >> 4)?.GetBlockState(x & 15, y & 15, z & 15) ?? default;
 
-    //dropView 区块卸载或重建时清掉缓存视图避免持有过期区块
+    //dropView clears the cached view on chunk unload or rebuild, avoiding a stale chunk reference
     public void DropView(int chunkX, int chunkZ) => _views.Remove(ChunkPos.Pack(chunkX, chunkZ));
 
-    //UpdateSkyLightSources 方块变更后刷新该列的天光光源高度图 视图不存在时跳过
+    //UpdateSkyLightSources refreshes the sky light source heightmap of that column after a block change; skipped when the view is absent
     public void UpdateSkyLightSources(BlockPos pos)
     {
         if (_views.TryGetValue(ChunkPos.Pack(pos.X >> 4, pos.Z >> 4), out var view))

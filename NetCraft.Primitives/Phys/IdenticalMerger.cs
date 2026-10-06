@@ -1,7 +1,7 @@
 namespace NetCraft.Primitives.Phys;
 
-//IdenticalMerger 两侧坐标完全一致的归并 对应原版 IdenticalMerger
-//切分点一对一 省掉归并计算
+//IdenticalMerger merge when both sides have identical coordinates, maps to vanilla IdenticalMerger
+//Split points correspond one to one, skipping the merge computation
 public sealed class IdenticalMerger : IIndexMerger
 {
     private readonly IReadOnlyList<double> _coords;

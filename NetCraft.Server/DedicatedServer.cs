@@ -30,107 +30,107 @@ using NetCraft.Storage;
 using NetCraft.Storage.Paletted;
 using NetCraft.Util.Random;
 using NetCraft.Util.Thread;
-//注册表与关卡定义各有一个 DimensionType 前者是标记接口 这里固定指 Game 层的真实类型
+//The registry and level definitions each have a DimensionType, the former is a marker interface, this fixes the reference to the real Game-layer type
 using GameDimensionType = NetCraft.Game.World.Level.LevelGen.Dimension.DimensionType;
 
 namespace NetCraft.Game.Server;
 
-//DedicatedServer 专用服务端对应原版 net.minecraft.server.dedicated.DedicatedServer
-//继承 MinecraftServer 接入 ServerSettings 与 LevelStorageAccess 持有世界存储引用
-//阶段 11.35 接入构造与配置字段阶段 11.46 接入 PersistentServerLevel 与 tick 间隔控制
-//阶段 11.47 接入玩家 Connection 列表与 level.Tick 调度对齐原版 tickChildren 调用顺序
-//阶段 11.63 接入 ConnectionAcceptor 端口监听与 PlayerList 玩家管理实现 ServerHandshake/Login/Configuration 三阶段 Context 路由
-//每 AutoSaveIntervalTicks tick 自动刷盘 Stop 时强制刷盘避免数据丢失
+//DedicatedServer, the dedicated server, maps to vanilla net.minecraft.server.dedicated.DedicatedServer
+//Extends MinecraftServer, hooks in ServerSettings and LevelStorageAccess and holds the world storage reference
+//Stage 11.35 added construction and config fields, stage 11.46 added PersistentServerLevel and tick interval control
+//Stage 11.47 added the player Connection list and level.Tick scheduling, aligned with vanilla tickChildren call order
+//Stage 11.63 added ConnectionAcceptor port listening and PlayerList player management, implementing the ServerHandshake/Login/Configuration three-phase Context routing
+//Autosaves every AutoSaveIntervalTicks and forces a flush on Stop to avoid data loss
 public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, ServerLoginContext, ServerConfigurationContext, IDisposable
 {
-    //AutoSaveIntervalTicks 自动刷盘间隔对应原版 autosave.period 默认 6000 tick 约 5 分钟
+    //AutoSaveIntervalTicks autosave interval, maps to vanilla autosave.period, default 6000 ticks about 5 minutes
     public const int AutoSaveIntervalTicks = 6000;
 
-    //RandomTickRadius 随机刻作用的区块半径 对应原版实体 ticking 区块范围
+    //RandomTickRadius the chunk radius random ticks act on, maps to the vanilla entity-ticking chunk range
     private const int RandomTickRadius = 8;
 
     private readonly ServerSettings _settings;
     private readonly LevelStorageAccess _levelAccess;
     private readonly NetCraft.DataFixer.DataFixer _dataFixer;
     private readonly PersistentServerLevel _overworld;
-    //_overworldGenerator 主世界生成器 出生点气候搜索要用它取 spawn_target 与气候采样器
+    //_overworldGenerator the overworld generator, the spawn climate search uses it for spawn_target and the climate sampler
     private readonly ChunkGenerator? _overworldGenerator;
-    //_levels 全部维度世界 键是维度标识 主世界一定在其中且与 _overworld 是同一个实例
+    //_levels all dimension worlds, keyed by dimension identifier, the overworld is always among them and is the same instance as _overworld
     private readonly Dictionary<ResourceKey<Level>, PersistentServerLevel> _levels = new();
     private readonly List<Connection> _connections = new();
     private readonly PlayerList _playerList;
-    //_opList 管理员名单 权限等级判定与 /op /deop 读写来源
+    //_opList the operator list, source of permission level checks and /op /deop reads and writes
     private readonly OpList _opList;
-    //_banList 玩家封禁名单 登录校验与 /ban /pardon /banlist 读写来源
+    //_banList the player ban list, source of login checks and /ban /pardon /banlist reads and writes
     private readonly BanList _banList;
-    //_ipBanList IP 封禁名单 登录校验与 /ban-ip /pardon-ip 读写来源
+    //_ipBanList the IP ban list, source of login checks and /ban-ip /pardon-ip reads and writes
     private readonly IpBanList _ipBanList;
-    //_dataStorage 主世界 data 目录的 SavedData 存储 持 world_clocks.dat 等维度级数据
+    //_dataStorage the SavedData storage for the overworld data directory, holds dimension-level data such as world_clocks.dat
     private readonly SavedDataStorage _dataStorage;
-    //_entityStorages 实体独立落盘存储 按维度各一份 挂各维度目录下的 entities
+    //_entityStorages separate entity persistence storage, one per dimension, attached under each dimension's entities directory
     private readonly Dictionary<ResourceKey<Level>, EntityStorage> _entityStorages = new();
-    //_levelData 世界元数据 持 level.dat 读写 autosave 与 Stop 时落盘
+    //_levelData the world metadata, holds level.dat for reading and writes it on autosave and Stop
     private readonly LevelData _levelData;
-    //_playerData 玩家数据存档 玩家退出与刷盘时写 playerdata/<uuid>.dat
+    //_playerData the player data storage, writes playerdata/<uuid>.dat on player exit and flush
     private readonly PlayerDataStorage _playerData;
-    //_worldGenSettings 世界生成设置 种子固化在存档 data/minecraft/world_gen_settings.dat
+    //_worldGenSettings world generation settings, the seed is fixed into the save at data/minecraft/world_gen_settings.dat
     private readonly WorldGenSettingsData _worldGenSettings;
-    //_weatherData 天气状态 雨雷计时与目标状态 存 data/minecraft/weather.dat
+    //_weatherData weather state, rain and thunder timers and target state, stored at data/minecraft/weather.dat
     private readonly WeatherData _weatherData;
-    //_chunkTickets 区块票存档 每个维度一份 存 data/minecraft/chunk_tickets*.dat
-    //读档先入停用区 出生点区块准备完之后才激活 关服前重新停用并落盘
+    //_chunkTickets chunk ticket saves, one per dimension, stored at data/minecraft/chunk_tickets*.dat
+    //Loads go into the deactivated pool first and are activated after the spawn chunks are prepared, and are deactivated and flushed again before shutdown
     private readonly Dictionary<ResourceKey<Level>, TicketStorage> _chunkTickets = new();
     private readonly BlockEntityManager _blockEntities = new();
-    //_entityTracker 实体追踪器 按玩家视距下发实体进出与移动同步包
+    //_entityTracker the entity tracker, sends entity enter/leave and movement sync packets by player view distance
     private readonly EntityTracker _entityTracker = new();
-    //_debugPlayers 假玩家管理器 供 /debug join 造指令驱动的假客户端
+    //_debugPlayers the fake player manager, used by /debug join to create command-driven fake clients
     private readonly DebugPlayerManager _debugPlayers;
-    //_tickRandom 随机刻随机源 与区块生成用的随机源分开避免相互干扰
+    //_tickRandom the random tick source, separated from the chunk generation source to avoid interference
     private readonly RandomSource _tickRandom = RandomSource.Create();
-    //_randomTickChunks 本刻要跑随机刻的区块 按玩家位置每刻重算 免得遍历全部已加载区块
+    //_randomTickChunks chunks to random-tick this tick, recomputed per tick from player positions to avoid iterating all loaded chunks
     private readonly HashSet<long> _randomTickChunks = new();
-    //_autoSaveTask 上次自动刷盘的后台写盘任务 未完成时跳过下次自动刷盘
+    //_autoSaveTask the background write task from the last autosave, the next autosave is skipped while it is unfinished
     private Task? _autoSaveTask;
     private readonly ServerStatus _serverStatus;
     private readonly ReloadableServerResources? _rsr;
     private ConnectionAcceptor? _acceptor;
     private bool _disposed;
-    //_registryAccess 世界数据包(ItemStack 等)编解码需要的注册表集合 首次进入 Configuration 时惰性构建
+    //_registryAccess the registry set needed to codec world data packets (ItemStack and the like), built lazily on first entry into Configuration
     private RegistryAccess? _registryAccess;
-    //_commandStorage 命令存储 /data ... storage 的目标 首次用到时挂上 SavedData 存储
+    //_commandStorage the command storage, target of /data ... storage, attached to SavedData storage on first use
     private CommandStorage? _commandStorage;
-    //_statistics 运行指标上报 仅 enable-jmx-monitoring 开启时非空
+    //_statistics runtime metrics reporting, non-null only with enable-jmx-monitoring on
     private MinecraftServerStatistics? _statistics;
-    //_rconConsoleSource RCON 命令执行者与输出缓冲
+    //_rconConsoleSource the RCON command executor and output buffer
     private readonly RconConsoleSource _rconConsoleSource;
-    //_rconThread RCON 监听线程 仅 enable-rcon 且密码已配置时非空
+    //_rconThread the RCON listener thread, non-null only with enable-rcon on and a password configured
     private RconThread? _rconThread;
-    //_queryThreadGs4 GS4 查询线程 仅 enable-query 且端口有效时非空
+    //_queryThreadGs4 the GS4 query thread, non-null only with enable-query on and a valid port
     private QueryThreadGs4? _queryThreadGs4;
 
-    //RegistryAccessForConnection 惰性构建注册表访问集合
-    //必须等 BootstrapClass.BootStrap 冻结注册表之后才可构建 服务端构造时已满足
+    //RegistryAccessForConnection builds the registry access set lazily
+    //It can only be built after BootstrapClass.BootStrap freezes the registries, already satisfied at server construction
     private RegistryAccess RegistryAccessForConnection
         => _registryAccess ??= BuiltInRegistries.CreateRegistryAccess();
 
-    //Settings 服务端配置 server.properties 加载结果
+    //Settings the server config, the server.properties load result
     public override ServerSettings Settings => _settings;
 
-    //LevelAccess 世界存储访问入口
+    //LevelAccess the world storage access entry point
     public LevelStorageAccess LevelAccess => _levelAccess;
 
-    //Overworld 主世界 PersistentServerLevel 接入 RegionFileStorage
+    //Overworld the overworld PersistentServerLevel hooked into RegionFileStorage
     public override PersistentServerLevel Overworld => _overworld;
 
-    //Levels 全部维度世界供 tick 遍历与诊断
+    //Levels all dimension worlds for tick iteration and diagnostics
     public IEnumerable<PersistentServerLevel> Levels => _levels.Values;
 
-    //GetLevel 按维度标识取世界 该维度没建时返回 null
+    //GetLevel gets a world by dimension identifier, null when that dimension was not created
     public override PersistentServerLevel? GetLevel(ResourceKey<Level> key)
         => _levels.TryGetValue(key, out var level) ? level : null;
 
-    //CreateLevel 按维度建一个持久化世界
-    //高度与生成器优先取关卡定义 无定义时退回传入的默认值（只有主世界有生成器兜底）
+    //CreateLevel creates a persistent world for a dimension
+    //Height and generator prefer the level definition, falling back to the passed defaults without one (only the overworld has a generator fallback)
     private PersistentServerLevel CreateLevel(ResourceKey<Level> key, int defaultMinSectionY, int defaultSectionsCount,
         PalettedContainerFactory? factory, RegistryAccess? registryAccess, ChunkGenerator? fallbackGenerator,
         RandomSource? random, long worldSeed)
@@ -142,15 +142,15 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         var minSectionY = dimensionType?.MinSectionY ?? defaultMinSectionY;
         var sectionsCount = dimensionType?.SectionCount ?? defaultSectionsCount;
         var chunkGenerator = stem?.Generator ?? fallbackGenerator;
-        //存档未命中时走 ChunkStatusProcessor 流水线 random 保证生成可重现
+        //On a save miss it goes through the ChunkStatusProcessor pipeline, random makes generation reproducible
         Func<ChunkPos, ChunkAccess?>? generator = null;
         NetCraft.Game.World.Level.LevelGen.Structure.StructureFeatureManager? structures = null;
         PersistentServerLevel? created = null;
         if (chunkGenerator is not null)
         {
             var pf = factory ?? PalettedContainerFactory.Default;
-            //邻块只取已加载区块 未加载的邻居返回 null 装饰退化为只看中心区块
-            //生成期不能触发新加载 否则邻块链会一路递归下去
+            //Neighbor lookups only take loaded chunks, an unloaded neighbor returns null and decoration degrades to the center chunk only
+            //Generation must not trigger new loads, otherwise the neighbor chain recurses endlessly
             var built = ChunkGenerationHelper.CreateGenerator(
                 chunkGenerator, minSectionY, sectionsCount, random ?? RandomSource.Create(), pf,
                 worldSeed, (x, z) => created?.ChunkSource.GetLoadedChunk(x, z),
@@ -169,7 +169,7 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
             _settings.ViewDistance,
             generator,
             _settings.SimulationDistance);
-        //结构桥在关卡建好之后挂上 区块落盘打包与读档还原都经它
+        //The structure bridge is attached after the level is built, chunk persistence packing and load restoration both go through it
         if (structures is not null)
         {
             created.StructureDataBridge = new ServerStructureDataBridge(structures,
@@ -179,39 +179,39 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         return created;
     }
 
-    //CreateExtraLevels 按关卡定义建主世界之外的维度
-    //没有关卡定义就不建 数据包缺失时宁可退化成单世界也不要用错生成器造出假维度
+    //CreateExtraLevels creates dimensions beyond the overworld from the level definitions
+    //None are created without a level definition, a missing data pack degrades to a single world rather than using the wrong generator to fabricate fake dimensions
     private void CreateExtraLevels(PalettedContainerFactory? factory, RegistryAccess? registryAccess,
         RandomSource? random, long worldSeed)
     {
         foreach (var key in new[] { LevelKeys.NETHER, LevelKeys.END })
         {
             if (WorldPresets.Get(key.Identifier) is null) continue;
-            //无关卡定义时的默认高度取下界与末地共用的 0 起 8 段
+            //The default height without a level definition takes the value shared by the nether and the end, 0 with 8 sections
             _levels[key] = CreateLevel(key, 0, 8, factory, registryAccess, null, random, worldSeed);
         }
     }
 
-    //WireLevel 给一个维度挂上 Game 层副作用出口
-    //方块更新/光照/方块实体/实体碰撞/实体死亡这些回调每个维度都要各挂一份 少挂一个该维度就断链
+    //WireLevel attaches the Game layer side-effect outlets to a dimension
+    //Block updates/light/block entities/entity collision/entity death each need one attachment per dimension, missing one breaks that dimension's chain
     private void WireLevel(PersistentServerLevel level)
     {
-        //光照变化经玩家集合同步给客户端 区块包之外的光照变化只能靠这条链路下发
+        //Light changes are synced to clients through the player set, light changes outside chunk packets can only be sent via this chain
         level.LightUpdateSink = BroadcastLightUpdate;
-        //方块更新链的副作用出口 方块实体移除与方块销毁都从这里回调
+        //Side-effect outlet of the block update chain, block entity removal and block destruction both call back from here
         level.BlockUpdateSink = new ServerBlockUpdateSink(level, _playerList, _blockEntities);
-        //方块实体随区块落盘与卸载清理都经这条桥 Game 层负责按 id 编解码
+        //Block entities persist with chunks and are cleaned up on unload through this bridge, the Game layer handles coding by id
         level.BlockEntityBridge = new ServerBlockEntityBridge(level, _blockEntities);
-        //玩家不在实体管理器里 压力板那类实体进入判定要额外算上玩家包围盒
+        //Players are not in the entity manager, entities like pressure plates need the player bounding boxes added for enter detection
         level.ExtraEntityBoxes = PlayerBoxes;
-        //实体移动的形状碰撞 关卡层问不了方块行为 用碰撞视图按实体口径取方块碰撞形状
+        //Shape collision for entity movement, the level layer cannot ask block behavior, a collision view fetches block collision shapes per entity
         CollisionGetter collisionView = new LevelCollisionGetter(level, level.MinSectionY, level.SectionsCount);
         level.CollisionShapeProvider = (entity, box) => collisionView.GetBlockCollisions(entity, box).ToList();
-        //实体死亡回调 由关卡在实体加入时挂接 广播死亡事件后把实体移出世界
+        //Entity death callback, attached by the level when an entity is added, broadcasts the death event then removes the entity from the world
         level.EntityDeathCallback = OnEntityDied;
     }
 
-    //CreateEntityStorage 按维度建实体落盘存储 主世界落在世界根目录 其余维度落在各自维度目录
+    //CreateEntityStorage builds entity persistence storage per dimension, the overworld lands in the world root and other dimensions in their own directories
     private EntityStorage CreateEntityStorage(ResourceKey<Level> key)
         => new(
             new SimpleRegionStorage(
@@ -225,85 +225,85 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
             EntityPersister.Load,
             EntityPersister.Save);
 
-    //DataFixer 存档升级器由 GameDataFixers.BuildV1_21Fixer 构建传入
+    //DataFixer the save upgrader, built and passed by GameDataFixers.BuildV1_21Fixer
     public NetCraft.DataFixer.DataFixer DataFixer => _dataFixer;
 
-    //Connections 已接入的玩家连接列表只读视图供外部诊断
+    //Connections a readonly view of connected player connections for external diagnostics
     public override IReadOnlyList<Connection> Connections => _connections;
 
-    //PlayerList 在线玩家集合管理
+    //PlayerList online player set management
     public override PlayerList PlayerList => _playerList;
 
-    //ClockManager 世界时钟管理器 推进/修改各 WorldClock 状态并随存档持久化
+    //ClockManager the world clock manager, advances and modifies each WorldClock state and persists it with the save
     public override ServerClockManager ClockManager { get; }
 
-    //BlockEntities 方块实体集合 服务端每帧 tick 并可按需下发 ClientboundBlockEntityData
+    //BlockEntities the block entity collection, the server ticks it every frame and can send ClientboundBlockEntityData on demand
     public override BlockEntityManager BlockEntities => _blockEntities;
 
-    //CommandStorage 命令存储 对应原版 MinecraftServer.getCommandStorage
+    //CommandStorage command storage, maps to vanilla MinecraftServer.getCommandStorage
     public override CommandStorage CommandStorage => _commandStorage ??= new CommandStorage(_dataStorage);
 
-    //Stopwatches 调试计时器集合 对应原版 MinecraftServer.getStopwatches
+    //Stopwatches the debug stopwatch collection, maps to vanilla MinecraftServer.getStopwatches
     public override Stopwatches Stopwatches { get; } = new();
 
-    //EntityTracker 实体追踪器 供诊断与测试直接驱动
+    //EntityTracker the entity tracker, driven directly by diagnostics and tests
     public override EntityTracker EntityTracker => _entityTracker;
 
-    //DebugPlayers 假玩家管理器 /debug join 与 /debug player 的操作入口
+    //DebugPlayers the fake player manager, the operation entry for /debug join and /debug player
     public override DebugPlayerManager DebugPlayers => _debugPlayers;
 
-    //ServerStatus 服务器状态响应 StatusRequest 用
+    //ServerStatus the server status, used to respond to StatusRequest
     public ServerStatus ServerStatus => _serverStatus;
 
-    //ServerResources 服务端可重载资源集合持有 ResourceManager 与 Tags
-    //为后续 /reload 命令重载 Tags/Recipes/Advancements 等数据驱动内容铺路
+    //ServerResources the server reloadable resource set holding the ResourceManager and Tags
+    //Paves the way for later /reload commands to reload data-driven content such as Tags/Recipes/Advancements
     public ReloadableServerResources? ServerResources => _rsr;
 
-    //Commands 命令管理器 持命令树 进世界时下发 收到上行命令包时执行
+    //Commands the command manager, holds the command tree, sends it on world entry and executes on incoming command packets
     public override CommandManager Commands { get; }
 
-    //DefaultGameType 服务端默认游戏模式存档存在时以 level.dat 为准否则由 settings.gamemode 解析
-    //玩家加入时 PlayerList.PlaceNewPlayer 应用此模式 defaultgamemode 命令可改
+    //DefaultGameType the server default game mode, level.dat wins when the save exists, otherwise it is parsed from settings.gamemode
+    //PlayerList.PlaceNewPlayer applies it on join and the defaultgamemode command can change it
     private GameType _defaultGameType;
     public override GameType DefaultGameType => _defaultGameType;
 
-    //WorldSeed 世界种子用于 LoginPacket SpawnInfo 同步 未传默认 0
+    //WorldSeed the world seed used for LoginPacket SpawnInfo sync, defaults to 0 when not passed
     public override long WorldSeed { get; }
 
-    //LevelData 世界元数据 供外部读取种子外的时间出生点等状态
+    //LevelData the world metadata, for external reads of state such as time and spawn besides the seed
     public override LevelData LevelData => _levelData;
 
-    //PlayerData 玩家数据存档 入服读取与退出/刷盘时写入
+    //PlayerData the player data storage, read on join and written on exit/flush
     public override PlayerDataStorage PlayerData => _playerData;
 
-    //OpList 管理员名单 权限等级来源 列表变更即落盘 ops.json
+    //OpList the operator list, source of permission levels, writes ops.json on change
     public override OpList OpList => _opList;
 
-    //BanList 玩家封禁名单 列表变更即落盘 banned-players.json
+    //BanList the player ban list, writes banned-players.json on change
     public override BanList BanList => _banList;
 
-    //IpBanList IP 封禁名单 列表变更即落盘 banned-ips.json
+    //IpBanList the IP ban list, writes banned-ips.json on change
     public override IpBanList IpBanList => _ipBanList;
 
-    //WhiteList 白名单名单 列表变更即落盘 whitelist.json
+    //WhiteList the whitelist, writes whitelist.json on change
     public override WhiteList WhiteList { get; } = new(AppPaths.WhitelistPath);
 
-    //IsWhiteListEnabled 白名单是否启用 对应原版 PlayerList.isUsingWhitelist
-    //构造时取 server.properties 的 white-list 之后由 whitelist on/off 命令改
+    //IsWhiteListEnabled whether the whitelist is enabled, maps to vanilla PlayerList.isUsingWhitelist
+    //Taken from white-list in server.properties at construction and changed later by the whitelist on/off command
     public override bool IsWhiteListEnabled { get; set; }
 
-    //GameRules 游戏规则存档 供 /gamerule 命令接入时读写
+    //GameRules the game rule save, read and written by the /gamerule command
     public override GameRuleMapData GameRules { get; }
 
-    //SpawnPos 世界出生点 从 level.dat 恢复新世界默认 (0,64,0)
-    //配置阶段出生点预载与 SetDefaultSpawnPosition 均以此为准
+    //SpawnPos the world spawn, restored from level.dat and defaulting to (0,64,0) for a new world
+    //The configuration-phase spawn preload and SetDefaultSpawnPosition both use it
     private Vec3 _spawnPos = new(0, 64, 0);
     public override Vec3 SpawnPos => _spawnPos;
 
-    //SetDefaultGameType defaultgamemode 命令改默认模式 只影响之后加入的玩家
+    //SetDefaultGameType the defaultgamemode command changes the default mode, affecting only players who join afterwards
     public override void SetDefaultGameType(GameType gameType) => _defaultGameType = gameType;
 
-    //SetSpawnPos spawnpoint/setworldspawn 改写世界出生点 立即回写 level.dat
+    //SetSpawnPos spawnpoint/setworldspawn rewrite the world spawn and write level.dat back immediately
     public override void SetSpawnPos(Vec3 pos)
     {
         _spawnPos = pos;
@@ -332,11 +332,11 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         IpBanList? ipBanList = null)
         : base(serverThread)
     {
-        //_settings 必须先赋值 CommandManager 构造要读 nc-debug-commands 决定是否注册 /debug
+        //_settings must be assigned first, the CommandManager constructor reads nc-debug-commands to decide whether to register /debug
         _settings = settings;
         Commands = new CommandManager(this);
-        //函数库与函数管理器对应原版 resources.managers.getFunctionLibrary 与 new ServerFunctionManager
-        //编译权限按 function-permission-level 对应原版 getFunctionCompilationPermissions
+        //The function library and function manager map to vanilla resources.managers.getFunctionLibrary and new ServerFunctionManager
+        //Compile permission follows function-permission-level, maps to vanilla getFunctionCompilationPermissions
         var functionLibrary = new ServerFunctionLibrary(
             LevelBasedPermissionSet.ForLevel((NetCraft.Registry.PermissionLevel)Math.Clamp(_settings.FunctionPermissionLevel, 0, 4)),
             Commands.Dispatcher);
@@ -344,47 +344,47 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         _levelAccess = levelAccess;
         _dataFixer = dataFixer ?? GameDataFixers.BuildV1_21Fixer();
         _rsr = rsr;
-        //level.dat 存在则恢复存档元数据否则按 server.properties 初始化新世界
+        //Restore save metadata when level.dat exists, otherwise initialize a new world from server.properties
         _levelData = levelData ?? new LevelData
         {
             LevelName = settings.LevelName,
             GameTypeId = (GameType.ByName(settings.Gamemode) ?? GameType.Survival).Id,
             DifficultyName = settings.Difficulty,
-            //新世界出生点还没定 记未初始化 启动时按原版 setInitialSpawn 搜索
+            //A new world's spawn is not yet decided, mark it uninitialized, startup searches following vanilla setInitialSpawn
             Initialized = false,
         };
-        //按关卡定义建主世界 高度与生成器从维度配置推 无配置时退回构造参数与传入的生成器
-        //出生点气候搜索要用主世界生成器 取值口径与 CreateLevel 内保持一致
+        //Build the overworld from the level definition, height and generator derive from the dimension config and fall back to the constructor args and passed generator without one
+        //The spawn climate search needs the overworld generator and uses the same source as CreateLevel
         _overworldGenerator = WorldPresets.Get(LevelKeys.OVERWORLD.Identifier)?.Generator ?? chunkGenerator;
         _overworld = CreateLevel(LevelKeys.OVERWORLD, minSectionY, sectionsCount, factory, registryAccess,
             chunkGenerator, random, worldSeed ?? 0);
         _levels[LevelKeys.OVERWORLD] = _overworld;
         _playerList = new PlayerList(this, settings.MaxPlayers);
-        //刻速率状态变化经玩家集合同步给客户端 对应原版 tickRateManager 取 server.getPlayerList() 广播
+        //Tick rate state changes are synced to clients through the player set, maps to vanilla tickRateManager using server.getPlayerList() to broadcast
         TickRate.Players = _playerList;
-        //主世界之外的维度按关卡定义建 数据包没定义就不建 免得用错生成器造出假维度
+        //Dimensions beyond the overworld are built from the level definitions, none without a data pack definition to avoid fabricating fake dimensions with the wrong generator
         CreateExtraLevels(factory, registryAccess, random, worldSeed ?? 0);
-        //方块更新链的 Game 层副作用出口每个维度各挂一份 少挂一个该维度的更新链就断
+        //The Game layer side-effect outlet of the block update chain is attached per dimension, missing one breaks that dimension's chain
         foreach (var level in _levels.Values) WireLevel(level);
-        //管理员名单挂程序根目录 ops.json 对齐原版服务端根目录位置
+        //The operator list is attached to ops.json in the program root, matching the vanilla server root location
         _opList = opList ?? new OpList(AppPaths.OpsPath);
-        //封禁名单同样挂程序根目录 banned-players.json 与 banned-ips.json
+        //The ban lists are likewise attached to banned-players.json and banned-ips.json in the program root
         _banList = banList ?? new BanList(AppPaths.BannedPlayersPath);
         _ipBanList = ipBanList ?? new IpBanList(AppPaths.BannedIpsPath);
         IsWhiteListEnabled = settings.WhiteList;
-        //假玩家管理器只持有服务端引用 构造期不做实际操作
+        //The fake player manager only holds a server reference and performs no actions during construction
         _debugPlayers = new DebugPlayerManager(this);
-        //旧档恢复世界游戏时间与出生点新世界保持默认 0 与 (0,64,0)
+        //An old save restores world game time and spawn, a new world keeps the defaults 0 and (0,64,0)
         _overworld.GameTime = _levelData.GameTime;
         _spawnPos = new Vec3(_levelData.SpawnX, _levelData.SpawnY, _levelData.SpawnZ);
-        //SavedDataStorage 挂主世界 data 目录 对应原版 overworld.getDataStorage
+        //SavedDataStorage is attached to the overworld data directory, maps to vanilla overworld.getDataStorage
         _dataStorage = new SavedDataStorage(
             Path.Combine(levelAccess.GetDimensionPath(LevelKeys.OVERWORLD), "data"), _dataFixer);
         _dataStorage.SetRegistryAccess(RegistryAccessForConnection);
-        //玩家数据存档挂世界根目录下的 playerdata 对应原版 PlayerDataStorage
+        //Player data storage is attached to playerdata under the world root, maps to vanilla PlayerDataStorage
         _playerData = new PlayerDataStorage(levelAccess.WorldDir);
-        //实体独立落盘存储按维度各一份 对应原版每个 ServerLevel 各自的 entities 目录
-        //loader/saver 由 Game 层 EntityPersister 提供 避免 Storage 层依赖具体实体类型
+        //Separate entity persistence storage is created per dimension, maps to each vanilla ServerLevel's own entities directory
+        //The loader/saver come from the Game layer EntityPersister, avoiding a Storage layer dependency on concrete entity types
         foreach (var (key, level) in _levels)
         {
             var storage = CreateEntityStorage(key);
@@ -393,29 +393,29 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         }
         ClockManager = _dataStorage.ComputeIfAbsent(ServerClockManager.Type);
         ClockManager.Init(this);
-        //世界生成设置与游戏规则从存档恢复新世界时固化种子
+        //World generation settings and game rules are restored from the save, the seed is fixed for a new world
         _worldGenSettings = _dataStorage.ComputeIfAbsent(WorldGenSettingsData.Type);
         GameRules = _dataStorage.ComputeIfAbsent(GameRuleMapData.Type);
-        //计划事件队列存档对应原版 MinecraftServer 构造里的 computeIfAbsent(TimerQueue.TYPE)
+        //The scheduled event queue save maps to computeIfAbsent(TimerQueue.TYPE) in the vanilla MinecraftServer constructor
         ScheduledEvents = _dataStorage.ComputeIfAbsent(TimerQueueTypes.Instance);
-        //世界边界存档挂主世界 data 目录 对应原版 ServerLevel.getWorldBorder 的 computeIfAbsent
-        //装载后把存档参数灌进运行时字段 之后以运行时状态为准
+        //The world border save is attached to the overworld data directory, maps to computeIfAbsent in vanilla ServerLevel.getWorldBorder
+        //After loading, the save parameters are poured into runtime fields and the runtime state takes over
         _overworld.WorldBorder = _dataStorage.ComputeIfAbsent(WorldBorder.Type);
         _overworld.WorldBorder.ApplyInitialSettings(_overworld.GameTime);
-        //边界改动经监听器转成网络包广播 对应原版 PlayerList.addWorldborderListener
+        //Border changes are turned into broadcast packets by a listener, maps to vanilla PlayerList.addWorldborderListener
         _overworld.WorldBorder.AddListener(new ServerWorldBorderListener(_playerList));
-        //天气状态存档 服务器级一份 对应原版 MinecraftServer 里 computeIfAbsent(WeatherData.TYPE)
+        //The weather state save is server-wide, maps to computeIfAbsent(WeatherData.TYPE) in vanilla MinecraftServer
         _weatherData = _dataStorage.ComputeIfAbsent(WeatherData.Type);
-        //区块票存档 每个维度各一份对应原版 level.getDataStorage().computeIfAbsent(TicketStorage.TYPE)
-        //共用一份时每次接入新维度都会覆盖等级回调 只剩最后一个维度收得到票变化 别维度的票等级从此不收敛
-        //读档只填停用区 等出生点区块准备完再激活 免得旧票在世界就绪前把区块拉起来
+        //Chunk ticket saves, one per dimension, maps to vanilla level.getDataStorage().computeIfAbsent(TicketStorage.TYPE)
+        //Sharing one would overwrite the level callback on every new dimension, only the last dimension would receive ticket changes and other dimensions' ticket levels would stop converging
+        //Only the deactivated pool is filled on load and activation waits until the spawn chunks are prepared, so old tickets do not pull chunks up before the world is ready
         foreach (var (key, level) in _levels)
         {
             var tickets = _dataStorage.ComputeIfAbsent(TicketStorage.TypeFor(key.Identifier));
             _chunkTickets[key] = tickets;
             level.ChunkSource.AttachTicketStorage(tickets);
         }
-        //读档时正在下雨则雨量直接置满 对应原版 ServerLevel 构造里的 prepareWeather
+        //If it is raining on load the rain level is set full directly, maps to prepareWeather in the vanilla ServerLevel constructor
         if (_overworld.CanHaveWeather() && _weatherData.Raining)
         {
             _overworld.RainLevel = 1.0f;
@@ -426,19 +426,19 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
             _worldGenSettings.Seed = worldSeed ?? 0;
             _worldGenSettings.SetDirty();
         }
-        //主世界默认时钟 对应原版 overworld 维度类型的 default_clock
+        //The overworld default clock, maps to default_clock of the vanilla overworld dimension type
         _overworld.DefaultClock = WorldClocks.OverworldHolder;
         _serverStatus = BuildServerStatus();
-        //RCON 命令源与输出缓冲 对应原版 DedicatedServer 构造里的 rconConsoleSource
+        //The RCON command source and output buffer, maps to rconConsoleSource in the vanilla DedicatedServer constructor
         _rconConsoleSource = new RconConsoleSource(this);
-        //gamemode 由 server.properties 每次启动覆盖并写回存档对齐原版 setGameType 语义
-        //difficulty 相反以存档为准对应原版 forceDifficulty 空实现
+        //gamemode is overridden from server.properties on every startup and written back to the save, aligned with vanilla setGameType semantics
+        //difficulty is the opposite and follows the save, maps to vanilla forceDifficulty being a no-op
         _defaultGameType = GameType.ByName(settings.Gamemode) ?? GameType.Survival;
         _levelData.GameTypeId = DefaultGameType.Id;
         WorldSeed = worldSeed ?? 0;
     }
 
-    //BuildServerStatus 构造 StatusRequest 响应数据
+    //BuildServerStatus builds the StatusRequest response data
     private ServerStatus BuildServerStatus()
     {
         return new ServerStatus
@@ -453,7 +453,7 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         };
     }
 
-    //StartNetwork 启动 TCP 监听线程接受新连接
+    //StartNetwork starts the TCP listener thread to accept new connections
     public void StartNetwork()
     {
         _acceptor = new ConnectionAcceptor(IPAddress.Any, _settings.ServerPort, OnNewConnection);
@@ -461,8 +461,8 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         Log.Info($"Network listening on port {_settings.ServerPort}");
     }
 
-    //RunRconCommand 执行一条 RCON 命令并返回输出对应原版 DedicatedServer.runCommand
-    //先清缓冲 再投到主循环同步执行 最后取缓冲内容发回客户端
+    //RunRconCommand executes one RCON command and returns the output, maps to vanilla DedicatedServer.runCommand
+    //Clears the buffer, dispatches to the main loop for synchronous execution, then takes the buffer content back to the client
     public string RunRconCommand(string command)
     {
         _rconConsoleSource.PrepareForCommand();
@@ -470,28 +470,28 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         return _rconConsoleSource.GetCommandResponse();
     }
 
-    //ShouldRconBroadcast RCON 执行结果是否广播给 op 对应原版 shouldRconBroadcast
-    //NC 命令层还没有 informAdmins 通道 先挂配置项供命令层后续接入
+    //ShouldRconBroadcast whether RCON results are broadcast to ops, maps to vanilla shouldRconBroadcast
+    //The NC command layer has no informAdmins channel yet, the config entry is exposed for the command layer to hook in later
     public bool ShouldRconBroadcast => _settings.BroadcastRconToOps;
 
-    //InitServer 启动阶段初始化对应原版 DedicatedServer.initServer 收尾
-    //新世界先按原版 setInitialSpawn 搜出生点 再把出生点周边区块加载完才宣告就绪
-    //对应原版 prepareLevels 的 LOAD_INITIAL_CHUNKS 阶段: 先加载后 Done
+    //InitServer startup initialization, maps to the tail of vanilla DedicatedServer.initServer
+    //A new world first searches the spawn following vanilla setInitialSpawn, then loads the chunks around the spawn before declaring ready
+    //Maps to the LOAD_INITIAL_CHUNKS stage of vanilla prepareLevels: load first, then Done
     public void InitServer()
     {
         if (!_levelData.Initialized) SearchInitialSpawn();
         StartNetwork();
-        //函数库按数据包装载对应原版 reloadableServerResources.loadResources 里的函数库重载段
-        //挂进资源监听列表之后 /reload 也会带着函数库一起重载
+        //The function library is loaded by data pack, maps to the function library reload section of vanilla reloadableServerResources.loadResources
+        //Once attached to the resource listener list, /reload carries the function library along
         _rsr?.AttachFunctionLibrary(Functions.Library);
-        //指标上报默认关闭 与原版 enable-jmx-monitoring 一致
+        //Metrics reporting is off by default, same as vanilla enable-jmx-monitoring
         if (_settings.EnableJmxMonitoring)
         {
             _statistics = MinecraftServerStatistics.Register(this);
             Log.Info("JMX monitoring enabled");
         }
-        //GS4 查询监听顺序与原版 initServer 一致 query 在前 rcon 在后
-        //创建失败(端口未配置或被占用)只告警不阻断开服 对应原版返回 null 的分支
+        //The GS4 query listener order matches vanilla initServer, query before rcon
+        //A creation failure (port unconfigured or in use) only warns and does not block startup, maps to the vanilla null-return branch
         if (_settings.EnableQuery)
         {
             Log.Info("Starting GS4 status listener");
@@ -502,21 +502,21 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
             Log.Info("Starting remote control listener");
             _rconThread = RconThread.Create(this);
         }
-        //启动即固化 level.dat 与 saveddata 对应原版 initServer 末尾 saveEverything
-        //新世界种子立刻落盘防止窗口期内崩溃重启换种子
+        //Startup immediately fixes level.dat and saveddata, maps to saveEverything at the end of vanilla initServer
+        //A new world seed is written to disk immediately to prevent a crash-restart within the window from changing it
         SaveLevelData();
         _dataStorage.ScheduleSave();
-        //旧档的票等世界就绪之后才允许驱动加载 对应原版 prepareLevels 里的 activateAllDeactivatedTickets
-        //每个维度各激活自己那份 票表按维度隔离后不能只激活一份
+        //Old save tickets may drive loading only after the world is ready, maps to activateAllDeactivatedTickets in vanilla prepareLevels
+        //Each dimension activates its own copy, with ticket tables isolated per dimension only one cannot be activated
         foreach (var tickets in _chunkTickets.Values) tickets.ActivateAllDeactivatedTickets();
-        //原版 26.2 的 prepareLevels 不再预加载出生点 激活完存档票就宣告就绪
-        //实测: 全新世界准备阶段只加载出生点那一格且 2 tick 后就卸掉 读旧档 0 格
-        //出生点那片 3x3 强加载是玩家登录时 PrepareSpawnTask 挂 PLAYER_SPAWN 票才有的 见 PrepareSpawnChunks
+        //Vanilla 26.2 prepareLevels no longer preloads the spawn, it declares ready after activating the save tickets
+        //Measured: a fresh world's prepare stage loads only the single spawn chunk and unloads it after 2 ticks, an old save loads 0
+        //The 3x3 strong load around the spawn only exists because PrepareSpawnTask adds a PLAYER_SPAWN ticket on player login, see PrepareSpawnChunks
         Log.Info($"Done ({StartWatch.Elapsed.TotalSeconds.ToString("0.000", CultureInfo.InvariantCulture)}s)! NetCraft server ready");
     }
 
-    //SearchInitialSpawn 新世界出生点搜索 对应原版 MinecraftServer.setInitialSpawn
-    //先按气候目标定候选落点 再从候选起逐区块找能站人的地表 命中即替换出生点 全未命中保留默认值
+    //SearchInitialSpawn new world spawn search, maps to vanilla MinecraftServer.setInitialSpawn
+    //First finds a candidate from the climate target, then searches chunk by chunk from the candidate for standable ground, a hit replaces the spawn and an all-miss keeps the default
     private void SearchInitialSpawn()
     {
         var watch = Stopwatch.StartNew();
@@ -531,12 +531,12 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
             Log.Info($"Spawn search finished ({pos.X},{pos.Y},{pos.Z}) in {watch.ElapsedMilliseconds}ms");
         }
         else Log.Warning("Spawn search found nothing, keeping the default spawn");
-        //标记已初始化 下次启动直接沿用 level.dat 里的出生点
+        //Mark initialized so the next startup reuses the spawn in level.dat
         _levelData.Initialized = true;
     }
 
-    //ResolveSpawnSuggestion 出生点候选落点 对应原版 setInitialSpawn 里的 findSpawnPosition
-    //按噪声设置的 spawn_target 做气候径向搜索 数据包没给目标时退回当前出生点
+    //ResolveSpawnSuggestion the candidate spawn position, maps to findSpawnPosition in vanilla setInitialSpawn
+    //Does a radial climate search from the noise settings spawn_target, falling back to the current spawn when the data pack gives no target
     private BlockPos ResolveSpawnSuggestion()
     {
         if (_overworldGenerator is NoiseBasedChunkGenerator noiseGen && noiseGen.FindSpawnPosition() is { } candidate)
@@ -548,9 +548,9 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         return new BlockPos((int)SpawnPos.X, (int)SpawnPos.Y, (int)SpawnPos.Z);
     }
 
-    //KeepAliveSpawnTickets 续出生点预载票 对应原版 PrepareSpawnTask.Ready.keepAlive
-    //PLAYER_SPAWN 只有 20 tick 超时 新世界的 7x7 生成往往更久 不续的话票过期区块被回收
-    //与 PrepareSpawnChunks 出的是同一张票同一半径 同类型同等级会被 AddTicket 当成同一张只做续期
+    //KeepAliveSpawnTickets renews the spawn preload tickets, maps to vanilla PrepareSpawnTask.Ready.keepAlive
+    //PLAYER_SPAWN times out after only 20 ticks and a new world's 7x7 generation often takes longer, without renewal the tickets expire and chunks are reclaimed
+    //It is the same ticket and radius as the one from PrepareSpawnChunks, the same type and level is treated by AddTicket as the same ticket and only renewed
     public void KeepAliveSpawnTickets()
     {
         var spawnChunk = new ChunkPos((int)Math.Floor(SpawnPos.X / 16), (int)Math.Floor(SpawnPos.Z / 16));
@@ -558,8 +558,8 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
             NetCraft.Storage.TicketType.PlayerSpawn, spawnChunk, PrepareChunkRadius);
     }
 
-    //OnEntityDied 实体血量归零后的收尾 对应原版 LivingEntity.die 与 remove(KILLED)
-    //广播死亡事件 3 让客户端播死亡动画 再把实体移出关卡由追踪器下发移除包
+    //OnEntityDied cleanup after an entity's health reaches zero, maps to vanilla LivingEntity.die and remove(KILLED)
+    //Broadcasts death event 3 so the client plays the death animation, then removes the entity from the level and the tracker sends the removal packet
     private void OnEntityDied(NetCraft.Registry.Entity entity)
     {
         Log.Info($"Entity died {entity.Id} entityId={entity.EntityId}");
@@ -568,8 +568,8 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         _overworld.RemoveEntity(entity);
     }
 
-    //BroadcastLightUpdate 把光照变化按区块打包成增量光照包广播 对应原版 ChunkMap.onLightUpdate
-    //方块包只带状态不带光照 缺这一步客户端会一直用旧亮度 方块看着发白或发暗像幽灵方块
+    //BroadcastLightUpdate packs light changes per chunk into incremental light packets and broadcasts them, maps to vanilla ChunkMap.onLightUpdate
+    //Block packets carry state without light, missing this step makes the client keep the old brightness and blocks look washed out or dark like ghost blocks
     private void BroadcastLightUpdate(ChunkPos pos, IReadOnlyList<int> skySections, IReadOnlyList<int> blockSections)
     {
         var engine = _overworld.ChunkSource.LightEngine;
@@ -580,8 +580,8 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
             NetCraft.Game.Network.Protocol.Game.ClientboundLightUpdatePacketData.CreateFilter(count, blockSections)));
     }
 
-    //PlayerBoxes 在线玩家的包围盒 玩家尺寸按原版 0.6x1.8 脚部为原点
-    //压力板那类实体进入判定要看玩家 玩家不在实体管理器里只能这样补进来
+    //PlayerBoxes bounding boxes of online players, player size follows vanilla 0.6x1.8 with the feet at the origin
+    //Entities like pressure plates need players for enter detection and players are not in the entity manager so they are added this way
     private IEnumerable<AABB> PlayerBoxes()
     {
         foreach (var player in _playerList.Players)
@@ -591,10 +591,10 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         }
     }
 
-    //CollectRandomTickChunks 收集该维度要跑随机刻的区块
-    //原版遍历的是模拟等级 <= 31 的区块 也就是实体 ticking 范围 不是按玩家位置画方框
-    //这里按已加载区块逐个问区块源: 模拟距离之外只加载不推进 正好对上弱加载带的语义
-    //该维度没有玩家时模拟表为空 全部落空等于不跑随机刻
+    //CollectRandomTickChunks collects the chunks to random-tick in this dimension
+    //Vanilla iterates chunks with simulation level <= 31, that is the entity-ticking range, not a box drawn from player positions
+    //Here each loaded chunk asks the chunk source: beyond the simulation distance chunks load without ticking, matching the weak-load band semantics
+    //With no players in this dimension the simulation table is empty and everything misses, meaning no random ticks
     private HashSet<long> CollectRandomTickChunks(PersistentServerLevel level)
     {
         _randomTickChunks.Clear();
@@ -606,14 +606,14 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         return _randomTickChunks;
     }
 
-    //TickWeather 推进天气状态机并广播变化 对应原版 ServerLevel.advanceWeatherCycle
-    //广播走主世界玩家集合 对应原版 broadcastAll(packet, dimension)
+    //TickWeather advances the weather state machine and broadcasts changes, maps to vanilla ServerLevel.advanceWeatherCycle
+    //Broadcasts go through the overworld player set, maps to vanilla broadcastAll(packet, dimension)
     private void TickWeather()
     {
         var level = _overworld;
         if (!level.CanHaveWeather()) return;
         var wasRaining = level.IsRaining;
-        //advance_weather 规则只停计时推进 雨量仍按当前目标渐变 与原版一致
+        //The advance_weather rule only stops timer advancement, the rain level still fades toward the current target, same as vanilla
         if (GameRules.GetBool(NetCraft.Game.World.Level.GameRules.AdvanceWeather))
             WeatherCycle.AdvanceCycle(_weatherData, _tickRandom);
         WeatherCycle.AdvanceLevel(level, _weatherData);
@@ -624,7 +624,7 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
             _playerList.BroadcastAll(new NetCraft.Game.Network.Protocol.Game.ClientboundGameEventPacket(
                 NetCraft.Game.Network.Protocol.Game.GameEventType.ThunderLevelChange, level.ThunderLevel));
         if (wasRaining == level.IsRaining) return;
-        //雨状态翻转时先发起止事件 再补一次雨雷等级 对应原版三段广播
+        //On a rain state flip it sends the start/stop event first then the rain and thunder levels again, maps to the vanilla three-part broadcast
         _playerList.BroadcastAll(new NetCraft.Game.Network.Protocol.Game.ClientboundGameEventPacket(
             wasRaining
                 ? NetCraft.Game.Network.Protocol.Game.GameEventType.StopRaining
@@ -636,8 +636,8 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
             NetCraft.Game.Network.Protocol.Game.GameEventType.ThunderLevelChange, level.ThunderLevel));
     }
 
-    //SetWeatherParameters 直接设定天气参数 对应原版 MinecraftServer.setWeatherParameters
-    //雷暴计时原版写的也是 rainTime 这里照抄保持一致
+    //SetWeatherParameters sets the weather parameters directly, maps to vanilla MinecraftServer.setWeatherParameters
+    //Vanilla also writes rainTime for the thunder timer, copied here to stay consistent
     public override void SetWeatherParameters(int clearTime, int rainTime, bool raining, bool thundering)
     {
         _weatherData.SetClearWeatherTime(clearTime);
@@ -647,7 +647,7 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         _weatherData.SetThundering(thundering);
     }
 
-    //OnNewConnection 新连接回调装初始握手监听器
+    //OnNewConnection new connection callback, attaches the initial handshake listener
     private void OnNewConnection(Connection conn)
     {
         var handshake = new ServerHandshakePacketListenerImpl(conn, this);
@@ -656,51 +656,51 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         Log.Debug($"New connection added, current connections {_connections.Count}");
     }
 
-    //AddPlayer 把 Connection 加入调度列表对应原版 PlayerList.addPlayer
-    //低层 API 测试用直接添加 Connection 不创建 ServerPlayer 不同于 PlayerList.PlaceNewPlayer
+    //AddPlayer adds a Connection to the scheduling list, maps to vanilla PlayerList.addPlayer
+    //For low-level API tests it adds the Connection directly without creating a ServerPlayer, unlike PlayerList.PlaceNewPlayer
     public void AddPlayer(Connection connection)
     {
         lock (_connections) _connections.Add(connection);
     }
 
-    //RemovePlayer 移除 Connection 返回是否成功
+    //RemovePlayer removes a Connection and returns whether it succeeded
     public bool RemovePlayer(Connection connection)
     {
         lock (_connections) return _connections.Remove(connection);
     }
 
-    //--- ServerHandshakeContext 实现 ---
+    //--- ServerHandshakeContext implementation ---
 
-    //TransitionToStatus 切换连接到 Status 阶段挂 ServerStatusPacketListenerImpl
+    //TransitionToStatus switches the connection to the Status phase and attaches ServerStatusPacketListenerImpl
     public void TransitionToStatus(Connection connection)
     {
         Log.Debug("TransitionToStatus");
         connection.SetListenerForServerboundStatus(new ServerStatusPacketListenerImpl(connection, _serverStatus));
     }
 
-    //TransitionToLogin 切换连接到 Login 阶段挂 ServerLoginPacketListenerImpl
+    //TransitionToLogin switches the connection to the Login phase and attaches ServerLoginPacketListenerImpl
     public void TransitionToLogin(Connection connection)
     {
         Log.Debug("TransitionToLogin");
         connection.SetListenerForServerboundLogin(new ServerLoginPacketListenerImpl(connection, this));
     }
 
-    //--- ServerLoginContext 实现 ---
+    //--- ServerLoginContext implementation ---
 
-    //TransitionToConfiguration 切换连接到 Configuration 阶段挂 ServerConfigurationPacketListenerImpl
-    //原版流程 select_known_packs → 客户端回复 → registry_data(29 个) → finish_configuration
-    //registry_data 挪到 HandleSelectKnownPacks 后发因 empty contents 依赖客户端本地已确认的 vanilla 资源
+    //TransitionToConfiguration switches the connection to the Configuration phase and attaches ServerConfigurationPacketListenerImpl
+    //The vanilla flow is select_known_packs → client reply → registry_data (29 of them) → finish_configuration
+    //registry_data is moved to after HandleSelectKnownPacks because empty contents relies on the client having confirmed local vanilla resources
     public void TransitionToConfiguration(Connection connection, GameProfile profile)
     {
         Log.Debug($"TransitionToConfiguration profile={profile.Name}");
-        //世界数据包编解码要按注册表解析(ItemStack 的物品 id 等) 进入该阶段前装好
+        //World data packet coding resolves against registries (ItemStack item ids and such), set up before entering this phase
         connection.RegistryAccess = RegistryAccessForConnection;
         connection.SetListenerForServerboundConfiguration(
             new ServerConfigurationPacketListenerImpl(connection, profile, this));
         try
         {
-            //version 必须与客户端 SharedConstants.getCurrentVersion().id() 精确匹配否则客户端不选中该 pack
-            //KnownPack.Vanilla 用的是 NetCraft 自己版本号(26.2-netcraft)不能用于协商
+            //version must exactly match the client's SharedConstants.getCurrentVersion().id(), otherwise the client does not select this pack
+            //KnownPack.Vanilla uses NetCraft's own version (26.2-netcraft) and cannot be used for negotiation
             var core = new NetCraft.Network.Protocol.Configuration.KnownPack("minecraft", "core", "26.2");
             connection.Send(new ClientboundSelectKnownPacks(new List<NetCraft.Network.Protocol.Configuration.KnownPack> { core }));
             Log.Debug($"TransitionToConfiguration sent SelectKnownPacks(minecraft:core) profile={profile.Name}");
@@ -711,11 +711,11 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         }
     }
 
-    //--- ServerConfigurationContext 实现 ---
+    //--- ServerConfigurationContext implementation ---
 
-    //SendSynchronizedRegistries 发送全部 SYNCHRONIZED_REGISTRIES 对齐原版 packRegistries
-    //客户端没收到的注册表保持空表 nonEmpty 校验会断连(如 cat_variant)
-    //biome 带服务端 contents(控制 id 顺序)其余 28 个只发 id 省略 contents 客户端从本地 vanilla 资源加载
+    //SendSynchronizedRegistries sends all SYNCHRONIZED_REGISTRIES, aligned with vanilla packRegistries
+    //Registries the client did not receive stay empty and the nonEmpty check disconnects (such as cat_variant)
+    //biome carries server contents (controlling id order), the other 28 send only ids and omit contents, the client loads them from local vanilla resources
     public void SendSynchronizedRegistries(Connection connection)
     {
         if (!BuiltInRegistries.BIOME.IsEmpty)
@@ -731,7 +731,7 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
                 Identifier.Parse(registry), BiomeRegistrySynchronization.PackEmptyEntries(ids)));
             Log.Debug($"Sent registry_data id={registry} entries={ids.Length} (empty)");
         }
-        //合并动态注册表(7 个)与静态注册表+biome 客户端解析元素 JSON 引用这些 tag 缺则报 Unbound/parse 失败
+        //Merges the dynamic registries (7) with the static registries+biome, the client resolves element JSON references to these tags and missing ones report Unbound/parse failures
         var tags = new Dictionary<Identifier, Dictionary<Identifier, int[]>>();
         foreach (var (registry, tag, ids) in SynchronizedTagData.All.Concat(StaticRegistryTagData.All))
         {
@@ -744,13 +744,13 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         Log.Debug($"Sent update_tags registries={tags.Count} tags={tags.Values.Sum(p => p.Count)}");
     }
 
-    //PrepareChunkRadius 出生点预载半径 对应原版 PrepareSpawnTask.PREPARE_CHUNK_RADIUS
+    //PrepareChunkRadius the spawn preload radius, maps to vanilla PrepareSpawnTask.PREPARE_CHUNK_RADIUS
     public const int PrepareChunkRadius = 3;
 
-    //PrepareSpawnChunks 提交出生点周围区块加载 对应原版 PrepareSpawnTask 的 PLAYER_SPAWN ticket
-    //原版是 addTicketAndLoadWithRadius(PLAYER_SPAWN, spawnChunk, 3) 即票等级 33-3=30 铺满 7x7
-    //以前是直接给持有器写死 BorderLevel 不放票: 加载跟踪器下一拍就会按"这里没有票"把等级改回不加载档
-    //配置阶段玩家还没进世界没有加载票 这批区块于是被回收 进世界看到的是空洞
+    //PrepareSpawnChunks submits chunk loading around the spawn, maps to the PLAYER_SPAWN ticket of vanilla PrepareSpawnTask
+    //Vanilla does addTicketAndLoadWithRadius(PLAYER_SPAWN, spawnChunk, 3), ticket level 33-3=30 filling a 7x7
+    //Previously the holder's BorderLevel was hardcoded without a ticket: the next tick of the load tracker would see "no ticket here" and reset the level to unloaded
+    //During configuration the player has not entered the world and there is no load ticket, so these chunks were reclaimed and the player saw holes on entry
     public Task[] PrepareSpawnChunks()
     {
         var chunkSource = Overworld.ChunkSource;
@@ -770,43 +770,43 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         return tasks.ToArray();
     }
 
-    //TransitionToGame 切换到 Play 阶段挂 ServerGamePacketListenerImpl 并触发 PlayerList.PlaceNewPlayer
+    //TransitionToGame switches to the Play phase, attaches ServerGamePacketListenerImpl and triggers PlayerList.PlaceNewPlayer
     public void TransitionToGame(Connection connection, GameProfile profile)
     {
         Log.Debug($"TransitionToGame profile={profile.Name}");
         connection.RegistryAccess = RegistryAccessForConnection;
         var gameListener = new ServerGamePacketListenerImpl(connection, profile);
         connection.SetListenerForServerboundGame(gameListener);
-        //封禁检查在进世界之前 命中就此断开不再建 ServerPlayer 对应原版 canPlayerLogin
-        //必须放在 SetListenerForServerboundGame 之后 此刻出站协议才是 Play 断连包才发得出去
+        //The ban check happens before entering the world, a hit disconnects here without creating a ServerPlayer, maps to vanilla canPlayerLogin
+        //It must come after SetListenerForServerboundGame, only then is the outbound protocol Play and the disconnect packet can be sent
         if (!_playerList.CanPlayerLogin(connection, profile)) return;
         var player = _playerList.PlaceNewPlayer(connection, profile);
-        //关联玩家与监听器 让心跳等客户端回包能回落到玩家状态
+        //Associates the player with the listener so client replies such as heartbeats fall back to player state
         if (player is not null)
         {
             gameListener.Player = player;
-            //反向关联 命令层传送要经监听器走等待客户端确认的流程
+            //Reverse association, command layer teleports go through the listener into the client-confirmation flow
             player.Listener = gameListener;
         }
-        //注入玩家列表 方块变更需要向在线玩家广播
+        //Inject the player list, block changes must broadcast to online players
         gameListener.Players = _playerList;
         gameListener.BlockEntities = _blockEntities;
-        //注入命令管理器 上行命令包在此执行
+        //Inject the command manager, incoming command packets execute here
         gameListener.Commands = Commands;
     }
 
-    //Tick 专用服务端帧逻辑对齐原版 MinecraftServer.tickChildren 调用顺序
-    //1. tick 所有玩家 Connection 处理入站包队列与断连检测
-    //2. 清理已断开连接调 HandleDisconnection 并从 PlayerList 移除
-    //3. tick 主世界 ServerLevel 推进 ChunkSource 异步调度与实体调度
-    //4. tick 方块实体并推进随机刻
-    //5. 周期刷盘
+    //Tick dedicated server frame logic, aligned with vanilla MinecraftServer.tickChildren call order
+    //1. tick all player Connections, processing the inbound packet queue and disconnection detection
+    //2. clean up disconnected connections, calling HandleDisconnection and removing from PlayerList
+    //3. tick the overworld ServerLevel, advancing ChunkSource async scheduling and entity scheduling
+    //4. tick block entities and advance random ticks
+    //5. periodic autosave
     protected override void Tick()
     {
-        //tickChildren 的 commandFunctions 段 tick/load 标签函数 管理器内部按 runsNormally 过滤
+        //The commandFunctions section of tickChildren, ticks/loads tag functions, the manager filters by runsNormally internally
         Functions.Tick();
-        //计划事件按主世界游戏时间触发 对应原版 scheduled_events 语义
-        //到点的回调自己往队列里排函数或新事件
+        //Scheduled events fire by overworld game time, maps to vanilla scheduled_events semantics
+        //A due callback enqueues functions or new events itself
         var scheduledStart = TickStageProfiler.Now();
         if (TickRate.RunsNormally) ScheduledEvents.Tick(this, _overworld.GameTime);
         TickStageProfiler.Record(TickStage.Console, scheduledStart);
@@ -815,7 +815,7 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         lock (_connections) snapshot = _connections.ToList();
         for (int i = 0; i < snapshot.Count; i++)
             snapshot[i].Tick();
-        //清理已断开的连接读循环检测到流结束会调 Disconnect 标记 _disposed 此处统一回收
+        //Clean up disconnected connections, the read loop calls Disconnect when it sees end of stream and marks _disposed, collected here
         lock (_connections)
         {
             for (int i = _connections.Count - 1; i >= 0; i--)
@@ -826,14 +826,14 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
                     Log.Debug($"Disconnect cleanup triggered reason={conn.DisconnectionDetails?.Reason ?? "none"} current connections {_connections.Count}");
                     conn.HandleDisconnection();
                     _connections.RemoveAt(i);
-                    //从 PlayerList 移除关联的 ServerPlayer 避免泄漏
-                    //移除前先落盘玩家数据 否则重进服丢背包与位置
+                    //Remove the associated ServerPlayer from the PlayerList to avoid a leak
+                    //Write player data to disk before removal, otherwise rejoin loses the inventory and position
                     foreach (var player in _playerList.Players)
                     {
                         if (ReferenceEquals(player.Connection, conn))
                         {
                             _playerData.Save(player);
-                            //玩家离开要撤掉他出的票 否则视距内的区块会一直挂在加载列表
+                            //A leaving player's tickets must be withdrawn, otherwise chunks within view distance stay on the load list forever
                             if (player.Level is PersistentServerLevel leftLevel)
                                 leftLevel.ChunkSource.RemovePlayerTickets(player);
                             _playerList.RemovePlayer(player);
@@ -846,80 +846,80 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         }
         TickStageProfiler.Record(TickStage.Connections, stageStart);
 
-        //冻结只停世界推进 其余照跑 对应原版 tickChildren 只把时钟与游戏测试包在 runs 里
-        //第 3 轮修正: 方块实体也要跟着停
-        //原版 Level.tickBlockEntities 开头取 runsNormally 逐个 ticker 过滤 冻结时不推进
-        //放在 runs 外会让 /tick step 1 之后每拍白送半格 活塞一步就位
+        //Freezing only stops world advancement, everything else keeps running, maps to vanilla tickChildren wrapping only the clock and game tests in runs
+        //Round 3 fix: block entities must stop too
+        //Vanilla Level.tickBlockEntities reads runsNormally at the start and filters per ticker, so it does not advance while frozen
+        //Outside runs it would give away half a step per tick after /tick step 1 and the piston snaps into place
         var runsNormally = TickRate.RunsNormally;
         if (runsNormally)
         {
-            //gameTime 在关卡 tick 开始处递增 对应原版 Level.tick
+            //gameTime increments at the start of the level tick, maps to vanilla Level.tick
             _overworld.GameTime++;
         }
-        //世界时钟推进 rate 累积满一进位 原版 clockManager.tick 在 runs 里
+        //World clock advancement, rate accumulates to a carry, vanilla clockManager.tick is inside runs
         if (runsNormally) ClockManager.Tick();
-        //世界边界插值推进 对应原版 ServerLevel.tick 开头 runs 内的 world border 段
+        //World border interpolation advance, maps to the world border section inside runs at the start of vanilla ServerLevel.tick
         if (runsNormally) _overworld.WorldBorder.Tick();
-        //天气状态机 对应原版 ServerLevel.tick 里 world border 之后的 weather 段
+        //Weather state machine, maps to the weather section after the world border in vanilla ServerLevel.tick
         if (runsNormally) TickWeather();
-        //每 20 tick 向在线玩家同步游戏时间与时钟状态 原版 forceGameTimeSynchronization 在 runs 外
+        //Sync game time and clock state to online players every 20 ticks, vanilla forceGameTimeSynchronization is outside runs
         if (TickCount > 0 && TickCount % 20 == 0 && _playerList.Players.Count > 0)
             _playerList.BroadcastAll(ClockManager.CreateFullSyncPacket());
-        //每 300 tick 刷新 ping 在线人数 原版状态重建在 runs 外
+        //Refresh the ping online count every 300 ticks, the vanilla status rebuild is outside runs
         if (TickCount > 0 && TickCount % 300 == 0 && _serverStatus.Players is not null)
             _serverStatus.Players.Online = _playerList.Players.Count;
         TickStageProfiler.Record(TickStage.Clock, stageStart);
-        //方块调度刻/关卡推进/随机刻/方块事件/实体进入方块 每个维度各跑一遍
-        //对应原版 tickChildren 遍历 getAllLevels 逐个 level.tick
+        //Block scheduled ticks/level advance/random ticks/block events/entity enter block, each runs once per dimension
+        //Maps to vanilla tickChildren iterating getAllLevels and calling level.tick for each
         foreach (var level in _levels.Values)
         {
-            //handlingTick 覆盖原版从 tickPending 到 runBlockEvents 这一段 活塞收回降级判定要用
+            //handlingTick covers the span from tickPending to runBlockEvents in vanilla, used by the piston retraction downgrade check
             if (runsNormally) level.IsHandlingTick = true;
-            //方块调度刻在区块推进之前跑 对应原版 tickPending 阶段
+            //Block scheduled ticks run before chunk advancement, maps to the vanilla tickPending phase
             stageStart = TickStageProfiler.Now();
             if (runsNormally) level.TickBlockTicks();
             TickStageProfiler.Record(TickStage.BlockTicks, stageStart);
-            //流体调度刻紧挨着方块刻 对应原版 tickPending 里 BlockTicks 与 FluidTicks 两连调
-            //水流与岩浆的扩散全靠这一拍 漏了就只会在被放置的那一瞬间动一下
+            //Fluid scheduled ticks follow right after block ticks, maps to the paired BlockTicks and FluidTicks calls in vanilla tickPending
+            //Water and lava flow entirely on this tick, missing it means they only move at the instant of placement
             stageStart = TickStageProfiler.Now();
             if (runsNormally) level.TickFluidTicks();
             TickStageProfiler.Record(TickStage.FluidTicks, stageStart);
-            //关卡 tick 每拍都跑 冻结由实体管理器逐实体过滤 区块调度与实体管理不受冻结影响
+            //The level tick runs every frame, freezing is filtered per entity by the entity manager, chunk scheduling and entity management are unaffected by freezing
             stageStart = TickStageProfiler.Now();
             level.Tick(runsNormally);
             TickStageProfiler.Record(TickStage.LevelTick, stageStart);
-            //本拍之前积压的方块变化在这里统一下发 对应原版 chunkSource.tick 里的 broadcastChangedChunks
-            //它必须排在 runBlockEvents 之前 方块事件引起的方块更新要留到下一拍才发给客户端
-            //活塞收回就是靠这个先后: 客户端重放搬运时前方那格还得是原方块
-            //原版 ServerLevel.tick 传进去的 tickChunks 恒为 true 这一冲刷不受冻结影响
-            //放进 runsNormally 会让 /tick freeze 期间放方块破坏方块都不下发 客户端看着像点了没反应
+            //Block changes backlogged before this frame are dispatched here, maps to broadcastChangedChunks in vanilla chunkSource.tick
+            //It must come before runBlockEvents, block updates caused by block events wait for the next frame to be sent to clients
+            //Piston retraction relies on this ordering: when the client replays the move the cell ahead must still be the original block
+            //The tickChunks passed by vanilla ServerLevel.tick is always true, this flush is unaffected by freezing
+            //Putting it inside runsNormally would prevent placing and breaking blocks from dispatching during /tick freeze, making the client look unresponsive
             stageStart = TickStageProfiler.Now();
             level.FlushBlockUpdates();
             TickStageProfiler.Record(TickStage.FlushBlocks, stageStart);
-            //随机刻对应原版 chunkSource.tick 里的方块随机刻部分 只对玩家附近区块抽样
+            //Random ticks correspond to the block random tick part of vanilla chunkSource.tick, sampling only chunks near players
             stageStart = TickStageProfiler.Now();
             if (runsNormally)
                 ServerBlockTicks.RandomTick(level, _tickRandom,
                     ServerBlockTicks.DefaultRandomTickSpeed, CollectRandomTickChunks(level));
             TickStageProfiler.Record(TickStage.RandomTick, stageStart);
-            //方块事件在区块推进之后跑 对应原版 blockEvents 阶段
+            //Block events run after chunk advancement, maps to the vanilla blockEvents phase
             stageStart = TickStageProfiler.Now();
             if (runsNormally) level.RunBlockEvents();
             if (runsNormally) level.IsHandlingTick = false;
             TickStageProfiler.Record(TickStage.BlockEvents, stageStart);
-            //本拍所有方块变化都落定后再统一推进一轮光照
-            //写方块只标记脏点 活塞搬运这类一拍几十次 setBlock 到这一步才跑一轮传播 与原版一致
-            //原版光照传播跑在专属线程上与游戏刻无关 广播则和方块变化同在 broadcastChanges 里
-            //这里同样不受冻结影响 否则冻结期间光照脏点只积压不消化 一解冻就要补一大轮
+            //After all block changes this frame settle, one round of light advancement is run
+            //Writing a block only marks dirty points, dozens of setBlock calls per frame from piston movement run one propagation round here, same as vanilla
+            //Vanilla light propagation runs on a dedicated thread independent of game ticks while broadcasting stays with block changes in broadcastChanges
+            //This is likewise unaffected by freezing, otherwise light dirty points only pile up while frozen and one large catch-up round is needed after unfreezing
             stageStart = TickStageProfiler.Now();
             level.TickLight();
             TickStageProfiler.Record(TickStage.Light, stageStart);
-            //实体进入方块效果 对应原版 Entity.checkInsideBlocks 在实体移动之后
+            //Entity enter-block effects, maps to vanilla Entity.checkInsideBlocks after entity movement
             stageStart = TickStageProfiler.Now();
             if (runsNormally) level.DispatchEntityInside();
             TickStageProfiler.Record(TickStage.EntityInside, stageStart);
         }
-        //方块实体随世界一起推进 冻结时停住 对应原版 Level.tickBlockEntities 的 runsNormally 过滤
+        //Block entities advance with the world and stop while frozen, maps to the runsNormally filter of vanilla Level.tickBlockEntities
         stageStart = TickStageProfiler.Now();
         if (runsNormally) _blockEntities.Tick();
         TickStageProfiler.Record(TickStage.BlockEntities, stageStart);
@@ -927,29 +927,29 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         foreach (var player in _playerList.Players)
             player.Tick();
         TickStageProfiler.Record(TickStage.Players, stageStart);
-        //假玩家的逐步行走先推进 本刻位移才能被紧随其后的实体追踪同步给其他玩家
+        //Fake players' step-by-step walking advances first so this frame's movement can be synced to other players by the entity tracker right after
         stageStart = TickStageProfiler.Now();
         _debugPlayers.Tick();
         TickStageProfiler.Record(TickStage.DebugPlayers, stageStart);
-        //挂机踢出按秒检查 配置为 0 表示不启用 对应原版 player-idle-timeout
+        //Idle kicks are checked per second, 0 means disabled, maps to vanilla player-idle-timeout
         stageStart = TickStageProfiler.Now();
         if (_settings.PlayerIdleTimeout > 0 && TickCount > 0 && TickCount % 20 == 0)
             KickIdlePlayers(_settings.PlayerIdleTimeout);
         TickStageProfiler.Record(TickStage.Players, stageStart);
-        //实体追踪在实体与世界推进之后计算本帧的实体同步包
+        //Entity tracking computes this frame's entity sync packets after entity and world advancement
         stageStart = TickStageProfiler.Now();
         _entityTracker.Tick(_overworld, _playerList.Players);
         TickStageProfiler.Record(TickStage.EntityTracking, stageStart);
         stageStart = TickStageProfiler.Now();
         if (IsSavingEnabled && TickCount > 0 && TickCount % AutoSaveIntervalTicks == 0)
         {
-            //快照在主线程完成 NBT 序列化与 region 写盘移到后台线程 避免阻塞主循环网络卡死
-            //上次写盘未完成时跳过本次防止快照堆积
+            //The snapshot completes NBT serialization on the main thread and moves region writes to a background thread, avoiding main loop blockage and network freezes
+            //This round is skipped when the last write is unfinished to prevent snapshot pileup
             if (_autoSaveTask is null || _autoSaveTask.IsCompleted)
             {
                 try
                 {
-                    //快照在主线程完成 NBT 序列化 各维度的 region 写盘并行转后台避免阻塞主循环网络卡死
+                    //The snapshot completes NBT serialization on the main thread and each dimension's region writes go to the background in parallel to avoid main loop blockage and network freezes
                     var writes = new List<Task>();
                     var total = 0;
                     foreach (var level in _levels.Values)
@@ -974,16 +974,16 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
             {
                 Log.Warning($"Autosave skipped at tick {TickCount}, previous write still running");
             }
-            //世界元数据与 saveddata 随自动刷盘落盘对应原版 saveEverything 的 level.dat 部分
+            //World metadata and saveddata are written with the autosave, maps to the level.dat part of vanilla saveEverything
             SaveLevelData();
             _dataStorage.ScheduleSave();
-            //在线玩家数据一并落盘 对应原版 saveEverything 的 saveAllPlayerData
+            //Online player data is written too, maps to saveAllPlayerData in vanilla saveEverything
             SaveAllPlayerData();
         }
         TickStageProfiler.Record(TickStage.AutoSave, stageStart);
     }
 
-    //SaveLevelData 把世界游戏时间写回 level.dat 同步写盘失败不中断主循环
+    //SaveLevelData writes the world game time back to level.dat, a synchronous write failure does not interrupt the main loop
     private void SaveLevelData()
     {
         try
@@ -997,23 +997,23 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         }
     }
 
-    //SaveAllPlayerData 落盘所有在线玩家数据 对应原版 saveAllPlayerData
+    //SaveAllPlayerData writes all online player data to disk, maps to vanilla saveAllPlayerData
     private void SaveAllPlayerData()
     {
         foreach (var player in _playerList.Players)
             _playerData.Save(player);
     }
 
-    //IsSavingEnabled 自动刷盘开关 由 save-off/save-on 控制
-    //关掉后周期性自动刷盘停摆 只剩 /save-all 与关服强刷
+    //IsSavingEnabled the autosave toggle, controlled by save-off/save-on
+    //Turning it off stops the periodic autosave, leaving only /save-all and the shutdown force flush
     private bool _isSavingEnabled = true;
     public override bool IsSavingEnabled => _isSavingEnabled;
 
-    //SetSavingEnabled 开关自动刷盘
+    //SetSavingEnabled toggles autosave
     public override void SetSavingEnabled(bool enabled) => _isSavingEnabled = enabled;
 
-    //SaveAllNow 立即全量刷盘 对应原版 saveEverything 供 /save-all 调用
-    //同样要走世界门: 命令可能从 GUI 线程下达 与主循环并发取快照一样会存下半成品
+    //SaveAllNow flushes everything immediately, maps to vanilla saveEverything, called by /save-all
+    //It also goes through the world gate: the command may come from the GUI thread and taking a snapshot concurrently with the main loop stores half-finished state
     public override void SaveAllNow()
     {
         SaveLevelData();
@@ -1026,51 +1026,51 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         }
     }
 
-    //KickIdlePlayers 踢出挂机超过指定分钟的玩家 对应原版 MinecraftServer.tickChildren 的 idle timeout 分支
-    //文案对齐原版 multiplayer.disconnect.idling 玩家看到的断线原因与官方一致
+    //KickIdlePlayers kicks players idle for more than the given minutes, maps to the idle timeout branch of vanilla MinecraftServer.tickChildren
+    //The text matches vanilla multiplayer.disconnect.idling so the disconnect reason players see is the same as official
     private void KickIdlePlayers(int minutes)
     {
         var limit = minutes * 60000L;
         var now = Environment.TickCount64;
-        //先取副本 断开连接会改动在线列表
+        //Take a copy first, disconnecting mutates the online list
         foreach (var player in _playerList.Players.ToList())
             if (now - player.LastActiveMillis > limit)
                 player.Disconnect("You have been idle for too long!");
     }
 
-    //Stop 触发主循环退出并强制刷盘避免数据丢失
-    //先停监听断开玩家再刷盘对齐原版 stopServer 顺序防止保存期间新包进入
+    //Stop triggers main loop exit and forces a flush to avoid data loss
+    //Stops listeners and disconnects players before flushing, aligned with vanilla stopServer order to prevent new packets during saving
     public override void Stop()
     {
         _acceptor?.Stop();
-        //先停 RCON 与查询线程对应原版 stopServer 开头的两个 stop
-        //线程可能阻塞在同步命令等待上 Stop 里的 join+打断负责把它们放出来
+        //First stop the RCON and query threads, maps to the two stops at the start of vanilla stopServer
+        //The threads may be blocked on a synchronous command wait, the join+interrupt in Stop releases them
         _rconThread?.Stop();
         _queryThreadGs4?.Stop();
-        //先落盘玩家数据再踢人 断连后连接清理会把玩家移出列表
-        //文案对齐原版 multiplayer.disconnect.server_shutdown 客户端显示 Server closed
+        //Write player data before kicking, connection cleanup after disconnect removes players from the list
+        //The text matches vanilla multiplayer.disconnect.server_shutdown, the client shows Server closed
         SaveAllPlayerData();
         foreach (var player in _playerList.Players)
             player.Disconnect("Server closed");
-        //发包已交后台写线程 刷盘前先等踢人包真正落到流上 否则关服客户端看不到原因
+        //The packets are handed to the background write thread, wait for the kick packet to actually reach the stream before flushing, otherwise the client sees no reason on shutdown
         List<Connection> pending;
         lock (_connections) pending = _connections.ToList();
         foreach (var conn in pending) conn.Flush();
         if (Running)
         {
-            //整段刷盘与主循环互斥: 主循环正在搬运活塞时取快照会存下中间态
-            //那种半成品是"方块已经换成移动活塞 但方块实体还没登记"
-            //读回来那格再也没有东西推它 表现就是卡死的移动活塞或无头活塞
-            //原版 stopServer 提交到 server 线程执行天然串行 这里用世界门补上
-            //命令触发的关服本来就在主循环线程里 重入同一把门即可
+            //The whole flush is mutually exclusive with the main loop: taking a snapshot while the main loop moves a piston stores an intermediate state
+            //That half-finished state is "the block is already a moving piston but the block entity is not registered yet"
+            //Read back, nothing ever pushes that cell again, showing up as a stuck moving piston or a headless piston
+            //Vanilla stopServer submits to the server thread and is naturally serial, the world gate covers that here
+            //A command-triggered shutdown is already on the main loop thread and simply re-enters the same gate
             lock (WorldGate)
             {
                 try
                 {
-                    //等后台写盘任务结束后再兜底全量保存并 fsync
+                    //Wait for the background write task to finish, then do a full fallback save and fsync
                     _autoSaveTask?.GetAwaiter().GetResult();
-                    //关服先停用票再落盘 对应原版 ServerChunkCache.close 里的 deactivateTicketsOnClosing
-                    //票仍在内存里会随刷盘写进 chunk_tickets.dat 下次开服再激活
+                    //Shutdown deactivates tickets before flushing, maps to deactivateTicketsOnClosing in vanilla ServerChunkCache.close
+                    //Tickets still in memory would be written into chunk_tickets.dat on flush and activated on the next startup
                     foreach (var tickets in _chunkTickets.Values)
                     {
                         tickets.DeactivateTicketsOnClosing();
@@ -1094,7 +1094,7 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
         base.Stop();
     }
 
-    //RunStatus 阻塞直到 Shutdown 信号给外部 EXE 调用
+    //RunStatus blocks until the shutdown signal, for the external EXE to call
     public void RunStatus()
     {
         Log.Info($"DedicatedServer port {_settings.ServerPort} level {_settings.LevelName} waiting for shutdown signal");

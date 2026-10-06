@@ -4,8 +4,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Util.EventLog;
 
-//JSON事件日志对应原版JsonEventLog
-//一行一条事件的JSON，写入时定位到文件尾追加
+//JSON event log, maps to vanilla JsonEventLog
+//JSON with one event per line, seeks to the end of the file on write to append
 public sealed class JsonEventLog<T> : IDisposable
 {
     private readonly Codec<T> _codec;
@@ -20,11 +20,11 @@ public sealed class JsonEventLog<T> : IDisposable
         _stream = stream;
     }
 
-    //打开或新建日志文件，读写共用一条流
+    //Opens or creates the log file, sharing one stream for read and write
     public static JsonEventLog<T> Open(Codec<T> codec, string path)
         => new(codec, new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite));
 
-    //追加一条事件
+    //Appends one event
     public void Write(T value)
     {
         var json = _codec.EncodeStart(JsonOps.Instance, value).GetOrThrow(message => new IOException(message));
@@ -33,7 +33,7 @@ public sealed class JsonEventLog<T> : IDisposable
         _stream.Flush();
     }
 
-    //开一个读取器，读取器自己持有一次引用
+    //Opens a reader, the reader holds its own reference
     public JsonEventLogReader<T> OpenReader()
     {
         if (Volatile.Read(ref _referenceCount) <= 0)
@@ -48,7 +48,7 @@ public sealed class JsonEventLog<T> : IDisposable
             _stream.Dispose();
     }
 
-    //从上次停下的位置接着读，多个读取器互不影响
+    //Continues reading from where it last stopped, multiple readers do not interfere
     private sealed class TrackingReader(JsonEventLog<T> owner) : JsonEventLogReader<T>
     {
         private long _position;
@@ -69,7 +69,7 @@ public sealed class JsonEventLog<T> : IDisposable
         public void Dispose() => owner.Dispose();
     }
 
-    //读到换行或文件尾，文件尾且没有内容时给null
+    //Reads until newline or end of file, returns null when at end with no content
     private static string? ReadLine(FileStream stream)
     {
         var buffer = new MemoryStream();

@@ -2,8 +2,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Network.Chat.Contents;
 
-//选择器内容对应原版net.minecraft.network.chat.contents.SelectorContents
-//Pattern 实体选择器字符串运行时由 EntitySelector 解析
+//Selector contents, maps to vanilla net.minecraft.network.chat.contents.SelectorContents
+//Pattern is the entity selector string, parsed at runtime by EntitySelector
 public sealed class SelectorContents : ComponentContents
 {
     public string Pattern { get; }

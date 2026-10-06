@@ -2,18 +2,18 @@ using NetCraft.Gpu;
 
 namespace NetCraft.Game.Client.Render.World;
 
-//ChunkMeshData 区块 mesh 输出容器对标原版 SectionCompiler.Results.renderedLayers
-//按 RenderLayer 分组持有 VertexConsumer3D 顶点数据
-//ChunkMeshBuilder.Build 产出此对象供后续 StagedVertexBuffer 上传或单测验证
-//首版用 VertexConsumer3D 的 List<float> 暂存 StagedVertexBuffer 集成留到 W5（相机+管线）
+//ChunkMeshData chunk mesh output container, maps to vanilla SectionCompiler.Results.renderedLayers
+//Groups VertexConsumer3D vertex data by RenderLayer
+//ChunkMeshBuilder.Build produces this object for later StagedVertexBuffer upload or unit-test verification
+//The first version stages with VertexConsumer3D's List<float>; StagedVertexBuffer integration is left to W5 (camera + pipeline)
 public sealed class ChunkMeshData
 {
     private readonly Dictionary<RenderLayer, VertexConsumer3D> _layers = new();
 
-    //Layers 已写入的 RenderLayer 列表供上层遍历提交
+    //Layers list of written RenderLayers, for the upper layer to iterate and submit
     public IEnumerable<RenderLayer> Layers => _layers.Keys;
 
-    //GetOrBeginLayer 获取或创建指定 layer 的 VertexConsumer3D
+    //GetOrBeginLayer gets or creates the VertexConsumer3D for the given layer
     public VertexConsumer3D GetOrBeginLayer(RenderLayer layer)
     {
         if (!_layers.TryGetValue(layer, out var consumer))
@@ -24,11 +24,11 @@ public sealed class ChunkMeshData
         return consumer;
     }
 
-    //GetVertexCount 返回指定 layer 的顶点数未写入返回 0
+    //GetVertexCount returns the vertex count for the given layer; 0 when not written
     public int GetVertexCount(RenderLayer layer)
         => _layers.TryGetValue(layer, out var c) ? c.VertexCount : 0;
 
-    //TotalVertexCount 所有 layer 顶点总数
+    //TotalVertexCount total vertex count across all layers
     public int TotalVertexCount
     {
         get
@@ -40,10 +40,10 @@ public sealed class ChunkMeshData
         }
     }
 
-    //HasLayer 是否写入了指定 layer
+    //HasLayer whether the given layer was written
     public bool HasLayer(RenderLayer layer) => _layers.ContainsKey(layer);
 
-    //Clear 清空所有 layer 供对象复用
+    //Clear clears all layers for object reuse
     public void Clear()
     {
         foreach (var c in _layers.Values)

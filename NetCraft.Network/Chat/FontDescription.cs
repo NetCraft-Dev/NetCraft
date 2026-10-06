@@ -2,14 +2,14 @@ namespace NetCraft.Network.Chat;
 
 using NetCraft.Registry;
 
-//字体描述对应原版net.minecraft.network.chat.FontDescription
-//描述文本渲染时使用的字体资源或图集精灵
+//Font description, maps to vanilla net.minecraft.network.chat.FontDescription
+//Describes the font resource or atlas sprite used when rendering text
 public interface FontDescription
 {
-    //默认字体对应原版DEFAULT
+    //Default font, maps to vanilla DEFAULT
     public static readonly Resource Default = new(Identifier.WithDefaultNamespace("default"));
 
-    //Resource 类型对应原版FontDescription.Resource表示资源路径形式的字体描述
+    //Resource type maps to vanilla FontDescription.Resource, a font description in resource path form
     public sealed class Resource(Identifier id) : FontDescription
     {
         public Identifier Id { get; } = id;
@@ -21,7 +21,7 @@ public interface FontDescription
         public override string ToString() => Id.ToString();
     }
 
-    //AtlasSprite 类型对应原版FontDescription.AtlasSprite表示图集精灵形式的字体描述
+    //AtlasSprite type maps to vanilla FontDescription.AtlasSprite, a font description in atlas sprite form
     public sealed class AtlasSprite(Identifier atlasId, Identifier spriteId) : FontDescription
     {
         public Identifier AtlasId { get; } = atlasId;

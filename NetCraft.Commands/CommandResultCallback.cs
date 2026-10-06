@@ -1,19 +1,19 @@
 namespace NetCraft.Commands;
 
-//CommandResultCallback 命令结果回调对应原版 net.minecraft.commands.CommandResultCallback
-//执行链用 /return 把值逐层交回 Frame 回调链条
+//CommandResultCallback maps to vanilla net.minecraft.commands.CommandResultCallback
+//The execution chain uses /return to pass values back up the Frame callback chain
 public interface CommandResultCallback
 {
-    //OnResult 结果回调 success 为假时 result 恒为 0
+    //OnResult result callback; when success is false result is always 0
     void OnResult(bool success, int result);
 
-    //OnSuccess 只回成功值
+    //OnSuccess reports only the success value
     void OnSuccess(int result) => OnResult(true, result);
 
-    //OnFailure 只回失败
+    //OnFailure reports only failure
     void OnFailure() => OnResult(false, 0);
 
-    //Chain 串两个回调空回调直接短路 对应原版 chain
+    //Chain chains two callbacks, short-circuiting on an empty callback; maps to vanilla chain
     public static CommandResultCallback Chain(CommandResultCallback first, CommandResultCallback second)
     {
         if (ReferenceEquals(first, Empty)) return second;
@@ -21,7 +21,7 @@ public interface CommandResultCallback
         return new ChainedCallback(first, second);
     }
 
-    //Empty 恒空回调
+    //Empty always-empty callback
     public static readonly CommandResultCallback Empty = new EmptyCallback();
 
     private sealed class EmptyCallback : CommandResultCallback

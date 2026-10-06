@@ -3,18 +3,18 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Component;
 
-//SimpleDataComponentType DataComponentType 实现对应原版 DataComponentType.Builder.SimpleType
-//持有 Codec 持久化编解码与 StreamCodec 网络同步编解码
-//实现 IDataComponentTypeCodec 暴露非泛型 EncodeValue/DecodeValue 供 DataComponentPatch 跨泛型编解码
+//SimpleDataComponentType DataComponentType implementation, maps to vanilla DataComponentType.Builder.SimpleType
+//Holds a Codec persistence codec and a StreamCodec network sync codec
+//Implements IDataComponentTypeCodec, exposing non-generic EncodeValue/DecodeValue for DataComponentPatch to code across generics
 public sealed class SimpleDataComponentType<T> : DataComponentType<T>, IDataComponentTypeCodec where T : class
 {
-    //Codec 持久化编解码器 null 表示非持久化 transient 组件
+    //Codec persistence codec; null means a non-persistent transient component
     public Codec<T>? Codec { get; }
 
-    //IgnoreSwapAnimation 是否忽略交换动画
+    //IgnoreSwapAnimation indicates whether to ignore the swap animation
     public bool IgnoreSwapAnimation { get; }
 
-    //StreamCodec 网络同步编解码器 RegistryFriendlyByteBuf 读写
+    //StreamCodec network sync codec, reading and writing RegistryFriendlyByteBuf
     public StreamCodec<RegistryFriendlyByteBuf, T> StreamCodec { get; }
 
     public SimpleDataComponentType(Codec<T>? codec, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec, bool ignoreSwapAnimation)
@@ -24,11 +24,11 @@ public sealed class SimpleDataComponentType<T> : DataComponentType<T>, IDataComp
         IgnoreSwapAnimation = ignoreSwapAnimation;
     }
 
-    //EncodeValue 非泛型编码 value cast 为 T 后委托 StreamCodec
+    //EncodeValue non-generic encode casts value to T and delegates to StreamCodec
     public void EncodeValue(RegistryFriendlyByteBuf buf, object value)
         => StreamCodec.Encode(buf, (T)value);
 
-    //DecodeValue 非泛型解码返回 object
+    //DecodeValue non-generic decode returning object
     public object DecodeValue(RegistryFriendlyByteBuf buf)
         => StreamCodec.Decode(buf);
 

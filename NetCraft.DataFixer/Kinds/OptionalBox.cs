@@ -4,28 +4,28 @@ using System;
 using NetCraft.Codec;
 using NetCraft.DataFixer.Util;
 
-//OptionalBox容器存放Mu标记避免OptionalBox<T>类型参数上下文
+//OptionalBox container holding the Mu marker, avoiding the OptionalBox<T> type parameter context
 public static class OptionalBoxes
 {
-    //一元HKT标记
+    //unary HKT marker
     public sealed class Mu : K1 { }
 }
 
-//Optional盒对应原版com.mojang.datafixers.kinds.OptionalBox
+//Optional box maps to vanilla com.mojang.datafixers.kinds.OptionalBox
 public sealed class OptionalBox<T> : App<OptionalBoxes.Mu, T>
 {
     private readonly Optional<T> _value;
 
     private OptionalBox(Optional<T> value) => _value = value;
 
-    //还原类型应用为Optional<T>
+    //recover the type application as Optional<T>
     public static Optional<A> Unbox<A>(App<OptionalBoxes.Mu, A> box) => ((OptionalBox<A>)(object)box!)._value;
 
-    //构造OptionalBox
+    //build an OptionalBox
     public static OptionalBox<A> Create<A>(Optional<A> value) => new(value);
 }
 
-//OptionalBox作为Applicative+Traversable的实例独立放置
+//OptionalBox as an Applicative+Traversable instance, placed separately
 public sealed class OptionalBoxInstance : Applicative<OptionalBoxes.Mu, OptionalBoxInstance.Mu>, Traversable<OptionalBoxes.Mu, OptionalBoxInstance.Mu>
 {
     public sealed class Mu : IApplicativeMu, ITraversableMu { }

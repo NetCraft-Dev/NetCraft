@@ -1,10 +1,10 @@
 namespace NetCraft.Commands.Execution.Tasks;
 
-//TaskProvider 按帧与参数造队列条目对应原版 ContinuationTask.TaskProvider
+//TaskProvider builds a queue entry from a frame and an argument; maps to vanilla ContinuationTask.TaskProvider
 public delegate CommandQueueEntry<T> TaskProvider<T, P>(Frame frame, P argument);
 
-//ContinuationTask 长列表的续跑动作对应原版 net.minecraft.commands.execution.tasks.ContinuationTask
-//一到两个参数直接展开 三个以上自续跑逐个消费 免得一次性把整列表塞进队列
+//ContinuationTask continuation action for long lists, maps to vanilla net.minecraft.commands.execution.tasks.ContinuationTask
+//One or two arguments expand directly; three or more self-continue one by one to avoid stuffing the whole list into the queue at once
 public class ContinuationTask<T, P>
 {
     private readonly TaskProvider<T, P> _taskFactory;
@@ -29,7 +29,7 @@ public class ContinuationTask<T, P>
         }
     }
 
-    //Schedule 排一串动作
+    //Schedule enqueues a series of actions
     public static void Schedule(ExecutionContext<T> context, Frame frame, List<P> arguments, TaskProvider<T, P> taskFactory)
     {
         switch (arguments.Count)

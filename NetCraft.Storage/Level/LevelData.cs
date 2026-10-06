@@ -4,27 +4,27 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Storage;
 
-//LevelData 世界元数据对应原版 PrimaryLevelData 持久化为世界根目录 level.dat
-//NBT 字段名与层级对齐原版 26.2 供将来直接读写原版存档
-//种子不在本文件 由 WorldGenSettingsData 独立存 data/minecraft/world_gen_settings.dat
+//LevelData, world metadata, maps to vanilla PrimaryLevelData, persisted as level.dat in the world root
+//NBT field names and hierarchy align with vanilla 26.2, so vanilla saves can be read and written directly later
+//The seed is not in this file; WorldGenSettingsData stores it separately in data/minecraft/world_gen_settings.dat
 public sealed class LevelData
 {
-    //AnvilVersionId 存档格式版本号对应原版 WorldData.ANVIL_VERSION_ID
+    //AnvilVersionId, save format version, maps to vanilla WorldData.ANVIL_VERSION_ID
     public const int AnvilVersionId = 19133;
 
-    //OverworldDimension 主世界维度名固定写入 spawn.dimension
+    //OverworldDimension, overworld dimension name; written to spawn.dimension
     private const string OverworldDimension = "minecraft:overworld";
 
     public string LevelName { get; set; } = "world";
-    //GameTypeId 游戏模式 id 对应原版 GameType.getId 生存0 创造1 冒险2 旁观3
+    //GameTypeId, game mode id, maps to vanilla GameType.getId: survival 0, creative 1, adventure 2, spectator 3
     public int GameTypeId { get; set; }
-    //DifficultyName 难度 key 对应原版 Difficulty key peaceful/easy/normal/hard
+    //DifficultyName, difficulty key, maps to the vanilla Difficulty key: peaceful/easy/normal/hard
     public string DifficultyName { get; set; } = "normal";
     public bool Hardcore { get; set; }
     public bool DifficultyLocked { get; set; }
     public bool AllowCommands { get; set; } = true;
     public bool Initialized { get; set; } = true;
-    //GameTime 世界游戏刻对应原版 Time 字段 昼夜时间由 world_clocks.dat 管理
+    //GameTime, world game time, maps to the vanilla Time field; day-night time is managed by world_clocks.dat
     public long GameTime { get; set; }
     public int SpawnX { get; set; }
     public int SpawnY { get; set; } = 64;
@@ -32,14 +32,14 @@ public sealed class LevelData
     public float SpawnYaw { get; set; }
     public float SpawnPitch { get; set; }
 
-    //CreateTag 生成 Data 层内容字段与层级对齐原版 PrimaryLevelData.setTagData
+    //CreateTag builds the Data layer content; fields and hierarchy align with vanilla PrimaryLevelData.setTagData
     public CompoundTag CreateTag()
     {
         var tag = new CompoundTag();
-        //ServerBrands 服务端品牌列表原版 dedicated 写 vanilla
+        //ServerBrands, server brand list; vanilla dedicated writes vanilla
         tag.Put("ServerBrands", new ListTag { new StringTag("vanilla") });
         tag.PutBoolean("WasModded", false);
-        //Version 游戏版本块原版 writeVersionTag
+        //Version, game version block, vanilla writeVersionTag
         var version = new CompoundTag();
         version.PutString("Name", SharedConstants.Version);
         version.PutInt("Id", SharedConstants.WorldDataVersion);
@@ -48,7 +48,7 @@ public sealed class LevelData
         tag.Put("Version", version);
         tag.PutInt("DataVersion", SharedConstants.WorldDataVersion);
         tag.PutInt("GameType", GameTypeId);
-        //spawn 重生点结构对齐原版 RespawnData codec pos 为 IntArray
+        //spawn, respawn point structure, aligns with the vanilla RespawnData codec; pos is an IntArray
         var spawn = new CompoundTag();
         spawn.PutString("dimension", OverworldDimension);
         spawn.PutIntArray("pos", new[] { SpawnX, SpawnY, SpawnZ });
@@ -58,13 +58,13 @@ public sealed class LevelData
         tag.PutLong("Time", GameTime);
         tag.PutLong("LastPlayed", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         tag.PutString("LevelName", LevelName);
-        //dimensions 维度表写空 map 读取方据此回退默认维度
-        //本作维度由数据包 world_preset 定义 存档里再存一份反而会与数据包不一致
+        //dimensions, the dimension table writes an empty map; the reader falls back to the default dimension based on that
+        //Dimensions here are defined by the world_preset data pack; storing another copy in the save would only disagree with the data pack
         tag.Put("dimensions", new CompoundTag());
         tag.PutInt("version", AnvilVersionId);
         tag.PutBoolean("allowCommands", AllowCommands);
         tag.PutBoolean("initialized", Initialized);
-        //difficulty_settings 对齐原版 LevelSettings.DifficultySettings codec
+        //difficulty_settings aligns with the vanilla LevelSettings.DifficultySettings codec
         var difficulty = new CompoundTag();
         difficulty.PutString("difficulty", DifficultyName);
         difficulty.PutBoolean("hardcore", Hardcore);
@@ -73,7 +73,7 @@ public sealed class LevelData
         return tag;
     }
 
-    //Parse 从 Data 层内容恢复缺失字段取默认值
+    //Parse restores from the Data layer content; missing fields take defaults
     public static LevelData Parse(CompoundTag data)
     {
         var result = new LevelData();
@@ -88,7 +88,7 @@ public sealed class LevelData
         result.AllowCommands = data.GetBooleanOr("allowCommands", true);
         result.Initialized = data.GetBooleanOr("initialized", true);
         result.GameTime = data.GetLongValue("Time");
-        //spawn pos 为 IntArray[x,y,z] 结构异常时保留默认出生点
+        //spawn pos is IntArray[x,y,z]; a malformed structure keeps the default spawn point
         var spawn = data.GetCompoundOrEmpty("spawn");
         var pos = spawn.GetIntArray("pos");
         if (pos is not null && pos.Value.Length == 3)
@@ -102,9 +102,9 @@ public sealed class LevelData
         return result;
     }
 
-    //Load 读世界目录 level.dat
-    //文件不存在返回 null 由调用方走新世界流程
-    //文件存在但损坏抛 InvalidDataException 不静默当新世界否则启动会把旧存档覆盖掉
+    //Load reads level.dat from the world directory
+    //Returns null when the file is missing; the caller starts a new world flow
+    //Throws InvalidDataException when the file exists but is corrupt, rather than silently treating it as a new world and overwriting the old save on startup
     public static LevelData? Load(string worldDir)
     {
         var path = Path.Combine(worldDir, "level.dat");
@@ -113,17 +113,17 @@ public sealed class LevelData
         {
             var root = NbtIo.ReadCompressed(path, NbtAccounter.UnlimitedHeap());
             var data = root.GetCompound("Data");
-            if (data is null) throw new InvalidDataException("缺少 Data 根层");
+            if (data is null) throw new InvalidDataException("Missing Data root layer");
             return Parse(data);
         }
         catch (Exception e)
         {
             Log.Error($"level.dat read failed {path}: {e.Message}");
-            throw new InvalidDataException($"level.dat 读取失败 {path}", e);
+            throw new InvalidDataException($"level.dat read failed {path}", e);
         }
     }
 
-    //Save 写 level.dat 根为 Data 包装层临时文件原子替换防写一半损坏
+    //Save writes level.dat with a Data wrapper at the root, using a temp file and atomic replace to avoid a half-written file
     public void Save(string worldDir)
     {
         var path = Path.Combine(worldDir, "level.dat");

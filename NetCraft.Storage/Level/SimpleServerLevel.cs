@@ -3,9 +3,9 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage;
 
-//SimpleServerLevel 服务端关卡基线实现对应原版 ServerLevel 的最小可用版本
-//持有 in-memory ChunkAccess 字典按 ChunkPos.Pack 索引供 WorldGenRegion 与测试场景使用
-//去掉 sealed 允许 PersistentServerLevel 继承复用 in-memory 缓存
+//SimpleServerLevel, minimal usable server level baseline, maps to vanilla ServerLevel
+//Holds an in-memory ChunkAccess dictionary indexed by ChunkPos.Pack, used by WorldGenRegion and test scenarios
+//Not sealed, so PersistentServerLevel can inherit and reuse the in-memory cache
 public class SimpleServerLevel : ServerLevel
 {
     private readonly Dictionary<long, ChunkAccess> _chunks = new();
@@ -24,19 +24,19 @@ public class SimpleServerLevel : ServerLevel
     public override int DataVersion => _dataVersion;
     public override RegistryAccess RegistryAccess => _registryAccess;
 
-    //AddChunk 加入区块到 in-memory 字典
+    //AddChunk adds a chunk to the in-memory dictionary
     public void AddChunk(ChunkAccess chunk)
         => _chunks[ChunkPos.Pack(chunk.Pos.X, chunk.Pos.Z)] = chunk;
 
-    //GetChunk 按 ChunkPos 查找区块未加载返回 null
+    //GetChunk looks up a chunk by ChunkPos; returns null when not loaded
     public override ChunkAccess? GetChunk(ChunkPos pos)
         => _chunks.TryGetValue(ChunkPos.Pack(pos.X, pos.Z), out var chunk) ? chunk : null;
 
-    //GetChunk 按 chunkX/chunkZ 查找区块
+    //GetChunk looks up a chunk by chunkX/chunkZ
     public ChunkAccess? GetChunk(int chunkX, int chunkZ)
         => _chunks.TryGetValue(ChunkPos.Pack(chunkX, chunkZ), out var chunk) ? chunk : null;
 
-    //RemoveChunk 把区块移出 in-memory 字典返回是否存在过
-    //区块卸载时用 不移除的话 GetChunk 还会命中已卸载的旧对象 卸载等于没做
+    //RemoveChunk removes a chunk from the in-memory dictionary and returns whether it existed
+    //Used on chunk unload; without removal GetChunk would still hit the old unloaded object, making the unload a no-op
     public bool RemoveChunk(ChunkPos pos) => _chunks.Remove(ChunkPos.Pack(pos.X, pos.Z));
 }

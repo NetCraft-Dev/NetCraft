@@ -2,12 +2,12 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network;
 
-//RegistryFriendlyByteBuf 带 RegistryAccess 的协议缓冲对应原版 net.minecraft.network.RegistryFriendlyByteBuf
-//继承 FriendlyByteBuf 额外持有 RegistryAccess 供 StreamCodec 按注册表 id 编解码
+//RegistryFriendlyByteBuf protocol buffer with RegistryAccess, maps to vanilla net.minecraft.network.RegistryFriendlyByteBuf
+//Inherits FriendlyByteBuf and additionally holds RegistryAccess so StreamCodec can encode and decode by registry id
 public sealed class RegistryFriendlyByteBuf : FriendlyByteBuf
 {
-    //RegistryAccess 注册表访问入口按 ResourceKey 查 Registry
-    //可写是为了让出站编码缓冲能跨阶段复用 Login 阶段无注册表 进 Play 后才有
+    //RegistryAccess is the registry access entry point, looking up a Registry by ResourceKey
+    //Writable so the outbound encode buffer can be reused across phases: the Login phase has no registry, it is only available after entering Play
     public RegistryAccess RegistryAccess { get; set; }
 
     public RegistryFriendlyByteBuf(RegistryAccess registryAccess) : base()
@@ -20,7 +20,7 @@ public sealed class RegistryFriendlyByteBuf : FriendlyByteBuf
         RegistryAccess = registryAccess;
     }
 
-    //Lookup 按注册表 key 查 Registry 找不到抛异常
+    //Lookup looks up a Registry by registry key, throwing when not found
     public Registry<E> Lookup<E>(ResourceKey<Registry<E>> registryKey) where E : class
         => RegistryAccess.LookupOrThrow(registryKey);
 }

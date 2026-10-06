@@ -2,24 +2,24 @@ using NetCraft.Codec;
 
 namespace NetCraft.Game.Advancements.Predicates;
 
-//CollectionContentsPredicate 集合内容谓词 对应原版 CollectionContentsPredicate
-//语义是集合里存在元素满足某项 按项数退化成 Zero/Single/Multiple
-//单项是"存在一个元素满足" 多项是"每项都能被不同元素各命中一次"
+//CollectionContentsPredicate collection contents predicate, maps to vanilla CollectionContentsPredicate
+//Semantics: some element in the collection satisfies an entry; degenerates into Zero/Single/Multiple by entry count
+//A single entry means "one element satisfies"; multiple entries mean "each entry is hit by a different element"
 public interface CollectionContentsPredicate<T, P> where P : class, IValuePredicate<T>
 {
-    //Unpack 展开回项列表 编解码反向用
+    //Unpack expands back to the entry list, used by the reverse direction of the codec
     IReadOnlyList<P> Unpack();
 
-    //Test 集合是否满足
+    //Test whether the collection satisfies
     bool Test(IEnumerable<T> values);
 
-    //Codec 持久化编解码就是项列表 对应原版 codec
+    //Codec persistence codec is just the entry list, maps to vanilla codec
     public static Codec<CollectionContentsPredicate<T, P>> Codec(Codec<P> elementCodec)
         => elementCodec.ListOf().ComapFlatMap(
             list => DataResult<CollectionContentsPredicate<T, P>>.Success(Of(list)),
             predicate => predicate.Unpack());
 
-    //Of 按项数选实现 对应原版 of
+    //Of selects an implementation by entry count, maps to vanilla of
     public static CollectionContentsPredicate<T, P> Of(IReadOnlyList<P> predicates) => predicates.Count switch
     {
         0 => new Zero(),
@@ -27,7 +27,7 @@ public interface CollectionContentsPredicate<T, P> where P : class, IValuePredic
         _ => new Multiple(predicates)
     };
 
-    //Zero 空项列表恒真
+    //Zero empty entry list is always true
     public sealed class Zero : CollectionContentsPredicate<T, P>
     {
         public IReadOnlyList<P> Unpack() => Array.Empty<P>();
@@ -35,7 +35,7 @@ public interface CollectionContentsPredicate<T, P> where P : class, IValuePredic
         public bool Test(IEnumerable<T> values) => true;
     }
 
-    //Single 单项 集合里存在元素满足它
+    //Single one entry, some element in the collection satisfies it
     public sealed class Single(P predicate) : CollectionContentsPredicate<T, P>
     {
         public P Predicate { get; } = predicate;
@@ -45,7 +45,7 @@ public interface CollectionContentsPredicate<T, P> where P : class, IValuePredic
         public bool Test(IEnumerable<T> values) => values.Any(Predicate.Test);
     }
 
-    //Multiple 多项 每项都要被不同元素命中一遍
+    //Multiple multiple entries, each must be hit by a different element
     public sealed class Multiple(IReadOnlyList<P> tests) : CollectionContentsPredicate<T, P>
     {
         public IReadOnlyList<P> Tests { get; } = tests;

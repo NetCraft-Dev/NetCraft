@@ -8,30 +8,30 @@ using NetCraft.Util.Thread;
 
 namespace NetCraft.Storage;
 
-//实体存储对应原版 net.minecraft.world.level.chunk.storage.EntityStorage
-//实现 EntityPersistentStorage 按 chunk 读写实体集合依赖 SimpleRegionStorage
-//Entity 序列化策略用 delegate 注入避开具体 Entity 子类依赖
+//Entity storage, maps to vanilla net.minecraft.world.level.chunk.storage.EntityStorage
+//Implements EntityPersistentStorage, reading and writing entity collections per chunk, relying on SimpleRegionStorage
+//Entity serialization strategy is injected as delegates, avoiding dependencies on concrete Entity subclasses
 public sealed class EntityStorage : EntityPersistentStorage<Entity>
 {
     private const string EntitiesTag = "Entities";
 
     private readonly SimpleRegionStorage _simpleRegionStorage;
-    //emptyChunks 缓存已知的空 chunk 避免重复 IO 读取
-    //必须并发安全: 区块实体读取由 PersistentServerLevel.LoadChunkEntities 派到线程池
-    //多个相邻区块会同时进来 普通 HashSet 并发读写会直接把内部状态写坏
-    //原版靠 entityDeserializerQueue 单线程串行访问 本作读取路径还没接那条队列
+    //emptyChunks caches known-empty chunks to avoid repeated IO reads
+    //Must be concurrency-safe: chunk entity reads are dispatched to the thread pool by PersistentServerLevel.LoadChunkEntities
+    //Several adjacent chunks arrive at once; a plain HashSet would corrupt its internal state under concurrent access
+    //Vanilla serializes access through entityDeserializerQueue; this project's read path is not wired to that queue yet
     private readonly ConcurrentDictionary<long, byte> _emptyChunks = new();
-    //entityDeserializerQueue 实体反序列化队列保证单线程串行
+    //entityDeserializerQueue, the entity deserialization queue ensuring single-threaded serialization
     private readonly ConsecutiveExecutor _entityDeserializerQueue;
-    //registryAccess 注册表访问入口用于 TagValueInput 查表
+    //registryAccess, the registry access entry point used by TagValueInput lookups
     private readonly RegistryAccess _registryAccess;
-    //entityLoader 从 CompoundTag 反序列化 Entity 对应原版 EntityType.loadRecursive
+    //entityLoader deserializes an Entity from a CompoundTag, maps to vanilla EntityType.loadRecursive
     private readonly Func<CompoundTag, RegistryAccess, Entity> _entityLoader;
-    //entitySaver 把 Entity 序列化为 CompoundTag 对应原版 Entity.save
+    //entitySaver serializes an Entity into a CompoundTag, maps to vanilla Entity.save
     private readonly Func<Entity, CompoundTag> _entitySaver;
 
-    //构造方法接收 SimpleRegionStorage 与主线程 Executor
-    //registryAccess 用于 TagValueInput 查表 entityLoader/entitySaver 注入具体序列化策略
+    //Constructor taking the SimpleRegionStorage and the main-thread Executor
+    //registryAccess is for TagValueInput lookups; entityLoader/entitySaver inject the concrete serialization strategy
     public EntityStorage(
         SimpleRegionStorage simpleRegionStorage,
         IExecutor mainThreadExecutor,
@@ -46,8 +46,8 @@ public sealed class EntityStorage : EntityPersistentStorage<Entity>
         _entitySaver = entitySaver;
     }
 
-    //LoadEntities 按 chunk 位置加载实体集合对应原版 loadEntities
-    //走 SimpleRegionStorage.Read + TagValueInput + entityLoader 注入策略
+    //LoadEntities loads the entity collection by chunk pos, maps to vanilla loadEntities
+    //Goes through SimpleRegionStorage.Read + TagValueInput + the injected entityLoader strategy
     public async Task<ChunkEntities<Entity>> LoadEntities(ChunkPos pos)
     {
         var packed = pos.Pack();
@@ -62,14 +62,14 @@ public sealed class EntityStorage : EntityPersistentStorage<Entity>
         }
 
         var chunkTag = tagOptional.Get();
-        //用 TagValueInput 包装注册表入口对应原版 TagValueInput.create
-        //实际 entity 解析用注入的 entityLoader 不走 Codec 路径对应原版 EntityType.loadRecursive
+        //Wrap the registry access with TagValueInput, maps to vanilla TagValueInput.create
+        //Actual entity parsing uses the injected entityLoader rather than the Codec path, maps to vanilla EntityType.loadRecursive
         var input = TagValueInput.Create(_registryAccess, chunkTag);
         var entitiesList = input.ChildrenList(EntitiesTag);
         var entities = new List<Entity>();
         if (entitiesList is not null)
         {
-            //直接读原始 ListTag 用注入的 entityLoader 解析每个 CompoundTag
+            //Read the raw ListTag directly and parse each CompoundTag with the injected entityLoader
             var rawList = chunkTag.GetList(EntitiesTag);
             if (rawList is not null)
                 foreach (var t in rawList)
@@ -79,8 +79,8 @@ public sealed class EntityStorage : EntityPersistentStorage<Entity>
         return new ChunkEntities<Entity>(pos, entities);
     }
 
-    //StoreEntities 按 chunk 存储实体集合空 chunk 标记 emptyChunks 对应原版 storeEntities
-    //走 entitySaver 注入策略 + SimpleRegionStorage.Write
+    //StoreEntities stores the entity collection by chunk and marks empty chunks in emptyChunks, maps to vanilla storeEntities
+    //Goes through the injected entitySaver strategy + SimpleRegionStorage.Write
     public void StoreEntities(ChunkEntities<Entity> chunk)
     {
         var pos = chunk.Pos;
@@ -104,7 +104,7 @@ public sealed class EntityStorage : EntityPersistentStorage<Entity>
         _emptyChunks.TryRemove(packed, out _);
     }
 
-    //Flush 同步底层存储并执行 entityDeserializerQueue.runAll
+    //Flush syncs the backing storage and runs entityDeserializerQueue.runAll
     public async Task Flush(bool flushStorage)
     {
         await _simpleRegionStorage.Synchronize(flushStorage).ConfigureAwait(false);

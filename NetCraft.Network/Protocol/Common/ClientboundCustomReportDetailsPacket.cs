@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Protocol.Common;
 
-//ClientboundCustomReportDetailsPacket 自定义报告详情包对应原版 net.minecraft.network.protocol.common.ClientboundCustomReportDetailsPacket
-//含 Dictionary<string, string> 服务端发送给客户端用于崩溃报告附加信息
+//ClientboundCustomReportDetailsPacket custom report details packet, maps to vanilla net.minecraft.network.protocol.common.ClientboundCustomReportDetailsPacket
+//Contains Dictionary<string, string>; the server sends it to the client as extra crash report info
 public sealed record ClientboundCustomReportDetailsPacket(Dictionary<string, string> Details) : Packet<ClientCommonPacketListener>
 {
     public const int MaxEntries = 32;

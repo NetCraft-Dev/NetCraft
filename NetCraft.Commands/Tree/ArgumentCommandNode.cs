@@ -6,9 +6,9 @@ using NetCraft.Commands.Suggestion;
 
 namespace NetCraft.Commands.Tree;
 
-//ArgumentCommandNode 抽象基类对应原版ArgumentCommandNode<S,?>
-//CommandNode.arguments索引存此基类避免泛型T擦除问题
-//派生类ArgumentCommandNode<S,T>持强类型ArgumentType<T>
+//ArgumentCommandNode abstract base class, maps to vanilla ArgumentCommandNode<S,?>
+//The CommandNode.arguments index stores this base class to avoid the generic T erasure problem
+//The derived ArgumentCommandNode<S,T> holds a strongly typed ArgumentType<T>
 public abstract class ArgumentCommandNode<S> : CommandNode<S>
 {
     protected ArgumentCommandNode(Command<S>? command, Predicate<S> requirement, CommandNode<S>? redirect, RedirectModifier<S>? modifier, bool forks)
@@ -22,15 +22,15 @@ public abstract class ArgumentCommandNode<S> : CommandNode<S>
     public abstract bool IsValidInputCore(string input);
     public abstract IReadOnlyList<string> ExamplesCore { get; }
 
-    //GetArgumentTypeObject 弱类型取参数类型实例 网络层按它反查ArgumentTypeInfo
-    //ArgumentType<T>无共同基类 命令树编码只能以object承载
+    //GetArgumentTypeObject weakly typed access to the argument type instance; the network layer uses it to look up ArgumentTypeInfo
+    //ArgumentType<T> has no common base class, so command tree serialization can only carry it as object
     public abstract object GetArgumentTypeObject();
 
     public override string GetName() => Name;
 }
 
-//ArgumentCommandNode<S,T> 强类型参数节点对应原版com.mojang.brigadier.tree.ArgumentCommandNode<S,T>
-//持ArgumentType<T>调type.Parse解析参数注册到CommandContextBuilder
+//ArgumentCommandNode<S,T> strongly typed argument node, maps to vanilla com.mojang.brigadier.tree.ArgumentCommandNode<S,T>
+//Holds an ArgumentType<T> and calls type.Parse to parse the argument into the CommandContextBuilder
 public sealed class ArgumentCommandNode<S, T> : ArgumentCommandNode<S>
 {
     private const string USAGE_ARGUMENT_OPEN = "<";
@@ -118,7 +118,7 @@ public sealed class ArgumentCommandNode<S, T> : ArgumentCommandNode<S>
         return base.Equals(o);
     }
 
-    //ArgumentTypeEquals 检查类型擦除下ArgumentType<T>相等需双方同为ArgumentCommandNode<S,T>
+    //ArgumentTypeEquals checks ArgumentType<T> equality under type erasure; both sides must be ArgumentCommandNode<S,T>
     private bool ArgumentTypeEquals(ArgumentCommandNode<S> other)
     {
         if (other is not ArgumentCommandNode<S, T> typed) return false;

@@ -1,10 +1,10 @@
 namespace NetCraft.Primitives.Phys;
 
-//BooleanOp 布尔运算谓词 对应原版 BooleanOp 函数式接口
-//形状做并集交集时逐格子调用它 决定结果格是否实心
+//BooleanOp boolean operation predicate, maps to the vanilla BooleanOp functional interface
+//Shape union and intersection call it per cell to decide whether a result cell is solid
 public delegate bool BooleanOp(bool first, bool second);
 
-//BooleanOps 原版 BooleanOp 里的 16 个静态实例 语义逐一对齐
+//BooleanOps the 16 static instances of vanilla BooleanOp, semantics aligned one by one
 public static class BooleanOps
 {
     public static readonly BooleanOp False = (_, _) => false;

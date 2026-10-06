@@ -3,8 +3,8 @@ using NetCraft.Util.Profiling.Metrics;
 
 namespace NetCraft.Util.Profiling;
 
-//非活跃profiler对应原版net.minecraft.util.profiling.InactiveProfiler
-//所有方法空实现单例
+//Inactive profiler, maps to vanilla net.minecraft.util.profiling.InactiveProfiler
+//Singleton with all methods empty
 public sealed class InactiveProfiler : ProfileCollector
 {
     public static readonly InactiveProfiler Instance = new();
@@ -22,9 +22,9 @@ public sealed class InactiveProfiler : ProfileCollector
     public void IncrementCounter(string name, int amount) { }
     public void IncrementCounter(Func<string> name, int amount) { }
 
-    //Zone覆盖返回Inactive单例避免无谓对象分配
-    //接口默认实现会new Zone(this)此处用new关键字显式覆盖
-    //方法名遮蔽Zone类名用global前缀引用Zone类
+    //Zone override returns the Inactive singleton to avoid needless allocation
+    //The interface default would new Zone(this); this explicitly overrides with the new keyword
+    //Method name shadows the Zone class name, so the global prefix refers to the Zone class
     public new global::NetCraft.Util.Profiling.Zone Zone(string name) => global::NetCraft.Util.Profiling.Zone.Inactive;
     public new global::NetCraft.Util.Profiling.Zone Zone(Func<string> name) => global::NetCraft.Util.Profiling.Zone.Inactive;
 

@@ -4,12 +4,12 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetEquipmentPacket 装备设置包对应原版 ClientboundSetEquipmentPacket
-//字段 Entity(VarInt) Slots(List<KeyValuePair<EquipmentSlot, ItemStack>>)
-//Slots 用 packed byte 编码低 7 bit 为 slot id 高位 0x80 为继续标记 最后一对不带标记
+//ClientboundSetEquipmentPacket set equipment packet, maps to vanilla ClientboundSetEquipmentPacket
+//Fields: Entity(VarInt), Slots(List<KeyValuePair<EquipmentSlot, ItemStack>>)
+//Slots uses a packed byte encoding: the low 7 bits are the slot id, the high 0x80 bit is the continue marker, and the last pair carries no marker
 public sealed record ClientboundSetEquipmentPacket(int Entity, List<KeyValuePair<EquipmentSlot, ItemStack>> Slots) : Packet<ClientGamePacketListener>
 {
-    //ContinueMask 高位继续标记对应原版 CONTINUE_MASK
+    //ContinueMask high-bit continue marker, maps to vanilla CONTINUE_MASK
     private const byte ContinueMask = 0x80;
 
     public static StreamCodec<RegistryFriendlyByteBuf, ClientboundSetEquipmentPacket> StreamCodec { get; } = new SetEquipmentCodec();

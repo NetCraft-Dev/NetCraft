@@ -1,8 +1,8 @@
 namespace NetCraft.Network.Protocol.Login;
 
-//ClientLoginPacketListener 客户端 login 监听器对应原版 net.minecraft.network.protocol.login.ClientLoginPacketListener
-//继承 ClientboundPacketListener 简化版跳过 cookie 子协议
-//Protocol 固定 LOGIN
+//ClientLoginPacketListener client login listener, maps to vanilla net.minecraft.network.protocol.login.ClientLoginPacketListener
+//Inherits ClientboundPacketListener; the simplified form skips the cookie subprotocol
+//Protocol is fixed to LOGIN
 public interface ClientLoginPacketListener : ClientboundPacketListener
 {
     void HandleHello(ClientboundHelloPacket packet);
@@ -11,6 +11,6 @@ public interface ClientLoginPacketListener : ClientboundPacketListener
     void HandleCompression(ClientboundLoginCompressionPacket packet);
     void HandleCustomQuery(ClientboundCustomQueryPacket packet);
 
-    //Protocol 固定为 LOGIN
+    //Protocol is fixed to LOGIN
     ConnectionProtocol PacketListener.Protocol => ConnectionProtocol.Login;
 }

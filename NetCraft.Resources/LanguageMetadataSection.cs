@@ -2,31 +2,31 @@ using System.Text.Json;
 
 namespace NetCraft.Resources;
 
-//LanguageInfo 语言的展示信息对应原版 net.minecraft.locale.LanguageInfo
-//region 地区名 name 该语言自称的名字 bidirectional 是否从右向左书写
+//LanguageInfo, display info for a language, maps to vanilla net.minecraft.locale.LanguageInfo
+//region is the region name, name is the language's own name, bidirectional whether it is written right to left
 public sealed record LanguageInfo(string Region, string Name, bool Bidirectional);
 
-//LanguageMetadataSection 语言元数据段对应原版 net.minecraft.server.packs.metadata.language.LanguageMetadataSection
-//解析 pack.mcmeta 根 JSON 的 language 子对象 键为语言码 值为展示信息
-//语言选择界面据此列出可选条目 与 pack 段共用同一个 pack.mcmeta 文件
+//LanguageMetadataSection, language metadata section, maps to vanilla net.minecraft.server.packs.metadata.language.LanguageMetadataSection
+//Parses the language sub-object of the pack.mcmeta root JSON, keys are language codes and values are display info
+//The language selection screen lists entries from this, sharing the same pack.mcmeta file as the pack section
 public sealed class LanguageMetadataSection
 {
-    //SectionName 段名对应原版 language
+    //SectionName is the section name, maps to vanilla language
     public const string SectionName = "language";
 
-    //FileName 元数据文件名与 pack 段共用
+    //FileName is the metadata file name, shared with the pack section
     private const string FileName = "pack.mcmeta";
 
-    //Languages 语言码到展示信息的映射 无 language 段时为空表
+    //Languages maps language codes to display info, empty when there is no language section
     public IReadOnlyDictionary<string, LanguageInfo> Languages { get; }
 
-    //Empty 空表 尚未加载元数据时的占位
+    //Empty, an empty table, a placeholder before metadata is loaded
     public static LanguageMetadataSection Empty { get; } =
         new(new Dictionary<string, LanguageInfo>(StringComparer.Ordinal));
 
     private LanguageMetadataSection(Dictionary<string, LanguageInfo> languages) => Languages = languages;
 
-    //FromJson 解析 pack.mcmeta 根 JSON 缺 language 段返回空表不抛
+    //FromJson parses the pack.mcmeta root JSON, returns an empty table instead of throwing when the language section is missing
     public static LanguageMetadataSection FromJson(string json)
     {
         var languages = new Dictionary<string, LanguageInfo>(StringComparer.Ordinal);
@@ -50,7 +50,7 @@ public sealed class LanguageMetadataSection
         return new LanguageMetadataSection(languages);
     }
 
-    //Read 从资源包读 pack.mcmeta 文件不存在返回 null
+    //Read reads pack.mcmeta from a resource pack, returns null when the file does not exist
     public static LanguageMetadataSection? Read(PackResources pack)
     {
         using var stream = pack.GetRootResource(FileName);
@@ -59,7 +59,7 @@ public sealed class LanguageMetadataSection
         return FromJson(reader.ReadToEnd());
     }
 
-    //ReadAll 合并全部资源包的 language 段 优先级高的包覆盖低的
+    //ReadAll merges the language sections of all packs, higher priority packs override lower ones
     public static LanguageMetadataSection ReadAll(ResourceManager manager)
     {
         var languages = new Dictionary<string, LanguageInfo>(StringComparer.Ordinal);

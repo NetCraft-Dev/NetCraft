@@ -1,9 +1,9 @@
 namespace NetCraft.Registry;
 
-//ClockManager 时钟查询接口对应原版 net.minecraft.world.clock.ClockManager
-//Timeline 按此接口取时钟总刻数 服务端实现为 Game 层 ServerClockManager
+//ClockManager clock query interface, maps to vanilla net.minecraft.world.clock.ClockManager
+//Timeline uses this interface to get a clock's total ticks; the server-side implementation is the Game layer's ServerClockManager
 public interface ClockManager
 {
-    //GetTotalTicks 取指定时钟的累计总刻数
+    //GetTotalTicks gets the accumulated total ticks of the given clock
     long GetTotalTicks(Holder<WorldClock> definition);
 }

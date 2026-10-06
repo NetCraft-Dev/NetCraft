@@ -1,7 +1,7 @@
 namespace NetCraft.Commands.Arguments;
 
-//StringType 字符串参数类型枚举对应原版com.mojang.brigadier.arguments.StringArgumentType.StringType
-//C# enum不能持String[]字段故改sealed class三静态实例持Examples列表
+//StringType string argument type enum, maps to vanilla com.mojang.brigadier.arguments.StringArgumentType.StringType
+//A C# enum cannot hold a String[] field, so this becomes a sealed class with three static instances carrying the Examples list
 public sealed class StringType
 {
     public static readonly StringType SingleWord = new(new[] { "word", "words_with_underscores" });

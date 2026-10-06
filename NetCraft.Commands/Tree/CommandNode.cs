@@ -4,10 +4,10 @@ using NetCraft.Commands.Suggestion;
 
 namespace NetCraft.Commands.Tree;
 
-//CommandNode 命令节点抽象基类对应原版com.mojang.brigadier.tree.CommandNode
-//持children/literals/arguments三个索引requirement/redirect/modifier/forks/command字段
-//addChild按节点类型分流到literals/arguments索引合并同名节点
-//getRelevantNodes临时改cursor读literal文本后恢复优化定位
+//CommandNode command node abstract base class, maps to vanilla com.mojang.brigadier.tree.CommandNode
+//Holds the children/literals/arguments indexes and the requirement/redirect/modifier/forks/command fields
+//addChild routes by node type into the literals/arguments indexes and merges nodes with the same name
+//getRelevantNodes temporarily moves the cursor to read the literal text, then restores it, optimizing lookup
 public abstract class CommandNode<S> : IComparable<CommandNode<S>>
 {
     private readonly Dictionary<string, CommandNode<S>> _children = new();
@@ -137,7 +137,7 @@ public abstract class CommandNode<S> : IComparable<CommandNode<S>>
     protected abstract string GetSortedKey();
     protected abstract bool IsValidInput(string input);
 
-    //GetRelevantNodes 临时改cursor读literal文本后恢复优化定位
+    //GetRelevantNodes temporarily moves the cursor to read the literal text, then restores it, optimizing lookup
     public IReadOnlyCollection<CommandNode<S>> GetRelevantNodes(StringReader input)
     {
         if (_literals.Count > 0)

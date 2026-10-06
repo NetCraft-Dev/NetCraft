@@ -1,14 +1,14 @@
 namespace NetCraft.Storage;
 
-//目录校验对应原版DirectoryValidator
-//把目录里指向允许列表之外的符号链接挑出来
+//Directory validation, maps to vanilla DirectoryValidator
+//Picks out symlinks in the directory that point outside the allow list
 public sealed class DirectoryValidator
 {
     private readonly PathAllowList _symlinkTargetAllowList;
 
     public DirectoryValidator(PathAllowList symlinkTargetAllowList) => _symlinkTargetAllowList = symlinkTargetAllowList;
 
-    //目标不在允许列表里就记一条
+    //Record an entry when the target is not in the allow list
     public void ValidateSymlink(string path, List<ForbiddenSymlinkInfo> issues)
     {
         var target = ResolveLinkTarget(path) ?? throw new IOException($"Not a symbolic link: {path}");
@@ -23,8 +23,8 @@ public sealed class DirectoryValidator
         return issues;
     }
 
-    //校验整个目录
-    //顶层自己就是链接时，allowTopSymlink 为真就顺着目标往下走，否则只查这一层
+    //Validate the whole directory
+    //When the top itself is a symlink, follow the target down if allowTopSymlink is true, otherwise check only this level
     public List<ForbiddenSymlinkInfo> ValidateDirectory(string directory, bool allowTopSymlink)
     {
         var issues = new List<ForbiddenSymlinkInfo>();
@@ -46,8 +46,8 @@ public sealed class DirectoryValidator
         return issues;
     }
 
-    //递归走一遍，目录与文件都看一眼
-    //不跟着链接往下钻，链接成环会转不出来
+    //Walk recursively, checking both directories and files
+    //Do not descend through links; a link cycle would never terminate
     public void ValidateKnownDirectory(string directory, List<ForbiddenSymlinkInfo> issues)
     {
         var pending = new Stack<string>();
@@ -67,11 +67,11 @@ public sealed class DirectoryValidator
         }
     }
 
-    //路径在不在，断掉的链接也算在
+    //Whether the path exists; a broken link also counts as present
     private static bool Exists(string path)
         => File.Exists(path) || Directory.Exists(path) || ResolveLinkTarget(path) is not null;
 
-    //取链接目标，不是链接给null
+    //Get the link target; null when not a link
     private static string? ResolveLinkTarget(string path)
     {
         var file = new FileInfo(path);

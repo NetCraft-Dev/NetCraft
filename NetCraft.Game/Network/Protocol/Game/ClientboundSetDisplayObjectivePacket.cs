@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetDisplayObjectivePacket 显示计分项包对应原版 ClientboundSetDisplayObjectivePacket
-//字段 Slot(DisplaySlot) ObjectiveName(String)
+//ClientboundSetDisplayObjectivePacket display objective packet, maps to vanilla ClientboundSetDisplayObjectivePacket
+//Fields: Slot(DisplaySlot), ObjectiveName(String)
 public sealed record ClientboundSetDisplayObjectivePacket(object Slot, string ObjectiveName) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetDisplayObjectivePacket> StreamCodec { get; } = new SetDisplayObjectiveCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundSetDisplayObjectivePacket(object Slot, string Ob
     private sealed class SetDisplayObjectiveCodec : StreamCodec<FriendlyByteBuf, ClientboundSetDisplayObjectivePacket>
     {
         public ClientboundSetDisplayObjectivePacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundSetDisplayObjectivePacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

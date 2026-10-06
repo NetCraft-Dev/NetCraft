@@ -5,8 +5,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage;
 
-//TagValueInput 基于 CompoundTag 的 ValueInput 实现对应原版 TagValueInput
-//简化点不实现 ProblemReporter 错误路径走 Log.Warning
+//TagValueInput, a CompoundTag-based ValueInput implementation, maps to vanilla TagValueInput
+//Simplification: no ProblemReporter; error paths go to Log.Warning
 public sealed class TagValueInput : ValueInput
 {
     private readonly RegistryAccess _registryAccess;
@@ -21,7 +21,7 @@ public sealed class TagValueInput : ValueInput
     public static TagValueInput Create(RegistryAccess registryAccess, CompoundTag tag)
         => new(registryAccess, tag);
 
-    //按 Codec 从字段解析值缺失返回 null 解析错误走 Log.Warning 返回 null
+    //Parse the value from the field with a Codec; missing returns null, parse errors go to Log.Warning and return null
     public T? Read<T>(string name, Codec<T> codec)
     {
         var tag = _input[name];
@@ -136,7 +136,7 @@ public sealed class TagValueInput : ValueInput
 
     public bool IsEmpty() => _input.IsEmpty;
 
-    //空 ValueInput 单例用于 ChildOrEmpty 缺失场景
+    //Empty ValueInput singleton, used by ChildOrEmpty for missing cases
     public static TagValueInput Empty(RegistryAccess registryAccess)
         => new(registryAccess, new CompoundTag());
 }

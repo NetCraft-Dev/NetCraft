@@ -3,19 +3,19 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry.Environment;
 
-//EnvironmentAttributeMap 一组环境属性取值对应原版 EnvironmentAttributeMap
+//EnvironmentAttributeMap a set of environment attribute values, maps to vanilla EnvironmentAttributeMap
 public sealed class EnvironmentAttributeMap
 {
     public static readonly EnvironmentAttributeMap Empty =
         new(new Dictionary<IEnvironmentAttribute, Entry>());
 
-    //Codec 按属性 id 分派解析对应原版 dispatchedMap
+    //Codec dispatches and parses by attribute id, maps to vanilla dispatchedMap
     public static readonly Codec<EnvironmentAttributeMap> Codec = new EnvironmentAttributeMapCodec();
 
-    //NetworkCodec 只保留可同步属性
+    //NetworkCodec keeps only syncable attributes
     public static readonly Codec<EnvironmentAttributeMap> NetworkCodec = new NetworkFilterCodec(Codec);
 
-    //CodecOnlyPositional 校验所有属性都参与位置采样
+    //CodecOnlyPositional validates that all attributes participate in positional sampling
     public static readonly Codec<EnvironmentAttributeMap> CodecOnlyPositional =
         new ValidatingCodec<EnvironmentAttributeMap>(Codec, ValidatePositional);
 
@@ -30,7 +30,7 @@ public sealed class EnvironmentAttributeMap
     public Entry<Value>? Get<Value>(EnvironmentAttribute<Value> attribute)
         => _entries.TryGetValue(attribute, out var entry) ? entry as Entry<Value> : null;
 
-    //ApplyModifier 无该属性时返回基础值
+    //ApplyModifier returns the base value when the attribute is absent
     public Value ApplyModifier<Value>(EnvironmentAttribute<Value> attribute, Value baseValue)
     {
         var entry = Get(attribute);
@@ -52,11 +52,11 @@ public sealed class EnvironmentAttributeMap
             : DataResult<EnvironmentAttributeMap>.Error(() => $"The following attributes cannot be positional: {string.Join(", ", illegal)}");
     }
 
-    //FilterSyncable 剔除不可同步属性
+    //FilterSyncable removes non-syncable attributes
     internal EnvironmentAttributeMap FilterSyncable()
         => new(_entries.Where(kv => kv.Key.IsSyncable).ToDictionary(kv => kv.Key, kv => kv.Value));
 
-    //Entry 弱类型条目基类
+    //Entry weak-typed entry base class
     public abstract class Entry
     {
         public abstract object Argument { get; }
@@ -64,7 +64,7 @@ public sealed class EnvironmentAttributeMap
         internal abstract object ApplyModifierObject(object subject);
     }
 
-    //Entry<Value> 单条属性取值，argument 类型已擦除为 object
+    //Entry<Value> a single attribute value; the argument type is erased to object
     public sealed class Entry<Value> : Entry
     {
         public override object Argument { get; }
@@ -82,7 +82,7 @@ public sealed class EnvironmentAttributeMap
         internal override object ApplyModifierObject(object subject) => ApplyModifier((Value)subject)!;
     }
 
-    //Builder 属性映射构建器
+    //Builder attribute map builder
     public sealed class Builder
     {
         private readonly Dictionary<IEnvironmentAttribute, Entry> _entries = new();
@@ -110,7 +110,7 @@ public sealed class EnvironmentAttributeMap
     }
 }
 
-//EnvironmentAttributeMapCodec 按属性 id 查注册表再解析条目
+//EnvironmentAttributeMapCodec looks up the registry by attribute id then parses the entry
 internal sealed class EnvironmentAttributeMapCodec : AbstractMapCodec<EnvironmentAttributeMap>
 {
     public override DataResult<EnvironmentAttributeMap> Decode<U>(DynamicOps<U> ops, MapLike<U> input)
@@ -145,7 +145,7 @@ internal sealed class EnvironmentAttributeMapCodec : AbstractMapCodec<Environmen
     }
 }
 
-//NetworkFilterCodec 网络同步时剔除不可同步属性对应原版 NetworkCodec
+//NetworkFilterCodec removes non-syncable attributes during network sync, maps to vanilla NetworkCodec
 internal sealed class NetworkFilterCodec : ScalarCodec<EnvironmentAttributeMap>
 {
     private readonly Codec<EnvironmentAttributeMap> _inner;
@@ -159,7 +159,7 @@ internal sealed class NetworkFilterCodec : ScalarCodec<EnvironmentAttributeMap>
         => _inner.EncodeStart(ops, value.FilterSyncable());
 }
 
-//EnvironmentAttributeEntryCodec 条目 codec，简写直接给值完整形态带 modifier 与 argument
+//EnvironmentAttributeEntryCodec entry codec; the shorthand gives the value directly and the full form carries modifier and argument
 internal sealed class EnvironmentAttributeEntryCodec<Value> : ScalarCodec<EnvironmentAttributeMap.Entry<Value>>
 {
     private readonly EnvironmentAttribute<Value> _attribute;

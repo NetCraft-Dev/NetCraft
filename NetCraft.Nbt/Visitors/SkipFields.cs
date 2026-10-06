@@ -2,10 +2,10 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Nbt.Visitors;
 
-//跳过指定字段的 StreamTagVisitor。对应原版 net.minecraft.nbt.visitors.SkipFields。
-//仅当字段被 FieldSelector 选中时跳过（VisitEntry 返回 Skip），
-//其余字段正常构建为 Tag（通过基类 CollectToTag）。
-//递归进入的字段通过 FieldTree 维护栈。
+//StreamTagVisitor that skips the given fields. Mirrors vanilla net.minecraft.nbt.visitors.SkipFields.
+//Skipped only when the field is selected by FieldSelector (VisitEntry returns Skip);
+//other fields are built as Tags normally (through the base CollectToTag).
+//Nested fields keep their stack frame through FieldTree.
 public class SkipFields : CollectToTag
 {
     private readonly Stack<FieldTree> _stack = new();

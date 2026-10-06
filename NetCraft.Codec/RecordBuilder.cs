@@ -1,7 +1,7 @@
 namespace NetCraft.Codec;
 
-//record builder接口对应原版com.mojang.serialization.RecordBuilder
-//按字段顺序构建复合map
+//Record builder interface, mirroring vanilla com.mojang.serialization.RecordBuilder
+//Builds a compound map in field order
 public interface RecordBuilder<T>
 {
     DynamicOps<T> Ops { get; }
@@ -13,8 +13,8 @@ public interface RecordBuilder<T>
     DataResult<T> Build(T prefix);
 }
 
-//抽象基类提供Add累积与Build默认实现
-//子类实现InitBuilder和Append即可
+//Abstract base class providing the default Add accumulation and Build
+//Subclasses only implement InitBuilder and Append
 public abstract class AbstractRecordBuilder<T> : RecordBuilder<T>
 {
     private readonly List<KeyValuePair<string, T>> _entries = new();
@@ -47,6 +47,6 @@ public abstract class AbstractRecordBuilder<T> : RecordBuilder<T>
 
     protected abstract T Append(string key, T value, T builder);
 
-    //用累积好的builder和prefix合并构建最终结果
+    //Build the final result from the accumulated builder and the prefix merge
     protected abstract DataResult<T> Build(IReadOnlyList<KeyValuePair<string, T>> entries, T builder, T prefix);
 }

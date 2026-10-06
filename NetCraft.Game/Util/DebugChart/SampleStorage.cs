@@ -1,6 +1,6 @@
 namespace NetCraft.Game.Util.DebugChart;
 
-//SampleStorage 采样缓冲只读视图 对应原版 net.minecraft.util.debugchart.SampleStorage
+//SampleStorage read-only view over the sample buffer, maps to vanilla net.minecraft.util.debugchart.SampleStorage
 public interface SampleStorage
 {
     int Capacity { get; }

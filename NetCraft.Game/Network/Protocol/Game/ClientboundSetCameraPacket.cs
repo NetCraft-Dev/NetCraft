@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetCameraPacket 设置视角包对应原版 ClientboundSetCameraPacket
-//字段 CameraId(int) 目标实体网络 id 客户端据此把视角切到该实体
+//ClientboundSetCameraPacket set camera packet, maps to vanilla ClientboundSetCameraPacket
+//Field: CameraId(int), the target entity network id; the client switches its camera to that entity
 public sealed record ClientboundSetCameraPacket(int CameraId) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetCameraPacket> StreamCodec { get; } = new SetCameraCodec();
@@ -12,7 +12,7 @@ public sealed record ClientboundSetCameraPacket(int CameraId) : Packet<ClientGam
 
     private sealed class SetCameraCodec : StreamCodec<FriendlyByteBuf, ClientboundSetCameraPacket>
     {
-        //原版 write 只写一个 VarInt 实体 id
+        //Vanilla write writes only a single VarInt entity id
         public ClientboundSetCameraPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadVarInt());
 

@@ -2,7 +2,7 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.Environment;
 
-//BooleanModifier 布尔修饰符对应原版 BooleanModifier
+//BooleanModifier boolean modifier, maps to vanilla BooleanModifier
 public sealed class BooleanModifier : AttributeModifier<bool, bool>
 {
     public static readonly BooleanModifier And = new((subject, argument) => argument && subject);

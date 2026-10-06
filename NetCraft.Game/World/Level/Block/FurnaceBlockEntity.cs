@@ -6,7 +6,7 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//FurnaceBlockEntity 熔炉方块实体 用 smelting 配方 对应原版 FurnaceBlockEntity
+//FurnaceBlockEntity furnace block entity, uses smelting recipes, maps to vanilla FurnaceBlockEntity
 public sealed class FurnaceBlockEntity : AbstractFurnaceBlockEntity
 {
     public FurnaceBlockEntity(BlockPos pos) : base(BlockEntityTypes.FURNACE, pos) { }
@@ -19,7 +19,7 @@ public sealed class FurnaceBlockEntity : AbstractFurnaceBlockEntity
         => FurnaceMenu.ForFurnace(containerId, inventory, this);
 }
 
-//BlastFurnaceBlockEntity 高炉方块实体 用 blasting 配方 对应原版 BlastFurnaceBlockEntity
+//BlastFurnaceBlockEntity blast furnace block entity, uses blasting recipes, maps to vanilla BlastFurnaceBlockEntity
 public sealed class BlastFurnaceBlockEntity : AbstractFurnaceBlockEntity
 {
     public BlastFurnaceBlockEntity(BlockPos pos) : base(BlockEntityTypes.BLAST_FURNACE, pos) { }
@@ -32,7 +32,7 @@ public sealed class BlastFurnaceBlockEntity : AbstractFurnaceBlockEntity
         => FurnaceMenu.ForBlastFurnace(containerId, inventory, this);
 }
 
-//SmokerBlockEntity 烟熏炉方块实体 用 smoking 配方 对应原版 SmokerBlockEntity
+//SmokerBlockEntity smoker block entity, uses smoking recipes, maps to vanilla SmokerBlockEntity
 public sealed class SmokerBlockEntity : AbstractFurnaceBlockEntity
 {
     public SmokerBlockEntity(BlockPos pos) : base(BlockEntityTypes.SMOKER, pos) { }

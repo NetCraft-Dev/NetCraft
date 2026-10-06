@@ -2,9 +2,9 @@ using NetCraft.Commands.Tree;
 
 namespace NetCraft.Commands.Builder;
 
-//ArgumentBuilder 命令构建器抽象基类对应原版com.mojang.brigadier.builder.ArgumentBuilder
-//非泛型基类让createBuilder返回ArgumentBuilder<S>对应Java通配ArgumentBuilder<S,?>
-//持arguments RootCommandNode与command/requirement/target/modifier/forks字段
+//ArgumentBuilder command builder abstract base class, maps to vanilla com.mojang.brigadier.builder.ArgumentBuilder
+//The non-generic base lets createBuilder return ArgumentBuilder<S>, mirroring Java's wildcard ArgumentBuilder<S,?>
+//Holds the arguments RootCommandNode and the command/requirement/target/modifier/forks fields
 public abstract class ArgumentBuilder<S>
 {
     protected readonly RootCommandNode<S> _arguments = new();
@@ -26,11 +26,11 @@ public abstract class ArgumentBuilder<S>
 
     public bool IsFork() => _forks;
 
-    //Requires 覆写权限谓词 对应原版 ArgumentBuilder<S,?>.requires
-    //泛型派生类以 new 隐藏并返回具体构建器类型
+    //Requires overrides the permission predicate; maps to vanilla ArgumentBuilder<S,?>.requires
+    //Generic subclasses hide it with new and return the concrete builder type
     public void Requires(Predicate<S> requirement) => _requirement = requirement;
 
-    //Forward 覆写重定向 对应原版 ArgumentBuilder<S,?>.forward
+    //Forward overrides the redirect; maps to vanilla ArgumentBuilder<S,?>.forward
     public void Forward(CommandNode<S>? target, RedirectModifier<S>? modifier, bool fork)
     {
         if (_arguments.GetChildren().Count > 0)
@@ -45,8 +45,8 @@ public abstract class ArgumentBuilder<S>
     public abstract CommandNode<S> Build();
 }
 
-//ArgumentBuilder<S,T> 自递归泛型构建器对应原版ArgumentBuilder<S,T extends ArgumentBuilder<S,T>>
-//T表示具体子类类型让Then/Executes等链式方法返回T保证类型安全
+//ArgumentBuilder<S,T> self-referential generic builder, maps to vanilla ArgumentBuilder<S,T extends ArgumentBuilder<S,T>>
+//T is the concrete subclass type so chained methods like Then/Executes return T and stay type-safe
 public abstract class ArgumentBuilder<S, T> : ArgumentBuilder<S> where T : ArgumentBuilder<S, T>
 {
     protected abstract T GetThis();

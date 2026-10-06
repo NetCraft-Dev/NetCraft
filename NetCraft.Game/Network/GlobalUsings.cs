@@ -1,4 +1,4 @@
-//Game/Network 子目录全局 using 简化业务包文件引用
+//Game/Network subdirectory global usings, simplifies packet file references
 global using NetCraft.Config;
 global using NetCraft.Network;
 global using NetCraft.Network.Protocol;

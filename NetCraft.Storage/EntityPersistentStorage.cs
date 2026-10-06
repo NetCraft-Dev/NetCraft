@@ -3,19 +3,19 @@ namespace NetCraft.Storage;
 using System.Threading.Tasks;
 using NetCraft.Primitives;
 
-//实体持久化存储接口对应原版net.minecraft.world.level.entity.EntityPersistentStorage
-//按chunk加载与存储实体T为实体类型继承IDisposable对齐原版AutoCloseable
+//Entity persistent storage interface, maps to vanilla net.minecraft.world.level.entity.EntityPersistentStorage
+//Loads and stores entities per chunk; T is the entity type and it extends IDisposable, aligning with vanilla AutoCloseable
 public interface EntityPersistentStorage<T> : IDisposable
 {
-    //loadEntities按chunk位置加载实体集合返回异步Future
+    //loadEntities loads the entity collection by chunk pos and returns an async Future
     Task<ChunkEntities<T>> LoadEntities(ChunkPos pos);
 
-    //storeEntities按chunk存储实体集合
+    //storeEntities stores the entity collection by chunk
     void StoreEntities(ChunkEntities<T> chunk);
 
-    //flush刷新存储flushStorage是否同步底层存储
+    //flush flushes storage; flushStorage controls whether the backing storage is synced
     Task Flush(bool flushStorage);
 
-    //close关闭释放资源
+    //close closes and releases resources
     void Dispose();
 }

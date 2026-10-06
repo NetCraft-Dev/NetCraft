@@ -1,5 +1,5 @@
 namespace NetCraft.Commands.Execution;
 
-//EntryAction 执行队列的单条动作对应原版 net.minecraft.commands.execution.EntryAction
-//原版是函数式接口 C# 用委托承载 类实现(如 BuildContexts.TopLevel)以方法组转委托入队
+//EntryAction a single action in the execution queue, maps to vanilla net.minecraft.commands.execution.EntryAction
+//Vanilla uses a functional interface; C# carries it as a delegate, and class implementations (such as BuildContexts.TopLevel) enqueue via method-group conversion
 public delegate void EntryAction<T>(ExecutionContext<T> context, Frame frame);

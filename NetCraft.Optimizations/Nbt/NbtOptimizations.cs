@@ -3,26 +3,26 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Optimizations.Nbt;
 
-//NBT 优化模块对应核心优化点 2.1 / 2.2
-//2.2 NBT IO MemoryMapped 集成于 NetCraft.Nbt/NbtIo.cs 提供 WithMemoryMapped 重载
-//2.1 NBT Codec SG 待 NetCraft.Nbt.SourceGenerator 项目独立实现
+//NBT optimization module, covers core optimization points 2.1 / 2.2
+//2.2 NBT IO MemoryMapped integration lives in NetCraft.Nbt/NbtIo.cs, which provides a WithMemoryMapped overload
+//2.1 NBT Codec SG pending an independent NetCraft.Nbt.SourceGenerator project
 public static class NbtOptimizations
 {
     public const string ModuleName = "NBT Optimization";
     public const string TargetSubsystem = "NetCraft.Nbt";
 
-    //对应优化点 2.1 NBT Codec 用 Source Generator 编译期生成替代反射
-    //C# 独家优势 Java 无法实现待 SG 项目落地
+    //Optimization point 2.1, NBT Codec uses compile-time Source Generator output instead of reflection
+    //A C# exclusive advantage Java cannot achieve, pending the SG project
     public static bool IsCodecSourceGeneratorEnabled => OptimizationFlags.NbtCodecSourceGenerator;
 
-    //对应优化点 2.2 NBT IO 用 MemoryMappedFile + Span 实现
-    //采用 C2ME 方案已验证 NbtIo 提供 WithMemoryMapped 重载
+    //Optimization point 2.2, NBT IO implemented with MemoryMappedFile + Span
+    //The C2ME approach, already validated, NbtIo provides a WithMemoryMapped overload
     public static bool IsIoMemoryMappedEnabled => OptimizationFlags.NbtIoMemoryMapped;
 
-    //对应优化点 2.2 NBT 写入用 NativeMemory 池避免 LOH 压力
+    //Optimization point 2.2, NBT writes use a NativeMemory pool to avoid LOH pressure
     public static bool IsWriteBufferPooledEnabled => OptimizationFlags.NbtWriteBufferPooled;
 
-    //IsOptimized 检查三个开关是否全开判断 NBT 优化是否启用
+    //IsOptimized checks whether all three toggles are on to decide if NBT optimization is enabled
     public static bool IsOptimized =>
         IsCodecSourceGeneratorEnabled && IsIoMemoryMappedEnabled && IsWriteBufferPooledEnabled;
 }

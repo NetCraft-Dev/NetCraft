@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Util;
 
-//Fraction 精简有理数 对应原版 apache commons math 的 Fraction
-//供 BundleContents 这类按重量配比计算的地方使用 只保留项目用到的运算
+//Fraction minimal rational number, maps to vanilla apache commons math Fraction
+//Used by weight-ratio computations such as BundleContents; only keeps the operations the project uses
 public sealed class Fraction
 {
     public static readonly Fraction Zero = new(0, 1);
@@ -31,7 +31,7 @@ public sealed class Fraction
 
     public int Denominator => _denominator;
 
-    //Add 通分相加 溢出按原版抛算术异常由调用方兜底
+    //Add adds over a common denominator; overflow throws like vanilla, callers must handle it
     public Fraction Add(Fraction other) => GetFraction(
         checked(_numerator * other._denominator + other._numerator * _denominator),
         checked(_denominator * other._denominator));
@@ -48,7 +48,7 @@ public sealed class Fraction
         checked(_numerator * other._denominator),
         checked(_denominator * other._numerator));
 
-    //IntValue 截断取整 对应原版 intValue
+    //IntValue truncating integer conversion, maps to vanilla intValue
     public int IntValue => _numerator / _denominator;
 
     public override bool Equals(object? obj) => obj is Fraction other && _numerator == other._numerator && _denominator == other._denominator;

@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetHeldSlotPacket 持物槽包对应原版 ClientboundSetHeldSlotPacket
-//字段 Slot(int)
+//ClientboundSetHeldSlotPacket held slot packet, maps to vanilla ClientboundSetHeldSlotPacket
+//Field: Slot(int)
 public sealed record ClientboundSetHeldSlotPacket(int Slot) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetHeldSlotPacket> StreamCodec { get; } = new SetHeldSlotCodec();
@@ -12,7 +12,7 @@ public sealed record ClientboundSetHeldSlotPacket(int Slot) : Packet<ClientGameP
 
     private sealed class SetHeldSlotCodec : StreamCodec<FriendlyByteBuf, ClientboundSetHeldSlotPacket>
     {
-        //S4 原版 ByteBufCodecs.VAR_INT 非 Byte
+        //S4 vanilla ByteBufCodecs.VAR_INT, not Byte
         public ClientboundSetHeldSlotPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadVarInt());
 

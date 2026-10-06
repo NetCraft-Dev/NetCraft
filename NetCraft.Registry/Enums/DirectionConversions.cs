@@ -3,12 +3,12 @@ using StateDirection = NetCraft.Registry.Enums.Direction;
 
 namespace NetCraft.Registry;
 
-//DirectionConversions 状态里的朝向枚举与世界坐标方向互转
-//方块属性存的是枚举形式 世界坐标运算要用 Primitives.Direction 两套类型得来回换
-//放 Registry 根命名空间 免得方块文件同时 using 两个含 Direction 的命名空间时撞名
+//DirectionConversions converts between the direction enum in block states and world coordinate directions
+//Block properties store the enum form while world coordinate math uses Primitives.Direction, so the two types are converted back and forth
+//Placed in the Registry root namespace to avoid name clashes when a block file uses both namespaces that contain Direction
 public static class DirectionConversions
 {
-    //ToPrimitive 枚举朝向换算成世界方向
+    //ToPrimitive converts the enum direction to a world direction
     public static Direction ToPrimitive(this StateDirection direction) => direction switch
     {
         StateDirection.down => Direction.Down,
@@ -19,7 +19,7 @@ public static class DirectionConversions
         _ => Direction.East,
     };
 
-    //ToState 世界方向换算成枚举朝向
+    //ToState converts a world direction to the enum direction
     public static StateDirection ToState(this Direction direction) => direction.Id3D switch
     {
         Direction.DownId => StateDirection.down,

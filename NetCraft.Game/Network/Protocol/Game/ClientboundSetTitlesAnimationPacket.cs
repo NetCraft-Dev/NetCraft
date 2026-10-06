@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetTitlesAnimationPacket 标题动画包对应原版 ClientboundSetTitlesAnimationPacket
-//字段 FadeIn(int) Stay(int) FadeOut(int)
+//ClientboundSetTitlesAnimationPacket titles animation packet, maps to vanilla ClientboundSetTitlesAnimationPacket
+//Fields: FadeIn(int), Stay(int), FadeOut(int)
 public sealed record ClientboundSetTitlesAnimationPacket(int FadeIn, int Stay, int FadeOut) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetTitlesAnimationPacket> StreamCodec { get; } = new SetTitlesAnimationCodec();

@@ -1,28 +1,28 @@
 namespace NetCraft.Nbt;
 
-//NBT 标签类型描述。对应原版 net.minecraft.nbt.TagType&lt;T&gt;。
-//负责从二进制读取 / 跳过 / 流式解析特定类型的 Tag。
+//NBT tag type description. Mirrors vanilla net.minecraft.nbt.TagType&lt;T&gt;.
+//Reads, skips and stream-parses Tags of a specific type from binary data.
 public interface TagType
 {
-    //从输入加载一个 Tag 实例。
+    //Load one Tag instance from the input.
     Tag Load(INbtReader input, NbtAccounter accounter);
 
-    //流式解析（不构造完整 Tag 对象，直接喂给 visitor）。
+    //Stream parse (no full Tag object built, fed straight to the visitor).
     StreamTagVisitor.ValueResult Parse(INbtReader input, StreamTagVisitor output, NbtAccounter accounter);
 
-    //跳过 count 个此类型的 Tag。
+    //Skip count Tags of this type.
     void Skip(INbtReader input, int count, NbtAccounter accounter);
 
-    //跳过单个此类型的 Tag。
+    //Skip a single Tag of this type.
     void Skip(INbtReader input, NbtAccounter accounter);
 
-    //类型名（如 "TAG_Byte"）。
+    //Type name (such as "TAG_Byte").
     string Name { get; }
 
-    //易读名（如 "TAG_Byte()"）。
+    //Readable name (such as "TAG_Byte()").
     string PrettyName { get; }
 
-    //作为根条目解析（对应原版 parseRoot）。
+    //Parse as the root entry (mirrors vanilla parseRoot).
     void ParseRoot(INbtReader input, StreamTagVisitor output, NbtAccounter accounter)
     {
         switch (output.VisitRootEntry(this))
@@ -36,10 +36,10 @@ public interface TagType
         }
     }
 
-    //固定大小的 Tag 类型（byte/short/int/long/float/double）。
+    //Fixed-size Tag types (byte/short/int/long/float/double).
     public interface StaticSize : TagType
     {
-        //单个 Tag 占用的字节数。
+        //Bytes occupied by a single Tag.
         int Size { get; }
 
         void TagType.Skip(INbtReader input, NbtAccounter accounter) => input.SkipBytes(Size);
@@ -47,7 +47,7 @@ public interface TagType
         void TagType.Skip(INbtReader input, int count, NbtAccounter accounter) => input.SkipBytes(Size * count);
     }
 
-    //变长的 Tag 类型（String/List/Compound/Array）。
+    //Variable-length Tag types (String/List/Compound/Array).
     public interface VariableSize : TagType
     {
         void TagType.Skip(INbtReader input, int count, NbtAccounter accounter)
@@ -59,11 +59,11 @@ public interface TagType
         }
     }
 
-    //创建一个无效类型的 TagType（用于未知 Tag ID）。
+    //Create an invalid TagType (for unknown Tag IDs).
     static TagType CreateInvalid(int id) => new InvalidTagType(id);
 }
 
-//无效 Tag 类型（用于未知 ID）。
+//Invalid Tag type (for unknown IDs).
 internal sealed class InvalidTagType(int id) : TagType
 {
     private IOException CreateException() => new($"Invalid tag id: {id}");

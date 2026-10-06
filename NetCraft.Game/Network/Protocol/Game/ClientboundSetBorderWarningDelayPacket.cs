@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetBorderWarningDelayPacket 边界警告延迟包对应原版 ClientboundSetBorderWarningDelayPacket
-//字段 WarningDelay(int)
+//ClientboundSetBorderWarningDelayPacket border warning delay packet, maps to vanilla ClientboundSetBorderWarningDelayPacket
+//Field: WarningDelay(int)
 public sealed record ClientboundSetBorderWarningDelayPacket(int WarningDelay) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundSetBorderWarningDelayPacket> StreamCodec { get; } = new SetBorderWarningDelayCodec();

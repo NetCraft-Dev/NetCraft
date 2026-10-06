@@ -4,9 +4,9 @@ using NetCraft.Network.Protocol;
 
 namespace NetCraft.Network.Protocol.Handshake;
 
-//ServerHandshakePacketListenerImpl 服务端握手监听器实现
-//处理 ClientIntentionPacket 按 Intention 路由到 Status/Login 阶段
-//不合法 intention 断连对应原版 ServerHandshakePacketListenerImpl
+//ServerHandshakePacketListenerImpl, the server handshake listener implementation
+//Handles ClientIntentionPacket and routes to the Status/Login phase by Intention
+//An invalid intention disconnects, maps to vanilla ServerHandshakePacketListenerImpl
 public sealed class ServerHandshakePacketListenerImpl : ServerHandshakePacketListener
 {
     private readonly Connection _connection;
@@ -18,7 +18,7 @@ public sealed class ServerHandshakePacketListenerImpl : ServerHandshakePacketLis
         _context = context;
     }
 
-    //HandleIntention 路由客户端意图到对应协议阶段
+    //HandleIntention routes the client intention to the matching protocol phase
     public void HandleIntention(ClientIntentionPacket packet)
     {
         Log.Debug($"HandleIntention entry intention={packet.Intention} protocol={packet.ProtocolVersion}");
@@ -39,7 +39,7 @@ public sealed class ServerHandshakePacketListenerImpl : ServerHandshakePacketLis
                 _connection.Disconnect("Unknown intention");
                 break;
         }
-        //Log.Debug("HandleIntention 出口");
+        //Log.Debug("HandleIntention exit");
     }
 
     public void OnDisconnect(string reason)
@@ -48,14 +48,14 @@ public sealed class ServerHandshakePacketListenerImpl : ServerHandshakePacketLis
     }
 }
 
-//ServerHandshakeContext 握手阶段上下文
-//由 DedicatedServer 实现封装路由到 Status/Login 监听器的逻辑
-//解耦监听器与 DedicatedServer 避免循环依赖
+//ServerHandshakeContext, handshake phase context
+//Implemented by DedicatedServer, wraps the routing to the Status/Login listeners
+//Decouples the listener from DedicatedServer to avoid a circular dependency
 public interface ServerHandshakeContext
 {
-    //TransitionToStatus 切换连接到 Status 阶段挂 ServerStatusPacketListenerImpl
+    //TransitionToStatus switches the connection to the Status phase and attaches ServerStatusPacketListenerImpl
     void TransitionToStatus(Connection connection);
 
-    //TransitionToLogin 切换连接到 Login 阶段挂 ServerLoginPacketListenerImpl
+    //TransitionToLogin switches the connection to the Login phase and attaches ServerLoginPacketListenerImpl
     void TransitionToLogin(Connection connection);
 }

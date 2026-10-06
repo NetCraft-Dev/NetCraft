@@ -3,13 +3,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Commands.Functions;
 
-//InstantiatedFunction 已实例化的函数对应原版 net.minecraft.commands.functions.InstantiatedFunction
-//宏函数带参实例化后产出一条条未绑定动作 普通函数实例化就是自身
+//InstantiatedFunction an instantiated function, maps to vanilla net.minecraft.commands.functions.InstantiatedFunction
+//A macro function instantiated with arguments yields unbound actions; an ordinary function instantiates to itself
 public interface InstantiatedFunction<T>
 {
-    //Id 函数标识
+    //Id function identifier
     Identifier Id { get; }
 
-    //Entries 函数体条目
+    //Entries function body entries
     List<UnboundEntryAction<T>> Entries { get; }
 }

@@ -1,7 +1,7 @@
 namespace NetCraft.Registry;
 
-//DamageTypes 内置伤害类型 对应原版 net.minecraft.world.damagesource.DamageTypes
-//常量是资源键 实体由 Bootstrap 按原版声明顺序注册
+//DamageTypes built-in damage types, maps to vanilla net.minecraft.world.damagesource.DamageTypes
+//The constants are resource keys; entries are registered by Bootstrap in vanilla declaration order
 public static class DamageTypes
 {
     public static readonly ResourceKey<DamageType> IN_FIRE = Key("in_fire");
@@ -56,11 +56,11 @@ public static class DamageTypes
     public static readonly ResourceKey<DamageType> GENERIC_KILL = Key("generic_kill");
     public static readonly ResourceKey<DamageType> MACE_SMASH = Key("mace_smash");
 
-    //Key 按默认命名空间建一个伤害类型资源键
+    //Key builds a damage type resource key under the default namespace
     private static ResourceKey<DamageType> Key(string path)
         => ResourceKey<DamageType>.Create(Registries.DAMAGE_TYPE, Identifier.WithDefaultNamespace(path));
 
-    //Bootstrap 把全部内置伤害类型登记进 DAMAGE_TYPE 顺序对齐原版 bootstrap
+    //Bootstrap registers all built-in damage types into DAMAGE_TYPE, ordered to match vanilla bootstrap
     public static void Bootstrap()
     {
         Register(IN_FIRE, new DamageType("inFire", 0.1f, DamageEffects.BURNING));
@@ -119,7 +119,7 @@ public static class DamageTypes
         Register(MACE_SMASH, new DamageType("mace_smash", 0.1f));
     }
 
-    //Register 按资源键登记一个伤害类型
+    //Register registers a damage type by resource key
     private static void Register(ResourceKey<DamageType> key, DamageType type)
         => Registry<DamageType>.Register(BuiltInRegistries.DAMAGE_TYPE, key, type);
 }

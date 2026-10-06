@@ -2,8 +2,8 @@ using NetCraft.Util;
 
 namespace NetCraft.Util.Parsing.Packrat.Commands;
 
-//StringReaderParserState对应原版net.minecraft.util.parsing.packrat.commands.StringReaderParserState
-//用CommandStringReader的Cursor实现mark/restore
+//StringReaderParserState maps to vanilla net.minecraft.util.parsing.packrat.commands.StringReaderParserState
+//Implements mark/restore using CommandStringReader's Cursor
 public sealed class StringReaderParserState : CachedParseState<CommandStringReader>
 {
     public override CommandStringReader Input { get; }

@@ -1,19 +1,19 @@
 namespace NetCraft.Storage;
 
-//Ticket 一张区块票对应原版 net.minecraft.server.level.Ticket
-//票 = 类型(带行为) + 等级(数值越小越强) + 剩余 tick(只对有超时的类型有意义)
+//Ticket, one chunk ticket, maps to vanilla net.minecraft.server.level.Ticket
+//A ticket = type (carrying behavior) + level (lower is stronger) + remaining ticks (meaningful only for timed types)
 public sealed class Ticket
 {
     public TicketType Type { get; }
     public int Level { get; }
 
-    //TicksLeft 剩余 tick 超时类型每 tick 递减 减到负数即过期
+    //TicksLeft, remaining ticks; timed types decrement each tick and expire when it goes negative
     public long TicksLeft { get; private set; }
 
-    //构造按类型自带超时初始化剩余 tick 对应原版 Ticket(type, level)
+    //Constructor initializing remaining ticks from the type's own timeout, maps to vanilla Ticket(type, level)
     public Ticket(TicketType type, int level) : this(type, level, type.Timeout) { }
 
-    //构造显式给剩余 tick 供读盘还原用
+    //Constructor taking remaining ticks explicitly, used when restoring from disk
     public Ticket(TicketType type, int level, long ticksLeft)
     {
         Type = type;
@@ -21,21 +21,21 @@ public sealed class Ticket
         TicksLeft = ticksLeft;
     }
 
-    //ResetTicksLeft 续期对应原版 resetTicksLeft
+    //ResetTicksLeft renews the ticket, maps to vanilla resetTicksLeft
     public void ResetTicksLeft() => TicksLeft = Type.Timeout;
 
-    //DecreaseTicksLeft 递减剩余 tick 只对有超时的类型生效 对应原版 decreaseTicksLeft
+    //DecreaseTicksLeft decrements remaining ticks, only for timed types, maps to vanilla decreaseTicksLeft
     public void DecreaseTicksLeft()
     {
         if (Type.HasTimeout) TicksLeft--;
     }
 
-    //IsTimedOut 是否已过期对应原版 isTimedOut
+    //IsTimedOut, whether it has expired, maps to vanilla isTimedOut
     public bool IsTimedOut => Type.HasTimeout && TicksLeft < 0;
 
-    //IsSameTypeAndLevel 同类型同等级视为同一张票 对应原版 isTicketSameTypeAndLevel
+    //IsSameTypeAndLevel treats same type and level as the same ticket, maps to vanilla isTicketSameTypeAndLevel
     public bool IsSameTypeAndLevel(Ticket other)
         => ReferenceEquals(Type, other.Type) && Level == other.Level;
 
-    public override string ToString() => $"{Type}[{Level}] 剩余 {TicksLeft}";
+    public override string ToString() => $"{Type}[{Level}] remaining {TicksLeft}";
 }

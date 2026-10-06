@@ -6,9 +6,9 @@ using NetCraft.Config;
 
 namespace NetCraft.Util;
 
-//SystemReport 系统信息段 对应原版 net.minecraft.SystemReport
-//崩溃报告末尾那段 System Details 就是它 硬件信息只取托管运行时可拿到的那些
-//每一项都单独兜错 收集信息本身失败不能让崩溃报告写不出来
+//SystemReport the System Details section, maps to vanilla net.minecraft.SystemReport
+//It is the System Details section at the end of a crash report; hardware info only covers what the managed runtime exposes
+//Each item is individually error-guarded; a failure collecting info must not prevent the crash report from being written
 public sealed class SystemReport
 {
     private const long BytesPerMebibyte = 1024 * 1024;
@@ -31,10 +31,10 @@ public sealed class SystemReport
         SetDetail("Debug Flags", DescribeDebugFlags);
     }
 
-    //SetDetail 直接写一条
+    //SetDetail writes one entry directly
     public void SetDetail(string key, string value) => _entries.Add((key, value));
 
-    //SetDetail 取值失败时降级成一条错误说明 对应原版 setDetail 的 catch 分支
+    //SetDetail degrades to an error note when value retrieval fails, maps to the catch branch of vanilla setDetail
     public void SetDetail(string key, Func<string> valueSupplier)
     {
         try
@@ -47,7 +47,7 @@ public sealed class SystemReport
         }
     }
 
-    //AppendToCrashReportString 按原版格式追加 System Details 段
+    //AppendToCrashReportString appends the System Details section in vanilla format
     public void AppendToCrashReportString(StringBuilder builder)
     {
         var newLine = Environment.NewLine;
@@ -57,11 +57,11 @@ public sealed class SystemReport
             builder.Append(newLine).Append('\t').Append(key).Append(": ").Append(value);
     }
 
-    //ToLineSeparatedString 每行一个键值对 供日志与诊断命令使用
+    //ToLineSeparatedString one key-value pair per line, for logs and diagnostic commands
     public string ToLineSeparatedString()
         => string.Join(Environment.NewLine, _entries.Select(e => $"{e.Key}: {e.Value}"));
 
-    //DescribeProcess 进程运行时长 内存占用 线程数与位数
+    //DescribeProcess process uptime, memory usage, thread count and bitness
     private static string DescribeProcess()
     {
         using var process = Process.GetCurrentProcess();
@@ -71,16 +71,16 @@ public sealed class SystemReport
             + $"{(Environment.Is64BitProcess ? "64" : "32")}-bit";
     }
 
-    //DescribeMemory 托管堆已用与运行时可用上限 对应原版那条 Runtime 内存说明
+    //DescribeMemory managed heap used and runtime available limit, maps to the vanilla Runtime memory note
     private static string DescribeMemory()
     {
         var info = GC.GetGCMemoryInfo();
         var used = GC.GetTotalMemory(false);
-        return $"{used / BytesPerMebibyte} bytes({used / BytesPerMebibyte} MiB) used / "
-            + $"{info.TotalAvailableMemoryBytes / BytesPerMebibyte} bytes({info.TotalAvailableMemoryBytes / BytesPerMebibyte} MiB) available";
+        return $"{used} bytes({used / BytesPerMebibyte} MiB) used / "
+            + $"{info.TotalAvailableMemoryBytes} bytes({info.TotalAvailableMemoryBytes / BytesPerMebibyte} MiB) available";
     }
 
-    //DescribeGcMemory 堆的提交量与碎片 以及工作站还是服务器 GC
+    //DescribeGcMemory heap committed and fragmentation, and whether GC is workstation or server
     private static string DescribeGcMemory()
     {
         var info = GC.GetGCMemoryInfo();
@@ -89,7 +89,7 @@ public sealed class SystemReport
             + $"GC mode: {(GCSettings.IsServerGC ? "server" : "workstation")}, latency: {GCSettings.LatencyMode}";
     }
 
-    //DescribeStorage 程序根目录所在盘的可用与总空间 对应原版那条 workdir 空间说明
+    //DescribeStorage free and total space of the disk holding the program root, maps to the vanilla workdir space note
     private static string DescribeStorage(string path)
     {
         var root = Path.GetPathRoot(Path.GetFullPath(path));
@@ -99,7 +99,7 @@ public sealed class SystemReport
         return $"available: {drive.AvailableFreeSpace / BytesPerMebibyte} MiB, total: {drive.TotalSize / BytesPerMebibyte} MiB";
     }
 
-    //DescribeDebugFlags 当前生效的调试开关 对应原版那条 Debug Flags
+    //DescribeDebugFlags the currently effective debug flags, maps to the vanilla Debug Flags note
     private static string DescribeDebugFlags()
     {
         var enabled = new List<string>();

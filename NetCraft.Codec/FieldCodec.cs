@@ -1,7 +1,7 @@
 namespace NetCraft.Codec;
 
-//字段定义对应原版RecordCodecBuilder.unpaired
-//包装MapCodec<F>和getter用于record编解码
+//Field definition, mirroring vanilla RecordCodecBuilder.unpaired
+//Wraps a MapCodec<F> together with a getter for record encoding and decoding
 public sealed class FieldCodec<T, F>
 {
     public MapCodec<F> Codec { get; }
@@ -17,11 +17,11 @@ public sealed class FieldCodec<T, F>
         => new(codec, getter);
 }
 
-//MapCodec<F>扩展方法对应原版forGetter
-//把MapCodec<F>与getter组合成FieldCodec<T,F>
+//MapCodec<F> extension method, mirroring vanilla forGetter
+//Combines a MapCodec<F> with a getter into a FieldCodec<T,F>
 public static class FieldCodecExtensions
 {
-    //对应原版forGetter组合MapCodec与getter
+    //Mirrors vanilla forGetter combining a MapCodec with a getter
     public static FieldCodec<T, F> ForGetter<T, F>(this MapCodec<F> codec, Func<T, F> getter)
         => new(codec, getter);
 }

@@ -4,26 +4,26 @@ using NetCraft.Registry;
 
 namespace NetCraft.Resources;
 
-//RegistryData 注册表数据驱动声明对应原版 RegistryDataLoader.RegistryData
-//把「哪个注册表」与「元素怎么解码」配成一条 供 RegistryDataLoader 按目录扫描加载
-//非泛型基类让不同元素类型的声明能放进同一个列表
+//RegistryData, data-driven registry declaration, maps to vanilla RegistryDataLoader.RegistryData
+//Pairs "which registry" with "how the element is decoded" so RegistryDataLoader can scan and load by directory
+//The non-generic base class lets declarations of different element types share one list
 public abstract class RegistryData
 {
-    //RegistryId 注册表自身标识符 决定扫描目录 data/<namespace>/<RegistryId.Path>/
+    //RegistryId is the registry's own identifier, it determines the scan directory data/<namespace>/<RegistryId.Path>/
     public abstract Identifier RegistryId { get; }
 
-    //TryLoadElement 解码一份元素 JSON 并写入目标注册表 失败把原因写进 error
+    //TryLoadElement decodes one element JSON and writes it into the target registry, on failure the reason is written to error
     internal abstract bool TryLoadElement(Resource resource, Identifier elementId, RegistryAccess context, out string error);
 
-    //Boxed 弱类型注册表装载 用于 Registries 侧声明为 Registry<object> 的注册表
-    //Registry 项目不能反向引用 Game 的密度函数/噪声设置类型 这些注册表只能以 object 键声明
-    //强类型 codec 解出的元素装箱后写进 object 注册表
+    //Boxed, weakly typed registry loading, for registries declared as Registry<object> on the Registries side
+    //The Registry project cannot reference the Game density function/noise settings types in reverse, those registries can only be declared with object keys
+    //Elements decoded by the strongly typed codec are boxed and written into the object registry
     public static RegistryData Boxed<T>(WritableRegistry<object> registry, Codec<T> codec) where T : class
         => new BoxedRegistryData<T>(registry, codec);
 
-    //Decode 读元素文件并按 codec 解码 失败抛异常由调用方转成错误字符串
-    //RegistryData<T> 与 BoxedRegistryData<T> 只有写入注册表的方式不同 读取与解码共用这一处
-    //直接走 JsonOps 的流重载 内部按 UTF-8 字节解析 不做 ReadToEnd 的 UTF-16 转码
+    //Decode reads an element file and decodes it with the codec, a failure throws and the caller turns it into an error string
+    //RegistryData<T> and BoxedRegistryData<T> differ only in how they write to the registry, reading and decoding share this one place
+    //Goes straight through the JsonOps stream overload, which parses UTF-8 bytes and avoids the UTF-16 transcoding of ReadToEnd
     private protected static T Decode<T>(Resource resource, RegistryAccess context, Codec<T> codec) where T : class
     {
         JsonNode? node;
@@ -37,7 +37,7 @@ public abstract class RegistryData
     }
 }
 
-//RegistryData<T> 具体元素类型的注册表数据声明
+//RegistryData<T>, registry data declaration for a concrete element type
 public sealed class RegistryData<T> : RegistryData where T : class
 {
     public RegistryData(WritableRegistry<T> registry, Codec<T> elementCodec)
@@ -46,10 +46,10 @@ public sealed class RegistryData<T> : RegistryData where T : class
         ElementCodec = elementCodec;
     }
 
-    //Registry 目标注册表 必须在 Freeze 之前调用加载
+    //Registry is the target registry, loading must happen before Freeze
     public WritableRegistry<T> Registry { get; }
 
-    //ElementCodec 元素 JSON 编解码
+    //ElementCodec, the element JSON codec
     public Codec<T> ElementCodec { get; }
 
     public override Identifier RegistryId => Registry.Key.Identifier;
@@ -61,7 +61,7 @@ public sealed class RegistryData<T> : RegistryData where T : class
         {
             var value = Decode(resource, context, ElementCodec);
             Registry.Register(ResourceKey<T>.Create(Registry.Key, elementId), value, RegistrationInfo.BuiltIn);
-            //元素自带的标识只能从注册名回填 原版 id 只存在于注册表里
+            //The element's own identifier can only be backfilled from the registry name, the vanilla id lives only in the registry
             if (value is RegistryIdentified identified) identified.SetRegistryId(elementId);
             return true;
         }
@@ -73,8 +73,8 @@ public sealed class RegistryData<T> : RegistryData where T : class
     }
 }
 
-//BoxedRegistryData<T> 元素强类型而注册表弱类型的装载实现
-//对应原版不存在这种形态 是本作 Registry 项目与 Game 项目分层导致的折中
+//BoxedRegistryData<T>, loading implementation for strongly typed elements into a weakly typed registry
+//No such form exists in vanilla, it is a compromise forced by the layering between this project's Registry and Game projects
 internal sealed class BoxedRegistryData<T> : RegistryData where T : class
 {
     private readonly WritableRegistry<object> _registry;
@@ -95,7 +95,7 @@ internal sealed class BoxedRegistryData<T> : RegistryData where T : class
         {
             var value = Decode(resource, context, _codec);
             _registry.Register(ResourceKey<object>.Create(_registry.Key, elementId), value, RegistrationInfo.BuiltIn);
-            //元素自带的标识只能从注册名回填 原版 id 只存在于注册表里
+            //The element's own identifier can only be backfilled from the registry name, the vanilla id lives only in the registry
             if (value is RegistryIdentified identified) identified.SetRegistryId(elementId);
             return true;
         }

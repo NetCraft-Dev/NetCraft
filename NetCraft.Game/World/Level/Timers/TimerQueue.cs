@@ -6,16 +6,16 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Level.Timers;
 
-//TimerQueue 计划事件队列对应原版 net.minecraft.world.level.timers.TimerQueue
-//存 data/minecraft/scheduled_events.dat 事件按触发时间与流水号排序
-//同 id 同刻的重复排程直接忽略 移除按 id 清全部刻
+//TimerQueue scheduled event queue, maps to vanilla net.minecraft.world.level.timers.TimerQueue
+//Stored in data/minecraft/scheduled_events.dat; events sorted by trigger time and sequence id
+//Duplicate scheduling with the same id and tick is ignored; removal clears all ticks for an id
 public class TimerQueue<T> : SavedData
 {
     private readonly PriorityQueue<TimerQueueEvent<T>, (long TriggerTime, ulong SequentialId)> _queue = new();
     private ulong _sequentialId;
     private readonly Dictionary<string, Dictionary<long, TimerQueueEvent<T>>> _events = new();
 
-    //CreateCodec 队列编解码对应原版 TimerQueue.codec
+    //CreateCodec queue codec, maps to vanilla TimerQueue.codec
     public static Codec<TimerQueue<T>> CreateCodec(TimerCallbacks<T> callbacks)
         => Packed.Codec(callbacks.Codec()).ComapFlatMap(
             packed => DataResult<TimerQueue<T>>.Success(new TimerQueue<T>(packed)),
@@ -25,7 +25,7 @@ public class TimerQueue<T> : SavedData
     {
     }
 
-    //Packed 构造从打包数据还原事件流
+    //Packed constructor restores the event stream from packed data
     public TimerQueue(Packed packed)
     {
         _sequentialId = 0;
@@ -35,7 +35,7 @@ public class TimerQueue<T> : SavedData
         }
     }
 
-    //Tick 触发所有到点事件对应原版 tick
+    //Tick fires all due events, maps to vanilla tick
     public void Tick(T context, long currentTick)
     {
         while (_queue.TryPeek(out var @event, out _) && @event.TriggerTime <= currentTick)
@@ -51,7 +51,7 @@ public class TimerQueue<T> : SavedData
         }
     }
 
-    //Schedule 排一个事件同键已存在则忽略对应原版 schedule
+    //Schedule queue an event, ignored if the same key already exists, maps to vanilla schedule
     public void Schedule(string id, long time, TimerCallback<T> callback)
     {
         if (_events.TryGetValue(id, out var byTime) && byTime.ContainsKey(time))
@@ -70,7 +70,7 @@ public class TimerQueue<T> : SavedData
         SetDirty();
     }
 
-    //Remove 按 id 移除全部刻上的事件返回移除数对应原版 remove
+    //Remove removes all events for an id, returns the count removed, maps to vanilla remove
     public int Remove(string id)
     {
         if (!_events.TryGetValue(id, out var byTime))
@@ -84,7 +84,7 @@ public class TimerQueue<T> : SavedData
         return count;
     }
 
-    //RebuildQueue 移除后重建优先队列 .NET 队列不支持按元素删除
+    //RebuildQueue rebuilds the priority queue after removal; the .NET queue does not support removing by element
     private void RebuildQueue()
     {
         _queue.Clear();
@@ -97,10 +97,10 @@ public class TimerQueue<T> : SavedData
         }
     }
 
-    //GetEventsIds 事件 id 快照
+    //GetEventsIds snapshot of event ids
     public IReadOnlyCollection<string> GetEventsIds() => _events.Keys.ToArray();
 
-    //Pack 按触发时间与流水号排序打包对应原版 pack
+    //Pack packs sorted by trigger time and sequence id, maps to vanilla pack
     private Packed Pack()
     {
         var events = new List<TimerQueueEvent<T>>();
@@ -117,11 +117,11 @@ public class TimerQueue<T> : SavedData
         return new Packed(events.Select(@event => new PackedEvent(@event.TriggerTime, @event.Id, @event.Callback)).ToList());
     }
 
-    //Id 存档标识
+    //Id save identifier
     public override string Id => "minecraft:scheduled_events";
 
-    //Save 写盘字段名对齐原版 codec
-    //只有服务端队列参与落盘 其余 T 的队列不持久化
+    //Save disk field names align with the vanilla codec
+    //Only the server queue is persisted; queues of other T are not persisted
     public override CompoundTag Save(CompoundTag tag)
     {
         if (this is not TimerQueue<MinecraftServer> serverQueue)
@@ -130,7 +130,7 @@ public class TimerQueue<T> : SavedData
         return encoded as CompoundTag ?? throw new InvalidOperationException("scheduled_events must encode to a compound tag");
     }
 
-    //Packed 打包数据对应原版 TimerQueue.Packed record
+    //Packed packed data, maps to vanilla TimerQueue.Packed record
     public sealed record Packed(List<PackedEvent> Events)
     {
         public static Codec<Packed> Codec(Codec<TimerCallback<T>> callbackCodec)
@@ -140,7 +140,7 @@ public class TimerQueue<T> : SavedData
                 events => new Packed(events.ToList()));
     }
 
-    //PackedEvent 落盘单条事件对应原版 TimerQueue.Event.Packed record
+    //PackedEvent a single persisted event, maps to vanilla TimerQueue.Event.Packed record
     public sealed record PackedEvent(long TriggerTime, string Id, TimerCallback<T> Callback)
     {
         public static Codec<PackedEvent> Codec(Codec<TimerCallback<T>> callbackCodec)
@@ -152,20 +152,20 @@ public class TimerQueue<T> : SavedData
     }
 }
 
-//TimerQueueEvent 队列内事件对应原版 TimerQueue.Event record
+//TimerQueueEvent event within the queue, maps to vanilla TimerQueue.Event record
 public sealed record TimerQueueEvent<T>(long TriggerTime, ulong SequentialId, string Id, TimerCallback<T> Callback);
 
-//TimerQueueTypes 服务端计划事件存档类型对应原版 TimerQueue.TYPE
-//C# 泛型类的静态成员要带类型参数 故放到独立的非泛型持有者
+//TimerQueueTypes server scheduled event save type, maps to vanilla TimerQueue.TYPE
+//Static members of a C# generic class need a type parameter, so they live in a separate non-generic holder
 public static class TimerQueueTypes
 {
-    //TypeId 存档文件名
+    //TypeId save file name
     public const string TypeId = "minecraft:scheduled_events";
 
-    //Instance SavedDataType 工厂
+    //Instance SavedDataType factory
     public static readonly SavedDataType<TimerQueue<MinecraftServer>> Instance = new ScheduledEventsType();
 
-    //Codec 队列编解码复用静态表
+    //Codec queue codec reusing the static table
     public static readonly Codec<TimerQueue<MinecraftServer>> ServerCodec =
         TimerQueue<MinecraftServer>.CreateCodec(TimerCallbacks<MinecraftServer>.ServerCallbacks);
 

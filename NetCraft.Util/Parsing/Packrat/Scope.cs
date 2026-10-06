@@ -2,9 +2,9 @@ using System.Text;
 
 namespace NetCraft.Util.Parsing.Packrat;
 
-//作用域栈对应原版net.minecraft.util.parsing.packrat.Scope
-//用Object[]数组模拟栈帧pushFrame/popFrame管理嵌套规则作用域
-//splitFrame/mergeFrame支持Alternative分支尝试
+//Scope stack, maps to vanilla net.minecraft.util.parsing.packrat.Scope
+//Simulates stack frames with an Object[] array, pushFrame/popFrame manage nested rule scopes
+//splitFrame/mergeFrame support Alternative branch attempts
 public sealed class Scope
 {
     private static readonly object FrameStartMarker = new();

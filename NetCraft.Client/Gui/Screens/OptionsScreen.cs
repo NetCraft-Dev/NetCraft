@@ -3,36 +3,36 @@ using NetCraft.Gpu;
 
 namespace NetCraft.Game.Gui.Screens;
 
-//OptionsScreen 选项菜单对应原版 OptionsScreen
-//HeaderAndFooterLayout 主布局对标原版 contents 三按钮垂直排列 footer 完成
+//OptionsScreen options menu, maps to vanilla OptionsScreen
+//HeaderAndFooterLayout main layout, maps to vanilla: contents with three buttons stacked vertically, footer with Done
 public sealed class OptionsScreen : Screen
 {
     private HeaderAndFooterLayout? _layout;
 
-    public override string Title => "选项";
+    public override string Title => "Options";
 
     public override void Init()
     {
         var skin = RegisterButtonSprites();
         _layout = new HeaderAndFooterLayout(GuiWidth, GuiHeight);
 
-        //contents 三个设置按钮垂直排列 content 在 contentsFrame 水平居中
+        //contents three setting buttons stacked vertically; content is horizontally centered in contentsFrame
         var content = LinearLayout.Vertical().Spacing(10);
-        content.AddChild(MakeNavButton("视频设置", skin));
-        content.AddChild(MakeNavButton("音效设置", skin));
-        content.AddChild(MakeNavButton("控制设置", skin));
-        content.AddChild(MakeNavButton("语言", skin, () => Manager.PushScreen(new LanguageScreen())));
+        content.AddChild(MakeNavButton("Video Settings", skin));
+        content.AddChild(MakeNavButton("Sound Settings", skin));
+        content.AddChild(MakeNavButton("Controls", skin));
+        content.AddChild(MakeNavButton("Language", skin, () => Manager.PushScreen(new LanguageScreen())));
         _layout.AddToContents(content, LayoutSettings.Defaults().Align(0.5f, 0f));
 
-        //footer 完成按钮 footer 默认居中
-        _layout.AddToFooter(MakeNavButton("完成", skin, OnClose));
+        //footer Done button; footer is centered by default
+        _layout.AddToFooter(MakeNavButton("Done", skin, OnClose));
 
-        //递归收集 layout 内 GuiControl 注册到 Window 后排列定位
+        //Recursively collect GuiControls in the layout, register them into Window, then arrange and position
         _layout.VisitChildren(elem => CollectWidgets(elem, c => AddWidget(c)));
         _layout.ArrangeElements();
     }
 
-    //MakeNavButton 创建导航按钮统一宽高+皮肤+可选点击
+    //MakeNavButton creates a navigation button with unified width/height + skin + optional click
     private GuiButton MakeNavButton(string text, (string Normal, string Hover, string Disabled) skin, System.Action? onClick = null)
     {
         var btn = new GuiButton(text) { Width = 200, Height = 20 };

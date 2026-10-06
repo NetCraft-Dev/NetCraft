@@ -1,8 +1,8 @@
 namespace NetCraft.Network.Protocol;
 
-//ProtocolInfoBuilder 协议信息构建器对应原版 net.minecraft.network.protocol.ProtocolInfoBuilder
-//按协议+方向注册 PacketType → StreamCodec 映射最后构建 SimpleUnboundProtocol
-//THandler 是包处理器类型所有注册的包都继承 Packet<THandler>
+//ProtocolInfoBuilder protocol info builder, maps to vanilla net.minecraft.network.protocol.ProtocolInfoBuilder
+//Registers PacketType → StreamCodec mappings by protocol + direction and finally builds a SimpleUnboundProtocol
+//THandler is the packet handler type; all registered packets inherit Packet<THandler>
 public sealed class ProtocolInfoBuilder<THandler>
 {
     private readonly ConnectionProtocol _protocol;
@@ -16,8 +16,8 @@ public sealed class ProtocolInfoBuilder<THandler>
         _flow = flow;
     }
 
-    //AddPacket 注册包类型和对应编解码器无 CodecModifier
-    //serializer 接受 RegistryFriendlyByteBuf 因 StreamCodec B 逆变 FriendlyByteBuf codec 可隐式传入
+    //AddPacket registers a packet type and its codec without a CodecModifier
+    //serializer takes RegistryFriendlyByteBuf since StreamCodec's contravariant B lets a FriendlyByteBuf codec be passed implicitly
     public ProtocolInfoBuilder<THandler> AddPacket<TPacket>(
         PacketType<THandler> type,
         StreamCodec<RegistryFriendlyByteBuf, TPacket> serializer)
@@ -27,21 +27,21 @@ public sealed class ProtocolInfoBuilder<THandler>
         return this;
     }
 
-    //AddPacket 注册包类型和对应编解码器带 CodecModifier
+    //AddPacket registers a packet type and its codec with a CodecModifier
     public ProtocolInfoBuilder<THandler> AddPacket<TPacket>(
         PacketType<THandler> type,
         StreamCodec<RegistryFriendlyByteBuf, TPacket> serializer,
         CodecModifier<RegistryFriendlyByteBuf, TPacket, object> modifier)
         where TPacket : Packet<THandler>
     {
-        //简化版 CodecModifier 暂不应用直接用原始 serializer
+        //The simplified form does not apply CodecModifier for now and uses the raw serializer directly
         _codecs.Add(new CodecEntry(type, typeof(TPacket), WrapCodec(serializer)));
         return this;
     }
 
-    //AddPacketCommon 把父监听器(common/cookie)的包桥接到当前子监听器(THandler)协议注册
-    //C# Packet<T> 不变体不能直接满足 Packet<THandler> 约束故用 BridgeSuperCodec 包装
-    //decode 产物是 BridgedSuperPacket 使静态类型为 Packet<THandler> 派发由 PacketProcessor 反射定位调用
+    //AddPacketCommon bridges packets of the parent listener (common/cookie) into the current child listener (THandler) protocol registration
+    //Since C# Packet<T> is invariant and cannot directly satisfy the Packet<THandler> constraint, BridgeSuperCodec wraps it
+    //decode produces a BridgedSuperPacket so the static type is Packet<THandler>, with dispatch located and invoked by PacketProcessor via reflection
     public ProtocolInfoBuilder<THandler> AddPacketCommon<TSuper, TPacket>(
         PacketType<TSuper> type,
         StreamCodec<RegistryFriendlyByteBuf, TPacket> serializer)
@@ -53,7 +53,7 @@ public sealed class ProtocolInfoBuilder<THandler>
         return this;
     }
 
-    //WithBundlePacket 注册 bundle 包类型分隔符包和打包信息
+    //WithBundlePacket registers the bundle packet type, the delimiter packet, and the bundling info
     public ProtocolInfoBuilder<THandler> WithBundlePacket<TBundle>(
         PacketType<THandler> bundlerPacketType,
         Func<IEnumerable<Packet<THandler>>, TBundle> constructor,
@@ -68,7 +68,7 @@ public sealed class ProtocolInfoBuilder<THandler>
         return this;
     }
 
-    //BuildUnbound 构建未绑定协议返回 SimpleUnboundProtocol
+    //BuildUnbound builds an unbound protocol and returns a SimpleUnboundProtocol
     public SimpleUnboundProtocol<THandler> BuildUnbound()
     {
         var listCopy = _codecs.ToList();
@@ -77,12 +77,12 @@ public sealed class ProtocolInfoBuilder<THandler>
         return new SimpleUnboundProtocolImpl<THandler>(_protocol, _flow, listCopy, bundlerInfo, details);
     }
 
-    //CreateUnitCodec 创建恒定值编解码器对应原版 StreamCodec.unit
+    //CreateUnitCodec creates a constant-value codec, maps to vanilla StreamCodec.unit
     private static StreamCodec<RegistryFriendlyByteBuf, TPacket> CreateUnitCodec<TPacket>(TPacket instance)
         where TPacket : Packet<THandler>
         => new UnitStreamCodec<RegistryFriendlyByteBuf, TPacket>(instance);
 
-    //WrapCodec 把子包编解码器包装为 Packet<THandler> 编解码器
+    //WrapCodec wraps a subpacket codec into a Packet<THandler> codec
     private static StreamCodec<RegistryFriendlyByteBuf, Packet<THandler>> WrapCodec<TPacket>(StreamCodec<RegistryFriendlyByteBuf, TPacket> serializer)
         where TPacket : Packet<THandler>
         => new WrappedCodec<TPacket, THandler>(serializer);
@@ -91,7 +91,7 @@ public sealed class ProtocolInfoBuilder<THandler>
     {
         public PacketType<THandler> Type { get; }
 
-        //PacketClass 该条注册的包 C# 类型编码时据此在当前协议表反查网络 ID
+        //PacketClass the C# type of the registered packet, used on encode to look up the network ID in the current protocol table
         public Type PacketClass { get; }
 
         public StreamCodec<RegistryFriendlyByteBuf, Packet<THandler>> Serializer { get; }
@@ -104,7 +104,7 @@ public sealed class ProtocolInfoBuilder<THandler>
     }
 }
 
-//DetailsImpl ProtocolInfo.Details 实现
+//DetailsImpl ProtocolInfo.Details implementation
 file sealed class DetailsImpl<THandler> : ProtocolInfo<THandler>.Details
 {
     private readonly ConnectionProtocol _protocol;
@@ -134,7 +134,7 @@ file sealed class DetailsImpl<THandler> : ProtocolInfo<THandler>.Details
     }
 }
 
-//SimpleUnboundProtocolImpl SimpleUnboundProtocol 实现
+//SimpleUnboundProtocolImpl SimpleUnboundProtocol implementation
 file sealed class SimpleUnboundProtocolImpl<THandler> : SimpleUnboundProtocol<THandler>
 {
     private readonly ConnectionProtocol _protocol;
@@ -159,9 +159,9 @@ file sealed class SimpleUnboundProtocolImpl<THandler> : SimpleUnboundProtocol<TH
 
     public ProtocolInfo<THandler>.Details Details => _details;
 
-    //Bind 构建 ProtocolInfo 直接构造 IdDispatchStreamCodec
-    //byClass 是「包类 → 本协议网络 ID」同一包类可在多个协议注册成不同 id
-    //编码时按它取 id 而不是包自带 Type.Id 对齐原版由协议表分配 id 的行为
+    //Bind builds a ProtocolInfo and constructs an IdDispatchStreamCodec directly
+    //byClass is "packet class → this protocol's network ID"; the same packet class can be registered under different ids in multiple protocols
+    //On encode the id comes from it rather than the packet's own Type.Id, aligning with vanilla's behavior of assigning ids from the protocol table
     public ProtocolInfo<THandler> Bind()
     {
         var byId = new Dictionary<int, (PacketType<THandler>, StreamCodec<RegistryFriendlyByteBuf, Packet<THandler>>)>();
@@ -176,7 +176,7 @@ file sealed class SimpleUnboundProtocolImpl<THandler> : SimpleUnboundProtocol<TH
     }
 }
 
-//ProtocolInfoImpl ProtocolInfo 实现
+//ProtocolInfoImpl ProtocolInfo implementation
 file sealed class ProtocolInfoImpl<THandler> : ProtocolInfo<THandler>
 {
     private readonly ConnectionProtocol _protocol;
@@ -202,7 +202,7 @@ file sealed class ProtocolInfoImpl<THandler> : ProtocolInfo<THandler>
     public BundlerInfo<THandler> BundlerInfo => _bundlerInfo ?? EmptyBundlerInfo<THandler>.Instance;
 }
 
-//EmptyBundlerInfo 无 bundle 时使用的空 BundlerInfo
+//EmptyBundlerInfo the empty BundlerInfo used when there is no bundle
 file sealed class EmptyBundlerInfo<THandler> : BundlerInfo<THandler>
 {
     public static EmptyBundlerInfo<THandler> Instance { get; } = new();
@@ -214,8 +214,8 @@ file sealed class EmptyBundlerInfo<THandler> : BundlerInfo<THandler>
         => null;
 }
 
-//BridgeSuperCodec 把父监听器(common/cookie)子包编解码器包装为当前子监听器(THandler)的 Packet 编解码器
-//decode 产物是 BridgedSuperPacket 运行时派发由 PacketProcessor 反射回退定位 common 包的 Handle 方法
+//BridgeSuperCodec wraps a parent listener (common/cookie) subpacket codec into a Packet codec for the current child listener (THandler)
+//decode produces a BridgedSuperPacket, and runtime dispatch falls back to PacketProcessor reflection to locate the common packet's Handle method
 internal sealed class BridgeSuperCodec<TSuper, TPacket, THandler> : StreamCodec<RegistryFriendlyByteBuf, Packet<THandler>>, IObjectEncodable
     where TSuper : class
     where TPacket : class, Packet<TSuper>
@@ -235,22 +235,22 @@ internal sealed class BridgeSuperCodec<TSuper, TPacket, THandler> : StreamCodec<
     public void Encode(RegistryFriendlyByteBuf buf, Packet<THandler> value)
         => EncodeCore(buf, value);
 
-    //EncodeObject 非泛型编码路径 服务端直接发原始 common 包时 value 实际类型即 TPacket
+    //EncodeObject non-generic encode path; when the server sends a raw common packet directly the actual type of value is TPacket
     void IObjectEncodable.EncodeObject(RegistryFriendlyByteBuf buf, object value)
         => EncodeCore(buf, value);
 
-    //EncodeCore 支持桥接包取 Inner 和直接发原始 common 包两种形式
+    //EncodeCore supports both a bridged packet taking Inner and sending a raw common packet directly
     private void EncodeCore(RegistryFriendlyByteBuf buf, object value)
     {
         var inner = value as BridgedSuperPacket<TSuper, TPacket, THandler> is { } bridge ? bridge.Inner : value as TPacket;
         if (inner is null)
-            throw new ArgumentException($"non-bridged packet 不能经 {nameof(BridgeSuperCodec<TSuper, TPacket, THandler>)} 编码");
+            throw new ArgumentException($"a non-bridged packet cannot be encoded via {nameof(BridgeSuperCodec<TSuper, TPacket, THandler>)}");
         _inner.Encode(buf, inner);
     }
 }
 
-//BridgedSuperPacket 父监听器包的适配实现使静态类型满足 Packet<THandler>
-//Type 用传入的桥接 PacketType 供 IdDispatch Encode 取 id 派发网络 ID
+//BridgedSuperPacket adapter implementation for parent listener packets so the static type satisfies Packet<THandler>
+//Type uses the passed bridging PacketType so IdDispatch Encode can take the id and dispatch the network ID
 internal sealed class BridgedSuperPacket<TSuper, TPacket, THandler> : Packet<THandler>
     where TSuper : class
     where TPacket : Packet<TSuper>
@@ -263,15 +263,15 @@ internal sealed class BridgedSuperPacket<TSuper, TPacket, THandler> : Packet<THa
         _type = type;
     }
 
-    //Inner 内部父监听器原始包
+    //Inner the inner parent listener raw packet
     public TPacket Inner { get; }
 
     public PacketType<THandler> Type => _type;
 
-    //IsSkippable 转发内层包 桥接包装要对调用方完全透明 否则默认值会盖掉内层语义
+    //IsSkippable forwards to the inner packet; the bridging wrapper must be fully transparent to callers, otherwise the default value would override the inner semantics
     public bool IsSkippable => Inner.IsSkippable;
 
-    //IsTerminal 转发内层包 断开包靠它触发连接关闭 不转发的话桥接后连接不会断
+    //IsTerminal forwards to the inner packet; disconnect packets rely on it to trigger connection close, and without forwarding the connection would not close after bridging
     public bool IsTerminal => Inner.IsTerminal;
 
     public void Handle(THandler handler)

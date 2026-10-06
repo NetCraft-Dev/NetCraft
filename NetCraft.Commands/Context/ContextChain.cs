@@ -3,9 +3,9 @@ using NetCraft.Commands.Exceptions;
 
 namespace NetCraft.Commands.Context;
 
-//ContextChain 上下文链对应原版com.mojang.brigadier.context.ContextChain
-//将CommandContext链式结构展平为modifier列表与末尾executable
-//executeAll跨modifier链累积forkedMode逐级expand源列表
+//ContextChain maps to vanilla com.mojang.brigadier.context.ContextChain
+//Flattens the chained CommandContext structure into a modifier list and a trailing executable
+//executeAll walks the modifier chain accumulating forkedMode and expanding the source list level by level
 public sealed class ContextChain<S>
 {
     private readonly List<CommandContext<S>> _modifiers;
@@ -44,7 +44,7 @@ public sealed class ContextChain<S>
         }
     }
 
-    //runModifier 应用RedirectModifier展开源列表forkedMode下异常返回空集合
+    //runModifier applies the RedirectModifier to expand the source list; in forkedMode an exception yields an empty collection
     public static ICollection<S> RunModifier(CommandContext<S> modifier, S source, ResultConsumer<S> resultConsumer, bool forkedMode)
     {
         var sourceModifier = modifier.GetRedirectModifier();
@@ -70,7 +70,7 @@ public sealed class ContextChain<S>
         }
     }
 
-    //runExecutable 执行命令回调结果forkedMode下返回1否则返回实际结果
+    //runExecutable runs the command and reports the result; in forkedMode it returns 1, otherwise the actual result
     public static int RunExecutable(CommandContext<S> executable, S source, ResultConsumer<S> resultConsumer, bool forkedMode)
     {
         var contextToUse = executable.CopyFor(source);

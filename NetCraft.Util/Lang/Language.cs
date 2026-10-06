@@ -3,44 +3,44 @@ namespace NetCraft.Network.Chat;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-//语言表对应原版net.minecraft.locale.Language
-//翻译缺失回退成 key 本身对齐原版 getOrDefault(elementId) 的语义
-//服务端固定用 en_us 对齐原版 DedicatedServer 不做本地化的行为
-//放在 Util 项目是因为它是纯文本基础设施 日志层也要用 命名空间保持 Network.Chat 不动已有引用
+//Language table, maps to vanilla net.minecraft.locale.Language
+//Missing translations fall back to the key itself, aligning with vanilla getOrDefault(elementId)
+//The server always uses en_us, aligning with vanilla DedicatedServer's no-localization behavior
+//Placed in the Util project because it is plain-text infrastructure the log layer also needs; the namespace stays Network.Chat to avoid touching existing references
 public abstract class Language
 {
-    //Default 默认语言代号对应原版 DEFAULT
+    //Default default language code, maps to vanilla DEFAULT
     public const string Default = "en_us";
 
-    //UnsupportedFormatPattern 把 %d %f 这类无法直接拼接的占位统一改写成 %s 对应原版 UNSUPPORTED_FORMAT_PATTERN
-    //必须声明在 DefaultInstance 之前 否则加载默认语言时它还空着
+    //UnsupportedFormatPattern rewrites placeholders like %d %f that cannot be concatenated directly into %s, maps to vanilla UNSUPPORTED_FORMAT_PATTERN
+    //Must be declared before DefaultInstance, otherwise it is still empty when the default language loads
     private static readonly Regex UnsupportedFormatPattern =
         new(@"%(\d+\$)?[\d.]*[df]", RegexOptions.Compiled);
 
-    //DefaultInstance 默认语言实例对应原版 DEFAULT_INSTANCE 静态初始化即加载
+    //DefaultInstance default language instance, maps to vanilla DEFAULT_INSTANCE, loaded on static init
     public static readonly Language DefaultInstance = LoadDefault();
 
-    //Instance 当前语言实例对应原版 getInstance
+    //Instance current language instance, maps to vanilla getInstance
     public static Language Instance => _instance;
 
     private static Language _instance = DefaultInstance;
 
-    //Inject 替换当前语言实例对应原版 inject 客户端切换语言时用
+    //Inject replaces the current language instance, maps to vanilla inject, used when the client switches language
     public static void Inject(Language language) => _instance = language;
 
-    //FromEntries 用现成键值表构造语言实例 表构造后不再改动 多线程读取安全
+    //FromEntries builds a language instance from an existing key-value table; the table is immutable after construction, safe for multi-threaded reads
     public static Language FromEntries(Dictionary<string, string> entries) => new MapLanguage(entries);
 
-    //GetOrDefault 缺翻译回退 key 对应原版 getOrDefault(String)
+    //GetOrDefault falls back to the key on a missing translation, maps to vanilla getOrDefault(String)
     public string GetOrDefault(string elementId) => GetOrDefault(elementId, elementId);
 
-    //GetOrDefault 带默认值对应原版 getOrDefault(String,String)
+    //GetOrDefault with a default value, maps to vanilla getOrDefault(String,String)
     public abstract string GetOrDefault(string elementId, string defaultValue);
 
-    //Has 判断是否存在翻译对应原版 has
+    //Has tests whether a translation exists, maps to vanilla has
     public abstract bool Has(string elementId);
 
-    //LoadFromJson 解析语言 json 逐条写入 output 对应原版 loadFromJson
+    //LoadFromJson parses the language json writing each entry into output, maps to vanilla loadFromJson
     public static void LoadFromJson(Stream stream, Action<string, string> output)
     {
         using var document = JsonDocument.Parse(stream);
@@ -53,8 +53,8 @@ public abstract class Language
         }
     }
 
-    //LoadDefault 从程序目录 assets/minecraft/lang/en_us.json 读取默认语言
-    //文件缺失时留空表 翻译组件退回 key 不至于崩
+    //LoadDefault reads the default language from assets/minecraft/lang/en_us.json under the program directory
+    //Leaves an empty table when the file is missing; translation components fall back to the key instead of crashing
     private static Language LoadDefault()
     {
         var storage = new Dictionary<string, string>();
@@ -67,7 +67,7 @@ public abstract class Language
         return new MapLanguage(storage);
     }
 
-    //MapLanguage 只读字典实现 表加载完不再改动 多线程读取安全
+    //MapLanguage readonly dictionary implementation, immutable after loading, safe for multi-threaded reads
     private sealed class MapLanguage(Dictionary<string, string> storage) : Language
     {
         public override string GetOrDefault(string elementId, string defaultValue)

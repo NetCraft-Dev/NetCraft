@@ -3,38 +3,38 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Registry;
 
-//所有 stub 游戏类型，待具体子系统就绪后逐步迁移到对应项目
+//All stub game types, to be migrated to their projects incrementally as subsystems become ready
 
 public interface Action { }
 public interface Activity { }
 public interface Advancement { }
 public interface BannerPattern { }
-//BiomeSource 生物群系源接口对应原版 net.minecraft.world.level.biome.BiomeSource
-//提供按坐标查询生物群系的能力stub 阶段仅定义方法签名
-//具体实现 FixedBiomeSource/MultiNoiseBiomeSource 待 Game 层接入
+//BiomeSource biome source interface, maps to vanilla net.minecraft.world.level.biome.BiomeSource
+//Provides the ability to query a biome by coordinates; at the stub stage it only defines method signatures
+//Concrete implementations FixedBiomeSource/MultiNoiseBiomeSource await Game layer integration
 public interface BiomeSource
 {
-    //GetBiome 按世界坐标查询生物群系占位签名待子接入具体逻辑
+    //GetBiome placeholder signature to query a biome by world coordinates, awaiting concrete logic
     Biome GetBiome(int x, int y, int z);
 
-    //PossibleBiomes 本源可能产出的全部群系
-    //装饰期要用它过滤掉 3x3 范围内捡到的、不属于本源的群系
+    //PossibleBiomes all biomes this source can produce
+    //Decoration uses it to filter out biomes found in the 3x3 range that do not belong to this source
     IReadOnlyList<Biome> PossibleBiomes { get; }
 }
 public interface BlockEntityType<T1> { }
-//BlockPredicateType 方块谓词类型标记接口对应原版 BlockPredicateType<P>
-//原版按谓词类型泛型 这里非泛型化 真实实现由 Game 层提供
+//BlockPredicateType block predicate type marker interface, maps to vanilla BlockPredicateType<P>
+//Vanilla is generic over the predicate type; de-genericized here, with the real implementation provided by the Game layer
 public interface BlockPredicateType { }
 public interface BlockStateProviderType<T1> { }
 public interface CatSoundVariant { }
 public interface CatVariant { }
 public interface ChickenSoundVariant { }
 public interface ChickenVariant { }
-//ConfiguredFeature 配置化特征标记接口对应原版 ConfiguredFeature<FC,F>
-//原版带两个泛型参数 这里非泛型化 真实实现由 Game 层提供 注册表与群系侧只依赖这个标记
+//ConfiguredFeature configured feature marker interface, maps to vanilla ConfiguredFeature<FC,F>
+//Vanilla takes two type parameters; de-genericized here, with the real implementation provided by the Game layer and the registry and biome sides depending only on this marker
 public interface ConfiguredFeature { }
-//ConfiguredWorldCarver 配置化雕刻器标记接口对应原版 ConfiguredWorldCarver
-//真实实现由 Game 层提供 注册表与群系生成设置侧只依赖这个标记
+//ConfiguredWorldCarver configured carver marker interface, maps to vanilla ConfiguredWorldCarver
+//The real implementation is provided by the Game layer; the registry and biome generation settings sides depend only on this marker
 public interface ConfiguredWorldCarver { }
 public interface ConsumeEffectType<T1> { }
 public interface Consumer<T1> { }
@@ -53,37 +53,37 @@ public interface EnchantmentEntityEffect { }
 public interface EnchantmentLocationBasedEffect { }
 public interface EnchantmentProvider { }
 public interface EnchantmentValueEffect { }
-//ILevelReader 谓词层需要的最小关卡读取能力 对应原版 ServerLevel 被谓词用到的那组方法
-//ServerLevel 在 Storage 层 Registry 层够不着 故在 Registry 定义这组能力由 ServerLevel 实现
+//ILevelReader the minimal level reading capability the predicate layer needs, corresponding to the set of ServerLevel methods used by predicates
+//ServerLevel lives in the Storage layer and is out of reach for the Registry layer, so this capability set is defined in Registry and implemented by ServerLevel
 public interface ILevelReader
 {
-    //Dimension 维度注册名
+    //Dimension dimension registry name
     Identifier Dimension { get; }
 
-    //IsLoaded 该位置所在区块是否已在内存
+    //IsLoaded whether the chunk at this position is already in memory
     bool IsLoaded(BlockPos pos);
 
-    //GetBlockState 读方块状态 区块未加载返回 null
+    //GetBlockState read the block state; returns null when the chunk is not loaded
     BlockState? GetBlockState(BlockPos pos);
 
-    //GetBiome 读该位置生物群系 区块不在内存返回 null
+    //GetBiome read the biome at this position; returns null when the chunk is not in memory
     Holder<Biome>? GetBiome(BlockPos pos);
 
-    //GetMaxLocalRawBrightness 该位置最大局部亮度
+    //GetMaxLocalRawBrightness the maximum local brightness at this position
     int GetMaxLocalRawBrightness(BlockPos pos);
 
-    //CanSeeSky 该位置能否直见天空
+    //CanSeeSky whether this position can see the sky directly
     bool CanSeeSky(BlockPos pos);
 }
-//EntitySubPredicate 实体子谓词对应原版 net.minecraft.advancements.predicates.entity.EntitySubPredicate
-//原版签名带 ServerLevel 该层在上游 Registry 不能反向引用 改用 ILevelReader 抽象出所需能力
+//EntitySubPredicate entity sub-predicate, maps to vanilla net.minecraft.advancements.predicates.entity.EntitySubPredicate
+//The vanilla signature takes ServerLevel, which lives upstream and cannot be referenced from Registry, so ILevelReader abstracts the needed capability
 public interface EntitySubPredicate
 {
-    //Matches 判定实体是否满足本谓词 level 为发起方所在关卡 position 为发起方位置
+    //Matches determines whether the entity satisfies this predicate; level is the initiator's level and position is the initiator's position
     bool Matches(Entity entity, ILevelReader? level, Vec3? position);
 }
-//Feature 特征标记接口对应原版 Feature<FC>
-//原版按配置类型泛型 这里非泛型化 子类在 Place 里 is 模式匹配转配置
+//Feature feature marker interface, maps to vanilla Feature<FC>
+//Vanilla is generic over the config type; de-genericized here, with subclasses using is-pattern matching to cast the config in Place
 public interface Feature { }
 public interface FeatureSizeType<T1> { }
 public interface FlatLevelGeneratorPreset { }
@@ -118,11 +118,11 @@ public interface ParticleType<T1> { }
 public interface PigSoundVariant { }
 public interface PigVariant { }
 public interface PlacedFeature { }
-//PlacementModifierType 放置修饰器类型标记接口对应原版 PlacementModifierType<P>
-//原版按修饰器类型泛型 这里非泛型化 注册表按它持有「标识 + 元素 codec」对
+//PlacementModifierType placement modifier type marker interface, maps to vanilla PlacementModifierType<P>
+//Vanilla is generic over the modifier type; de-genericized here, and the registry holds an "identifier + element codec" pair against it
 public interface PlacementModifierType { }
-//PoiType 兴趣点类型接口对应原版 net.minecraft.world.entity.ai.village.poi.PoiType
-//stub 升级为持 Identifier 的接口供 SimplePoiManager 索引
+//PoiType point of interest type interface, maps to vanilla net.minecraft.world.entity.ai.village.poi.PoiType
+//The stub is upgraded to an interface holding an Identifier so SimplePoiManager can index it
 public interface PoiType { Identifier Id { get; } }
 public interface PoolAliasBinding { }
 public interface PositionSourceType<T1> { }
@@ -165,8 +165,8 @@ public interface VillagerTrade { }
 public interface VillagerType { }
 public interface WolfSoundVariant { }
 public interface WolfVariant { }
-//WorldCarver 雕刻器标记接口对应原版 WorldCarver
-//真实实现由 Game 层提供 雕刻器注册表按它持有元素
+//WorldCarver carver marker interface, maps to vanilla WorldCarver
+//The real implementation is provided by the Game layer, and the carver registry holds elements against it
 public interface WorldCarver { }
 public interface WorldPreset { }
 public interface ZombieNautilusVariant { }

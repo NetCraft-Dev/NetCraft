@@ -1,8 +1,8 @@
 namespace NetCraft.Registry;
 
-//Holder所有者标记，判断Holder能否序列化进某注册表上下文
+//Holder owner marker; determines whether a Holder can be serialized into a registry context
 public interface HolderOwner<T>
 {
-    //默认同一所有者才可序列化
+    //Only the same owner can serialize by default
     bool CanSerializeIn(HolderOwner<T> context) => ReferenceEquals(this, context);
 }

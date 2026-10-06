@@ -4,8 +4,8 @@ using System;
 using NetCraft.Codec;
 using T = NetCraft.DataFixer.Types;
 
-//Apply函数应用对应原版com.mojang.datafixers.functions.Apply
-//把PointFree<A->B>应用到PointFree<A>得到PointFree<B>
+//Apply function application maps to vanilla com.mojang.datafixers.functions.Apply
+//applies PointFree<A->B> to PointFree<A> to get PointFree<B>
 public sealed class Apply<A, B> : PointFree<B>
 {
     private readonly PointFree<Func<A, B>> _func;
@@ -22,8 +22,8 @@ public sealed class Apply<A, B> : PointFree<B>
     public PointFree<Func<A, B>> Func => _func;
     public PointFree<A> Arg => _arg;
 
-    //Type未缓存时从func.Type()推断对应原版((Func<?,B>)func.type()).second()
-    //用Unsafe.As绕过严格泛型强转T.Func<X,B>到T.Func<object,B>对齐Java类型擦除
+    //Type is inferred from func.Type() when not cached; maps to vanilla ((Func<?,B>)func.type()).second()
+    //use Unsafe.As to bypass the strict generic cast of T.Func<X,B> to T.Func<object,B> and align with Java type erasure
     public override T.Type<B> Type()
         => _type ?? TypeFromFunc();
 
@@ -35,11 +35,11 @@ public sealed class Apply<A, B> : PointFree<B>
         return cast.Second();
     }
 
-    //eval惰性求值func与arg后应用func(arg)
+    //eval lazily evaluates func and arg, then applies func(arg)
     public override Func<DynamicOps<object>, B> Eval()
         => ops => _func.EvalCached()(ops)(_arg.EvalCached()(ops));
 
-    //all对func和arg都应用规则任一变化则重建Apply
+    //all applies the rule to both func and arg; rebuilds Apply if either changes
     public override Optional<PointFree<B>> All(PointFreeRule rule)
     {
         var f = rule.RewriteOrNop(_func);
@@ -51,7 +51,7 @@ public sealed class Apply<A, B> : PointFree<B>
         return Optional<PointFree<B>>.Of(new Apply<A, B>(f, a, _type));
     }
 
-    //one对func或arg首次命中重建Apply
+    //one rebuilds Apply on the first match of func or arg
     public override Optional<PointFree<B>> One(PointFreeRule rule)
     {
         var fOpt = rule.Rewrite(_func);

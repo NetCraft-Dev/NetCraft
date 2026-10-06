@@ -3,7 +3,7 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry;
 
-//MobCategory 生物分类对应原版 net.minecraft.world.entity.MobCategory
+//MobCategory mob category, maps to vanilla net.minecraft.world.entity.MobCategory
 public enum MobCategory
 {
     Monster,
@@ -16,9 +16,9 @@ public enum MobCategory
     Misc
 }
 
-//SpawnerData 单体生成条目对应原版 MobSpawnSettings.SpawnerData
-//真实 JSON 里 weight 与 type/minCount/maxCount 平铺 由加权列表 wrapper 提供 weight
-//原版构造会把 MISC 分类的实体替换成 pig 本仓库 EntityType 未持有 MobCategory 无法判定 保留原始 id
+//SpawnerData single spawn entry, maps to vanilla MobSpawnSettings.SpawnerData
+//In the real JSON, weight is flattened with type/minCount/maxCount and provided by the weighted list wrapper
+//The vanilla constructor replaces MISC-category entities with pig; EntityType here does not hold MobCategory and cannot decide, so the original id is preserved
 public sealed class SpawnerData
 {
     public static readonly Codec<SpawnerData> Codec = new ValidatedCodec<SpawnerData>(
@@ -49,7 +49,7 @@ public sealed class SpawnerData
     }
 }
 
-//MobSpawnCost 生成代价对应原版 MobSpawnSettings.MobSpawnCost
+//MobSpawnCost spawn cost, maps to vanilla MobSpawnSettings.MobSpawnCost
 public sealed class MobSpawnCost
 {
     public static readonly Codec<MobSpawnCost> Codec = RecordCodecBuilder.Of2<MobSpawnCost, double, double>(
@@ -68,7 +68,7 @@ public sealed class MobSpawnCost
     }
 }
 
-//MobSpawnSettings 生物生成设置对应原版 MobSpawnSettings
+//MobSpawnSettings mob spawn settings, maps to vanilla MobSpawnSettings
 public sealed class MobSpawnSettings
 {
     public const float DefaultCreatureSpawnProbability = 0.1f;
@@ -78,7 +78,7 @@ public sealed class MobSpawnSettings
         new Dictionary<MobCategory, IReadOnlyList<SpawnerData>>(),
         new Dictionary<Identifier, MobSpawnCost>());
 
-    //CategoryCodec 生物分类枚举 codec 键名与原版 MobCategory 序列化名一致
+    //CategoryCodec mob category enum codec; key names match vanilla MobCategory serialized names
     public static readonly Codec<MobCategory> CategoryCodec = new StringEnumCodec<MobCategory>(
         (MobCategory.Monster, "monster"),
         (MobCategory.Creature, "creature"),
@@ -89,11 +89,11 @@ public sealed class MobSpawnSettings
         (MobCategory.WaterAmbient, "water_ambient"),
         (MobCategory.Misc, "misc"));
 
-    //SpawnersCodec 按分类的加权生成列表 spawners 字段
+    //SpawnersCodec weighted spawn list by category, the spawners field
     public static readonly Codec<IReadOnlyDictionary<MobCategory, IReadOnlyList<SpawnerData>>> SpawnersCodec =
         new SimpleMapCodec<MobCategory, IReadOnlyList<SpawnerData>>(CategoryCodec, SpawnerData.Codec.ListOf());
 
-    //SpawnCostsCodec 按实体类型 id 的生成代价 spawn_costs 字段
+    //SpawnCostsCodec spawn cost by entity type id, the spawn_costs field
     public static readonly Codec<IReadOnlyDictionary<Identifier, MobSpawnCost>> SpawnCostsCodec =
         new SimpleMapCodec<Identifier, MobSpawnCost>(IdentifierCodec.Instance, MobSpawnCost.Codec);
 

@@ -4,18 +4,18 @@ using NetCraft.Logging;
 
 namespace NetCraft.Game.Gui;
 
-//ScreenManager 屏幕管理器对应原版 Minecraft.screen 字段
-//持当前 Screen 并驱动生命周期切换时清理旧控件调旧 Removed 新 Init
-//历史栈支持 PushScreen/PopScreen 回上一级 Esc 键触发当前 Screen.OnClose
+//ScreenManager screen manager, maps to vanilla Minecraft.screen field
+//Holds the current Screen and drives its lifecycle; on switch it clears old controls, calls the old Removed and the new Init
+//A history stack supports PushScreen/PopScreen back to the previous level; the Esc key triggers the current Screen.OnClose
 public sealed class ScreenManager
 {
     private readonly MinecraftClient _minecraft;
     private readonly GuiWindow _window;
     private Screen? _current;
-    //_history 屏幕历史栈 PushScreen 压栈 PopScreen 弹出回上一级
+    //_history screen history stack; PushScreen pushes, PopScreen pops back to the previous level
     private readonly Stack<Screen> _history = new();
-    //_layoutDirty 窗口 resize 标志由 SwapchainRecreated 设置 ProcessLayoutIfDirty 在 Tick 线程消费
-    //阶段7 控件树归 Tick 线程 resize 回调不能直接调 Window.Clear/Screen.Init 必延迟到 Tick
+    //_layoutDirty window resize flag set by SwapchainRecreated and consumed by ProcessLayoutIfDirty on the Tick thread
+    //In phase 7 the control tree belongs to the Tick thread; the resize callback cannot call Window.Clear/Screen.Init directly and must defer to Tick
     private volatile bool _layoutDirty;
 
     public Screen? Current => _current;
@@ -26,8 +26,8 @@ public sealed class ScreenManager
         _window = window;
     }
 
-    //SetScreen 切换屏幕先 Removed 旧的再清理控件再 Init 新的不入历史栈
-    //同时注入 RenderBackgroundHook 让 Screen.RenderBackground 在 Window 背景层绘制
+    //SetScreen switches screens: Removed on the old one, clear controls, then Init the new one; does not enter the history stack
+    //Also injects RenderBackgroundHook so Screen.RenderBackground draws in the Window's background layer
     public void SetScreen(Screen? screen)
     {
         var old = _current;
@@ -38,10 +38,10 @@ public sealed class ScreenManager
         }
         _window.Clear();
         _current = screen;
-        //screen 为 null 时清空背景/前景 hook 避免旧 Screen 的渲染残留
+        //When screen is null, clear the background/foreground hooks to avoid render residue from the old Screen
         _window.RenderBackgroundHook = screen is null ? null : ctx => screen.RenderBackground(ctx);
         _window.RenderForegroundHook = screen is null ? null : ctx => screen.RenderForeground(ctx);
-        //WantsBlur 从 Screen 注入 GuiWindow 触发 RenderBlurPasses 分段渲染
+        //WantsBlur is injected from the Screen into GuiWindow, triggering segmented rendering in RenderBlurPasses
         _window.WantsBlur = screen?.WantsBlur ?? false;
         if (screen is null) return;
         Log.Debug($"SetScreen entry new={screen.Title}");
@@ -49,22 +49,22 @@ public sealed class ScreenManager
         screen.Init();
     }
 
-    //PushScreen 压栈当前屏幕并切换到新屏幕用于进入子菜单
+    //PushScreen pushes the current screen onto the stack and switches to a new screen, for entering submenus
     public void PushScreen(Screen screen)
     {
         if (_current is not null) _history.Push(_current);
         SetScreen(screen);
     }
 
-    //PopScreen 弹出历史栈回上一级栈空回 null 由 Esc 或 OnClose 触发
+    //PopScreen pops back to the previous level; if the stack is empty, falls back to null. Triggered by Esc or OnClose
     public void PopScreen()
     {
         if (_history.Count > 0) SetScreen(_history.Pop());
         else SetScreen(null);
     }
 
-    //HandleRawKeyDown 处理原始键码识别业务键后调当前屏幕对应回调
-    //Esc 切屏 F3 切 Debug 数字键选 Hotbar 槽位 其余业务键(Q 丢弃 E 背包)原样下发不消费
+    //HandleRawKeyDown handles raw key codes, recognizing business keys and calling the current screen's matching callback
+    //Esc switches screens, F3 toggles Debug, number keys select Hotbar slots; other business keys (Q drop, E inventory) are passed through as-is and not consumed
     public void HandleRawKeyDown(int key)
     {
         if (_current is null) return;
@@ -80,20 +80,20 @@ public sealed class ScreenManager
             _current.OnKeyPressed(key);
     }
 
-    //HandleRawMouseDown 原始鼠标按下转发给当前屏幕 世界交互(挖方块)走这条路
+    //HandleRawMouseDown forwards raw mouse down to the current screen; world interaction (block breaking) goes this way
     public void HandleRawMouseDown(GuiMouseButton button, int x, int y)
         => _current?.OnMouseDown(button, x, y);
 
-    //HandleRawMouseUp 原始鼠标抬起转发给当前屏幕
+    //HandleRawMouseUp forwards raw mouse up to the current screen
     public void HandleRawMouseUp(GuiMouseButton button, int x, int y)
         => _current?.OnMouseUp(button, x, y);
 
-    //MouseX/MouseY 最近一次鼠标位置 已按 GuiScale 换算成控件坐标系
-    //背包界面按它判悬停槽 Q 丢弃作用于悬停槽
+    //MouseX/MouseY most recent mouse position, converted to control coordinates by GuiScale
+    //The inventory screen uses it to determine the hovered slot; Q drop acts on the hovered slot
     public int MouseX { get; private set; }
     public int MouseY { get; private set; }
 
-    //HandleRawMouseMove 记录鼠标位置 窗口坐标换算成控件坐标
+    //HandleRawMouseMove records the mouse position, converting window coordinates to control coordinates
     public void HandleRawMouseMove(int x, int y)
     {
         var scale = Math.Max(1, _window.GuiScale);
@@ -106,16 +106,16 @@ public sealed class ScreenManager
         _current?.Tick();
     }
 
-    //Resized 窗口尺寸变化时由 MinecraftClient 订阅 SwapchainRecreated 触发
-    //阶段7 控件树归 Tick 线程 resize 回调在 Render 线程触发不能直接调 Window.Clear/Screen.Init
-    //只设 _layoutDirty 标志 ProcessLayoutIfDirty 由 MinecraftClient.OnFrameTick 在 Tick 线程消费
+    //Resized triggered by MinecraftClient subscribing to SwapchainRecreated when the window size changes
+    //In phase 7 the control tree belongs to the Tick thread; the resize callback fires on the Render thread and cannot call Window.Clear/Screen.Init directly
+    //Only sets the _layoutDirty flag; ProcessLayoutIfDirty consumes it on the Tick thread from MinecraftClient.OnFrameTick
     public void Resized()
     {
         _layoutDirty = true;
     }
 
-    //ProcessLayoutIfDirty Tick 线程每帧调检测 _layoutDirty 真则清控件重 Init 当前 Screen
-    //由 MinecraftClient.OnFrameTick 在 PollInput 后 Window.Update 前调用独占控件树无竞争
+    //ProcessLayoutIfDirty called every frame on the Tick thread; when _layoutDirty is true it clears controls and re-Inits the current Screen
+    //Called by MinecraftClient.OnFrameTick after PollInput and before Window.Update; it holds the control tree exclusively, with no contention
     public void ProcessLayoutIfDirty()
     {
         if (!_layoutDirty) return;

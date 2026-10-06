@@ -2,8 +2,8 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//RelativeFlag 玩家位置相对移动标志位号对应原版 Relative
-//X/Y/Z 位置分量相对 YRot/XRot 朝向分量相对 Delta 三轴速度相对 RotateDelta 速度随朝向差旋转
+//RelativeFlag player position relative movement flag bit numbers, maps to vanilla Relative
+//X/Y/Z position components relative, YRot/XRot rotation components relative, Delta three-axis velocity relative, RotateDelta velocity rotated by the rotation delta
 public enum RelativeFlag
 {
     X = 0,
@@ -17,16 +17,16 @@ public enum RelativeFlag
     RotateDelta = 8,
 }
 
-//RelativeFlags 相对标志集合运算对应原版 Relative 的静态集与位掩码编解码
+//RelativeFlags relative flag set operations, maps to the static sets and bitmask codec of vanilla Relative
 public static class RelativeFlags
 {
-    //Rotation 纯朝向相对集 传送未显式给朝向时保持当前朝向
+    //Rotation rotation-only relative set; keeps the current rotation when a teleport does not explicitly provide one
     public static readonly IReadOnlySet<RelativeFlag> Rotation = new HashSet<RelativeFlag> { RelativeFlag.YRot, RelativeFlag.XRot };
 
-    //Delta 纯速度相对集
+    //Delta velocity-only relative set
     public static readonly IReadOnlySet<RelativeFlag> Delta = new HashSet<RelativeFlag> { RelativeFlag.DeltaX, RelativeFlag.DeltaY, RelativeFlag.DeltaZ, RelativeFlag.RotateDelta };
 
-    //Direction 速度相对集 坐标相对时保留当前速度
+    //Direction velocity relative set; keeps the current velocity when coordinates are relative
     public static IReadOnlySet<RelativeFlag> Direction(bool x, bool y, bool z)
     {
         var set = new HashSet<RelativeFlag>();
@@ -36,7 +36,7 @@ public static class RelativeFlags
         return set;
     }
 
-    //Position 位置相对集 客户端把包值加到当前坐标
+    //Position position relative set; the client adds the packet values to the current coordinates
     public static IReadOnlySet<RelativeFlag> Position(bool x, bool y, bool z)
     {
         var set = new HashSet<RelativeFlag>();
@@ -46,7 +46,7 @@ public static class RelativeFlags
         return set;
     }
 
-    //RotationOf 朝向相对集
+    //RotationOf rotation relative set
     public static IReadOnlySet<RelativeFlag> RotationOf(bool yRot, bool xRot)
     {
         var set = new HashSet<RelativeFlag>();
@@ -55,7 +55,7 @@ public static class RelativeFlags
         return set;
     }
 
-    //Union 合并多个集合
+    //Union merges several sets
     public static IReadOnlySet<RelativeFlag> Union(params IReadOnlySet<RelativeFlag>[] sets)
     {
         var result = new HashSet<RelativeFlag>();
@@ -63,7 +63,7 @@ public static class RelativeFlags
         return result;
     }
 
-    //Pack 集合转位掩码
+    //Pack converts a set to a bitmask
     public static int Pack(IEnumerable<RelativeFlag> set)
     {
         var result = 0;
@@ -71,7 +71,7 @@ public static class RelativeFlags
         return result;
     }
 
-    //Unpack 掩码还原集合
+    //Unpack restores a set from a bitmask
     public static IReadOnlyList<RelativeFlag> Unpack(int value)
     {
         var result = new List<RelativeFlag>();
@@ -81,9 +81,9 @@ public static class RelativeFlags
     }
 }
 
-//ClientboundPlayerPositionPacket 玩家位置同步包对应原版 ClientboundPlayerPositionPacket
-//S4 26.2 重构为 PositionMoveRotation 格式
-//字段 Id(VarInt) X/Y/Z(Double 位置) DX/DY/DZ(Double deltaMovement) YRot/XRot(Float) Relatives(Int 位掩码)
+//ClientboundPlayerPositionPacket player position sync packet, maps to vanilla ClientboundPlayerPositionPacket
+//S4 26.2 refactored to the PositionMoveRotation format
+//Fields: Id(VarInt), X/Y/Z (Double position), DX/DY/DZ (Double deltaMovement), YRot/XRot (Float), Relatives (Int bitmask)
 public sealed record ClientboundPlayerPositionPacket(
     double X,
     double Y,
@@ -123,13 +123,13 @@ public sealed record ClientboundPlayerPositionPacket(
             buf.WriteDouble(value.X);
             buf.WriteDouble(value.Y);
             buf.WriteDouble(value.Z);
-            //deltaMovement 默认 0 对齐 PositionMoveRotation.deltaMovement
+            //deltaMovement defaults to 0, aligning with PositionMoveRotation.deltaMovement
             buf.WriteDouble(0);
             buf.WriteDouble(0);
             buf.WriteDouble(0);
             buf.WriteFloat(value.YRot);
             buf.WriteFloat(value.XRot);
-            //Relative.SET_STREAM_CODEC int 位掩码
+            //Relative.SET_STREAM_CODEC int bitmask
             buf.WriteInt(value.Relatives);
         }
     }

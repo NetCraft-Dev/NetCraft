@@ -4,8 +4,8 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Storage.Light;
 
-//LevelLightEngine 世界光照门面对应原版 net.minecraft.world.level.lighting.LevelLightEngine
-//把方块光与天光两个引擎合成一个 LightEventListener 对外统一转发
+//LevelLightEngine, world lighting facade, maps to vanilla net.minecraft.world.level.lighting.LevelLightEngine
+//Merges the block light and sky light engines into one LightEventListener that forwards uniformly
 public class LevelLightEngine : LightEventListener
 {
     public const int LightSectionPadding = 1;
@@ -44,7 +44,7 @@ public class LevelLightEngine : LightEventListener
 
     public int RunLightUpdates() => RunLightUpdates(0);
 
-    //RunLightUpdates 透传预算给两层引擎 分批推进时每批只处理有限条
+    //RunLightUpdates passes the budget through to both layers; batching processes only a limited amount per round
     public int RunLightUpdates(int budget)
     {
         var count = 0;
@@ -71,7 +71,7 @@ public class LevelLightEngine : LightEventListener
         _skyEngine?.PropagateLightSources(pos);
     }
 
-    //getLayerListener 取单层监听 该层未启用时返回空实现
+    //getLayerListener returns the per-layer listener, or an empty implementation when that layer is disabled
     public LayerLightEventListener GetLayerListener(LightLayer layer)
     {
         if (layer == LightLayer.Block)
@@ -122,7 +122,7 @@ public class LevelLightEngine : LightEventListener
         return Math.Max(blockLight, skyLight);
     }
 
-    //lightOnInColumn 该列是否两层光照都已启用
+    //lightOnInColumn, whether both light layers are enabled for that column
     public bool LightOnInColumn(long sectionZeroNode)
         => (_blockEngine is null || _blockEngine.Storage.LightOnInColumn(sectionZeroNode))
            && (_skyEngine is null || _skyEngine.Storage.LightOnInColumn(sectionZeroNode));

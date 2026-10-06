@@ -1,27 +1,27 @@
 namespace NetCraft.Storage;
 
-//BorderChangeListener 边界变化监听器对应原版 net.minecraft.world.level.border.BorderChangeListener
-//服务端用它把边界改动转成网络包广播 存档层只管通知不关心发给谁
+//BorderChangeListener, border change listener, maps to vanilla net.minecraft.world.level.border.BorderChangeListener
+//The server uses it to turn border changes into broadcast packets; the storage layer only notifies and does not care who receives
 public interface IBorderChangeListener
 {
-    //OnSetSize 边界尺寸直接变化
+    //OnSetSize, border size changed directly
     void OnSetSize(WorldBorder border, double newSize);
 
-    //OnLerpSize 边界尺寸开始插值变化
+    //OnLerpSize, border size started interpolating
     void OnLerpSize(WorldBorder border, double fromSize, double targetSize, long ticks, long gameTime);
 
-    //OnSetCenter 边界中心变化
+    //OnSetCenter, border center changed
     void OnSetCenter(WorldBorder border, double x, double z);
 
-    //OnSetWarningTime 边界警告时间变化
+    //OnSetWarningTime, border warning time changed
     void OnSetWarningTime(WorldBorder border, int time);
 
-    //OnSetWarningBlocks 边界警告距离变化
+    //OnSetWarningBlocks, border warning distance changed
     void OnSetWarningBlocks(WorldBorder border, int blocks);
 
-    //OnSetDamagePerBlock 每格越界伤害变化
+    //OnSetDamagePerBlock, out-of-bounds damage per block changed
     void OnSetDamagePerBlock(WorldBorder border, double damagePerBlock);
 
-    //OnSetSafeZone 越界免伤缓冲变化
+    //OnSetSafeZone, out-of-bounds safe zone changed
     void OnSetSafeZone(WorldBorder border, double safeZone);
 }

@@ -3,8 +3,8 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Storage.Light;
 
-//BlockLightEngine 方块光引擎对应原版 net.minecraft.world.level.lighting.BlockLightEngine
-//方块光只来自会发光的方块 没有天光那样"上方整列全亮"的语义
+//BlockLightEngine, block light engine, maps to vanilla net.minecraft.world.level.lighting.BlockLightEngine
+//Block light comes only from emitting blocks; it has no "whole column lit from above" semantics like sky light
 public sealed class BlockLightEngine
     : LightEngine<BlockLightSectionStorage.BlockDataLayerStorageMap, BlockLightSectionStorage>
 {
@@ -102,7 +102,7 @@ public sealed class BlockLightEngine
         }
     }
 
-    //getEmission 方块发光等级 对应层未启用光照时按 0 处理
+    //getEmission, the block's light emission; treated as 0 when the matching layer has lighting disabled
     private int GetEmission(long blockNode, BlockState? state)
     {
         var emission = state?.GetLightEmission() ?? 0;

@@ -4,14 +4,14 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.Advancements.Predicates;
 
-//CollectionPredicate 集合谓词 大小区间加内容谓词加数量谓词 对应原版 net.minecraft.advancements.predicates.CollectionPredicate
-//三项都是可选的 缺省即不约束
+//CollectionPredicate collection predicate, size range plus contents predicate plus counts predicate, maps to vanilla net.minecraft.advancements.predicates.CollectionPredicate
+//All three are optional; a missing one means unconstrained
 public sealed record CollectionPredicate<T, P>(
     Optional<CollectionContentsPredicate<T, P>> Contains,
     Optional<CollectionCountsPredicate<T, P>> Counts,
     Optional<MinMaxBounds.Ints> Size) where P : class, IValuePredicate<T>
 {
-    //Codec 持久化编解码 字段名 contains 与 count 与 size 对应原版 codec
+    //Codec persistence codec, field names contains/count/size, maps to vanilla codec
     public static Codec<CollectionPredicate<T, P>> Codec(Codec<P> elementCodec) => RecordCodecBuilder.Of3(
         CollectionContentsPredicate<T, P>.Codec(elementCodec).OptionalFieldOf("contains")
             .ForGetter((CollectionPredicate<T, P> predicate) => predicate.Contains),
@@ -21,7 +21,7 @@ public sealed record CollectionPredicate<T, P>(
             .ForGetter((CollectionPredicate<T, P> predicate) => predicate.Size),
         (contains, counts, size) => new CollectionPredicate<T, P>(contains, counts, size));
 
-    //Test 集合是否同时满足大小与内容与数量约束
+    //Test whether the collection satisfies the size, contents and counts constraints at once
     public bool Test(IReadOnlyList<T> items)
     {
         if (Size.IsPresent && !Size.Get().Matches(items.Count)) return false;

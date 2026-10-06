@@ -3,9 +3,9 @@ using NetCraft.Network;
 
 namespace NetCraft.Network.Protocol.Login;
 
-//ClientLoginPacketListenerImpl 客户端 login 监听器实现
-//对应原版 ClientLoginPacketListenerImpl 简化版跳过加密
-//HandleLoginFinished 发 LoginAcknowledged 切 Configuration 交 configListener 推进
+//ClientLoginPacketListenerImpl client login listener implementation
+//Simplified version of vanilla ClientLoginPacketListenerImpl, skipping encryption
+//HandleLoginFinished sends LoginAcknowledged, switches to Configuration, and hands off to configListener to advance
 public sealed class ClientLoginPacketListenerImpl : ClientLoginPacketListener
 {
     private readonly Connection _connection;
@@ -17,8 +17,8 @@ public sealed class ClientLoginPacketListenerImpl : ClientLoginPacketListener
         _configurationListener = configurationListener;
     }
 
-    //HandleLoginFinished 收到登录完成发 LoginAcknowledged 切 Configuration 协议
-    //S4 对齐原版流程等待服务端 SelectKnownPacks/FinishConfiguration 由 configListener 收包推进 Play
+    //HandleLoginFinished on login completion sends LoginAcknowledged and switches to the Configuration protocol
+    //S4 aligns with vanilla flow: wait for the server's SelectKnownPacks/FinishConfiguration, and configListener advances to Play on receipt
     public void HandleLoginFinished(ClientboundLoginFinishedPacket packet)
     {
         Log.Info($"Login finished profile={packet.GameProfile.Name}, switching to Configuration phase");
@@ -27,17 +27,17 @@ public sealed class ClientLoginPacketListenerImpl : ClientLoginPacketListener
         _connection.SetupOutboundProtocol(ConfigurationProtocols.Serverbound);
     }
 
-    //HandleHello 服务器 hello 无加密流程不调用
+    //HandleHello server hello; not called since there is no encryption flow
     public void HandleHello(ClientboundHelloPacket packet) { }
 
-    //HandleDisconnect 登录阶段被拒
+    //HandleDisconnect rejected during the login phase
     public void HandleDisconnect(ClientboundLoginDisconnectPacket packet)
         => Log.Warning($"Login rejected {packet.Reason}");
 
-    //HandleCompression 压缩协商简化版不启用压缩空实现
+    //HandleCompression compression negotiation; the simplified version does not enable compression, empty implementation
     public void HandleCompression(ClientboundLoginCompressionPacket packet) { }
 
-    //HandleCustomQuery 自定义查询空实现
+    //HandleCustomQuery custom query, empty implementation
     public void HandleCustomQuery(ClientboundCustomQueryPacket packet) { }
 
     public void OnDisconnect(string reason)

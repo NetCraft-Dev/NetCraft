@@ -2,83 +2,83 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Registry;
 
-//注册表接口，继承 IdMap + HolderLookup 提供 key/id 查询与元素/标签列举
+//Registry interface; extends IdMap + HolderLookup to provide key/id lookup plus element/tag enumeration
 public interface Registry<T> : IdMap<T>, HolderLookup<T> where T : class
 {
-    //注册表自身的键
+    //The registry's own key
     ResourceKey<Registry<T>> Key { get; }
 
-    //查值对应的注册名，找不到返回 null
+    //Look up the registry name for a value; returns null if not found
     Identifier? GetKey(T thing);
 
-    //查值对应的 ResourceKey，找不到返回 null
+    //Look up the ResourceKey for a value; returns null if not found
     ResourceKey<T>? GetResourceKey(T thing);
 
-    //按 key 查值，找不到返回 null
+    //Look up a value by key; returns null if not found
     T? GetValue(ResourceKey<T> key);
 
-    //按注册名查值，找不到返回 null
+    //Look up a value by registry name; returns null if not found
     T? GetValue(Identifier key);
 
-    //查注册元信息
+    //Look up registration metadata
     RegistrationInfo? GetRegistrationInfo(ResourceKey<T> element);
 
-    //任取一个元素，取首个
+    //Return an arbitrary element, the first one
     Reference<T>? GetAny();
 
-    //所有注册名
+    //All registry names
     IReadOnlyCollection<Identifier> KeySet { get; }
 
-    //所有元素键
+    //All element keys
     IReadOnlyCollection<ResourceKey<T>> RegistryKeySet { get; }
 
-    //所有键值条目
+    //All key/value entries
     IEnumerable<KeyValuePair<ResourceKey<T>, T>> EntrySet { get; }
 
     bool ContainsKey(Identifier key);
     bool ContainsKey(ResourceKey<T> key);
 
-    //冻结注册表，禁止后续修改
+    //Freeze the registry, forbidding further modification
     Registry<T> Freeze();
 
-    //按 ID 查 Holder，找不到返回 null
+    //Look up a Holder by id; returns null if not found
     Reference<T>? Get(int id);
 
-    //按注册名查 Holder，找不到返回 null
+    //Look up a Holder by registry name; returns null if not found
     Reference<T>? Get(Identifier id);
 
-    //包装值为 Holder，已注册返回 Reference，否则返回 Direct
+    //Wrap a value as a Holder; returns Reference if registered, otherwise Direct
     Holder<T> WrapAsHolder(T value);
 
-    //按TagKey查Named HolderSet找不到返回null
+    //Look up a Named HolderSet by TagKey; returns null if not found
     NamedHolderSet<T>? Get(TagKey<T> tag);
 
-    //按TagKey取或登记Named HolderSet未绑定时返回登记的那个实例
-    //元素解码早于标签绑定只查Get会拿到null调用方自建实例后就再也绑不上
+    //Get or register a Named HolderSet by TagKey; returns the registered instance while unbound
+    //Elements are decoded before tags are bound, so a bare Get returns null and a caller-created instance can never be bound afterwards
     NamedHolderSet<T> GetOrCreate(TagKey<T> tag);
 
-    //所有已绑定Named HolderSet
+    //All bound Named HolderSets
     IEnumerable<NamedHolderSet<T>> GetTags();
 
-    //是否含该标签
+    //Whether it holds the tag
     bool Holds(TagKey<T> tag);
 
-    //BindTags把TagKey到Holder列表的映射绑定到对应Named HolderSet
-    //原版在WritableRegistry接口C#简化放Registry由MappedRegistry实现
+    //BindTags binds the TagKey-to-Holder-list mapping onto the matching Named HolderSet
+    //Vanilla puts this on the WritableRegistry interface; simplified here into Registry and implemented by MappedRegistry
     void BindTags(IReadOnlyDictionary<TagKey<T>, IReadOnlyList<Holder<T>>> pendingTags);
 
-    //GetRandom 按 id 随机返回一个 Holder 空注册表返回 null
+    //GetRandom returns a random Holder by id; returns null for an empty registry
     Holder<T>? GetRandom(RandomSource random);
 
-    //TODO component 子系统：ComponentLookup
+    //TODO component subsystem: ComponentLookup
 
-    //按注册名查值，找不到返回 null
+    //Look up a value by registry name; returns null if not found
     T? GetOptional(Identifier key) => GetValue(key);
 
-    //按 key 查值，找不到返回 null
+    //Look up a value by key; returns null if not found
     T? GetOptional(ResourceKey<T> key) => GetValue(key);
 
-    //按 key 查值，找不到抛异常
+    //Look up a value by key; throws if not found
     T GetValueOrThrow(ResourceKey<T> key)
     {
         var v = GetValue(key);
@@ -86,15 +86,15 @@ public interface Registry<T> : IdMap<T>, HolderLookup<T> where T : class
         return v;
     }
 
-    //按字符串名注册
+    //Register by string name
     static T Register(Registry<T> registry, string name, T value)
         => Register(registry, Identifier.Parse(name), value);
 
-    //按注册名注册
+    //Register by registry name
     static T Register(Registry<T> registry, Identifier id, T value)
         => Register(registry, ResourceKey<T>.Create(registry.Key, id), value);
 
-    //按 key 注册
+    //Register by key
     static T Register(Registry<T> registry, ResourceKey<T> key, T value)
     {
         if (registry is WritableRegistry<T> writable)
@@ -104,7 +104,7 @@ public interface Registry<T> : IdMap<T>, HolderLookup<T> where T : class
         return value;
     }
 
-    //注册并返回 Holder
+    //Register and return the Holder
     static Reference<T> RegisterForHolder(Registry<T> registry, ResourceKey<T> key, T value)
     {
         if (registry is WritableRegistry<T> writable)
@@ -112,29 +112,29 @@ public interface Registry<T> : IdMap<T>, HolderLookup<T> where T : class
         throw new ArgumentException($"Registry is not writable: {registry}");
     }
 
-    //按注册名注册并返回 Holder
+    //Register by registry name and return the Holder
     static Reference<T> RegisterForHolder(Registry<T> registry, Identifier location, T value)
         => RegisterForHolder(registry, ResourceKey<T>.Create(registry.Key, location), value);
 }
 
-//可写注册表接口，提供 Register 写入与冻结前查询
+//Writable registry interface, providing Register writes and pre-freeze queries
 public interface WritableRegistry<T> : Registry<T> where T : class
 {
-    //注册一个值，返回其 Holder
+    //Register a value, returning its Holder
     Reference<T> Register(ResourceKey<T> key, T value, RegistrationInfo registrationInfo);
 
-    //创建侵入式 Holder 对应原版 createIntrusiveHolder Deprecated
-    //value 在构造时即持有 Reference 待 Register 时 BindKey 复用
+    //Create an intrusive Holder, maps to vanilla createIntrusiveHolder. Deprecated
+    //The value already holds a Reference from construction, reused by BindKey at Register
     Reference<T> CreateIntrusiveHolder(T value);
 
-    //是否为空
+    //Whether it is empty
     bool IsEmpty { get; }
 
-    //IsFrozen 是否已冻结 冻结后 Register 会抛异常
-    //数据驱动加载与测试要在写入前判断 免得整批元素都撞上"already frozen"
+    //IsFrozen whether frozen; Register throws after freezing
+    //Data-driven loading and tests must check before writing, so a whole batch of elements doesn't hit "already frozen"
     bool IsFrozen { get; }
 
-    //CreateRegistrationLookup 返回只含当前注册表的 HolderLookupProvider
-    //Bootstrap 注册期需要跨注册表查找时由上层汇总各注册表 Provider 实现
+    //CreateRegistrationLookup returns a HolderLookupProvider containing only the current registry
+    //During Bootstrap registration, cross-registry lookup is assembled by the upper layer from each registry's Provider
     HolderLookupProvider CreateRegistrationLookup();
 }

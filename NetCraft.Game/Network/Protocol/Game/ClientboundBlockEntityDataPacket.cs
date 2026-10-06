@@ -4,10 +4,10 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundBlockEntityDataPacket 方块实体数据包对应原版 ClientboundBlockEntityDataPacket
-//字段 Pos(方块坐标) BlockEntityTypeId(方块实体类型注册表序号) Tag(状态 NBT 可为 null 写出时按空 compound 处理)
-//字段不叫 TypeId: 与 IPacket 的网络 ID 同名会被隐式实现盖掉 发出去的是方块实体类型而不是包 id
-//NBT 是包尾字段 按原版写 unnamed tag(type byte + payload 无 root name) 不额外加长度前缀
+//ClientboundBlockEntityDataPacket block entity data packet, maps to vanilla ClientboundBlockEntityDataPacket
+//Fields: Pos (block position), BlockEntityTypeId (block entity type registry id), Tag (state NBT, may be null and treated as an empty compound when written)
+//The field is not named TypeId: sharing the name with IPacket's network ID would be shadowed by the implicit implementation, sending the block entity type instead of the packet id
+//NBT is the trailing field; written as a vanilla unnamed tag (type byte + payload, no root name) without an extra length prefix
 public sealed record ClientboundBlockEntityDataPacket(BlockPos Pos, int BlockEntityTypeId, CompoundTag? Tag)
     : Packet<ClientGamePacketListener>
 {
@@ -19,7 +19,7 @@ public sealed record ClientboundBlockEntityDataPacket(BlockPos Pos, int BlockEnt
 
     private sealed class BlockEntityDataCodec : StreamCodec<FriendlyByteBuf, ClientboundBlockEntityDataPacket>
     {
-        //原版顺序 writeBlockPos -> VarInt typeId -> writeNbt
+        //Vanilla order: writeBlockPos -> VarInt typeId -> writeNbt
         public ClientboundBlockEntityDataPacket Decode(FriendlyByteBuf buf)
         {
             var pos = buf.ReadBlockPos();
@@ -34,7 +34,7 @@ public sealed record ClientboundBlockEntityDataPacket(BlockPos Pos, int BlockEnt
             buf.WriteBytes(WriteNbt(value.Tag));
         }
 
-        //readNbt 读包尾的 unnamed NBT 原版写 null 时只写一个 0 字节表示无数据
+        //readNbt reads the trailing unnamed NBT; vanilla writes a single 0 byte to mean no data when null
         private static CompoundTag? ReadNbt(FriendlyByteBuf buf)
         {
             var remaining = buf.ReadableBytes;
@@ -46,10 +46,10 @@ public sealed record ClientboundBlockEntityDataPacket(BlockPos Pos, int BlockEnt
             return NbtIo.ReadAnyTag(new BinaryNbtReader(reader), new NbtAccounter()) as CompoundTag;
         }
 
-        //writeNbt 写包尾的 unnamed NBT
-        //null 也要写成合法的空 compound(TAG_Compound + 空根名 + TAG_End)
-        //原版这个字段用 ByteBufCodecs.COMPOUND_TAG 编解码 客户端读到 0 字节会当 null 抛
-        //Expected non-null compound tag 直接断连 所以绝不能只写一个 0
+        //writeNbt writes the trailing unnamed NBT
+        //null must still be written as a valid empty compound (TAG_Compound + empty root name + TAG_End)
+        //Vanilla decodes this field with ByteBufCodecs.COMPOUND_TAG; reading 0 bytes on the client throws as null
+        //"Expected non-null compound tag" disconnects immediately, so writing only a single 0 is never allowed
         private static byte[] WriteNbt(CompoundTag? tag)
         {
             using var stream = new MemoryStream();

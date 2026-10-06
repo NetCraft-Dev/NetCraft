@@ -6,65 +6,65 @@ using HeightmapRegistry = NetCraft.Registry.Heightmap;
 
 namespace NetCraft.Storage;
 
-//ChunkAccess 区块访问抽象基类对应原版 net.minecraft.world.level.chunk.ChunkAccess
-//持有区块位置/高度访问/区块状态/高度图等基础字段
-//子类 LevelChunk/ProtoChunk 按需扩展具体字段
+//ChunkAccess, chunk access abstract base class, maps to vanilla net.minecraft.world.level.chunk.ChunkAccess
+//Holds basic fields: chunk pos, height access, chunk status, heightmaps
+//Subclasses LevelChunk/ProtoChunk extend with concrete fields as needed
 public abstract class ChunkAccess : LevelHeightAccessor
 {
-    //Heightmap 实例缓存对应原版 heightmaps 字段
-    //Heightmaps 抽象属性持有 long[] 序列化数据此缓存持有可变实例避免每次重建丢失更新
+    //Heightmap instance cache, maps to the vanilla heightmaps field
+    //The abstract Heightmaps property holds long[] serialized data; this cache holds mutable instances so updates are not lost on rebuild
     private Dictionary<HeightmapRegistry.Types, LevelGen.Heightmap>? _heightmapCache;
 
-    //Pos 区块位置
+    //Pos, the chunk position
     public abstract ChunkPos Pos { get; }
 
-    //MinSectionY 最低区段 Y 对应原版 getMinSection
+    //MinSectionY, the lowest section Y, maps to vanilla getMinSection
     public abstract int MinSectionY { get; }
 
-    //SectionsCount 区段数量对应原版 getSectionsCount
+    //SectionsCount, the section count, maps to vanilla getSectionsCount
     public abstract int SectionsCount { get; }
 
-    //MaxSectionY 由 MinSectionY+SectionsCount-1 推导对应原版 getMaxSection
+    //MaxSectionY derived from MinSectionY+SectionsCount-1, maps to vanilla getMaxSection
     public int MaxSectionY => MinSectionY + SectionsCount - 1;
 
-    //ChunkStatus 区块状态
+    //ChunkStatus, the chunk status
     public abstract ChunkStatus ChunkStatus { get; }
 
-    //Heightmaps 高度图集合对应原版 getHeightmaps
+    //Heightmaps, the heightmap collection, maps to vanilla getHeightmaps
     public abstract IDictionary<HeightmapRegistry.Types, long[]> Heightmaps { get; }
 
-    //PostProcessingSections 需要后处理的位置按区段分组 每项是压成 short 的区段内局部坐标
-    //对应原版 ChunkAccess.postProcessing 雕刻挖穿流体后要把位置登记进来
+    //PostProcessingSections, positions needing post-processing grouped by section; each item is a section-local coord packed into a short
+    //Maps to vanilla ChunkAccess.postProcessing; positions are registered after carving breaks through fluids
     public virtual List<short>?[] PostProcessingSections => Array.Empty<List<short>?>();
 
-    //MarkPosForPostProcessing 登记一个需要后处理的方块位置对应原版 markPosForPostProcessing
+    //MarkPosForPostProcessing registers a block position needing post-processing, maps to vanilla markPosForPostProcessing
     public virtual void MarkPosForPostProcessing(int worldX, int worldY, int worldZ) { }
 
-    //BlockTicks 该区块的方块调度刻容器 对应原版 LevelChunk.blockTicks
-    //生成期与运行期共用一套容器 原版生成期另有 ProtoChunkTicks 会把延迟丢成 0 这里先不区分
+    //BlockTicks, this chunk's block scheduled tick container, maps to vanilla LevelChunk.blockTicks
+    //Generation and runtime share one container; vanilla has a separate ProtoChunkTicks during generation that zeroes the delay, not distinguished here yet
     public Ticks.LevelChunkTicks<NetCraft.Registry.Block> BlockTicks { get; private set; } = new();
 
-    //FluidTicks 该区块的流体调度刻容器
+    //FluidTicks, this chunk's fluid scheduled tick container
     public Ticks.LevelChunkTicks<NetCraft.Registry.Fluid> FluidTicks { get; private set; } = new();
 
-    //SetBlockTicks 读档还原时整体替换方块调度刻容器 对应原版构造期注入 blockTicks
+    //SetBlockTicks replaces the whole block scheduled tick container on load, maps to injecting blockTicks in the vanilla constructor
     public void SetBlockTicks(Ticks.LevelChunkTicks<NetCraft.Registry.Block> ticks) => BlockTicks = ticks;
 
-    //SetFluidTicks 读档还原时整体替换流体调度刻容器
+    //SetFluidTicks replaces the whole fluid scheduled tick container on load
     public void SetFluidTicks(Ticks.LevelChunkTicks<NetCraft.Registry.Fluid> ticks) => FluidTicks = ticks;
 
-    //SetBlockState 按世界坐标写方块对应原版 setBlockState 越界区段直接丢弃
+    //SetBlockState writes a block by world coords, maps to vanilla setBlockState; out-of-range sections are dropped
     public virtual void SetBlockState(int worldX, int worldY, int worldZ, BlockState state)
     {
         var section = GetSection(worldY >> 4);
         section?.SetBlockState(worldX & 15, worldY & 15, worldZ & 15, state);
     }
 
-    //GetSection 按区段 Y 获取区段数据越界返回 null 对应原版 getSection
+    //GetSection gets the section data by section Y; out of range returns null, maps to vanilla getSection
     public abstract LevelChunkSection? GetSection(int sectionY);
 
-    //GetOrCreateHeightmapForType 按类型创建或获取高度图实例对应原版 getOrCreateHeightmap
-    //首次调用从 Heightmaps long[] 重建实例并缓存后续调用返回同一实例
+    //GetOrCreateHeightmapForType creates or gets the heightmap instance by type, maps to vanilla getOrCreateHeightmap
+    //On first call it rebuilds the instance from the Heightmaps long[] and caches it; later calls return the same instance
     public virtual LevelGen.Heightmap GetOrCreateHeightmapForType(HeightmapRegistry.Types type)
     {
         _heightmapCache ??= new Dictionary<HeightmapRegistry.Types, LevelGen.Heightmap>();
@@ -78,8 +78,8 @@ public abstract class ChunkAccess : LevelHeightAccessor
         return instance;
     }
 
-    //GetHeight 对应原版 getHeight 按类型取列高度
-    //该类型还没算过时先整体补算 对应原版 getHeight 里 heightmap 缺失走 primeHeightmaps 的分支
+    //GetHeight, maps to vanilla getHeight, takes the column height by type
+    //When the type has not been computed, prime it wholesale first, maps to the vanilla getHeight branch that runs primeHeightmaps on a missing heightmap
     public int GetHeight(HeightmapRegistry.Types type, int x, int z)
     {
         if (!Heightmaps.ContainsKey(type))
@@ -87,13 +87,13 @@ public abstract class ChunkAccess : LevelHeightAccessor
         return GetOrCreateHeightmapForType(type).GetFirstAvailable(x, z);
     }
 
-    //GetBlockState 按世界坐标读方块状态 区段越界返回空气 对应原版 ChunkAccess.getBlockState
+    //GetBlockState reads a block state by world coords; out-of-range sections return air, maps to vanilla ChunkAccess.getBlockState
     public virtual BlockState GetBlockState(int worldX, int worldY, int worldZ)
         => GetSection(worldY >> 4)?.GetBlockState(worldX & 15, worldY & 15, worldZ & 15) ?? default;
 
-    //UpdateHeightmaps 方块变化后增量维护高度图 对应原版 LevelChunk.setBlockState 里的 heightmap.update
-    //只维护已建实例的类型 没算过的类型下次 GetHeight 会整体补算
-    //新方块不参与该高度图且原本占着该列最高点时 要向下重扫找新的遮挡物
+    //UpdateHeightmaps incrementally maintains the heightmaps after a block change, maps to heightmap.update in vanilla LevelChunk.setBlockState
+    //Only maintains types with an existing instance; types not yet computed are primed wholesale on the next GetHeight
+    //When the new block does not contribute to that heightmap and the old one held the column's highest point, rescan downward for a new occluder
     public virtual void UpdateHeightmaps(int worldX, int worldY, int worldZ, BlockState state)
     {
         if (_heightmapCache is null || _heightmapCache.Count == 0) return;
@@ -101,20 +101,20 @@ public abstract class ChunkAccess : LevelHeightAccessor
         var localZ = worldZ & 15;
         foreach (var (type, map) in _heightmapCache)
         {
-            //GetFirstAvailable 是最高遮挡方块的上方一格 这里要比的是方块本身的高度
+            //GetFirstAvailable is one above the highest occluding block; the comparison here is against the block's own height
             var firstAvailable = map.GetFirstAvailable(localX, localZ);
             var highest = firstAvailable == LevelGen.Heightmap.MinValue ? int.MinValue : firstAvailable - 1;
-            //比原最高方块还低就动不到这一列
+            //Lower than the previous highest block means this column is unaffected
             if (worldY < highest) continue;
             if (LevelGen.Heightmap.IsOpaqueFor(type, state))
             {
-                //只有高过原最高方块才需要抬高
+                //Raise only when above the previous highest block
                 if (worldY <= highest) continue;
                 map.SetHeight(localX, localZ, worldY + 1);
             }
             else
             {
-                //正好把原最高方块换成不遮挡的 才往下重扫找新的遮挡物
+                //Only when the previous highest block is replaced with a non-occluding one, rescan downward for a new occluder
                 if (highest != worldY) continue;
                 var found = int.MinValue;
                 for (var y = worldY - 1; y >= MinSectionY * 16; y--)
@@ -129,8 +129,8 @@ public abstract class ChunkAccess : LevelHeightAccessor
         }
     }
 
-    //SetBiome 按世界坐标写入生物群系对应原版 setBiome
-    //世界坐标转 sectionY 与 quart 局部坐标委托 section.SetBiome
+    //SetBiome writes a biome by world coords, maps to vanilla setBiome
+    //Converts world coords to sectionY and quart local coords, delegating to section.SetBiome
     public virtual void SetBiome(int worldX, int worldY, int worldZ, Holder<Biome> biome)
     {
         var section = GetSection(worldY >> 4);
@@ -138,7 +138,7 @@ public abstract class ChunkAccess : LevelHeightAccessor
         section.SetBiome((worldX >> 2) & 3, (worldY >> 2) & 3, (worldZ >> 2) & 3, biome);
     }
 
-    //GetNoiseBiome 按 quart 世界坐标查询生物群系对应原版 getNoiseBiome
+    //GetNoiseBiome queries the biome by quart world coords, maps to vanilla getNoiseBiome
     public virtual Holder<Biome> GetNoiseBiome(int quartX, int quartY, int quartZ)
     {
         var section = GetSection((quartY >> 2) + MinSectionY);
@@ -147,7 +147,7 @@ public abstract class ChunkAccess : LevelHeightAccessor
             : section.GetNoiseBiome(quartX & 3, quartY & 3, quartZ & 3);
     }
 
-    //EmptyBiome 区段越界时返回的默认 biome 占位避免 null
+    //EmptyBiome, the default biome placeholder returned for out-of-range sections, avoiding null
     private static readonly Biome EmptyBiome = new EmptyBiomeImpl();
     private sealed class EmptyBiomeImpl : Biome
     {

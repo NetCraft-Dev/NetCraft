@@ -2,8 +2,8 @@ using NetCraft.Util.Profiling;
 
 namespace NetCraft.Util.Profiling.Metrics.Storage;
 
-//偏差记录对应原版net.minecraft.util.profiling.metrics.storage.RecordedDeviation
-//采样器触发阈值时保存时间戳/tick/当时的profiler结果
+//Recorded deviation, maps to vanilla net.minecraft.util.profiling.metrics.storage.RecordedDeviation
+//Saves the timestamp/tick/profiler results at the time when a sampler triggers its threshold
 public sealed class RecordedDeviation
 {
     public DateTimeOffset Timestamp { get; }

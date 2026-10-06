@@ -10,9 +10,9 @@ using NetCraft.Storage.Ticks;
 
 namespace NetCraft.Storage;
 
-//SerializableChunkData对应原版net.minecraft.world.level.chunk.storage.SerializableChunkData
-//区块数据序列化中间表示write写为CompoundTag parse从CompoundTag反序列化
-//copyOf/read依赖ServerLevel等游戏内容未实现抛NotSupportedException
+//SerializableChunkData, maps to vanilla net.minecraft.world.level.chunk.storage.SerializableChunkData
+//Intermediate representation of chunk data serialization; write produces a CompoundTag and parse deserializes from it
+//copyOf/read depend on ServerLevel and other game content that is not implemented and throw NotSupportedException
 public sealed class SerializableChunkData
 {
     public const string XPosTag = "xPos";
@@ -96,15 +96,15 @@ public sealed class SerializableChunkData
         StructureData = structureData;
     }
 
-    //SectionData对应原版SerializableChunkData.SectionData
-    //区段y与LevelChunkSection及光照数据打包
+    //SectionData, maps to vanilla SerializableChunkData.SectionData
+    //Packs the section Y with its LevelChunkSection and light data
     public sealed record SectionData(int Y, LevelChunkSection? ChunkSection, DataLayer? BlockLight, DataLayer? SkyLight);
 
-    //write对应原版SerializableChunkData.write
-    //将所有字段序列化为CompoundTag用于写入MCA文件
+    //write, maps to vanilla SerializableChunkData.write
+    //Serializes all fields into a CompoundTag for writing to the MCA file
     public CompoundTag Write()
     {
-        //Log.Debug($"Write 入口");
+        //Log.Debug($"Write entry");
         var tag = NbtUtils.AddCurrentDataVersion(new CompoundTag());
         tag.PutInt(XPosTag, ChunkPos.X);
         tag.PutInt(YPosTag, MinSectionY);
@@ -160,12 +160,12 @@ public sealed class SerializableChunkData
         tag.Put(HeightmapsTag, heightmapsTag);
 
         tag.Put(StructuresTag, (CompoundTag)StructureData.Copy());
-        //Log.Debug($"Write 出口 pos={ChunkPos} sections={SectionDataList.Count}");
+        //Log.Debug($"Write exit pos={ChunkPos} sections={SectionDataList.Count}");
         return tag;
     }
 
-    //saveTicks对应原版saveTicks
-    //stub化为ListTag of CompoundTag保留原始tick数据
+    //saveTicks, maps to vanilla saveTicks
+    //Stubbed as a ListTag of CompoundTag, keeping the raw tick data
     private static void SaveTicks(CompoundTag tag, PackedTicks ticks)
     {
         var blockTicks = new ListTag();
@@ -177,8 +177,8 @@ public sealed class SerializableChunkData
         tag.Put(FluidTicksTag, fluidTicks);
     }
 
-    //packOffsets对应原版packOffsets
-    //每个ShortList转为ListTag of ShortTag
+    //packOffsets, maps to vanilla packOffsets
+    //Each ShortList becomes a ListTag of ShortTag
     private static ListTag PackOffsets(List<short>?[] postProcessingSections)
     {
         var list = new ListTag();
@@ -192,15 +192,15 @@ public sealed class SerializableChunkData
         return list;
     }
 
-    //parse对应原版SerializableChunkData.parse
-    //从CompoundTag反序列化区块数据返回null表示无Status字段
+    //parse, maps to vanilla SerializableChunkData.parse
+    //Deserialize chunk data from a CompoundTag; null means there is no Status field
     public static SerializableChunkData? Parse(LevelHeightAccessor levelHeight, PalettedContainerFactory containerFactory, CompoundTag chunkData)
     {
-        //Log.Debug($"Parse 入口 levelHeight={levelHeight} containerFactory={containerFactory} chunkData={chunkData}");
-        //Log.Debug($"Parse 入口 levelHeight={levelHeight} containerFactory={containerFactory}");
+        //Log.Debug($"Parse entry levelHeight={levelHeight} containerFactory={containerFactory} chunkData={chunkData}");
+        //Log.Debug($"Parse entry levelHeight={levelHeight} containerFactory={containerFactory}");
         if (string.IsNullOrEmpty(chunkData.GetStringValue(StatusTag)))
         {
-            //Log.Debug($"Parse 出口 result=null");
+            //Log.Debug($"Parse exit result=null");
             return null;
         }
 
@@ -276,7 +276,7 @@ public sealed class SerializableChunkData
             var maybeSectionTag = sectionTags.GetCompound(i);
             if (maybeSectionTag is null || maybeSectionTag.IsEmpty) continue;
             var sectionTag = maybeSectionTag;
-            //anvil 的 Y 是有符号 byte 负区段按补码写 必须按 sbyte 解释否则会被判为越界丢弃
+            //In anvil, Y is a signed byte and negative sections are written two's-complement; it must be interpreted as sbyte or it is deemed out of range and dropped
             var y = (sbyte)sectionTag.GetByteOr("Y", 0);
 
             LevelChunkSection? section;
@@ -321,16 +321,16 @@ public sealed class SerializableChunkData
             blendingData, belowZeroRetrogen, upgradeData, carvingMask,
             heightmaps, packedTicks, postProcessingSections, lightCorrect,
             sectionData, entities, blockEntities, structureData);
-        //Log.Debug($"Parse 出口 result={parsed}");
+        //Log.Debug($"Parse exit result={parsed}");
         return parsed;
     }
 
-    //CopyOf 从 ChunkAccess 提取数据生成 SerializableChunkData 对应原版 SerializableChunkData.copyOf
-    //level 提供 RegistryAccess 与 DataVersionchunk 提供 Pos/Status/Sections/Heightmaps
-    //factory 显式传入的容器工厂未传时回退 PalettedContainerFactory.Default
+    //CopyOf extracts data from a ChunkAccess into a SerializableChunkData, maps to vanilla SerializableChunkData.copyOf
+    //level provides RegistryAccess and DataVersion; chunk provides Pos/Status/Sections/Heightmaps
+    //factory, the explicitly passed container factory; falls back to PalettedContainerFactory.Default when not passed
     public static SerializableChunkData CopyOf(ServerLevel level, ChunkAccess chunk, PalettedContainerFactory? factory = null)
     {
-        //og.Debug($"CopyOf 入口 level={level} chunk={chunk} factory={factory}");
+        //og.Debug($"CopyOf entry level={level} chunk={chunk} factory={factory}");
         factory ??= PalettedContainerFactory.Default;
         var sectionData = new List<SectionData>(chunk.SectionsCount);
         for (var i = 0; i < chunk.SectionsCount; i++)
@@ -361,23 +361,23 @@ public sealed class SerializableChunkData
             chunk is ProtoChunk proto ? proto.ExistingCarvingMask?.ToArray() : null,
             heightmaps, PackTicks(chunk, level.GameTime), postProcessingSections, false,
             sectionData, new List<CompoundTag>(),
-            //方块实体由 Game 层桥采集 未注入时该区块不带方块实体
+            //Block entities are collected by the Game-layer bridge; without injection the chunk carries no block entities
             level.BlockEntityBridge?.Collect(chunk.Pos) ?? new List<CompoundTag>(),
-            //结构装配结果同样由 Game 层桥打包 未注入时该区块不带 structures 段
+            //Structure placements are likewise packed by the Game-layer bridge; without injection the chunk carries no structures section
             level.StructureDataBridge?.Pack(chunk.Pos) ?? new CompoundTag());
         Log.Debug($"CopyOf exit result={result}");
         return result;
     }
 
-    //Read 从 SerializableChunkData 还原 ChunkAccess 对应原版 SerializableChunkData.read
-    //level 提供 RegistryAccesspoiManager 用于 Poi 同步（当前 stub 跳过）
-    //regionInfo 为可选的 blending 上下文未启用时传 null
-    //sectionsCount 优先取 level 实现的 LevelHeightAccessor.SectionsCount 保持原 chunk 区段数
-    //返回 LevelChunk 含区段与高度图还原后的实例
+    //Read restores a ChunkAccess from a SerializableChunkData, maps to vanilla SerializableChunkData.read
+    //level provides RegistryAccess; poiManager is for Poi sync (currently a skipped stub)
+    //regionInfo is the optional blending context; pass null when not enabled
+    //sectionsCount prefers the LevelHeightAccessor.SectionsCount implemented by level, keeping the original chunk's section count
+    //Returns a LevelChunk with sections and heightmaps restored
     public LevelChunk Read(ServerLevel level, PoiManager poiManager, object? regionInfo, ChunkPos pos)
     {
-        //Log.Debug($"Read 入口 level={level} poiManager={poiManager} regionInfo={regionInfo} pos={pos}");
-        //Log.Debug($"Read 入口 level={level}pos={pos}");
+        //Log.Debug($"Read entry level={level} poiManager={poiManager} regionInfo={regionInfo} pos={pos}");
+        //Log.Debug($"Read entry level={level}pos={pos}");
         var factory = ContainerFactory;
         var sectionsCount = level is LevelHeightAccessor accessor
             ? accessor.SectionsCount
@@ -386,12 +386,12 @@ public sealed class SerializableChunkData
             ChunkPos, MinSectionY, sectionsCount,
             factory.CreateForBlockStates, factory.CreateForBiomes,
             level);
-        //雕刻标记是逐区块的增量数据 读回来才能保证重新雕刻时不会重复挖同一处
+        //The carving mask is per-chunk incremental data; reading it back prevents carving the same spot twice
         if (CarvingMask is not null)
             chunk.SetCarvingMask(new NetCraft.Storage.Chunk.CarvingMask(CarvingMask, MinSectionY * 16));
         chunk.SetPostProcessingSections(PostProcessingSections);
 
-        //调度刻容器整体换成读档带回的那批 延迟保持相对值 等区块登记进关卡时再按当时游戏刻展开
+        //The scheduled tick container is replaced wholesale with the batch read from disk; delays stay relative and are expanded against the then-current game tick when the chunk registers into the level
         chunk.SetBlockTicks(new LevelChunkTicks<NetCraft.Registry.Block>(
             UnpackTicks(PackedTicks.Blocks, ResolveBlock)));
         chunk.SetFluidTicks(new LevelChunkTicks<NetCraft.Registry.Fluid>(
@@ -408,18 +408,18 @@ public sealed class SerializableChunkData
         foreach (var (type, data) in Heightmaps)
             chunk.Heightmaps[type] = data;
 
-        //方块实体在区段就位之后再还原 由 Game 层桥按 id 反查类型 未注入时读档不带方块实体
+        //Block entities are restored after sections are in place; the Game-layer bridge resolves types by id, and without injection a load carries no block entities
         if (BlockEntities.Count > 0) level.BlockEntityBridge?.Restore(pos, BlockEntities);
 
-        //结构装配结果还原回结构表 后续装饰与地形适配都要按区块查它
+        //Structure placements are restored into the structure table; later decoration and terrain fitting query it per chunk
         if (!StructureData.IsEmpty) level.StructureDataBridge?.Restore(pos, StructureData);
 
-        //Log.Debug($"Read 出口 result={chunk}");
+        //Log.Debug($"Read exit result={chunk}");
         return chunk;
     }
 
-    //PackTicks 把区块内两套调度刻容器打包成存档形态 对应原版 ChunkAccess.getPackedTicks
-    //不打包的话中继器观察者这类靠调度刻推进的元件会在读档后停在半路
+    //PackTicks packs the chunk's two scheduled tick containers into save form, maps to vanilla ChunkAccess.getPackedTicks
+    //Without packing, components driven by scheduled ticks like repeaters and observers would stall partway after a load
     private static PackedTicks PackTicks(ChunkAccess chunk, long gameTime)
     {
         var blocks = new List<CompoundTag>();
@@ -437,7 +437,7 @@ public sealed class SerializableChunkData
         return new PackedTicks(blocks, fluids);
     }
 
-    //UnpackTicks 把存档形态的刻列表还原成待展开批 查不到类型名的条目丢弃
+    //UnpackTicks restores the saved tick list into a pending batch, dropping entries whose type name cannot be resolved
     private static List<SavedTick<T>> UnpackTicks<T>(IEnumerable<CompoundTag> tags, Func<string, T?> resolve)
         where T : class
     {
@@ -450,11 +450,11 @@ public sealed class SerializableChunkData
         return result;
     }
 
-    //ResolveBlock 按注册名找回方块类型
+    //ResolveBlock resolves the block type by registry name
     private static NetCraft.Registry.Block? ResolveBlock(string name)
         => Identifier.TryParse(name) is { } id ? BuiltInRegistries.BLOCK.GetValue(id) : null;
 
-    //ResolveFluid 按注册名找回流体类型
+    //ResolveFluid resolves the fluid type by registry name
     private static NetCraft.Registry.Fluid? ResolveFluid(string name)
         => Identifier.TryParse(name) is { } id ? BuiltInRegistries.FLUID.GetValue(id) : null;
 }

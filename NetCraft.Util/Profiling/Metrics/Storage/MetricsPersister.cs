@@ -5,8 +5,8 @@ using NetCraft.Util.Profiling.Metrics;
 
 namespace NetCraft.Util.Profiling.Metrics.Storage;
 
-//指标持久化对应原版net.minecraft.util.profiling.metrics.storage.MetricsPersister
-//将MetricSampler结果写CSV偏差写profiler结果返回工作目录
+//Metrics persistence, maps to vanilla net.minecraft.util.profiling.metrics.storage.MetricsPersister
+//Writes MetricSampler results to CSV, deviations to profiler results, returns the working directory
 public sealed class MetricsPersister
 {
     public const string MetricsDirName = "metrics";
@@ -114,7 +114,7 @@ public sealed class MetricsPersister
         results.SaveResults(Path.Combine(directory, ProfilingResultFilename));
     }
 
-    //文件名清理对应原版Util.sanitizeName保留字母数字下划线减点其余替换为下划线
+    //Filename sanitizing, maps to vanilla Util.sanitizeName; keeps letters, digits, underscore and minus, replaces the rest with underscore
     private static string SanitizeName(string name)
     {
         var builder = new StringBuilder();

@@ -6,8 +6,8 @@ using NetCraft.DataFixer;
 using T = NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Templates;
 
-//Out递归点出向函数对应原版com.mojang.datafixers.functions.Out
-//把RecursivePointType展开为unfold结果
+//Out recursive point outgoing function maps to vanilla com.mojang.datafixers.functions.Out
+//expands RecursivePointType into the unfold result
 public sealed class Out<A> : PointFree<Func<A, A>>
 {
     private readonly RecursivePoint.RecursivePointType<A> _type;
@@ -17,7 +17,7 @@ public sealed class Out<A> : PointFree<Func<A, A>>
         _type = type;
     }
 
-    //type返回type->unfold的函数类型对应DSL.func(type, type.unfold())
+    //type returns the type->unfold function type, maps to DSL.func(type, type.unfold())
     public override T.Type<Func<A, A>> Type()
         => DSL.Func(_type, _type.Unfold());
 

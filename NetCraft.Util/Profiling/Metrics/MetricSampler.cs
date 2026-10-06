@@ -2,8 +2,8 @@ using System.Globalization;
 
 namespace NetCraft.Util.Profiling.Metrics;
 
-//指标采样器对应原版net.minecraft.util.profiling.metrics.MetricSampler
-//按tick采集double值存入List+二进制流支持阈值告警
+//Metric sampler, maps to vanilla net.minecraft.util.profiling.metrics.MetricSampler
+//Collects double values per tick into a List + binary stream, supports threshold alerts
 public class MetricSampler
 {
     private readonly string _name;
@@ -17,14 +17,14 @@ public class MetricSampler
     private readonly List<int> _ticks = new();
     private volatile bool _isRunning = true;
 
-    //采样阶段对应原版SamplingPhase标识在extract还是endTick阶段采样
+    //Sampling phase, maps to vanilla SamplingPhase marking whether sampling happens in extract or endTick
     public enum SamplingPhase
     {
         Extract,
         EndTick
     }
 
-    //阈值测试接口对应原版ThresholdTest判断当前值是否触发告警
+    //Threshold test interface, maps to vanilla ThresholdTest; decides whether the current value triggers an alert
     public interface ThresholdTest
     {
         bool Test(double value);
@@ -103,7 +103,7 @@ public class MetricSampler
 
     public override int GetHashCode() => _name.GetHashCode();
 
-    //采样结果对应原版SamplerResult
+    //Sampler result, maps to vanilla SamplerResult
     public sealed class SamplerResult
     {
         private readonly IReadOnlyDictionary<int, double> _recording;
@@ -121,8 +121,8 @@ public class MetricSampler
             => _recording.TryGetValue(tick, out var v) ? v : 0.0d;
     }
 
-    //百分比增幅阈值对应原版ValueIncreasedByPercentage
-    //值相对前一次增长超过阈值百分比触发
+    //Percentage increase threshold, maps to vanilla ValueIncreasedByPercentage
+    //Triggers when the value grows past the threshold percentage relative to the previous one
     public sealed class ValueIncreasedByPercentage : ThresholdTest
     {
         private readonly float _percentageIncreaseThreshold;
@@ -147,7 +147,7 @@ public class MetricSampler
         }
     }
 
-    //采样器builder对应原版MetricSamplerBuilder
+    //Sampler builder, maps to vanilla MetricSamplerBuilder
     public sealed class MetricSamplerBuilder<T>
     {
         private readonly string _name;

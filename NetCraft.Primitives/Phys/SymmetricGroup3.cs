@@ -1,8 +1,8 @@
 namespace NetCraft.Primitives.Phys;
 
-//SymmetricGroup3 三元素置换群 对应原版 com.mojang.math.SymmetricGroup3
-//下标是分量取值表 如 P231 表示取原向量的 (y,z,x)
-//枚举顺序必须与原版 ordinal 一致 Cayley 表按下标取
+//SymmetricGroup3 symmetric group on three elements, maps to vanilla com.mojang.math.SymmetricGroup3
+//The name lists the component order, e.g. P231 means taking (y,z,x) of the original vector
+//The enum order must match the vanilla ordinal, the Cayley table indexes by ordinal
 public enum SymmetricGroup3
 {
     P123 = 0,
@@ -13,7 +13,7 @@ public enum SymmetricGroup3
     P321 = 5,
 }
 
-//SymmetricGroup3Extensions 置换的合成与求逆 对应原版枚举内的方法与两张静态表
+//SymmetricGroup3Extensions permutation composition and inversion, maps to the methods and two static tables in the vanilla enum
 public static class SymmetricGroup3Extensions
 {
     private static readonly SymmetricGroup3[] Values =
@@ -26,7 +26,7 @@ public static class SymmetricGroup3Extensions
         SymmetricGroup3.P321,
     };
 
-    //每个置换的三个分量下标 顺序与 Values 一一对应
+    //The three component indices of each permutation, order corresponds one to one with Values
     private static readonly int[][] Components =
     {
         new[] { 0, 1, 2 },
@@ -41,24 +41,24 @@ public static class SymmetricGroup3Extensions
 
     private static readonly SymmetricGroup3[] InverseTable = BuildInverseTable();
 
-    //Compose 先做 that 再做 this 对应原版 compose 的 first.permute(second.p)
+    //Compose does that first then this, maps to the vanilla compose first.permute(second.p)
     public static SymmetricGroup3 Compose(this SymmetricGroup3 first, SymmetricGroup3 that)
         => CayleyTable[(int)first, (int)that];
 
     public static SymmetricGroup3 Inverse(this SymmetricGroup3 group) => InverseTable[(int)group];
 
-    //Permute 取置换里第 i 个分量下标 对应原版 permute
+    //Permute takes the i-th component index of the permutation, maps to vanilla permute
     public static int Permute(this SymmetricGroup3 group, int i)
     {
-        if (i < 0 || i > 2) throw new ArgumentException($"分量下标必须是0/1/2 收到{i}");
+        if (i < 0 || i > 2) throw new ArgumentException($"Component index must be 0/1/2, got {i}");
         return Components[(int)group][i];
     }
 
-    //PermuteAxis 置换坐标轴 轴枚举顺序与分量下标一致 对应原版 permuteAxis
+    //PermuteAxis permutes an axis, the axis enum order matches the component indices, maps to vanilla permuteAxis
     public static Direction.Axis PermuteAxis(this SymmetricGroup3 group, Direction.Axis axis)
         => (Direction.Axis)group.Permute((int)axis);
 
-    //PermuteVector 置换向量分量 对应原版 permuteVector
+    //PermuteVector permutes the vector components, maps to vanilla permuteVector
     public static Vec3i PermuteVector(this SymmetricGroup3 group, Vec3i v)
     {
         var components = Components[(int)group];
@@ -94,7 +94,7 @@ public static class SymmetricGroup3Extensions
                     table[i] = Values[j];
                     found = true;
                 }
-            if (!found) throw new InvalidOperationException($"置换{Values[i]}没有逆元");
+            if (!found) throw new InvalidOperationException($"Permutation {Values[i]} has no inverse");
         }
         return table;
     }
@@ -106,6 +106,6 @@ public static class SymmetricGroup3Extensions
             var components = Components[(int)group];
             if (components[0] == p0 && components[1] == p1 && components[2] == p2) return group;
         }
-        throw new InvalidOperationException($"没有匹配({p0},{p1},{p2})的置换");
+        throw new InvalidOperationException($"No permutation matches ({p0},{p1},{p2})");
     }
 }

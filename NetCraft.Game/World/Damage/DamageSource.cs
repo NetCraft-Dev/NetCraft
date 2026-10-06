@@ -4,9 +4,9 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Damage;
 
-//DamageSource 伤害来源 对应原版 net.minecraft.world.damagesource.DamageSource
-//持伤害类型 直接来源实体 真凶实体与伤害发生位置
-//原版的死亡消息与武器附魔相关方法依赖活体与附魔体系 未接通故暂缺
+//DamageSource damage source, maps to vanilla net.minecraft.world.damagesource.DamageSource
+//Holds the damage type, direct entity, culprit entity and the damage position
+//Vanilla's death message and weapon enchantment related methods depend on the living entity and enchantment systems; not wired up, so they are omitted
 public sealed class DamageSource
 {
     public DamageSource(Holder<DamageType> type, NetCraft.Registry.Entity? directEntity,
@@ -18,46 +18,46 @@ public sealed class DamageSource
         DamageSourcePosition = damageSourcePosition ?? causingEntity?.Pos;
     }
 
-    //TypeHolder 伤害类型句柄 对应原版 typeHolder
+    //TypeHolder damage type handle, maps to vanilla typeHolder
     public Holder<DamageType> TypeHolder { get; }
 
-    //Type 伤害类型实体 对应原版 type
+    //Type damage type entity, maps to vanilla type
     public DamageType Type => TypeHolder.Value;
 
-    //DirectEntity 直接造成伤害的实体 对应原版 getDirectEntity
+    //DirectEntity the entity dealing the damage directly, maps to vanilla getDirectEntity
     public NetCraft.Registry.Entity? DirectEntity { get; }
 
-    //CausingEntity 伤害真凶 对应原版 getEntity
+    //CausingEntity the damage culprit, maps to vanilla getEntity
     public NetCraft.Registry.Entity? CausingEntity { get; }
 
-    //DamageSourcePosition 伤害发生位置 对应原版 getSourcePosition
+    //DamageSourcePosition the damage position, maps to vanilla getSourcePosition
     public Vec3? DamageSourcePosition { get; }
 
-    //Critical 是否暴击 对应原版 isCritical
+    //Critical whether it is a crit, maps to vanilla isCritical
     public bool Critical { get; init; }
 
-    //IsDirect 直接来源与真凶是同一个 对应原版 isDirect
+    //IsDirect the direct source and the culprit are the same, maps to vanilla isDirect
     public bool IsDirect() => ReferenceEquals(DirectEntity, CausingEntity);
 
-    //GetMsgId 伤害消息键 对应原版 getMsgId
+    //GetMsgId damage message key, maps to vanilla getMsgId
     public string GetMsgId() => Type.MessageId;
 
-    //Is 伤害类型是否属于该标签 对应原版 is
+    //Is whether the damage type belongs to the tag, maps to vanilla is
     public bool Is(TagKey<DamageType> tag) => TypeHolder.Is(tag);
 
-    //Is 伤害类型是否是该资源键 对应原版 is
+    //Is whether the damage type is the resource key, maps to vanilla is
     public bool Is(ResourceKey<DamageType> key) => TypeHolder.Is(key);
 
-    //ScalesWithDifficulty 伤害是否随难度缩放 对应原版 scalesWithDifficulty
-    //原版还要求来源不是玩家且类型带缩放标签 标签体系未接通故按缩放规则与有无真凶判定
+    //ScalesWithDifficulty whether damage scales with difficulty, maps to vanilla scalesWithDifficulty
+    //Vanilla also requires the source not to be a player and the type to carry a scaling tag; the tag system is not wired up, so it is decided by the scaling rule and whether a culprit exists
     public bool ScalesWithDifficulty()
         => Type.Scaling != DamageScaling.NEVER && CausingEntity is not null;
 
-    //IsCreativePlayer 是否创造模式玩家造成 对应原版 isCreativePlayer
+    //IsCreativePlayer whether it was caused by a creative-mode player, maps to vanilla isCreativePlayer
     public bool IsCreativePlayer()
         => CausingEntity is NetCraft.Game.World.Entity.Player { GameMode: 1 };
 
-    //GetWeaponItem 造成这次伤害用的武器 对应原版 getWeaponItem
-    //实体的手持物品访问未接通 一律给空堆
+    //GetWeaponItem the weapon used for this damage, maps to vanilla getWeaponItem
+    //The entity's held item access is not wired up, so an empty stack is returned
     public ItemStack GetWeaponItem() => ItemStack.Empty;
 }

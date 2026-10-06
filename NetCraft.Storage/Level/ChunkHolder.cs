@@ -5,27 +5,27 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage;
 
-//ChunkHolder 区块持有器对应原版 net.minecraft.server.level.ChunkHolder
-//持有 ChunkPos 与当前 chunk 加载 future 与 ticket level
-//ticket level 越小优先级越高对齐原版 ChunkHolderTicketLevel
-//阶段 11.48 引入替代 PersistentServerLevel.GetChunk 同步等待
+//ChunkHolder, chunk holder, maps to vanilla net.minecraft.server.level.ChunkHolder
+//Holds the ChunkPos plus the current chunk load future and ticket level
+//Lower ticket level means higher priority, aligning with vanilla ChunkHolderTicketLevel
+//Introduced in stage 11.48 to replace the synchronous wait in PersistentServerLevel.GetChunk
 public sealed class ChunkHolder
 {
-    //MaxLevel 完全不加载的等级对应原版 MAX_LEVEL
+    //MaxLevel, the level at which nothing loads, maps to vanilla MAX_LEVEL
     public const int MaxLevel = ChunkLevel.MaxLevel;
 
-    //BorderLevel 仅加载不参与 tick 的等级即原版 FULL_CHUNK_LEVEL
+    //BorderLevel, the load-only non-ticking level, i.e. vanilla FULL_CHUNK_LEVEL
     public const int BorderLevel = ChunkLevel.FullChunkLevel;
 
-    //TickingLevel 方块可 tick 的等级即原版 BLOCK_TICKING_LEVEL
+    //TickingLevel, the level at which blocks tick, i.e. vanilla BLOCK_TICKING_LEVEL
     public const int TickingLevel = ChunkLevel.BlockTickingLevel;
 
-    //EntityTickingLevel 实体可 tick 的等级即原版 ENTITY_TICKING_LEVEL
+    //EntityTickingLevel, the level at which entities tick, i.e. vanilla ENTITY_TICKING_LEVEL
     public const int EntityTickingLevel = ChunkLevel.EntityTickingLevel;
 
     public ChunkPos Pos { get; }
 
-    //TicketLevel 当前 ticket 等级数值越小优先级越高对应原版 ticketLevel
+    //TicketLevel, the current ticket level; lower means higher priority, maps to vanilla ticketLevel
     public int TicketLevel { get; private set; } = MaxLevel;
 
     private ChunkAccess? _chunk;
@@ -34,22 +34,22 @@ public sealed class ChunkHolder
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool _scheduled;
 
-    //Chunk 当前已加载区块加载中返回 null
+    //Chunk, the currently loaded chunk; returns null while loading
     public ChunkAccess? Chunk => _chunk;
 
-    //Status 当前区块状态未加载返回 EMPTY
+    //Status, the current chunk status; returns EMPTY when not loaded
     public ChunkStatus Status => _status;
 
-    //Future 加载完成 future 成功返回 chunk 失败返回 UnloadedChunkException
+    //Future, the load completion future; success returns chunk, failure returns UnloadedChunkException
     public Task<ChunkResult> Future => _future.Task;
 
-    //HasChunk 是否已加载完成
+    //HasChunk, whether loading has completed
     public bool HasChunk => _chunk is not null;
 
-    //IsDone future 是否已完成
+    //IsDone, whether the future has completed
     public bool IsDone => _future.Task.IsCompleted;
 
-    //WasScheduled 是否已提交加载任务避免重复调度
+    //WasScheduled, whether the load task was submitted, avoiding duplicate scheduling
     public bool WasScheduled => _scheduled;
 
     public ChunkHolder(ChunkPos pos)
@@ -57,7 +57,7 @@ public sealed class ChunkHolder
         Pos = pos;
     }
 
-    //UpdateTicketLevel 更新 ticket 等级返回是否变化对应原版 setTicketLevel
+    //UpdateTicketLevel updates the ticket level and returns whether it changed, maps to vanilla setTicketLevel
     public bool UpdateTicketLevel(int level)
     {
         if (level == TicketLevel) return false;
@@ -65,7 +65,7 @@ public sealed class ChunkHolder
         return true;
     }
 
-    //MarkScheduled 标记已提交加载任务返回是否首次标记
+    //MarkScheduled marks the load task submitted and returns whether this was the first mark
     public bool MarkScheduled()
     {
         if (_scheduled) return false;
@@ -73,17 +73,17 @@ public sealed class ChunkHolder
         return true;
     }
 
-    //Complete 加载完成设置 chunk 与状态完成 future 对应原版 replaceProtoChunk
+    //Complete sets the chunk and status once loading finishes and completes the future, maps to vanilla replaceProtoChunk
     public void Complete(ChunkAccess chunk)
     {
-        //Log.Debug($"Complete 入口 chunk={chunk.Pos}");
+        //Log.Debug($"Complete entry chunk={chunk.Pos}");
         _chunk = chunk;
         _status = chunk.ChunkStatus;
         _future.TrySetResult(ChunkResult.Success(chunk));
-        //Log.Debug($"Complete 出口");
+        //Log.Debug($"Complete exit");
     }
 
-    //Fail 加载失败完成 future 对应原版 markForRemoval
+    //Fail completes the future on load failure, maps to vanilla markForRemoval
     public void Fail(UnloadedChunkException error)
         => _future.TrySetResult(ChunkResult.Failure(error));
 }

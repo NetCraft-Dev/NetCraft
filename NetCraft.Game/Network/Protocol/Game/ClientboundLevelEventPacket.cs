@@ -2,8 +2,8 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundLevelEventPacket 世界事件包对应原版 ClientboundLevelEventPacket
-//字段 type Int pos BlockPos data Int globalEvent Boolean
+//ClientboundLevelEventPacket level event packet, maps to vanilla ClientboundLevelEventPacket
+//Fields: type Int, pos BlockPos, data Int, globalEvent Boolean
 public sealed record ClientboundLevelEventPacket(int Kind, BlockPos Pos, int Data, bool GlobalEvent) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundLevelEventPacket> StreamCodec { get; } = new LevelEventCodec();

@@ -4,10 +4,10 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage.Paletted;
 
-//简化版int identity hash双向map对应原版CrudeIncrementalIntIdentityHashBiMap
-//keys与values数组按hash存byId按id存实现id到值与值到id双向查找
-//原版Java用identityHashCode+引用比较C#改用GetHashCode+EqualityComparer兼容struct K
-//C#未约束泛型K?对struct K不生成Nullable<K>故用_occupied数组标记槽位占用替代is null判断
+//Simplified int identity hash bidirectional map, maps to vanilla CrudeIncrementalIntIdentityHashBiMap
+//The keys and values arrays store by hash, byId stores by id, giving bidirectional id-to-value and value-to-id lookup
+//Vanilla Java uses identityHashCode + reference comparison; C# uses GetHashCode + EqualityComparer to support struct K
+//C# unconstrained generic K? does not produce Nullable<K> for struct K, so _occupied arrays flag slot occupancy instead of an is null check
 internal sealed class CrudeIncrementalIntIdentityHashBiMap<K> : IdMap<K>
 {
     private const int NotFound = -1;
@@ -125,11 +125,11 @@ internal sealed class CrudeIncrementalIntIdentityHashBiMap<K> : IdMap<K>
         if (id == _nextId) _nextId++;
     }
 
-    //原版用identityHashCode对class是对象标识C#改GetHashCode兼容struct K按值hash
+    //Vanilla uses identityHashCode, which for a class is object identity; C# uses GetHashCode to support struct K hashed by value
     private int Hash(K key)
         => (MurmurHash3Mixer(Comparer.GetHashCode(key)) & int.MaxValue) % _keys.Length;
 
-    //对应原版Mth.murmurHash3Mixer打散hash分布避免聚集
+    //Maps to vanilla Mth.murmurHash3Mixer, spreading the hash distribution to avoid clustering
     private static int MurmurHash3Mixer(int hash)
     {
         var hash2 = (hash ^ (hash >>> 16)) * -2048144789;

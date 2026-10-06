@@ -4,15 +4,15 @@ using NetCraft.Gpu;
 
 namespace NetCraft.Game.Gui.Screens;
 
-//ChatScreen 聊天屏幕对应原版 ChatScreen
-//输入框 + 消息历史 Enter 发送暂不接入网络仅本地累积
+//ChatScreen maps to vanilla ChatScreen
+//Input box + message history; Enter sends but networking is not wired up yet, only local accumulation
 public sealed class ChatScreen : Screen
 {
     private GuiTextBox? _inputBox;
     private GuiLabel? _historyLabel;
     private readonly List<string> _history = new();
 
-    public override string Title => "聊天";
+    public override string Title => "Chat";
 
     public override void Init()
     {
@@ -31,7 +31,7 @@ public sealed class ChatScreen : Screen
         _historyLabel.Text = sb.ToString();
     }
 
-    //Send 发送消息加入历史并清空输入框暂不接入网络
+    //Send adds the message to history and clears the input box; networking not wired up yet
     public void Send(string message)
     {
         _history.Add(message);

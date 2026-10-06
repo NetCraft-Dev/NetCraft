@@ -5,35 +5,35 @@ using NetCraft.Registry;
 
 namespace NetCraft.Commands;
 
-//ExecutionSourceCore 执行源的非泛型核心对应原版 ExecutionCommandSource 里不依赖 T 的那部分成员
-//执行引擎的泛型 T 与 brigadier 的无约束 S 共存 引擎内部只认核心接口 免掉类型参数约束
+//ExecutionSourceCore non-generic core of an execution source, maps to the members of vanilla ExecutionCommandSource that do not depend on T
+//The engine's generic T coexists with brigadier's unconstrained S; the engine only knows the core interface, avoiding a type parameter constraint
 public interface ExecutionSourceCore : PermissionSetSupplier
 {
-    //Callback 当前结果回调
+    //Callback current result callback
     CommandResultCallback Callback { get; }
 
-    //HandleError 执行错误上报 forked 表示分叉模式错误只记录不中断
+    //HandleError reports an execution error; forked means fork mode where errors are only recorded, not aborted
     void HandleError(ICommandExceptionType type, IMessage message, bool forked, TraceCallbacks? tracer);
 
-    //HandleError 异常便捷入口对应原版 handleError(e, forked, tracer)
+    //HandleError convenience overload for exceptions; maps to vanilla handleError(e, forked, tracer)
     void HandleError(CommandSyntaxException e, bool forked, TraceCallbacks? tracer)
         => HandleError(e.Type, e.RawMessage, forked, tracer);
 
-    //IsSilent 静默源错误与回执都不外发
+    //IsSilent silent source neither errors nor results are emitted
     bool IsSilent { get; }
 }
 
-//ExecutionCommandSource 执行引擎的命令源接口对应原版 net.minecraft.commands.ExecutionCommandSource
-//在普通命令源之上补齐结果回调/分发器/错误上报 权限集合来自 PermissionSetSupplier
-//T 自约束让 WithCallback 能返回具体源类型
+//ExecutionCommandSource command source interface of the execution engine, maps to vanilla net.minecraft.commands.ExecutionCommandSource
+//Adds result callbacks/dispatcher/error reporting on top of an ordinary command source; the permission set comes from PermissionSetSupplier
+//The self-referencing T constraint lets WithCallback return the concrete source type
 public interface ExecutionCommandSource<T> : ExecutionSourceCore where T : ExecutionCommandSource<T>
 {
-    //WithCallback 换上新的结果回调返回派生源
+    //WithCallback swaps in a new result callback and returns the derived source
     T WithCallback(CommandResultCallback callback);
 
-    //ClearCallbacks 清空回调对应原版 clearCallbacks
+    //ClearCallbacks clears callbacks; maps to vanilla clearCallbacks
     T ClearCallbacks() => WithCallback(CommandResultCallback.Empty);
 
-    //Dispatcher 该源所属分发器
+    //Dispatcher the dispatcher this source belongs to
     CommandDispatcher<T> Dispatcher();
 }

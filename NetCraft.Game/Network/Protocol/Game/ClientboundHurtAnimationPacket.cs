@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundHurtAnimationPacket 受伤动画包对应原版 ClientboundHurtAnimationPacket
-//字段 Id(int) Yaw(float)
+//ClientboundHurtAnimationPacket hurt animation packet, maps to vanilla ClientboundHurtAnimationPacket
+//Fields: Id(int), Yaw(float)
 public sealed record ClientboundHurtAnimationPacket(int Id, float Yaw) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundHurtAnimationPacket> StreamCodec { get; } = new HurtAnimationCodec();

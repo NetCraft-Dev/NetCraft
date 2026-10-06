@@ -1,7 +1,7 @@
 namespace NetCraft.Storage;
 
-//全零位存储对应原版net.minecraft.util.ZeroBitStorage
-//bits=0的特殊情况所有值都是0
+//All-zero bit storage, maps to vanilla net.minecraft.util.ZeroBitStorage
+//Special case where bits=0, every value is 0
 public sealed class ZeroBitStorage : BitStorage
 {
     public static readonly long[] Raw = Array.Empty<long>();

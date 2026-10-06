@@ -3,7 +3,7 @@ using NetCraft.Util;
 
 namespace NetCraft.Registry.Environment;
 
-//FloatModifier 浮点修饰符对应原版 FloatModifier
+//FloatModifier float modifier, maps to vanilla FloatModifier
 public static class FloatModifier
 {
     public static readonly AttributeModifier<float, FloatWithAlpha> AlphaBlend = new AlphaBlendModifier();
@@ -18,7 +18,7 @@ public static class FloatModifier
 
     public static readonly AttributeModifier<float, float> Maximum = new SimpleFloatModifier(MathF.Max);
 
-    //SimpleFloatModifier 参数即浮点数的修饰符
+    //SimpleFloatModifier modifier whose argument is the float itself
     private sealed class SimpleFloatModifier : AttributeModifier<float, float>
     {
         private readonly Func<float, float, float> _function;
@@ -30,7 +30,7 @@ public static class FloatModifier
         public Codec<float> ArgumentCodec(EnvironmentAttribute<float> attribute) => Codecs.Float;
     }
 
-    //AlphaBlendModifier 按 alpha 在主体与参数间插值
+    //AlphaBlendModifier interpolates between subject and argument by alpha
     private sealed class AlphaBlendModifier : AttributeModifier<float, FloatWithAlpha>
     {
         public float Apply(float subject, FloatWithAlpha argument) => Mth.Lerp(argument.Alpha, subject, argument.Value);
@@ -39,7 +39,7 @@ public static class FloatModifier
     }
 }
 
-//FloatWithAlpha 带 alpha 的浮点参数对应原版 FloatWithAlpha
+//FloatWithAlpha float argument with alpha, maps to vanilla FloatWithAlpha
 public sealed class FloatWithAlpha
 {
     public static readonly Codec<FloatWithAlpha> Codec = new FloatWithAlphaCodec();
@@ -61,7 +61,7 @@ public sealed class FloatWithAlpha
         Alpha = alpha;
     }
 
-    //FloatWithAlphaCodec 单浮点即 alpha=1 的简写形态
+    //FloatWithAlphaCodec shorthand form where a bare float means alpha=1
     private sealed class FloatWithAlphaCodec : ScalarCodec<FloatWithAlpha>
     {
         public override DataResult<FloatWithAlpha> Parse<U>(DynamicOps<U> ops, U input)

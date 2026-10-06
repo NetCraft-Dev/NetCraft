@@ -1,41 +1,41 @@
 namespace NetCraft.Server.ServerConsole;
 
-//InputLine 一行输入 文本加光标位置 历史导航也归它
-//只做模型不碰控制台 渲染与按键分派都在 ReplConsole
+//InputLine, a line of input, text plus cursor position, history navigation also belongs to it
+//Model only, it does not touch the console, rendering and key dispatch are in ReplConsole
 public sealed class InputLine
 {
-    //HistoryCapacity 内存里保留的历史条数 超出从头部丢 与 readline 的历史上限一个意思
+    //HistoryCapacity number of history entries kept in memory, drops from the head when over, same idea as the readline history cap
     private const int HistoryCapacity = 1000;
 
     private readonly List<string> _history = new();
     private int _navIndex = -1;
     private string _draft = string.Empty;
 
-    //HistoryAppended 历史新增一条时回调 由控制台接过去落盘
-    //模型自己不碰文件 落盘时机与格式留给调用方
+    //HistoryAppended callback when a history entry is added, the console picks it up and writes it to disk
+    //The model does not touch files itself, the timing and format of writing to disk are left to the caller
     public Action<string>? HistoryAppended { get; set; }
 
-    //Text 当前输入文本
+    //Text the current input text
     public string Text { get; private set; } = string.Empty;
 
-    //Caret 光标位置 取值 0 到 Text.Length
+    //Caret cursor position, ranging from 0 to Text.Length
     public int Caret { get; private set; }
 
-    //History 已提交的历史 最新一条在末尾
+    //History committed history, the newest entry at the end
     public IReadOnlyList<string> History => _history;
 
-    //IsNavigating 是否正停在历史里
+    //IsNavigating whether it is currently parked in history
     public bool IsNavigating => _navIndex >= 0;
 
-    //SetText 整串替换并把光标落到末尾
+    //SetText replaces the whole string and puts the cursor at the end
     public void SetText(string text)
     {
         Text = text;
         Caret = text.Length;
     }
 
-    //LoadHistory 载入落盘的历史 只保留最后 HistoryCapacity 条
-    //空行不进历史 与提交时那条判定保持一致
+    //LoadHistory loads history from disk, keeping only the last HistoryCapacity entries
+    //Empty lines do not enter history, consistent with the check at commit time
     public void LoadHistory(IReadOnlyList<string> lines)
     {
         var start = Math.Max(0, lines.Count - HistoryCapacity);
@@ -47,7 +47,7 @@ public sealed class InputLine
         _navIndex = -1;
     }
 
-    //Insert 在光标处插入一个字符
+    //Insert inserts one character at the cursor
     public void Insert(char value)
     {
         LeaveHistory();
@@ -55,7 +55,7 @@ public sealed class InputLine
         Caret++;
     }
 
-    //Insert 在光标处插入整串 粘贴走这条
+    //Insert inserts a whole string at the cursor, paste goes through this
     public void Insert(string value)
     {
         if (value.Length == 0) return;
@@ -64,7 +64,7 @@ public sealed class InputLine
         Caret += value.Length;
     }
 
-    //Backspace 删光标左边那一个字符
+    //Backspace deletes the character to the left of the cursor
     public void Backspace()
     {
         if (Caret == 0) return;
@@ -73,7 +73,7 @@ public sealed class InputLine
         Caret--;
     }
 
-    //Delete 删光标右边那一个字符
+    //Delete deletes the character to the right of the cursor
     public void Delete()
     {
         if (Caret >= Text.Length) return;
@@ -81,25 +81,25 @@ public sealed class InputLine
         Text = Text.Remove(Caret, 1);
     }
 
-    //MoveLeft 光标左移 到行首不动
+    //MoveLeft moves the cursor left, stays put at the line start
     public void MoveLeft()
     {
         if (Caret > 0) Caret--;
     }
 
-    //MoveRight 光标右移 到行尾不动
+    //MoveRight moves the cursor right, stays put at the line end
     public void MoveRight()
     {
         if (Caret < Text.Length) Caret++;
     }
 
-    //MoveHome 光标到行首
+    //MoveHome moves the cursor to the line start
     public void MoveHome() => Caret = 0;
 
-    //MoveEnd 光标到行尾
+    //MoveEnd moves the cursor to the line end
     public void MoveEnd() => Caret = Text.Length;
 
-    //Clear 清空当前输入 历史不动
+    //Clear clears the current input, history is untouched
     public void Clear()
     {
         Text = string.Empty;
@@ -108,11 +108,11 @@ public sealed class InputLine
         _draft = string.Empty;
     }
 
-    //Commit 取走当前输入并入历史 空输入返回 null 由调用方决定不执行
+    //Commit takes the current input and adds it to history, an empty input returns null so the caller decides not to execute
     public string? Commit()
     {
         var text = Text;
-        //连续重复的一条不入历史 与 readline 的去重行为一致
+        //A consecutively repeated entry does not enter history, consistent with readline dedup behavior
         if (text.Length > 0 && (_history.Count == 0 || _history[^1] != text))
         {
             _history.Add(text);
@@ -124,20 +124,20 @@ public sealed class InputLine
         return text.Length > 0 ? text : null;
     }
 
-    //HistoryUp 上翻历史
+    //HistoryUp navigates up through history
     public bool HistoryUp() => Navigate(-1);
 
-    //HistoryDown 下翻历史
+    //HistoryDown navigates down through history
     public bool HistoryDown() => Navigate(1);
 
-    //Navigate 在历史里上下走 翻过最新一条就回到进历史前的草稿
+    //Navigate walks up and down through history, going past the newest entry returns to the draft from before entering history
     private bool Navigate(int direction)
     {
         if (_history.Count == 0) return false;
 
         if (_navIndex < 0)
         {
-            //第一次进历史 把当前输入留作草稿
+            //Entering history for the first time, keep the current input as a draft
             if (direction > 0) return false;
             _draft = Text;
             _navIndex = _history.Count - 1;
@@ -159,7 +159,7 @@ public sealed class InputLine
         return true;
     }
 
-    //LeaveHistory 在历史里一编辑就脱离导航 之后上翻从当前位置重来
+    //LeaveHistory editing while in history leaves navigation, later up-navigation restarts from the current position
     private void LeaveHistory()
     {
         if (_navIndex < 0) return;

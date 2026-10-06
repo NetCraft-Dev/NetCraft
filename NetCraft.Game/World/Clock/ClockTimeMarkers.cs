@@ -1,7 +1,7 @@
 namespace NetCraft.Game.World.Clock;
 
-//ClockTimeMarkers 内置时钟时间标记 key 对应原版 net.minecraft.world.clock.ClockTimeMarkers
-//key 空间挂在 clock_time_marker 非同步注册表 仅用于 ResourceKey 命名
+//ClockTimeMarkers built-in clock time marker keys, maps to vanilla net.minecraft.world.clock.ClockTimeMarkers
+//The key namespace lives in clock_time_marker, a non-synchronized registry only used for ResourceKey naming
 public static class ClockTimeMarkers
 {
     public static readonly ResourceKey<ClockTimeMarker> DAY = CreateKey("day");

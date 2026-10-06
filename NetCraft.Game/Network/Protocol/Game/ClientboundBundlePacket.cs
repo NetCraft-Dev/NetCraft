@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundBundlePacket bundle 包打包对应原版 ClientboundBundlePacket
-//把多个小包合成一个 bundle 传输降低帧开销继承 BundlePacket
+//ClientboundBundlePacket bundled packet, maps to vanilla ClientboundBundlePacket
+//Combines several small packets into one bundle to cut per-frame overhead, extends BundlePacket
 public sealed class ClientboundBundlePacket : BundlePacket<ClientGamePacketListener>
 {
     public ClientboundBundlePacket(IEnumerable<Packet<ClientGamePacketListener>> packets) : base(packets) { }

@@ -1,8 +1,8 @@
 namespace NetCraft.Network.Protocol.Configuration;
 
-//ClientboundCodeOfConductPacket 服务端发送行为准则
-//对应原版 net.minecraft.network.protocol.configuration.ClientboundCodeOfConductPacket
-//含 string codeOfConduct 行为准则文本
+//ClientboundCodeOfConductPacket server sends the code of conduct
+//Maps to vanilla net.minecraft.network.protocol.configuration.ClientboundCodeOfConductPacket
+//Contains string codeOfConduct, the code of conduct text
 public sealed record ClientboundCodeOfConductPacket(string CodeOfConduct) : Packet<ClientConfigurationPacketListener>
 {
     public const int MaxCodeOfConductLength = 32767;

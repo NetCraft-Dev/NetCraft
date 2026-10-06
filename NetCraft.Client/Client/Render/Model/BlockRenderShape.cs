@@ -3,11 +3,11 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Game.Client.Render.Model;
 
-//BlockRenderShape 方块渲染形状用于 face culling 判断
-//FullBlock 完整立方体可遮挡邻居方块的面
-//Empty 空气不渲染不遮挡
-//Custom 非完整方块（玻璃/台阶/楼梯）不遮挡邻居面
-//首版简化空气=Empty 其他注册方块=FullBlock 后续按模型 element 几何精确判断
+//BlockRenderShape block render shape, used for face culling decisions
+//FullBlock full cube, can occlude neighbor block faces
+//Empty air, not rendered and does not occlude
+//Custom non-full blocks (glass/slabs/stairs) do not occlude neighbor faces
+//The first version simplifies air=Empty, other registered blocks=FullBlock; later versions decide precisely from model element geometry
 public enum BlockRenderShape
 {
     Empty,
@@ -15,20 +15,20 @@ public enum BlockRenderShape
     Custom
 }
 
-//BlockRenderShapeProvider 方块渲染形状查询
-//按 BlockState.Id 查 Block 判断是否空气
-//空气 Empty 其他 FullBlock
-//后续可扩展按 BlockBehaviour 查询 shape 或按模型几何判断
+//BlockRenderShapeProvider block render shape lookup
+//Looks up the Block by BlockState.Id to decide whether it is air
+//air Empty, others FullBlock
+//Can later be extended to query shape via BlockBehaviour or decide from model geometry
 public static class BlockRenderShapeProvider
 {
     public static BlockRenderShape GetShape(BlockState state)
     {
         var block = BlockStateRegistry.Owner(state.Id);
-        //空气方块 Id 为 minecraft:air
+        //Air block Id is minecraft:air
         if (block.Id.Path == "air")
             return BlockRenderShape.Empty;
-        //移动活塞本体不进区块网格 它的表现由 MovingBlockRenderer 带着进度单独画
-        //烘进静态网格的话方块会先闪一下错的形状再跳到终点
+        //The moving piston body does not go into the chunk mesh; MovingBlockRenderer draws it separately with progress
+        //If baked into the static mesh, the block would flash the wrong shape first and then jump to the destination
         if (block.Id.Path == "moving_piston")
             return BlockRenderShape.Empty;
         return BlockRenderShape.FullBlock;

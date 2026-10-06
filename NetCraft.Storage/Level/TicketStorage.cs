@@ -5,44 +5,44 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage;
 
-//TicketStorage 区块票容器对应原版 net.minecraft.world.level.TicketStorage
-//活跃票驱动加载与模拟 停用票只在内存里等着落盘 两类票都会写进 chunk_tickets.dat
-//读盘先把票放进停用区 等 ActivateAllDeactivatedTickets 才转活跃 免的世界还没准备好旧票就把区块拉起来
-//关服做反向操作 让世界尽快平静下来 票本身仍在内存里会被一起写盘 下次开服再激活
+//TicketStorage, chunk ticket container, maps to vanilla net.minecraft.world.level.TicketStorage
+//Active tickets drive loading and simulation; deactivated tickets only sit in memory waiting to be written; both kinds are written into chunk_tickets.dat
+//On load tickets go into the deactivated area first and only become active at ActivateAllDeactivatedTickets, so old tickets do not pull chunks up before the world is ready
+//Shutdown does the reverse to calm the world down quickly; the tickets stay in memory and are written to disk, then activated on the next startup
 public sealed class TicketStorage : SavedData
 {
-    //TypeId 存档标识对应原版 minecraft:chunk_tickets 落盘到 data/minecraft/chunk_tickets.dat
+    //TypeId, the save identifier, maps to the vanilla minecraft:chunk_tickets, written to data/minecraft/chunk_tickets.dat
     private const string TypeId = "minecraft:chunk_tickets";
 
-    //TicketsTag 票列表字段名对应原版 "tickets"
+    //TicketsTag, the ticket list field name, maps to the vanilla "tickets"
     private const string TicketsTag = "tickets";
 
-    //ChunkPosTag 票所属区块打包坐标字段对应原版 Pair 里的 chunk_pos
+    //ChunkPosTag, the packed chunk coord field of the ticket, maps to chunk_pos in the vanilla Pair
     private const string ChunkPosTag = "chunk_pos";
-    //TypeTag 票类型注册名字段对应原版 "type"
+    //TypeTag, the ticket type registry name field, maps to the vanilla "type"
     private const string TypeTag = "type";
-    //LevelTag 票等级字段对应原版 "level"
+    //LevelTag, the ticket level field, maps to the vanilla "level"
     private const string LevelTag = "level";
-    //TicksLeftTag 剩余 tick 字段对应原版 "ticks_left"
+    //TicksLeftTag, the remaining ticks field, maps to the vanilla "ticks_left"
     private const string TicksLeftTag = "ticks_left";
 
-    //_tickets 活跃票表 键是 ChunkPos 打包值 值是同一区块上的票列表
+    //_tickets, active ticket table; the key is the packed ChunkPos and the value is the ticket list on that chunk
     private readonly Dictionary<long, List<Ticket>> _tickets = new();
-    //_deactivatedTickets 停用票表 读盘与关服时票会待在这里
+    //_deactivatedTickets, deactivated ticket table; tickets stay here on load and shutdown
     private readonly Dictionary<long, List<Ticket>> _deactivatedTickets = new();
-    //_chunksWithForcedTickets 强制加载区块集合 供 /forceload query 查询
+    //_chunksWithForcedTickets, the force-loaded chunk set, for /forceload query
     private readonly HashSet<long> _chunksWithForcedTickets = new();
-    //_loadingListener 加载票等级变化回调 由 LoadingChunkTracker 注册
+    //_loadingListener, loading ticket level change callback, registered by LoadingChunkTracker
     private Action<long, int, bool>? _loadingListener;
-    //_simulationListener 模拟票等级变化回调 由 SimulationChunkTracker 注册
+    //_simulationListener, simulation ticket level change callback, registered by SimulationChunkTracker
     private Action<long, int, bool>? _simulationListener;
 
-    //Type SavedData 工厂读档时把票全放进停用区
+    //Type, the SavedData factory; on load all tickets go into the deactivated area
     public static readonly SavedDataType<TicketStorage> Type = new TicketStorageType(TypeId);
 
-    //TypeFor 按维度取票表的数据类型 票表必须每维度一份
-    //三个维度共用一份时每次接入新维度都会覆盖等级回调 最后只剩一个维度收得到票变化
-    //主世界沿用原标识 其余维度加后缀 免得几个维度写进同一个文件
+    //TypeFor returns the ticket table data type per dimension; the ticket table must be one per dimension
+    //Sharing one across the three dimensions would overwrite the level callbacks on each new dimension, leaving only one receiving ticket changes
+    //The overworld keeps the original identifier and other dimensions add a suffix, so they do not write into the same file
     public static SavedDataType<TicketStorage> TypeFor(Identifier dimension)
         => new TicketStorageType(dimension.Path == "overworld" ? TypeId : $"{TypeId}_{dimension.Path}");
 
@@ -50,7 +50,7 @@ public sealed class TicketStorage : SavedData
 
     public TicketStorage() { }
 
-    //构造从存档标签还原 对应原版 fromPacked
+    //Constructor restoring from a save tag, maps to vanilla fromPacked
     public TicketStorage(CompoundTag tag) => Load(tag);
 
     private sealed class TicketStorageType(string id) : SavedDataType<TicketStorage>
@@ -60,8 +60,8 @@ public sealed class TicketStorage : SavedData
         public TicketStorage Create(CompoundTag tag, RegistryAccess registryAccess) => new(tag);
     }
 
-    //AddTicket 加一张票 同类型同等级已存在时只续期不重复添加 对应原版 addTicket
-    //返回 false 表示已有同票只做了续期
+    //AddTicket adds a ticket; when the same type and level exists it is only renewed, not added again, maps to vanilla addTicket
+    //Returns false when the same ticket existed and was only renewed
     public bool AddTicket(Ticket ticket, ChunkPos pos) => AddTicket(pos.Pack(), ticket);
 
     public bool AddTicket(long packed, Ticket ticket)
@@ -77,7 +77,7 @@ public sealed class TicketStorage : SavedData
         var oldSimulationLevel = GetTicketLevelIn(list, true);
         var oldLoadingLevel = GetTicketLevelIn(list, false);
         list.Add(ticket);
-        //只有等级变小才通知 等级变大由撤票那侧负责
+        //Notify only when the level got smaller; level increases are handled by the removal side
         if (ticket.Type.DoesSimulate && ticket.Level < oldSimulationLevel)
             _simulationListener?.Invoke(packed, ticket.Level, true);
         if (ticket.Type.DoesLoad && ticket.Level < oldLoadingLevel)
@@ -87,7 +87,7 @@ public sealed class TicketStorage : SavedData
         return true;
     }
 
-    //RemoveTicket 移除同类型同等级的票对应原版 removeTicket
+    //RemoveTicket removes the ticket of the same type and level, maps to vanilla removeTicket
     public bool RemoveTicket(TicketType type, int level, ChunkPos pos)
         => RemoveTicket(new Ticket(type, level), pos);
 
@@ -105,7 +105,7 @@ public sealed class TicketStorage : SavedData
         }
         if (!found) return false;
         if (list.Count == 0) _tickets.Remove(packed);
-        //撤票后按剩下的票重报等级 这一侧不带 onlyDecreased
+        //After removal, re-report the level based on the remaining tickets; this side does not carry onlyDecreased
         if (ticket.Type.DoesSimulate) _simulationListener?.Invoke(packed, GetTicketLevelIn(list, true), false);
         if (ticket.Type.DoesLoad) _loadingListener?.Invoke(packed, GetTicketLevelIn(list, false), false);
         if (ReferenceEquals(ticket.Type, TicketType.Forced)) UpdateForcedChunks();
@@ -113,20 +113,20 @@ public sealed class TicketStorage : SavedData
         return true;
     }
 
-    //AddTicketWithRadius 按半径出票 等级 = 33 - radius 对应原版 addTicketWithRadius
+    //AddTicketWithRadius issues a ticket by radius, level = 33 - radius, maps to vanilla addTicketWithRadius
     public void AddTicketWithRadius(TicketType type, ChunkPos pos, int radius)
         => AddTicket(new Ticket(type, ChunkLevel.FullChunkLevel - radius), pos);
 
-    //RemoveTicketWithRadius 按半径撤票对应原版 removeTicketWithRadius
+    //RemoveTicketWithRadius removes a ticket by radius, maps to vanilla removeTicketWithRadius
     public bool RemoveTicketWithRadius(TicketType type, ChunkPos pos, int radius)
         => RemoveTicket(type, ChunkLevel.FullChunkLevel - radius, pos);
 
-    //GetTicketLevelAt 该区块当前票等级 无票返回 MaxLevel+1 表示不加载 对应原版 getTicketLevelAt
-    //simulation 为真只算参与模拟的票 为假只算参与加载的票
+    //GetTicketLevelAt, the chunk's current ticket level; no tickets returns MaxLevel+1 meaning not loaded, maps to vanilla getTicketLevelAt
+    //When simulation is true only simulation tickets count, when false only loading tickets
     public int GetTicketLevelAt(long packedPos, bool simulation)
         => GetTicketLevelIn(_tickets.GetValueOrDefault(packedPos), simulation);
 
-    //GetTicketLevelIn 票列表里的最低等级 只看适用该用途的票 空表返回 MaxLevel+1
+    //GetTicketLevelIn, the lowest level in the ticket list considering only tickets applicable to that use; an empty list returns MaxLevel+1
     private static int GetTicketLevelIn(List<Ticket>? list, bool simulation)
     {
         if (list is null) return ChunkLevel.MaxLevel + 1;
@@ -139,26 +139,26 @@ public sealed class TicketStorage : SavedData
         return level;
     }
 
-    //GetTickets 该区块上的活跃票 没有返回 null 对应原版 getTickets
+    //GetTickets, the active tickets on that chunk, or null when none, maps to vanilla getTickets
     public IReadOnlyList<Ticket>? GetTickets(long packedPos) => _tickets.GetValueOrDefault(packedPos);
 
-    //UpdateChunkForced 强制加载开关对应原版 updateChunkForced
-    //等级取实体可 tick 档 与原版 ChunkMap.FORCED_TICKET_LEVEL 一致
+    //UpdateChunkForced toggles force load, maps to vanilla updateChunkForced
+    //The level is the entity-ticking tier, matching vanilla ChunkMap.FORCED_TICKET_LEVEL
     public bool UpdateChunkForced(ChunkPos pos, bool add)
         => add
             ? AddTicket(new Ticket(TicketType.Forced, ChunkLevel.EntityTickingLevel), pos)
             : RemoveTicket(TicketType.Forced, ChunkLevel.EntityTickingLevel, pos);
 
-    //GetForceLoadedChunks 当前强制加载的区块打包坐标 对应原版 getForceLoadedChunks
+    //GetForceLoadedChunks, packed coords of currently force-loaded chunks, maps to vanilla getForceLoadedChunks
     public IReadOnlyCollection<long> GetForceLoadedChunks() => _chunksWithForcedTickets;
 
-    //SetLoadingChunkUpdatedListener 注册加载票变化回调 对应原版 setLoadingChunkUpdatedListener
+    //SetLoadingChunkUpdatedListener registers the loading ticket change callback, maps to vanilla setLoadingChunkUpdatedListener
     public void SetLoadingChunkUpdatedListener(Action<long, int, bool> listener) => _loadingListener = listener;
 
-    //SetSimulationChunkUpdatedListener 注册模拟票变化回调 对应原版 setSimulationChunkUpdatedListener
+    //SetSimulationChunkUpdatedListener registers the simulation ticket change callback, maps to vanilla setSimulationChunkUpdatedListener
     public void SetSimulationChunkUpdatedListener(Action<long, int, bool> listener) => _simulationListener = listener;
 
-    //UpdateForcedChunks 重算强制加载集合 对应原版 updateForcedChunks
+    //UpdateForcedChunks recomputes the force-loaded set, maps to vanilla updateForcedChunks
     private void UpdateForcedChunks()
     {
         _chunksWithForcedTickets.Clear();
@@ -171,7 +171,7 @@ public sealed class TicketStorage : SavedData
             }
     }
 
-    //ShouldKeepDimensionActive 是否有票要求维度保持活跃 对应原版 shouldKeepDimensionActive
+    //ShouldKeepDimensionActive, whether any ticket requires the dimension to stay active, maps to vanilla shouldKeepDimensionActive
     public bool ShouldKeepDimensionActive()
     {
         foreach (var list in _tickets.Values)
@@ -180,9 +180,9 @@ public sealed class TicketStorage : SavedData
         return false;
     }
 
-    //PurgeStaleTickets 超时票清理每 tick 一次 对应原版 purgeStaleTickets
-    //isReadyForSaving 回调判断区块能否安全丢票 返回 false 的本 tick 先留着
-    //带 CanExpireIfUnloaded 的票不受回调限制 区块没就绪也能直接清
+    //PurgeStaleTickets clears timed-out tickets once per tick, maps to vanilla purgeStaleTickets
+    //The isReadyForSaving callback decides whether a chunk can safely drop tickets; a false keeps them this tick
+    //Tickets with CanExpireIfUnloaded are not gated by the callback and clear even if the chunk is not ready
     public void PurgeStaleTickets(Func<long, bool>? isReadyForSaving = null)
     {
         List<(long Packed, Ticket Ticket)>? expired = null;
@@ -202,8 +202,8 @@ public sealed class TicketStorage : SavedData
             RemoveTicket(ticket.Type, ticket.Level, ChunkPos.Unpack(packed));
     }
 
-    //ActivateAllDeactivatedTickets 停用票全转活跃对应原版 activateAllDeactivatedTickets
-    //启动链在初始区块准备完之后调用 此刻世界已就绪旧票才允许驱动加载
+    //ActivateAllDeactivatedTickets turns all deactivated tickets active, maps to vanilla activateAllDeactivatedTickets
+    //The startup chain calls it after the initial chunks are prepared; only then is the world ready for old tickets to drive loading
     public void ActivateAllDeactivatedTickets()
     {
         if (_deactivatedTickets.Count == 0) return;
@@ -215,9 +215,9 @@ public sealed class TicketStorage : SavedData
         _deactivatedTickets.Clear();
     }
 
-    //DeactivateTicketsOnClosing 关服把活跃票搬进停用区 对应原版 deactivateTicketsOnClosing
-    //停用后不再驱动加载 但票还在内存里会被写盘 下次开服再激活
-    //UNKNOWN 是临时票不搬
+    //DeactivateTicketsOnClosing moves active tickets into the deactivated area on shutdown, maps to vanilla deactivateTicketsOnClosing
+    //After deactivation they no longer drive loading, but they stay in memory and are written to disk, then activated on the next startup
+    //UNKNOWN is a temporary ticket and is not moved
     public void DeactivateTicketsOnClosing()
     {
         foreach (var (packed, list) in _tickets)
@@ -230,7 +230,7 @@ public sealed class TicketStorage : SavedData
         _chunksWithForcedTickets.Clear();
     }
 
-    //Save 只写 persist 票停用票也要写 对应原版 packTickets 的过滤
+    //Save writes only persist tickets, including deactivated ones, maps to the filter in vanilla packTickets
     public override CompoundTag Save(CompoundTag tag)
     {
         var list = new ListTag();
@@ -240,7 +240,7 @@ public sealed class TicketStorage : SavedData
         return tag;
     }
 
-    //Load 读盘票统一先进停用区 等 ActivateAllDeactivatedTickets 才生效 对应原版 fromPacked
+    //Load puts all disk tickets into the deactivated area first, taking effect only at ActivateAllDeactivatedTickets, maps to vanilla fromPacked
     private void Load(CompoundTag tag)
     {
         var list = tag.GetListOrEmpty(TicketsTag);
@@ -261,7 +261,7 @@ public sealed class TicketStorage : SavedData
         }
     }
 
-    //PackInto 把票表里带 persist 的票逐张写进列表
+    //PackInto writes each persist ticket in the table into the list
     private static void PackInto(Dictionary<long, List<Ticket>> map, ListTag list)
     {
         foreach (var (packed, tickets) in map)
@@ -277,7 +277,7 @@ public sealed class TicketStorage : SavedData
             }
     }
 
-    //GetOrCreateList 取或新建某区块的票列表
+    //GetOrCreateList gets or creates the ticket list of a chunk
     private static List<Ticket> GetOrCreateList(Dictionary<long, List<Ticket>> map, long packed)
     {
         if (map.TryGetValue(packed, out var list)) return list;

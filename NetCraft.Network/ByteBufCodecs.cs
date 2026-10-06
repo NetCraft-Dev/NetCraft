@@ -2,40 +2,40 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network;
 
-//ByteBufCodecs 流编解码工具集对应原版 net.minecraft.network.codec.ByteBufCodecs
-//提供注册表 Holder 编解码集合编解码等基础 StreamCodec 工厂
+//ByteBufCodecs stream codec utilities, maps to vanilla net.minecraft.network.codec.ByteBufCodecs
+//Provides base StreamCodec factories such as registry Holder codecs and collection codecs
 public static class ByteBufCodecs
 {
-    //初始集合容量上限避免恶意大长度前缀预分配爆内存
+    //Cap on the initial collection capacity to avoid preallocating huge memory on malicious large length prefixes
     public const int MaxInitialCollectionSize = 65536;
 
-    //Holder 编解码从 RegistryFriendlyByteBuf 读 id 转 Holder.Reference
-    //registryKey 标识目标注册表 encode 时按值查 id decode 时按 id 取 Reference
+    //Holder codec reads an id from RegistryFriendlyByteBuf and turns it into a Holder.Reference
+    //registryKey identifies the target registry; encode looks up the id by value and decode takes the Reference by id
     public static StreamCodec<RegistryFriendlyByteBuf, Holder<T>> Holder<T>(ResourceKey<Registry<T>> registryKey) where T : class
         => new HolderStreamCodec<T>(registryKey);
 
-    //Holder 编解码带 directCodec 支持 Direct 包装值 id==0 走 directCodec 否则 id-1 走注册表 Reference
-    //对应原版 ByteBufCodecs.holder(registryKey, directCodec)
+    //Holder codec with directCodec supports a wrapped Direct value: id==0 goes through directCodec, otherwise id-1 goes through the registry Reference
+    //Maps to vanilla ByteBufCodecs.holder(registryKey, directCodec)
     public static StreamCodec<RegistryFriendlyByteBuf, Holder<T>> Holder<T>(
         ResourceKey<Registry<T>> registryKey,
         StreamCodec<RegistryFriendlyByteBuf, T> directCodec) where T : class
         => new DirectHolderStreamCodec<T>(registryKey, directCodec);
 
-    //Collection 编解码 VarInt 长度前缀 + 元素列表
-    //elementCodec 单元素编解码 maxSize 长度上限校验
+    //Collection codec: VarInt length prefix + element list
+    //elementCodec is the per-element codec; maxSize is the length cap check
     public static StreamCodec<B, List<V>> Collection<B, V>(StreamCodec<B, V> elementCodec, int maxSize = int.MaxValue) where B : class
         => new CollectionStreamCodec<B, V>(elementCodec, maxSize);
 
-    //StringUtf8 变长长度前缀的 UTF-8 字符串编解码 maxLength 长度上限校验
+    //StringUtf8 codec for UTF-8 strings with a variable-length prefix; maxLength is the length cap check
     public static StreamCodec<RegistryFriendlyByteBuf, string> StringUtf8(int maxLength = 32767)
         => new StringStreamCodec(maxLength);
 
-    //Identifier 命名空间标识编解码 对应原版 ByteBufCodecs 里的 Identifier
+    //Identifier codec for namespace identifiers, maps to Identifier in vanilla ByteBufCodecs
     public static StreamCodec<RegistryFriendlyByteBuf, Identifier> Identifier()
         => new IdentifierStreamCodec();
 }
 
-//IdentifierStreamCodec 命名空间标识编解码 走 namespace:path 字符串
+//IdentifierStreamCodec codec for namespace identifiers, encoded as a namespace:path string
 internal sealed class IdentifierStreamCodec : StreamCodec<RegistryFriendlyByteBuf, Identifier>
 {
     public Identifier Decode(RegistryFriendlyByteBuf buf) => buf.ReadIdentifier();
@@ -43,7 +43,7 @@ internal sealed class IdentifierStreamCodec : StreamCodec<RegistryFriendlyByteBu
     public void Encode(RegistryFriendlyByteBuf buf, Identifier value) => buf.WriteIdentifier(value);
 }
 
-//StringStreamCodec 字符串编解码 对应原版 ByteBufCodecs.stringUtf8
+//StringStreamCodec string codec, maps to vanilla ByteBufCodecs.stringUtf8
 internal sealed class StringStreamCodec : StreamCodec<RegistryFriendlyByteBuf, string>
 {
     private readonly int _maxLength;
@@ -55,7 +55,7 @@ internal sealed class StringStreamCodec : StreamCodec<RegistryFriendlyByteBuf, s
     public void Encode(RegistryFriendlyByteBuf buf, string value) => buf.WriteString(value, _maxLength);
 }
 
-//HolderStreamCodec 注册表 id 与 Holder.Reference 双向编解码
+//HolderStreamCodec bidirectional codec between registry id and Holder.Reference
 internal sealed class HolderStreamCodec<T> : StreamCodec<RegistryFriendlyByteBuf, Holder<T>> where T : class
 {
     private readonly ResourceKey<Registry<T>> _registryKey;
@@ -71,24 +71,24 @@ internal sealed class HolderStreamCodec<T> : StreamCodec<RegistryFriendlyByteBuf
         var registry = buf.Lookup(_registryKey);
         var holder = registry.Get(id);
         if (holder is null)
-            throw new InvalidOperationException($"未知 holder id {id} in {_registryKey}");
+            throw new InvalidOperationException($"unknown holder id {id} in {_registryKey}");
         return holder;
     }
 
     public void Encode(RegistryFriendlyByteBuf buf, Holder<T> value)
     {
         if (value is not Reference<T> reference)
-            throw new InvalidOperationException($"无法编码非 Reference holder: {value}");
+            throw new InvalidOperationException($"cannot encode non-Reference holder: {value}");
         var registry = buf.Lookup(_registryKey);
         int id = registry.GetId(reference.Value);
         if (id == IdMap<T>.Default)
-            throw new InvalidOperationException($"holder 值未注册: {reference.Value}");
+            throw new InvalidOperationException($"holder value not registered: {reference.Value}");
         buf.WriteVarInt(id);
     }
 }
 
-//DirectHolderStreamCodec 注册表 id + Direct 包装值混合编解码对应原版 ByteBufCodecs.holder(registryKey, directCodec)
-//DIRECT_HOLDER_ID = 0 留给 Direct Reference 用 id+1 写 decode 时 id==0 走 directCodec 否则 id-1 查注册表
+//DirectHolderStreamCodec mixed codec for registry id + wrapped Direct value, maps to vanilla ByteBufCodecs.holder(registryKey, directCodec)
+//DIRECT_HOLDER_ID = 0 is reserved for Direct; Reference writes id+1, and on decode id==0 goes through directCodec, otherwise id-1 looks up the registry
 internal sealed class DirectHolderStreamCodec<T> : StreamCodec<RegistryFriendlyByteBuf, Holder<T>> where T : class
 {
     private const int DirectHolderId = 0;
@@ -110,7 +110,7 @@ internal sealed class DirectHolderStreamCodec<T> : StreamCodec<RegistryFriendlyB
         var registry = buf.Lookup(_registryKey);
         var holder = registry.Get(id - 1);
         if (holder is null)
-            throw new InvalidOperationException($"未知 holder id {id} in {_registryKey}");
+            throw new InvalidOperationException($"unknown holder id {id} in {_registryKey}");
         return holder;
     }
 
@@ -121,7 +121,7 @@ internal sealed class DirectHolderStreamCodec<T> : StreamCodec<RegistryFriendlyB
             var registry = buf.Lookup(_registryKey);
             int id = registry.GetId(value.Value);
             if (id == IdMap<T>.Default)
-                throw new InvalidOperationException($"holder 值未注册: {value.Value}");
+                throw new InvalidOperationException($"holder value not registered: {value.Value}");
             buf.WriteVarInt(id + 1);
         }
         else
@@ -132,7 +132,7 @@ internal sealed class DirectHolderStreamCodec<T> : StreamCodec<RegistryFriendlyB
     }
 }
 
-//CollectionStreamCodec 集合编解码 VarInt 长度前缀逐元素编解码
+//CollectionStreamCodec collection codec with a VarInt length prefix, encoding and decoding element by element
 internal sealed class CollectionStreamCodec<B, V> : StreamCodec<B, List<V>> where B : class
 {
     private readonly StreamCodec<B, V> _elementCodec;
@@ -148,7 +148,7 @@ internal sealed class CollectionStreamCodec<B, V> : StreamCodec<B, List<V>> wher
     {
         int size = ReadVarInt(buf);
         if (size > _maxSize)
-            throw new InvalidOperationException($"集合长度超限 {size} > {_maxSize}");
+            throw new InvalidOperationException($"collection length out of range {size} > {_maxSize}");
         var list = new List<V>(Math.Min(size, ByteBufCodecs.MaxInitialCollectionSize));
         for (int i = 0; i < size; i++)
             list.Add(_elementCodec.Decode(buf));
@@ -158,23 +158,23 @@ internal sealed class CollectionStreamCodec<B, V> : StreamCodec<B, List<V>> wher
     public void Encode(B buf, List<V> value)
     {
         if (value.Count > _maxSize)
-            throw new InvalidOperationException($"集合长度超限 {value.Count} > {_maxSize}");
+            throw new InvalidOperationException($"collection length out of range {value.Count} > {_maxSize}");
         WriteVarInt(buf, value.Count);
         foreach (var item in value)
             _elementCodec.Encode(buf, item);
     }
 
-    //ReadVarInt 从 FriendlyByteBuf 读 VarInt 用反射避免 B 类型绑定 FriendlyByteBuf
-    //实际 B 都是 FriendlyByteBuf 子类调用其 ReadVarInt 方法
+    //ReadVarInt reads a VarInt from FriendlyByteBuf via reflection to avoid binding type B to FriendlyByteBuf
+    //In practice B is always a FriendlyByteBuf subclass, so its ReadVarInt method is called
     private static int ReadVarInt(B buf)
     {
         if (buf is FriendlyByteBuf fbb) return fbb.ReadVarInt();
-        throw new InvalidOperationException($"不支持的 buffer 类型 {buf?.GetType()}");
+        throw new InvalidOperationException($"unsupported buffer type {buf?.GetType()}");
     }
 
     private static void WriteVarInt(B buf, int value)
     {
         if (buf is FriendlyByteBuf fbb) { fbb.WriteVarInt(value); return; }
-        throw new InvalidOperationException($"不支持的 buffer 类型 {buf?.GetType()}");
+        throw new InvalidOperationException($"unsupported buffer type {buf?.GetType()}");
     }
 }

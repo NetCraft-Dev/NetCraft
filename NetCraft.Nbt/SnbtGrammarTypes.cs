@@ -7,7 +7,7 @@ using NetCraft.Util.Parsing.Packrat.Commands;
 
 namespace NetCraft.Nbt;
 
-//数字进制对应原版SnbtGrammar.Base
+//Number base, mirroring vanilla SnbtGrammar.Base
 internal enum Base
 {
     Binary,
@@ -15,15 +15,15 @@ internal enum Base
     Hex
 }
 
-//符号前缀对应原版SnbtGrammar.SignedPrefix
+//Sign prefix, mirroring vanilla SnbtGrammar.SignedPrefix
 internal enum SignedPrefix
 {
     Signed,
     Unsigned
 }
 
-//类型后缀对应原版SnbtGrammar.TypeSuffix
-//原版Java的TypeSuffix是enum引用类型C#改成sealed class避免值类型在packrat框架中无法用null表示失败
+//Type suffix, mirroring vanilla SnbtGrammar.TypeSuffix
+//Vanilla Java TypeSuffix is an enum reference type; C# uses a sealed class because a value type cannot express failure as null in the packrat framework
 internal sealed class TypeSuffix
 {
     public static readonly TypeSuffix Float = new("Float");
@@ -38,8 +38,8 @@ internal sealed class TypeSuffix
     public override string ToString() => Name;
 }
 
-//符号对应原版SnbtGrammar.Sign
-//原版Java的Sign是enum引用类型C#改成sealed class避免值类型在packrat框架中无法用null表示失败
+//Sign, mirroring vanilla SnbtGrammar.Sign
+//Vanilla Java Sign is an enum reference type; C# uses a sealed class because a value type cannot express failure as null in the packrat framework
 internal sealed class Sign
 {
     public static readonly Sign Plus = new("Plus");
@@ -50,7 +50,7 @@ internal sealed class Sign
     public override string ToString() => Name;
 }
 
-//整数后缀对应原版SnbtGrammar.IntegerSuffix
+//Integer suffix, mirroring vanilla SnbtGrammar.IntegerSuffix
 internal sealed class IntegerSuffix
 {
     public SignedPrefix? Signed { get; }
@@ -64,7 +64,7 @@ internal sealed class IntegerSuffix
     }
 }
 
-//整数字面量对应原版SnbtGrammar.IntegerLiteral
+//Integer literal, mirroring vanilla SnbtGrammar.IntegerLiteral
 internal sealed class IntegerLiteral
 {
     public Sign Sign { get; }
@@ -80,14 +80,14 @@ internal sealed class IntegerLiteral
         Suffix = suffix;
     }
 
-    //signedOrDefault推断符号前缀二进制十六进制默认无符号十进制默认有符号
+    //signedOrDefault infers the sign prefix: binary and hex default to unsigned, decimal to signed
     private SignedPrefix SignedOrDefault()
     {
         if (Suffix.Signed is { } signed) return signed;
         return Base == global::NetCraft.Nbt.Base.Decimal ? SignedPrefix.Signed : SignedPrefix.Unsigned;
     }
 
-    //cleanupDigits把符号和去下划线后的数字字符串拼起来
+    //cleanupDigits concatenates the sign with the underscore-free digit string
     private string CleanupDigits(Sign sign)
     {
         var needsUnderscoreRemoval = SnbtGrammar.NeedsUnderscoreRemoval(Digits);
@@ -101,7 +101,7 @@ internal sealed class IntegerLiteral
         return Digits;
     }
 
-    //create通过ops创建对应类型T失败返回default
+    //create builds a value of type T through ops and returns default on failure
     public T? Create<T>(DynamicOps<T> ops, ParseState<CommandStringReader> state)
         => Create(ops, Suffix.Type ?? TypeSuffix.Int, state);
 
@@ -151,7 +151,7 @@ internal sealed class IntegerLiteral
     }
 }
 
-//带符号值对应原版SnbtGrammar.Signed
+//Signed value, mirroring vanilla SnbtGrammar.Signed
 internal sealed class Signed<T>
 {
     public Sign Sign { get; }
@@ -164,8 +164,8 @@ internal sealed class Signed<T>
     }
 }
 
-//map条目对应原版SnbtGrammar通过Map.Entry<String,T>承载
-//用class而非KeyValuePair<string,T>避免struct在packrat框架中无法用null表示失败
+//Map entry, carried by Map.Entry<String,T> in vanilla SnbtGrammar
+//Uses a class rather than KeyValuePair<string,T> because a struct cannot express failure as null in the packrat framework
 internal sealed class MapEntry<T>
 {
     public string Key { get; }
@@ -178,7 +178,7 @@ internal sealed class MapEntry<T>
     }
 }
 
-//数组前缀对应原版SnbtGrammar.ArrayPrefix
+//Array prefix, mirroring vanilla SnbtGrammar.ArrayPrefix
 internal abstract class ArrayPrefix
 {
     public static readonly ArrayPrefix Byte = new ByteArrayPrefix();
@@ -194,7 +194,7 @@ internal abstract class ArrayPrefix
         _additionalTypes = new HashSet<TypeSuffix>(additionalTypes);
     }
 
-    //原版返回T错误时返回null对齐Java类型擦除C#用default!
+    //Vanilla returns T and null on error; matching Java type erasure, C# uses default!
     public abstract T Create<T>(DynamicOps<T> ops);
     public abstract T Create<T>(DynamicOps<T> ops, List<IntegerLiteral> entries, ParseState<CommandStringReader> state);
 
@@ -217,7 +217,7 @@ internal abstract class ArrayPrefix
         return IsAllowed(value.Type!) ? value.Type : null;
     }
 
-    //ExtractLong把IntegerLiteral按type转换成long供数组元素使用
+    //ExtractLong converts an IntegerLiteral to long according to type for use as an array element
     private static long? ExtractLong(IntegerLiteral entry, TypeSuffix type, ParseState<CommandStringReader> state)
     {
         var isSigned = entry.Suffix.Signed is { } signed
@@ -313,7 +313,7 @@ internal abstract class ArrayPrefix
     }
 }
 
-//SimpleHexLiteralParseRule定长十六进制匹配对应原版同名内部类
+//SimpleHexLiteralParseRule matches fixed-length hex, mirroring the same-named vanilla inner class
 internal sealed class SimpleHexLiteralParseRule : GreedyPredicateParseRule
 {
     public SimpleHexLiteralParseRule(int size)

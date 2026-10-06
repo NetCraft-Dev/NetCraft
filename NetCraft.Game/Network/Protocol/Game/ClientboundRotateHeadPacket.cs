@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundRotateHeadPacket 头部旋转包对应原版 ClientboundRotateHeadPacket
-//字段 EntityId(int) YHeadRot(byte)
+//ClientboundRotateHeadPacket rotate head packet, maps to vanilla ClientboundRotateHeadPacket
+//Fields: EntityId(int), YHeadRot(byte)
 public sealed record ClientboundRotateHeadPacket(int EntityId, byte YHeadRot) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundRotateHeadPacket> StreamCodec { get; } = new RotateHeadCodec();
@@ -12,7 +12,7 @@ public sealed record ClientboundRotateHeadPacket(int EntityId, byte YHeadRot) : 
 
     private sealed class RotateHeadCodec : StreamCodec<FriendlyByteBuf, ClientboundRotateHeadPacket>
     {
-        //原版顺序 VAR_INT 实体id 单字节压缩角度
+        //Vanilla order: VAR_INT entity id, single-byte packed angle
         public ClientboundRotateHeadPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadVarInt(), buf.ReadByte());
 

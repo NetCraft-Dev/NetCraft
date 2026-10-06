@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundPlayerInfoRemovePacket 玩家信息移除包对应原版 ClientboundPlayerInfoRemovePacket
-//字段 ProfileIds(List<UUID>) 原版 writeCollection 写 VarInt 数量 + 每个 UUID 16 字节
+//ClientboundPlayerInfoRemovePacket player info remove packet, maps to vanilla ClientboundPlayerInfoRemovePacket
+//Field: ProfileIds(List<UUID>); vanilla writeCollection writes a VarInt count + 16 bytes per UUID
 public sealed record ClientboundPlayerInfoRemovePacket(IReadOnlyList<Guid> ProfileIds) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundPlayerInfoRemovePacket> StreamCodec { get; } = new PlayerInfoRemoveCodec();

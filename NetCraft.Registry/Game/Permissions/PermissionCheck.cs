@@ -2,25 +2,25 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry;
 
-//PermissionCheck 权限判定对应原版 net.minecraft.server.permissions.PermissionCheck
-//对 PermissionSet 做是/否判定 实现 Only 只在权限命中时放行 Require
-//AlwaysPass 恒真 单例 codec 编解码为空表
-//基类做成 abstract record 让 Require 的值语义与原版 record 一致
+//PermissionCheck permission check, maps to vanilla net.minecraft.server.permissions.PermissionCheck
+//Makes a yes/no decision on a PermissionSet; implementations are Require, which only passes on a permission hit
+//AlwaysPass is always true and its singleton codec encodes/decodes an empty map
+//The base is an abstract record so Require value semantics match vanilla records
 public abstract record PermissionCheck
 {
-    //FullCodec 按 type 字段查 PERMISSION_CHECK_TYPE 注册表分派
+    //FullCodec dispatches through the PERMISSION_CHECK_TYPE registry by the type field
     public static readonly Codec<PermissionCheck> FullCodec = new PermissionCheckDispatchCodec();
 
-    //Check 对权限集合做判定
+    //Check makes the decision against a permission set
     public abstract bool Check(PermissionSet source);
 
-    //GetCodec 取本实例的注册表分派 codec
+    //GetCodec gets this instance's registry dispatch codec
     public abstract MapCodec<PermissionCheck> GetCodec();
 
-    //Require 要求持有一项权限对应原版 PermissionCheck.Require record
+    //Require requires holding a permission, maps to vanilla PermissionCheck.Require record
     public sealed record Require : PermissionCheck
     {
-        //MapCodec 单字段 permission 走 Permission.Codec 支持裸字符串 id
+        //MapCodec single permission field using Permission.Codec, supporting a bare string id
         public static readonly MapCodec<PermissionCheck> MapCodec =
             RecordCodecBuilder.Of1<PermissionCheck, Permission>(
                 Permission.Codec.FieldOf("permission").ForGetter<PermissionCheck, Permission>(p => ((Require)p).Permission),
@@ -37,13 +37,13 @@ public abstract record PermissionCheck
         public override string ToString() => $"Require[{Permission}]";
     }
 
-    //AlwaysPass 恒真判定对应原版 PermissionCheck.AlwaysPass
-    //构造私有保持单例对应原版 INSTANCE
+    //AlwaysPass always-true check, maps to vanilla PermissionCheck.AlwaysPass
+    //The constructor is private to keep it a singleton, matching vanilla INSTANCE
     public sealed record AlwaysPass : PermissionCheck
     {
         public static readonly AlwaysPass Instance = new();
 
-        //MapCodec 无参编解码编出空表对应原版 MapCodec.unit
+        //MapCodec no-argument codec producing an empty map, maps to vanilla MapCodec.unit
         public static readonly MapCodec<PermissionCheck> MapCodec = new UnitMapCodec<PermissionCheck>(Instance);
 
         private AlwaysPass()
@@ -58,7 +58,7 @@ public abstract record PermissionCheck
     }
 }
 
-//UnitMapCodec 恒定值 codec 解码永远给同一实例 编码只产出空表对应原版 MapCodec.unit
+//UnitMapCodec constant-value codec; decode always yields the same instance and encode produces only an empty map, maps to vanilla MapCodec.unit
 internal sealed class UnitMapCodec<T> : MapCodec<T> where T : class
 {
     private readonly T _instance;
@@ -80,7 +80,7 @@ internal sealed class UnitMapCodec<T> : MapCodec<T> where T : class
     public RecordBuilder<U> Encoder<U>(DynamicOps<U> ops) => ops.MapBuilder();
 }
 
-//PermissionCheckDispatchCodec 按 type 字段分派到 PERMISSION_CHECK_TYPE 注册表
+//PermissionCheckDispatchCodec dispatches to the PERMISSION_CHECK_TYPE registry by the type field
 internal sealed class PermissionCheckDispatchCodec : ScalarCodec<PermissionCheck>
 {
     public override DataResult<PermissionCheck> Parse<U>(DynamicOps<U> ops, U input)

@@ -2,9 +2,9 @@ using NetCraft.Logging;
 
 namespace NetCraft.Util.Thread;
 
-//连续执行器抽象基类对应原版AbstractConsecutiveExecutor
-//状态机SLEEPING/RUNNING/CLOSED用CAS切换保证单线程串行执行
-//核心机制schedule入队后CAS唤醒executor.Execute(this.Run)触发执行循环
+//Consecutive executor abstract base class, maps to vanilla AbstractConsecutiveExecutor
+//State machine SLEEPING/RUNNING/CLOSED switched by CAS to guarantee single-threaded serial execution
+//Core mechanism: schedule enqueues then CAS-wakes executor.Execute(this.Run) to trigger the execution loop
 public abstract class AbstractConsecutiveExecutor<T> where T : class
 {
     private const int Sleeping = 0;
@@ -46,7 +46,7 @@ public abstract class AbstractConsecutiveExecutor<T> where T : class
         return true;
     }
 
-    //executor回调入口每次只跑一个任务后回sleep再注册下次
+    //The executor callback entry runs one task at a time then returns to sleep and registers the next
     public void Run()
     {
         try { PollTask(); }

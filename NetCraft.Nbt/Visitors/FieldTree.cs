@@ -2,18 +2,18 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Nbt.Visitors;
 
-//字段选择树。对应原版 net.minecraft.nbt.visitors.FieldTree（Record）。
-//表示按深度组织的字段选择规则：SelectedFields 是当前深度要选的字段，
-//FieldsToRecurse 是要递归进入的子树。
+//Field selection tree. Mirrors vanilla net.minecraft.nbt.visitors.FieldTree (a Record).
+//Holds field selection rules organized by depth: SelectedFields is what to select at the current depth
+//and FieldsToRecurse is the subtrees to recurse into.
 public sealed class FieldTree
 {
-    //当前深度（根为 1）。
+    //Current depth (the root is 1).
     public int Depth { get; }
 
-    //当前深度要保留的字段（名字 → 类型）。
+    //Fields to keep at the current depth (name → type).
     public Dictionary<string, TagType> SelectedFields { get; }
 
-    //要递归进入的子树（名字 → 子 FieldTree）。
+    //Subtrees to recurse into (name → child FieldTree).
     public Dictionary<string, FieldTree> FieldsToRecurse { get; }
 
     private FieldTree(int depth)
@@ -23,16 +23,16 @@ public sealed class FieldTree
         FieldsToRecurse = new Dictionary<string, FieldTree>();
     }
 
-    //创建根 FieldTree（depth=1）。
+    //Create the root FieldTree (depth=1).
     public static FieldTree CreateRoot() => new(1);
 
-    //添加一个字段选择规则。
-    //若该字段的 path 长度 >= 当前深度，则递归进入对应子树；否则作为当前深度选中字段。
+    //Add one field selection rule.
+    //When the field path is longer than the current depth, recurse into the matching subtree; otherwise select it as a field at the current depth.
     public void AddEntry(FieldSelector field)
     {
         if (Depth <= field.Path.Count)
         {
-            // 还有更深的路径，递归进入子树
+            // Deeper path left, recurse into the subtree
             var key = field.Path[Depth - 1];
             if (!FieldsToRecurse.TryGetValue(key, out var child))
             {
@@ -43,12 +43,12 @@ public sealed class FieldTree
         }
         else
         {
-            // 路径已到底，作为当前选中字段
+            // Path ends here, select it at this depth
             SelectedFields[field.Name] = field.Type;
         }
     }
 
-    //检查指定类型和名字的字段是否被选中（类型必须完全匹配）。
+    //Check whether the field with the given type and name is selected (the type must match exactly).
     public bool IsSelected(TagType type, string id)
         => SelectedFields.TryGetValue(id, out var t) && t == type;
 }

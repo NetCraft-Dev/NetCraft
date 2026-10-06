@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundTabListPacket Tab 列表包对应原版 ClientboundTabListPacket
-//字段 Header(Component) Footer(Component)
+//ClientboundTabListPacket tab list packet, maps to vanilla ClientboundTabListPacket
+//Fields: Header(Component), Footer(Component)
 public sealed record ClientboundTabListPacket(Component Header, Component Footer) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundTabListPacket> StreamCodec { get; } = new TabListCodec();

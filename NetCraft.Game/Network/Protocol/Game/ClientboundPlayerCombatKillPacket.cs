@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundPlayerCombatKillPacket 战斗致死包对应原版 ClientboundPlayerCombatKillPacket
-//字段 PlayerId(int) Message(Component)
+//ClientboundPlayerCombatKillPacket combat kill packet, maps to vanilla ClientboundPlayerCombatKillPacket
+//Fields: PlayerId(int), Message(Component)
 public sealed record ClientboundPlayerCombatKillPacket(int PlayerId, Component Message) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundPlayerCombatKillPacket> StreamCodec { get; } = new PlayerCombatKillCodec();

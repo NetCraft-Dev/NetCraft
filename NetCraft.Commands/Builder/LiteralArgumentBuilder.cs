@@ -2,8 +2,8 @@ using NetCraft.Commands.Tree;
 
 namespace NetCraft.Commands.Builder;
 
-//LiteralArgumentBuilder 字面量构建器对应原版com.mojang.brigadier.builder.LiteralArgumentBuilder
-//链式构建LiteralCommandNode静态Literal方法创建实例
+//LiteralArgumentBuilder literal builder, maps to vanilla com.mojang.brigadier.builder.LiteralArgumentBuilder
+//Chains into a LiteralCommandNode; the static Literal method creates an instance
 public sealed class LiteralArgumentBuilder<S> : ArgumentBuilder<S, LiteralArgumentBuilder<S>>
 {
     private readonly string _literal;

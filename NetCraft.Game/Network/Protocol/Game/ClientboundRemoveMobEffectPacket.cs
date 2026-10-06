@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundRemoveMobEffectPacket 移除药水效果包对应原版 ClientboundRemoveMobEffectPacket
-//字段 EntityId(int) Effect(Holder<MobEffect>)
+//ClientboundRemoveMobEffectPacket remove mob effect packet, maps to vanilla ClientboundRemoveMobEffectPacket
+//Fields: EntityId(int), Effect(Holder<MobEffect>)
 public sealed record ClientboundRemoveMobEffectPacket(int EntityId, Holder<NetCraft.Registry.MobEffect> Effect) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<RegistryFriendlyByteBuf, ClientboundRemoveMobEffectPacket> StreamCodec { get; } = new RemoveMobEffectCodec();
@@ -17,7 +17,7 @@ public sealed record ClientboundRemoveMobEffectPacket(int EntityId, Holder<NetCr
             var entityId = buf.ReadVarInt();
             var effectId = buf.ReadVarInt();
             var effect = BuiltInRegistries.MOB_EFFECT.Get(effectId)
-                ?? throw new InvalidOperationException($"未知药水效果 id {effectId}");
+                ?? throw new InvalidOperationException($"Unknown mob effect id {effectId}");
             return new(entityId, effect);
         }
 
@@ -25,7 +25,7 @@ public sealed record ClientboundRemoveMobEffectPacket(int EntityId, Holder<NetCr
         {
             buf.WriteVarInt(value.EntityId);
             var id = BuiltInRegistries.MOB_EFFECT.GetId(value.Effect.Value);
-            if (id < 0) throw new InvalidOperationException($"药水效果未注册: {value.Effect.Value}");
+            if (id < 0) throw new InvalidOperationException($"Mob effect not registered: {value.Effect.Value}");
             buf.WriteVarInt(id);
         }
     }

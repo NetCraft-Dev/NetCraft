@@ -19,18 +19,18 @@ using NetCraft.Util;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientGamePacketListenerImpl 客户端 play 监听器实现
-//对应原版 ClientPacketListener 本轮实现进入世界最小子集
-//HandleLogin 记录 entityId/gameType 触发 onJoinWorld 回调
-//HandleMovePlayer 同步本地玩家位置朝向 HandleLevelChunkWithLight 装载区块到 ClientLevel
-//HandleSetHealth/SetExperience 更新 Player 状态 HandleForgetLevelChunk 卸载区块
-//其余 120+ 包空实现按需扩展
+//ClientGamePacketListenerImpl client play listener implementation
+//Maps to vanilla ClientPacketListener; this round implements the minimal subset for entering the world
+//HandleLogin records entityId/gameType and triggers the onJoinWorld callback
+//HandleMovePlayer syncs the local player position/orientation; HandleLevelChunkWithLight loads chunks into ClientLevel
+//HandleSetHealth/SetExperience update the Player state; HandleForgetLevelChunk unloads chunks
+//The remaining 120+ packets are empty implementations, expanded on demand
 public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
 {
     private readonly Connection _connection;
     private readonly ClientLevel? _level;
     private readonly Player _player;
-    //OnJoinWorld 收到 Login 包触发一次由 MinecraftClient 切 GameScreen
+    //OnJoinWorld fired once on the Login packet; MinecraftClient switches to GameScreen
     private readonly System.Action? _onJoinWorld;
     private bool _joinNotified;
 
@@ -42,23 +42,23 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
         _onJoinWorld = onJoinWorld;
     }
 
-    //显式返回 Play 因继承链默认 Protocol 是 Configuration
+    //Explicitly returns Play because the inheritance chain's default Protocol is Configuration
     ConnectionProtocol PacketListener.Protocol => ConnectionProtocol.Play;
 
-    //Inventory 客户端物品栏缓存 容器包的处理结果落在这里供 GUI 与渲染读取
+    //Inventory client inventory cache; container packet results land here for the GUI and rendering to read
     public ClientInventory Inventory { get; } = new();
 
-    //OnOpenScreen 收到 open_screen 时的界面回调 由 MinecraftClient 注入
-    //监听器只做协议解析 界面层不认识网络包 未注入时不切屏
+    //OnOpenScreen screen callback on open_screen, injected by MinecraftClient
+    //The listener only does protocol parsing; the screen layer does not know network packets, and no screen is switched when not injected
     public System.Action<ClientboundOpenScreenPacket>? OnOpenScreen { get; set; }
 
-    //OnContainerClose 收到 container_close 时关闭容器界面 由 MinecraftClient 注入
+    //OnContainerClose closes the container screen on container_close, injected by MinecraftClient
     public System.Action? OnContainerClose { get; set; }
 
-    //CommandRoot 客户端持有的命令树根 由 ClientboundCommandsPacket 下发
+    //CommandRoot the command tree root held by the client, sent by ClientboundCommandsPacket
     public CommandNode<CommandSourceStack>? CommandRoot { get; private set; }
 
-    //HandleLogin 进入世界记录 entityId/gameType 触发一次加入回调
+    //HandleLogin on entering the world records entityId/gameType and triggers the join callback once
     public void HandleLogin(ClientboundLoginPacket packet)
     {
         _player.GameMode = packet.CommonPlayerSpawnInfo.GameType.Id;
@@ -69,9 +69,9 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
         _onJoinWorld?.Invoke();
     }
 
-    //HandleMovePlayer 服务器同步玩家位置 对应原版 ClientPacketListener.handleMovePlayer
-    //包内分量按 relatives 叠加自身当前值复原绝对位置 缺这一步相对传送会算错
-    //应用后立刻回确认包与自身位置 服务端在确认前只接受朝向 位置以它记录的目标为准
+    //HandleMovePlayer server syncs the player position, maps to vanilla ClientPacketListener.handleMovePlayer
+    //The packet components are added to the current value per relatives to restore the absolute position; without this step relative teleports are wrong
+    //Immediately reply with the acknowledgment packet and own position; before the acknowledgment the server only accepts orientation, using its recorded target for position
     public void HandleMovePlayer(ClientboundPlayerPositionPacket packet)
     {
         var relatives = new HashSet<RelativeFlag>(RelativeFlags.Unpack(packet.Relatives));
@@ -87,20 +87,20 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
         _connection.Send(new ServerboundMovePlayerPacket(x, y, z, yRot, xRot, false, false, true, true));
     }
 
-    //HandleLevelChunkWithLight 装载区块数据到 ClientLevel 渲染层订阅事件自动编译 mesh
+    //HandleLevelChunkWithLight loads chunk data into ClientLevel; the render layer subscribes to events and compiles meshes automatically
     public void HandleLevelChunkWithLight(ClientboundLevelChunkWithLightPacket packet)
     {
         if (packet.ChunkData is null) return;
         _level?.LoadChunk(packet.ChunkData);
-        //区块自带的方块实体一并填进客户端方块实体表 区块包只发一次不再逐块补
+        //Block entities carried by the chunk are filled into the client block entity table too; the chunk packet is sent only once and blocks are not resent individually
         if (_level is not null && packet.ChunkData is LevelChunk { BlockEntityTags: { Count: > 0 } tags })
             StoreChunkBlockEntities(tags);
         if (packet.LightData is not null && _level is not null)
             ApplyLightData(_level, packet.X, packet.Z, packet.LightData);
     }
 
-    //StoreChunkBlockEntities 按 NBT 里的坐标把方块实体存进客户端方块实体表
-    //客户端不建方块实体对象 只按坐标存 NBT 供渲染与界面读取
+    //StoreChunkBlockEntities stores block entities into the client block entity table by the coordinates in their NBT
+    //The client builds no block entity objects; it only stores NBT by position for rendering and screens to read
     private void StoreChunkBlockEntities(List<CompoundTag> tags)
     {
         foreach (var tag in tags)
@@ -110,15 +110,15 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
         }
     }
 
-    //HandleLightUpdatePacket 光照增量更新装载到 ClientLevel
+    //HandleLightUpdatePacket loads incremental light updates into ClientLevel
     public void HandleLightUpdatePacket(ClientboundLightUpdatePacket packet)
     {
         if (_level is null) return;
         ApplyLightData(_level, packet.X, packet.Z, packet.LightData);
     }
 
-    //ApplyLightData 把下发光照按层还原到区段存储对应原版 applyLightData
-    //掩码置位的区段取 updates 顺序数据 空掩码置位的区段清为全 0 两者皆无的区段保持原值
+    //ApplyLightData restores the sent light per layer into section storage, maps to vanilla applyLightData
+    //Sections with a set mask take the sequential updates data; sections with an empty mask are cleared to all 0; sections with neither keep their old value
     private static void ApplyLightData(ClientLevel level, int chunkX, int chunkZ,
         ClientboundLightUpdatePacketData data)
     {
@@ -128,7 +128,7 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
             skyLayer: false);
     }
 
-    //ApplyLightLayer 单层还原 区段范围按主世界默认 -64..320 派生的光照区段
+    //ApplyLightLayer single-layer restore; section range is the light sections derived from the Overworld default -64..320
     private static void ApplyLightLayer(ClientLevel level, int chunkX, int chunkZ,
         byte[] mask, byte[] emptyMask, byte[][] updates, bool skyLayer)
     {
@@ -150,22 +150,22 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
         }
     }
 
-    //LightMinSectionY/LightSectionCount 主世界光照区段范围 对齐区块解码用的 -4/24
+    //LightMinSectionY/LightSectionCount Overworld light section range, aligning with -4/24 used by chunk decoding
     private const int LightMinSectionY = -5;
     private const int LightSectionCount = 26;
 
-    //HandleForgetLevelChunk 卸载区块触发渲染层清理防泄漏
-    //当前包 codec 是 object 占位未注册协议收不到保留入口
+    //HandleForgetLevelChunk unloads the chunk and triggers render layer cleanup to prevent leaks
+    //The current packet codec is an object placeholder and the protocol is not registered so it is never received; entry kept
     public void HandleForgetLevelChunk(ClientboundForgetLevelChunkPacket packet) { }
 
-    //HandleSetHealth 更新生命饥饿
+    //HandleSetHealth updates health and hunger
     public void HandleSetHealth(ClientboundSetHealthPacket packet)
     {
         _player.Health = packet.Health;
         _player.FoodLevel = packet.Food;
     }
 
-    //HandleSetExperience 更新经验
+    //HandleSetExperience updates experience
     public void HandleSetExperience(ClientboundSetExperiencePacket packet)
     {
         _player.XpP = packet.ExperienceProgress;
@@ -173,24 +173,24 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
         _player.XpLevel = packet.ExperienceLevel;
     }
 
-    //HandleChunkBatchStart 区块批次开始当前无流控记录日志
+    //HandleChunkBatchStart chunk batch start; no flow control currently, logs only
     public void HandleChunkBatchStart(ClientboundChunkBatchStartPacket packet)
         => Log.Debug("HandleChunkBatchStart");
 
-    //HandleChunkBatchFinished 区块批次完成当前无流控记录日志
+    //HandleChunkBatchFinished chunk batch finished; no flow control currently, logs only
     public void HandleChunkBatchFinished(ClientboundChunkBatchFinishedPacket packet)
         => Log.Debug($"HandleChunkBatchFinished batchSize={packet.BatchSize}");
 
-    //HandleSetChunkCacheRadius 视距同步当前用本地配置留回调扩展
+    //HandleSetChunkCacheRadius view distance sync; currently uses the local config, callback kept for extension
     public void HandleSetChunkCacheRadius(ClientboundSetChunkCacheRadiusPacket packet)
         => Log.Debug($"HandleSetChunkCacheRadius radius={packet.Radius}");
 
-    //HandleSetChunkCacheCenter 视距中心同步当前玩家不可移动忽略
+    //HandleSetChunkCacheCenter view distance center sync; the current player cannot move, ignored
     public void HandleSetChunkCacheCenter(ClientboundSetChunkCacheCenterPacket packet)
         => Log.Debug($"HandleSetChunkCacheCenter ({packet.X},{packet.Z})");
 
-    //以下 ClientGamePacketListener 其余包空实现按需扩展
-    //HandleAddEntity 装载服务端新增实体 朝向字节按原版解压缩成角度
+    //The remaining ClientGamePacketListener packets below are empty implementations, expanded on demand
+    //HandleAddEntity loads an entity added by the server; orientation bytes are decompressed into angles as in vanilla
     public void HandleAddEntity(ClientboundAddEntityPacket packet)
     {
         _level?.AddEntity(packet.Id, packet.Kind,
@@ -207,23 +207,23 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
     public void HandleRecipeBookAdd(ClientboundRecipeBookAddPacket packet) { }
     public void HandleRecipeBookRemove(ClientboundRecipeBookRemovePacket packet) { }
     public void HandleRecipeBookSettings(ClientboundRecipeBookSettingsPacket packet) { }
-    //HandleBlockDestruction 方块破坏裂纹阶段 自带客户端无渲染 只记录便于联调排查
+    //HandleBlockDestruction block breaking crack stage; the stock client has no rendering, it only logs for debugging
     public void HandleBlockDestruction(ClientboundBlockDestructionPacket packet)
         => Log.Debug($"HandleBlockDestruction id={packet.Id} pos={packet.Pos} progress={packet.Progress}");
     public void HandleOpenSignEditor(ClientboundOpenSignEditorPacket packet) { }
-    //HandleBlockEntityData 方块实体状态装载进客户端世界 空 NBT 表示该位置方块实体已移除
+    //HandleBlockEntityData loads block entity state into the client world; empty NBT means the block entity there was removed
     public void HandleBlockEntityData(ClientboundBlockEntityDataPacket packet)
     {
         _level?.SetBlockEntityData(packet.Pos, packet.Tag);
         Log.Debug($"HandleBlockEntityData pos={packet.Pos} type={packet.BlockEntityTypeId}");
     }
 
-    //HandleBlockEvent 方块事件(箱子开合/活塞伸缩等) 当前无对应视觉表现只记录日志
+    //HandleBlockEvent block event (chest open/close, piston extend/retract, etc.); no visual representation yet, logs only
     public void HandleBlockEvent(ClientboundBlockEventPacket packet)
         => Log.Debug($"HandleBlockEvent pos={packet.Pos} b0={packet.B0} b1={packet.B1} block={packet.BlockId}");
     public void HandleBlockUpdate(ClientboundBlockUpdatePacket packet)
     {
-        //客户端落地方块包要有痕迹 否则分不清"服务端没发"和"客户端没应用"
+        //Client-side block placement must leave a trace, otherwise "the server did not send" and "the client did not apply" cannot be told apart
         Log.Debug($"Redstone block update received {packet.Pos} state={packet.BlockState} block={BlockStateRegistry.GetState(packet.BlockState).Owner.Id}");
         _level?.SetBlockState(packet.Pos, BlockStateRegistry.GetState(packet.BlockState));
     }
@@ -231,8 +231,8 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
     public void HandlePlayerChat(ClientboundPlayerChatPacket packet) { }
     public void HandleDisguisedChat(ClientboundDisguisedChatPacket packet) { }
     public void HandleDeleteChat(ClientboundDeleteChatPacket packet) { }
-    //HandleChunkBlocksUpdate 段内批量方块更新 每项 (状态id << 12) | 段内 12 位偏移
-    //对应原版 ClientPacketListener.handleChunkBlocksUpdate 的 runUpdates
+    //HandleChunkBlocksUpdate batched block update within a section; each entry is (stateId << 12) | a 12-bit in-section offset
+    //Maps to runUpdates in vanilla ClientPacketListener.handleChunkBlocksUpdate
     public void HandleChunkBlocksUpdate(ClientboundSectionBlocksUpdatePacket packet)
     {
         if (_level is null) return;
@@ -249,16 +249,16 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
         }
     }
     public void HandleMapItemData(ClientboundMapItemDataPacket packet) { }
-    //HandleContainerClose 服务端主动关闭容器界面 玩家走远或方块被拆时收到
+    //HandleContainerClose the server proactively closes the container screen; received when the player walks away or the block is broken
     public void HandleContainerClose(ClientboundContainerClosePacket packet) => OnContainerClose?.Invoke();
-    //HandleContainerContent 容器全量内容 建立菜单槽位并记录光标
+    //HandleContainerContent full container contents; builds menu slots and records the cursor
     public void HandleContainerContent(ClientboundContainerSetContentPacket packet)
         => Inventory.SetContent(packet.ContainerId, packet.StateId, packet.Items, packet.CarriedItem);
 
     public void HandleMountScreenOpen(ClientboundMountScreenOpenPacket packet) { }
     public void HandleContainerSetData(ClientboundContainerSetDataPacket packet) { }
 
-    //HandleContainerSetSlot 单槽变更 非当前菜单的包直接丢弃
+    //HandleContainerSetSlot single-slot change; packets for a non-current menu are discarded
     public void HandleContainerSetSlot(ClientboundContainerSetSlotPacket packet)
     {
         if (packet.ContainerId != Inventory.ContainerId) return;
@@ -271,7 +271,7 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
     public void HandleGameEvent(ClientboundGameEventPacket packet) { }
     public void HandleChunksBiomes(ClientboundChunksBiomesPacket packet) { }
     public void HandleLevelEvent(ClientboundLevelEventPacket packet) { }
-    //HandleMoveEntity 相对位移与旋转包 位移按 1/4096 格还原
+    //HandleMoveEntity relative displacement and rotation packet; displacement is restored at 1/4096 block units
     public void HandleMoveEntity(ClientboundMoveEntityPacket packet)
     {
         _level?.MoveEntity(packet.EntityId,
@@ -294,10 +294,10 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
     public void HandleRotateMob(ClientboundRotateHeadPacket packet) { }
     public void HandleSetHeldSlot(ClientboundSetHeldSlotPacket packet) { }
     public void HandleSetDisplayObjective(ClientboundSetDisplayObjectivePacket packet) { }
-    //HandleSetEntityData 记录实体元数据 掉落物的物品栈靠它同步
+    //HandleSetEntityData records entity metadata; the dropped item's item stack is synced through it
     public void HandleSetEntityData(ClientboundSetEntityDataPacket packet)
         => _level?.SetEntityData(packet.Id, packet.PackedItems);
-    //HandleSetEntityMotion 记录实体速度供插值
+    //HandleSetEntityMotion records entity velocity for interpolation
     public void HandleSetEntityMotion(ClientboundSetEntityMotionPacket packet)
         => _level?.SetEntityMotion(packet.Id, packet.Movement);
     public void HandleSetEquipment(ClientboundSetEquipmentPacket packet) { }
@@ -309,23 +309,23 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
     public void HandleSoundEvent(ClientboundSoundPacket packet) => Log.Debug($"Sound received {packet.Sound.Location} source={packet.Source}");
     public void HandleSoundEntityEvent(ClientboundSoundEntityPacket packet) => Log.Debug($"Entity sound received {packet.Sound.Location} entityId={packet.Id}");
     public void HandleTakeItemEntity(ClientboundTakeItemEntityPacket packet) { }
-    //HandleEntityPositionSync 服务端权威位置同步 整段覆盖实体位置与朝向
-    //实体位置基准随它重置 之后收到的增量位移才是相对新位置的 对应原版 handleEntityPositionSync
+    //HandleEntityPositionSync server-authoritative position sync; overwrites the entity position and orientation entirely
+    //The entity position baseline is reset with it, so later incremental displacements are relative to the new position, maps to vanilla handleEntityPositionSync
     public void HandleEntityPositionSync(ClientboundEntityPositionSyncPacket packet)
         => _level?.SetEntityPosition(packet.Id, packet.Position, packet.YRot, packet.XRot, packet.OnGround);
-    //HandleTeleportEntity 传送包整段覆盖实体位置与朝向
+    //HandleTeleportEntity teleport packet overwrites the entity position and orientation entirely
     public void HandleTeleportEntity(ClientboundTeleportEntityPacket packet)
         => _level?.SetEntityPosition(packet.Id, packet.Position, packet.YRot, packet.XRot, packet.OnGround);
-    //HandleTickingState 刻速率与冻结状态 本地世界按服务端刻率推进 冻结时停住实体动画随之停住
+    //HandleTickingState tick rate and frozen state; the local world advances at the server tick rate, and while frozen entity animation stops
     public void HandleTickingState(ClientboundTickingStatePacket packet)
         => _level?.SetTickingState(packet.TickRate, packet.IsFrozen);
-    //HandleTickingStep 冻结下的步进刻数 走完这些刻本地世界仍回到冻结
+    //HandleTickingStep step ticks while frozen; after these ticks the local world returns to frozen
     public void HandleTickingStep(ClientboundTickingStepPacket packet)
         => _level?.SetTickingStep(packet.TickSteps);
-    //HandlePongResponse 服务端对客户端 ping_request 的应答 原版拿它算往返延迟
-    //本作客户端不打延迟统计 收到即丢 但必须实现否则 Play 阶段 pong 解不出来
+    //HandlePongResponse the server's reply to the client's ping_request; vanilla uses it to compute round-trip latency
+    //This client does not measure latency and discards it on receipt, but it must be implemented or Play-phase pong cannot be decoded
     public void HandlePongResponse(ClientboundPongResponsePacket packet) { }
-    //HandleUpdateAttributes 记录实体属性 基值与修饰符都覆盖到客户端实体上
+    //HandleUpdateAttributes records entity attributes; base values and modifiers are applied to the client entity
     public void HandleUpdateAttributes(ClientboundUpdateAttributesPacket packet)
         => _level?.SetEntityAttributes(packet.EntityId, packet.Attributes);
     public void HandleUpdateMobEffect(ClientboundUpdateMobEffectPacket packet) { }
@@ -354,7 +354,7 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
     public void HandleLookAt(ClientboundPlayerLookAtPacket packet) { }
     public void HandleTagQueryPacket(ClientboundTagQueryPacket packet) { }
     public void HandleOpenBook(ClientboundOpenBookPacket packet) { }
-    //HandleOpenScreen 服务端要求打开菜单界面 容器内容随后由 container_set_content 补齐
+    //HandleOpenScreen the server requests opening a menu screen; container contents are filled in afterwards by container_set_content
     public void HandleOpenScreen(ClientboundOpenScreenPacket packet) => OnOpenScreen?.Invoke(packet);
     public void HandleMerchantOffers(ClientboundMerchantOffersPacket packet) { }
     public void HandleSetSimulationDistance(ClientboundSetSimulationDistancePacket packet) { }
@@ -371,11 +371,11 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
     public void HandleConfigurationStart(ClientboundStartConfigurationPacket packet) { }
     public void HandleDebugSample(ClientboundDebugSamplePacket packet) { }
     public void HandleProjectilePowerPacket(ClientboundProjectilePowerPacket packet) { }
-    //HandleSetCursorItem 光标物品变更 槽号用 -1
+    //HandleSetCursorItem cursor item change; slot -1 is used
     public void HandleSetCursorItem(ClientboundSetCursorItemPacket packet)
         => Inventory.SetSlot(AbstractContainerMenu.CarriedSlotIndex, packet.Contents);
 
-    //HandleSetPlayerInventory 玩家物品栏单槽变更 槽号是物品栏下标
+    //HandleSetPlayerInventory single player inventory slot change; the slot number is the inventory index
     public void HandleSetPlayerInventory(ClientboundSetPlayerInventoryPacket packet)
         => Inventory.SetPlayerSlot(packet.Slot, packet.Contents);
     public void HandleTestInstanceBlockStatus(ClientboundTestInstanceBlockStatus packet) { }
@@ -387,7 +387,7 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
     public void HandleGameTestHighlightPos(ClientboundGameTestHighlightPosPacket packet) { }
     public void HandleLowDiskSpaceWarning(ClientboundLowDiskSpaceWarningPacket packet) { }
 
-    //以下继承自 ClientCommonPacketListener 当前服务器不下发空实现
+    //The following are inherited from ClientCommonPacketListener; the current server does not send them, empty implementation
     public void HandleKeepAlive(ClientboundKeepAlivePacket packet) { }
     public void HandlePing(ClientboundPingPacket packet) { }
     public void HandleCustomPayload(ClientboundCustomPayloadPacket packet) { }
@@ -403,7 +403,7 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
     public void HandleClearDialog(ClientboundClearDialogPacket packet) { }
     public void HandleShowDialog(ClientboundShowDialogPacket packet) { }
 
-    //继承自 ClientCookiePacketListener
+    //Inherited from ClientCookiePacketListener
     public void HandleCookieRequest(ClientboundCookieRequestPacket packet) { }
 
     public void OnDisconnect(string reason)

@@ -4,25 +4,25 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Client.Render.World;
 
-//ChunkLightSampler 区块光照采样器对标原版 SectionRenderBuilder 的光照计算
-//从 ClientLevel 取方块某面外侧邻居的 block/sky light 合并 emission 后打包
-//LightCoords 编码 (blockLight<<4)|(skyLight<<20) 对齐 LightTexture.PackLightCoords
-//emission 合并取 max(unpackedBlockLight, emission) 不动 sky 段
+//ChunkLightSampler chunk light sampler, maps to vanilla SectionRenderBuilder's light computation
+//Fetches the block/sky light of a block face's outer neighbor from ClientLevel, merges emission, and packs it
+//LightCoords encoding (blockLight<<4)|(skyLight<<20), aligning with LightTexture.PackLightCoords
+//Emission merge takes max(unpackedBlockLight, emission) without touching the sky segment
 public sealed class ChunkLightSampler
 {
     private readonly ClientLevel _level;
 
     public ChunkLightSampler(ClientLevel level) => _level = level;
 
-    //GetLightCoords 取面外侧邻居位置的 packed light coords
-    //neighborX/Y/Z 是面外侧邻居的世界坐标 lightEmission 是方块自身发光等级 0-15
-    //越界邻居 ClientLevel 返回 block=0/sky=15 对齐原版默认行为
+    //GetLightCoords gets the packed light coords at the face's outer neighbor position
+    //neighborX/Y/Z are the world coordinates of the face's outer neighbor; lightEmission is the block's own emission level 0-15
+    //For out-of-bounds neighbors, ClientLevel returns block=0/sky=15, aligning with vanilla default behavior
     public int GetLightCoords(int neighborX, int neighborY, int neighborZ, int lightEmission)
     {
         var neighborPos = new BlockPos(neighborX, neighborY, neighborZ);
         var blockLight = _level.GetBlockLight(neighborPos);
         var skyLight = _level.GetSkyLight(neighborPos);
-        //发光方块自身光源提升 blockLight 段不动 sky 段
+        //A glowing block's own light raises the blockLight segment without touching the sky segment
         if (lightEmission > blockLight) blockLight = lightEmission;
         return LightTexture.PackLightCoords(blockLight, skyLight);
     }

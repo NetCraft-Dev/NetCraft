@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundOpenBookPacket 打开书本包对应原版 ClientboundOpenBookPacket
-//字段 Hand(InteractionHand)
+//ClientboundOpenBookPacket open book packet, maps to vanilla ClientboundOpenBookPacket
+//Field: Hand(InteractionHand)
 public sealed record ClientboundOpenBookPacket(object Hand) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundOpenBookPacket> StreamCodec { get; } = new OpenBookCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundOpenBookPacket(object Hand) : Packet<ClientGameP
     private sealed class OpenBookCodec : StreamCodec<FriendlyByteBuf, ClientboundOpenBookPacket>
     {
         public ClientboundOpenBookPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundOpenBookPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

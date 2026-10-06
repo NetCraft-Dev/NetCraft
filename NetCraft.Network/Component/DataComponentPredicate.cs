@@ -3,32 +3,32 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Component;
 
-//DataComponentPredicate 数据组件谓词 对应原版 net.minecraft.core.component.predicates.DataComponentPredicate
-//谓词判给定的组件集是否满足条件 每种谓词一个 Type 由 DATA_COMPONENT_PREDICATE_TYPE 注册表分派
+//DataComponentPredicate data component predicate, maps to vanilla net.minecraft.core.component.predicates.DataComponentPredicate
+//A predicate checks whether a given component set satisfies a condition; each predicate has a Type dispatched by the DATA_COMPONENT_PREDICATE_TYPE registry
 public interface DataComponentPredicate
 {
-    //Matches 目标组件集是否满足本谓词
+    //Matches checks whether the target component set satisfies this predicate
     bool Matches(DataComponentGetter components);
 
-    //CODEC 类型到谓词的映射编解码 对应原版 CODEC
+    //CODEC map codec from type to predicate, maps to vanilla CODEC
     public static readonly Codec<Dictionary<Type, DataComponentPredicate>> CODEC =
         Codecs.DispatchedMap(Type.CODEC, type => type.Codec);
 
-    //Type 谓词类型 对应原版 DataComponentPredicate.Type
+    //Type predicate type, maps to vanilla DataComponentPredicate.Type
     public interface Type : DataComponentPredicateType<object>
     {
-        //Codec 该谓词本体的编解码
+        //Codec codec for the predicate body
         Codec<DataComponentPredicate> Codec { get; }
 
-        //Matches 用该谓词判目标组件集
+        //Matches uses the predicate to judge the target component set
         bool Matches(DataComponentGetter components, DataComponentPredicate predicate);
 
-        //CODEC 具体谓词类型或组件类型二者取一 组件类型侧表示"只要有该组件即可" 对应原版 Type.CODEC
+        //CODEC takes either a concrete predicate type or a component type; the component type side means "having the component is enough", maps to vanilla Type.CODEC
         public static readonly Codec<Type> CODEC = new PredicateTypeRefCodec();
     }
 }
 
-//ConcreteType 绑一个具体谓词类型的通用实现 对应原版 DataComponentPredicate.ConcreteType
+//ConcreteType a generic implementation bound to a concrete predicate type, maps to vanilla DataComponentPredicate.ConcreteType
 public sealed class ConcreteType<T> : DataComponentPredicate.Type where T : class, DataComponentPredicate
 {
     private readonly Codec<DataComponentPredicate> _codec;
@@ -41,12 +41,12 @@ public sealed class ConcreteType<T> : DataComponentPredicate.Type where T : clas
         => ((T)predicate).Matches(components);
 }
 
-//AnyValueType 存在性谓词的类型 序列化只写类型名不带值 对应原版 AnyValueType
+//AnyValueType the type of an existence predicate, serializing only the type name without a value, maps to vanilla AnyValueType
 public sealed class AnyValueType : DataComponentPredicate.Type
 {
     public AnyValueType(DataComponentType<object> componentType) => ComponentType = componentType;
 
-    //ComponentType 该存在性谓词盯着的组件类型
+    //ComponentType the component type this existence predicate watches
     public DataComponentType<object> ComponentType { get; }
 
     public Codec<DataComponentPredicate> Codec => new BoundUnitCodec(ComponentType);
@@ -55,13 +55,13 @@ public sealed class AnyValueType : DataComponentPredicate.Type
         => predicate.Matches(components);
 }
 
-//AnyValue 存在性谓词 目标只要有该组件就算匹配 对应原版 AnyValue
+//AnyValue existence predicate, matching as long as the target has the component, maps to vanilla AnyValue
 public sealed record AnyValue(DataComponentType<object> Type) : DataComponentPredicate
 {
     public bool Matches(DataComponentGetter components) => components.Get(Type) is not null;
 }
 
-//BoundUnitCodec 存在性谓词的编解码 没有内容 解析恒给出该谓词 编码写空 对应原版 MapCodec.unitCodec
+//BoundUnitCodec codec for an existence predicate with no content: parsing always yields the predicate and encoding writes nothing, maps to vanilla MapCodec.unitCodec
 internal sealed class BoundUnitCodec : ScalarCodec<DataComponentPredicate>
 {
     private readonly DataComponentType<object> _componentType;
@@ -75,7 +75,7 @@ internal sealed class BoundUnitCodec : ScalarCodec<DataComponentPredicate>
         => DataResult<U>.Success(ops.Empty());
 }
 
-//PredicateCodecAdapter 把具体谓词类型的 codec 适配成谓词接口版 供谓词注册表分派
+//PredicateCodecAdapter adapts a concrete predicate type's codec to the predicate interface for the predicate registry to dispatch
 internal sealed class PredicateCodecAdapter<T> : ScalarCodec<DataComponentPredicate>
     where T : class, DataComponentPredicate
 {
@@ -90,24 +90,24 @@ internal sealed class PredicateCodecAdapter<T> : ScalarCodec<DataComponentPredic
         => _inner.EncodeStart(ops, (T)value);
 }
 
-//PredicateTypeRefCodec 谓词类型引用编解码
-//先按谓词类型注册名解析 失败再按组件类型解析 组件类型侧视为存在性谓词
-//对应原版 Type.CODEC 里 either(谓词类型, 组件类型) 再统一成 Type 的那条链
+//PredicateTypeRefCodec predicate type reference codec
+//First resolves by predicate type registry name, then by component type on failure, treating the component type side as an existence predicate
+//Maps to the chain in vanilla Type.CODEC that does either(predicate type, component type) and then unifies into Type
 internal sealed class PredicateTypeRefCodec : ScalarCodec<DataComponentPredicate.Type>
 {
     public override DataResult<DataComponentPredicate.Type> Parse<U>(DynamicOps<U> ops, U input)
     {
         var text = ops.GetStringValue(input);
         if (!text.Result().IsPresent)
-            return DataResult<DataComponentPredicate.Type>.Error(() => "谓词类型必须是字符串");
+            return DataResult<DataComponentPredicate.Type>.Error(() => "predicate type must be a string");
         var id = Identifier.TryParse(text.GetOrThrow());
         if (id is null)
-            return DataResult<DataComponentPredicate.Type>.Error(() => $"非法的标识符: {text.GetOrThrow()}");
+            return DataResult<DataComponentPredicate.Type>.Error(() => $"invalid identifier: {text.GetOrThrow()}");
         if (BuiltInRegistries.DATA_COMPONENT_PREDICATE_TYPE.GetValue(id.Value) is DataComponentPredicate.Type type)
             return DataResult<DataComponentPredicate.Type>.Success(type);
         if (BuiltInRegistries.DATA_COMPONENT_TYPE.GetValue(id.Value) is DataComponentType<object> componentType)
             return DataResult<DataComponentPredicate.Type>.Success(new AnyValueType(componentType));
-        return DataResult<DataComponentPredicate.Type>.Error(() => $"未知的谓词类型或组件类型 {id}");
+        return DataResult<DataComponentPredicate.Type>.Error(() => $"unknown predicate type or component type {id}");
     }
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, DataComponentPredicate.Type value)
@@ -116,12 +116,12 @@ internal sealed class PredicateTypeRefCodec : ScalarCodec<DataComponentPredicate
         {
             var componentKey = BuiltInRegistries.DATA_COMPONENT_TYPE.GetKey(anyValue.ComponentType);
             return componentKey is null
-                ? DataResult<U>.Error(() => "组件类型未注册 无法编码")
+                ? DataResult<U>.Error(() => "component type not registered, cannot encode")
                 : DataResult<U>.Success(ops.CreateString(componentKey.Value.ToString()));
         }
         var key = BuiltInRegistries.DATA_COMPONENT_PREDICATE_TYPE.GetKey(value);
         return key is null
-            ? DataResult<U>.Error(() => "谓词类型未注册 无法编码")
+            ? DataResult<U>.Error(() => "predicate type not registered, cannot encode")
             : DataResult<U>.Success(ops.CreateString(key.Value.ToString()));
     }
 }

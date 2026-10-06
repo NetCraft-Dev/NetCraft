@@ -4,8 +4,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundAddEntityPacket 添加实体包对应原版 ClientboundAddEntityPacket
-//字段 id VarInt uuid UUID type EntityType 网络序号 VarInt x/y/z 3 double movement LpVec3 xRot/yRot/yHeadRot 3 byte data VarInt
+//ClientboundAddEntityPacket add entity packet, maps to vanilla ClientboundAddEntityPacket
+//Fields: id VarInt, uuid UUID, type EntityType network ordinal VarInt, x/y/z 3 doubles, movement LpVec3, xRot/yRot/yHeadRot 3 bytes, data VarInt
 public sealed record ClientboundAddEntityPacket(int Id, Guid Uuid, EntityType<object> Kind,
     double X, double Y, double Z, Vec3 Movement, byte XRot, byte YRot, byte YHeadRot, int Data)
     : Packet<ClientGamePacketListener>
@@ -23,7 +23,7 @@ public sealed record ClientboundAddEntityPacket(int Id, Guid Uuid, EntityType<ob
             var id = buf.ReadVarInt();
             var uuid = buf.ReadUuid();
             var rawType = buf.ReadVarInt();
-            //未注册类型给占位而不是抛异常 否则整包被丢 已登记的实体在客户端直接消失
+            //An unregistered type gets a placeholder instead of throwing; otherwise the whole packet is dropped and already-registered entities vanish on the client
             var kind = EntityTypes.ByIdOrUnknown(rawType);
             var x = buf.ReadDouble();
             var y = buf.ReadDouble();

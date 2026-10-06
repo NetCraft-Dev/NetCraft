@@ -1,5 +1,5 @@
-//Client/Network 子目录全局 using 简化客户端协议文件引用
-//与 Game/Network/GlobalUsings.cs 同源 客户端协议实现搬到本库后需要同一套
+//Client/Network subdirectory global usings to simplify client protocol file references
+//Same origin as Game/Network/GlobalUsings.cs; after the client protocol implementation moved into this library it needs the same set
 global using NetCraft.Config;
 global using NetCraft.Network;
 global using NetCraft.Network.Protocol;

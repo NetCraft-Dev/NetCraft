@@ -2,8 +2,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.Codec;
 
-//string map codec对应原版Codec.unboundedMap(Codec.STRING, Codec.STRING)
-//序列化为CompoundTag每个entry为key到string映射
+//String map codec, maps to vanilla Codec.unboundedMap(Codec.STRING, Codec.STRING)
+//Serialized as a CompoundTag with each entry mapping a key to a string
 public sealed class StringMapCodec : AbstractMapCodec<Dictionary<string, string>>
 {
     public static readonly StringMapCodec Instance = new();

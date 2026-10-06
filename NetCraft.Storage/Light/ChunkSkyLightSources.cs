@@ -5,11 +5,11 @@ using NetCraft.Util;
 
 namespace NetCraft.Storage.Light;
 
-//ChunkSkyLightSources 区块天光光源列高度图对应原版 net.minecraft.world.level.lighting.ChunkSkyLightSources
-//记录每列最低的天光入射高度 天光引擎据此跳过整段无遮挡的区段
+//ChunkSkyLightSources, chunk sky light source column heightmap, maps to vanilla net.minecraft.world.level.lighting.ChunkSkyLightSources
+//Records the lowest sky light entry height per column; the sky light engine uses it to skip fully unoccluded sections
 public class ChunkSkyLightSources
 {
-    //整列都没有遮挡边界时的哨兵值
+    //Sentinel when a column has no occluding edge at all
     public const int NegativeInfinity = int.MinValue;
 
     private const int Size = 16;
@@ -19,14 +19,14 @@ public class ChunkSkyLightSources
 
     public ChunkSkyLightSources(LevelHeightAccessor level)
     {
-        //minY 取世界最低再下一格 用来表示"该列向下再无遮挡"
+        //minY is one below the world minimum, meaning "no further occlusion below this column"
         _minY = level.MinBuildHeight - 1;
         var maxY = level.MaxBuildHeight;
         var bits = Mth.CeilLog2(maxY - _minY + 1);
         _heightmap = new SimpleBitStorage(bits, Size * Size);
     }
 
-    //fillFrom 从区块内容重建每列的光源高度
+    //fillFrom rebuilds each column's source height from chunk content
     public void FillFrom(ChunkAccess chunk)
     {
         if (FindHighestFilledSectionY(chunk) is not int maxSectionY)
@@ -40,7 +40,7 @@ public class ChunkSkyLightSources
             Set(Index(x, z), Math.Max(FindLowestSourceY(chunk, maxSectionY, x, z), _minY));
     }
 
-    //findHighestFilledSectionY 原版由区块自己记录 这里自顶向下搜一次
+    //findHighestFilledSectionY: vanilla records it on the chunk; here it searches top-down once
     private static int? FindHighestFilledSectionY(ChunkAccess chunk)
     {
         for (var sectionY = chunk.MaxSectionY; sectionY >= chunk.MinSectionY; sectionY--)
@@ -51,13 +51,13 @@ public class ChunkSkyLightSources
         return null;
     }
 
-    //findLowestSourceY 自最高非空区段顶部向下找第一个遮挡边界
+    //findLowestSourceY searches down from the top of the highest non-empty section for the first occluding edge
     private int FindLowestSourceY(ChunkAccess chunk, int topSectionY, int x, int z)
     {
         var topY = SectionPos.SectionToBlockCoord(topSectionY + 1);
         var topPosY = topY;
         var bottomPosY = topY - 1;
-        //顶部之上一格按空气处理 空气的状态 id 为 0 与 Blocks 的注册顺序一致
+        //The cell above the top is treated as air; air's state id is 0, matching the Blocks registration order
         var topState = default(BlockState);
 
         for (var sectionY = topSectionY; sectionY >= chunk.MinSectionY; sectionY--)
@@ -83,7 +83,7 @@ public class ChunkSkyLightSources
         return _minY;
     }
 
-    //update 方块变化后刷新该列 返回是否真的产生变化
+    //update refreshes that column after a block change, returns whether anything actually changed
     public bool Update(BlockGetter level, int x, int y, int z)
     {
         var upperEdgeY = y + 1;
@@ -137,12 +137,12 @@ public class ChunkSkyLightSources
         return _minY;
     }
 
-    //isEdgeOccluded 上方方块底面与下方方块顶面合并后是否遮挡天光
-    //原版还要比较两面的遮挡形状 形状体系未实现前先用整方块减光近似
+    //isEdgeOccluded, whether the merged bottom of the upper block and top of the lower block occlude sky light
+    //Vanilla also compares the occlusion shapes of both faces; before the shape system exists this approximates with full-block light dampening
     private static bool IsEdgeOccluded(BlockState topState, BlockState bottomState)
         => bottomState.GetLightDampening() != 0;
 
-    //getLowestSourceY 取该列最低天光入射高度 整列无遮挡返回NegativeInfinity
+    //getLowestSourceY returns the column's lowest sky light entry height; a fully unoccluded column returns NegativeInfinity
     public int GetLowestSourceY(int x, int z) => ExtendSourcesBelowWorld(Get(Index(x, z)));
 
     public int GetHighestLowestSourceY()

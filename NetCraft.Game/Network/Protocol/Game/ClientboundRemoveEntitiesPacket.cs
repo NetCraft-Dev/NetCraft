@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundRemoveEntitiesPacket 移除实体包对应原版 ClientboundRemoveEntitiesPacket
-//字段 entityIds VarInt 长度前缀的 int 数组
+//ClientboundRemoveEntitiesPacket remove entities packet, maps to vanilla ClientboundRemoveEntitiesPacket
+//Field: entityIds VarInt length-prefixed int array
 public sealed record ClientboundRemoveEntitiesPacket(int[] EntityIds) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundRemoveEntitiesPacket> StreamCodec { get; } = new RemoveEntitiesCodec();

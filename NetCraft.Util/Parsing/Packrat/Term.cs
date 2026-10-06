@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Parsing.Packrat;
 
-//解析项对应原版net.minecraft.util.parsing.packrat.Term
-//parse返回是否成功通过scope和control与上层交互
+//Parse term, maps to vanilla net.minecraft.util.parsing.packrat.Term
+//parse returns whether it succeeded, interacting with the caller via scope and control
 public interface Term<S>
 {
     bool Parse(ParseState<S> state, Scope scope, Control control);
@@ -9,37 +9,37 @@ public interface Term<S>
 
 public static class Terms
 {
-    //marker把固定值塞进scope对应name下
+    //marker puts a fixed value into scope under name
     public static Term<S> Marker<S, T>(Atom<T> name, T value)
         => new MarkerTerm<S, T>(name, value);
 
-    //sequence按顺序解析全部成功才成功
+    //sequence parses in order, succeeding only if all succeed
     public static Term<S> Sequence<S>(params Term<S>[] terms)
         => new SequenceTerm<S>(terms);
 
-    //alternative任一子项成功即成功支持cut提前剪枝
+    //alternative succeeds if any sub-item succeeds, supports cut for early pruning
     public static Term<S> Alternative<S>(params Term<S>[] terms)
         => new AlternativeTerm<S>(terms);
 
-    //optional子项失败也算成功
+    //optional treats a sub-item failure as success
     public static Term<S> Optional<S>(Term<S> term)
         => new MaybeTerm<S>(term);
 
-    //repeated零次或多次结果存进listName
+    //repeated stores zero or more results into listName
     public static Term<S> Repeated<S, T>(NamedRule<S, T> element, Atom<List<T>> listName)
         => new RepeatedTerm<S, T>(element, listName, 0);
 
     public static Term<S> Repeated<S, T>(NamedRule<S, T> element, Atom<List<T>> listName, int minRepetitions)
         => new RepeatedTerm<S, T>(element, listName, minRepetitions);
 
-    //repeatedWithTrailingSeparator允许末尾保留分隔符
+    //repeatedWithTrailingSeparator allows a trailing separator
     public static Term<S> RepeatedWithTrailingSeparator<S, T>(NamedRule<S, T> element, Atom<List<T>> listName, Term<S> separator)
         => new RepeatedWithSeparatorTerm<S, T>(element, listName, separator, 0, true);
 
     public static Term<S> RepeatedWithTrailingSeparator<S, T>(NamedRule<S, T> element, Atom<List<T>> listName, Term<S> separator, int minRepetitions)
         => new RepeatedWithSeparatorTerm<S, T>(element, listName, separator, minRepetitions, true);
 
-    //repeatedWithoutTrailingSeparator不允许末尾分隔符
+    //repeatedWithoutTrailingSeparator disallows a trailing separator
     public static Term<S> RepeatedWithoutTrailingSeparator<S, T>(NamedRule<S, T> element, Atom<List<T>> listName, Term<S> separator)
         => new RepeatedWithSeparatorTerm<S, T>(element, listName, separator, 0, false);
 
@@ -52,13 +52,13 @@ public static class Terms
     public static Term<S> NegativeLookahead<S>(Term<S> term)
         => new LookAheadTerm<S>(term, false);
 
-    //cut标记提前失败
+    //cut marks an early failure
     public static Term<S> Cut<S>() => new CutTerm<S>();
 
-    //empty恒成功
+    //empty always succeeds
     public static Term<S> Empty<S>() => new EmptyTerm<S>();
 
-    //fail恒失败记录原因
+    //fail always fails and records the reason
     public static Term<S> Fail<S>(object message) => new FailTerm<S>(message);
 }
 

@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage.Paletted;
 
-//Strategy抽象类对应原版net.minecraft.world.level.chunk.Strategy
-//根据bitsPerAxis与globalMap决定entryCount和何种Configuration
+//Strategy abstract class, maps to vanilla net.minecraft.world.level.chunk.Strategy
+//Decides entryCount and which Configuration based on bitsPerAxis and globalMap
 public abstract class Strategy<T>
 {
     private static readonly IPaletteFactory SingleValueFactory = new SingleValuePaletteFactory();
@@ -26,9 +26,9 @@ public abstract class Strategy<T>
     public int BitsPerAxis { get; }
     public int EntryCount { get; }
 
-    //globalPaletteBits 为网络分段下限 block states 9 biomes 4
-    //global 配置位宽取 registry 位宽与下限的较大值保证 BitsInMemory==BitsInStorage
-    //客户端按网络 bits byte 分段 0/1-4/5-8/9+ 全局位宽低于下限会被误读为 hash palette
+    //globalPaletteBits is the network segmentation lower bound: block states 9, biomes 4
+    //The global config bit width takes the larger of the registry width and the lower bound, ensuring BitsInMemory==BitsInStorage
+    //The client segments by the network bits byte 0/1-4/5-8/9+; a global width below the lower bound is misread as a hash palette
     protected Strategy(IdMap<T> globalMap, int bitsPerAxis, int globalPaletteBits)
     {
         GlobalMap = globalMap;
@@ -38,25 +38,25 @@ public abstract class Strategy<T>
         EntryCount = 1 << (bitsPerAxis * 3);
     }
 
-    //根据bit数返回对应Configuration由子类实现
+    //Return the Configuration for a bit count, implemented by subclasses
     protected internal abstract Configuration GetConfigurationForBitCount(int entryBits);
 
-    //BlockState专用Strategy bitsPerAxis=4支持8种palette
+    //Strategy for BlockState, bitsPerAxis=4, supporting 8 palettes
     public static Strategy<T> CreateForBlockStates(IdMap<T> registry)
         => new BlockStatesStrategy<T>(registry);
 
-    //Biome专用Strategy bitsPerAxis=2支持4种palette
+    //Strategy for Biome, bitsPerAxis=2, supporting 4 palettes
     public static Strategy<T> CreateForBiomes(IdMap<T> registry)
         => new BiomesStrategy<T>(registry);
 
-    //由xyz计算storage index对应原版getIndex
+    //Compute the storage index from xyz, maps to vanilla getIndex
     public int GetIndex(int x, int y, int z) => (((y << BitsPerAxis) | z) << BitsPerAxis) | x;
 
-    //根据palette size推算所需bits返回对应Configuration
+    //Derive the needed bits from palette size and return the matching Configuration
     public Configuration GetConfigurationForPaletteSize(int paletteSize)
         => GetConfigurationForBitCount(MinimumBitsRequiredForDistinctValues(paletteSize));
 
-    //计算存储count个不同值所需的最小bit数对应原版minimumBitsRequiredForDistinctValues
+    //Compute the minimum bits needed to store count distinct values, maps to vanilla minimumBitsRequiredForDistinctValues
     private static int MinimumBitsRequiredForDistinctValues(int count)
     {
         if (count <= 1) return 0;
@@ -64,10 +64,10 @@ public abstract class Strategy<T>
     }
 }
 
-//BlockState Strategy bitsPerAxis=4 entryCount=4096
-//支持0/1-4(全部4 bits linear)/5-8(hashmap)/9+(global)
-//原版 1/2/3/4 一律映射 FOUR_BITS_LINEAR 客户端按同款映射读网络包
-//若按实际位宽发 1-3 bits 客户端 storage 期望 4 bits 长度不符直接越界断连
+//BlockState Strategy, bitsPerAxis=4, entryCount=4096
+//Supports 0/1-4 (all 4 bits linear)/5-8 (hashmap)/9+ (global)
+//Vanilla maps 1/2/3/4 all to FOUR_BITS_LINEAR; the client reads packets with the same mapping
+//Sending the actual 1-3 bits would mismatch the client's 4-bit storage expectation and disconnect on an out-of-bounds read
 internal sealed class BlockStatesStrategy<T> : Strategy<T>
 {
     public BlockStatesStrategy(IdMap<T> globalMap) : base(globalMap, 4, 9) { }
@@ -87,8 +87,8 @@ internal sealed class BlockStatesStrategy<T> : Strategy<T>
     }
 }
 
-//Biome Strategy bitsPerAxis=2 entryCount=64
-//支持0/1-3(linear)/4+(global)
+//Biome Strategy, bitsPerAxis=2, entryCount=64
+//Supports 0/1-3 (linear)/4+ (global)
 internal sealed class BiomesStrategy<T> : Strategy<T>
 {
     public BiomesStrategy(IdMap<T> globalMap) : base(globalMap, 2, 4) { }

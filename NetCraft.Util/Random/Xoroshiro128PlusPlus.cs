@@ -2,19 +2,19 @@ using System.Numerics;
 
 namespace NetCraft.Util.Random;
 
-//Xoroshiro128++核心随机数生成器对应原版net.minecraft.world.level.levelgen.Xoroshiro128PlusPlus
-//双64位状态seedLo/seedHi位运算完全保留保证跨语言序列一致
+//Xoroshiro128++ core random number generator, maps to vanilla net.minecraft.world.level.levelgen.Xoroshiro128PlusPlus
+//Dual 64-bit state seedLo/seedHi, bit ops fully preserved to keep cross-language sequences consistent
 public sealed class Xoroshiro128PlusPlus
 {
     private long _seedLo;
     private long _seedHi;
 
-    //按Seed128bit构造对应原版Xoroshiro128PlusPlus(Seed128bit)
+    //Constructs from Seed128bit, maps to vanilla Xoroshiro128PlusPlus(Seed128bit)
     public Xoroshiro128PlusPlus(RandomSupport.Seed128bit seed)
         : this(seed.SeedLo, seed.SeedHi) { }
 
-    //按双long构造对应原版Xoroshiro128PlusPlus(long,long)
-    //全零状态会破坏生成器替换为黄金白银比例避免退化
+    //Constructs from two longs, maps to vanilla Xoroshiro128PlusPlus(long,long)
+    //An all-zero state breaks the generator, so it is replaced with the golden/silver ratios to avoid degeneracy
     public Xoroshiro128PlusPlus(long seedLo, long seedHi)
     {
         _seedLo = seedLo;
@@ -26,9 +26,9 @@ public sealed class Xoroshiro128PlusPlus
         }
     }
 
-    //nextLong生成下一个64位值对应原版nextLong
-    //位运算含rotateLeft异或左移C#用unchecked保证long溢出wrap与Java一致
-    //BitOperations.RotateLeft显式ulong强转对齐Java Long.rotateLeft无符号循环左移
+    //nextLong generates the next 64-bit value, maps to vanilla nextLong
+    //Bit ops include rotateLeft and XOR-shift; C# uses unchecked so long overflow wraps like Java
+    //BitOperations.RotateLeft with an explicit ulong cast aligns with Java Long.rotateLeft unsigned rotation
     public long NextLong()
     {
         unchecked

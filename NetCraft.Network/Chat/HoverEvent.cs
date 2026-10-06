@@ -1,13 +1,13 @@
 namespace NetCraft.Network.Chat;
 
-//悬停事件对应原版net.minecraft.network.chat.HoverEvent
-//文本被悬停时显示的额外内容如文本/物品/实体信息
-//简化版仅保留ShowText ShowItem/ShowEntity依赖ItemStackTemplate/EntityTooltipInfo业务类型待后续补全
+//Hover event, maps to vanilla net.minecraft.network.chat.HoverEvent
+//Extra content shown when the text is hovered, such as text/item/entity info
+//The simplified form only keeps ShowText; ShowItem/ShowEntity depend on the ItemStackTemplate/EntityTooltipInfo business types and are completed later
 public interface HoverEvent
 {
     public Action EventAction { get; }
 
-    //动作枚举对应原版HoverEvent.Action
+    //The action enum, maps to vanilla HoverEvent.Action
     public enum Action
     {
         ShowText,
@@ -15,19 +15,19 @@ public interface HoverEvent
         ShowEntity,
     }
 
-    //显示文本对应原版HoverEvent.ShowText
+    //Show text, maps to vanilla HoverEvent.ShowText
     public sealed record ShowText(Component Value) : HoverEvent
     {
         public Action EventAction => Action.ShowText;
     }
 
-    //显示物品对应原版HoverEvent.ShowItem依赖ItemStackTemplate业务类型占位待补全
+    //Show item, maps to vanilla HoverEvent.ShowItem, a placeholder depending on the ItemStackTemplate business type, to be completed
     public sealed record ShowItem(object Item) : HoverEvent
     {
         public Action EventAction => Action.ShowItem;
     }
 
-    //显示实体对应原版HoverEvent.ShowEntity依赖EntityTooltipInfo业务类型占位待补全
+    //Show entity, maps to vanilla HoverEvent.ShowEntity, a placeholder depending on the EntityTooltipInfo business type, to be completed
     public sealed record ShowEntity(object Entity) : HoverEvent
     {
         public Action EventAction => Action.ShowEntity;

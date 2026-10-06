@@ -3,8 +3,8 @@ using System.Text;
 
 namespace NetCraft.Nbt;
 
-//StringTag（TAG_String，ID=8）。对应原版 net.minecraft.nbt.StringTag。
-//存储 Java modified UTF-8 字符串，2 字节长度前缀。
+//StringTag (TAG_String, ID=8). Mirrors vanilla net.minecraft.nbt.StringTag.
+//Stores a Java modified UTF-8 string with a 2-byte length prefix.
 public sealed class StringTag(string value) : Tag
 {
     public string Value { get; } = value;
@@ -12,10 +12,10 @@ public sealed class StringTag(string value) : Tag
     public byte Id => Tag.TagString;
     public TagType Type => StringTagType.Instance;
 
-    //空字符串单例。
+    //Singleton for the empty string.
     private static readonly StringTag Empty = new("");
 
-    //工厂方法。对应原版 StringTag.valueOf(String)：空串返回单例，否则新建。
+    //Factory method. Mirrors vanilla StringTag.valueOf(String): an empty string returns the singleton, anything else a new instance.
     public static StringTag ValueOf(string data)
         => string.IsNullOrEmpty(data) ? Empty : new StringTag(data);
 
@@ -23,7 +23,7 @@ public sealed class StringTag(string value) : Tag
 
     public override string ToString()
     {
-        // SNBT 格式：用引号包裹，转义特殊字符
+        // SNBT format: wrapped in quotes with special characters escaped
         var sb = new StringBuilder();
         sb.Append('"');
         foreach (var c in Value)
@@ -84,7 +84,7 @@ public sealed class StringTag(string value) : Tag
         public string PrettyName => "TAG_String";
     }
 
-    //跳过字符串（不构造对象，仅移动读取位置）。
+    //Skip a string (no object built, only the read position moves).
     public static void SkipString(INbtReader input)
     {
         var len = (ushort)input.ReadShort();
@@ -92,8 +92,8 @@ public sealed class StringTag(string value) : Tag
     }
 }
 
-//ByteArrayTag（TAG_Byte_Array，ID=7）。对应原版 net.minecraft.nbt.ByteArrayTag。
-//存储 4 字节长度前缀 + 长度个 byte。
+//ByteArrayTag (TAG_Byte_Array, ID=7). Mirrors vanilla net.minecraft.nbt.ByteArrayTag.
+//Stores a 4-byte length prefix followed by that many bytes.
 public sealed class ByteArrayTag(byte[] value) : Tag
 {
     public byte[] Value { get; } = value;
@@ -165,8 +165,8 @@ public sealed class ByteArrayTag(byte[] value) : Tag
     }
 }
 
-//IntArrayTag（TAG_Int_Array，ID=11）。对应原版 net.minecraft.nbt.IntArrayTag。
-//存储 4 字节长度前缀 + 长度个 int（大端）。
+//IntArrayTag (TAG_Int_Array, ID=11). Mirrors vanilla net.minecraft.nbt.IntArrayTag.
+//Stores a 4-byte length prefix followed by that many ints (big-endian).
 public sealed class IntArrayTag(int[] value) : Tag
 {
     public int[] Value { get; } = value;
@@ -241,8 +241,8 @@ public sealed class IntArrayTag(int[] value) : Tag
     }
 }
 
-//LongArrayTag（TAG_Long_Array，ID=12）。对应原版 net.minecraft.nbt.LongArrayTag。
-//存储 4 字节长度前缀 + 长度个 long（大端）。
+//LongArrayTag (TAG_Long_Array, ID=12). Mirrors vanilla net.minecraft.nbt.LongArrayTag.
+//Stores a 4-byte length prefix followed by that many longs (big-endian).
 public sealed class LongArrayTag(long[] value) : Tag
 {
     public long[] Value { get; } = value;

@@ -1,7 +1,7 @@
 namespace NetCraft.Primitives;
 
-//AxisCycle 轴轮转 对应原版 AxisCycle
-//离散网格与布尔运算要把三轴写成统一形式遍历 靠它把坐标在 X/Y/Z 之间轮转
+//AxisCycle axis rotation, maps to vanilla AxisCycle
+//Discrete grids and boolean operations need all three axes written in a unified form for iteration, this rotates coordinates among X/Y/Z
 public abstract class AxisCycle
 {
     private static readonly Direction.Axis[] AxisValues =
@@ -15,22 +15,22 @@ public abstract class AxisCycle
     public static readonly AxisCycle Forward = new ForwardCycle();
     public static readonly AxisCycle Backward = new BackwardCycle();
 
-    //Values 顺序必须是 None Forward Backward 与枚举序一致 Between 按下标索引
+    //Values order must be None, Forward, Backward to match the enum order, Between indexes by ordinal
     public static readonly AxisCycle[] Values = { None, Forward, Backward };
 
-    //Cycle 按轴取轮转后的整数分量 对应原版 cycle(int,int,int,Axis)
+    //Cycle returns the integer component after rotation by axis, maps to vanilla cycle(int,int,int,Axis)
     public abstract int Cycle(int x, int y, int z, Direction.Axis axis);
 
-    //Cycle 浮点版本 对应原版 cycle(double,double,double,Axis)
+    //Cycle floating point version, maps to vanilla cycle(double,double,double,Axis)
     public abstract double Cycle(double x, double y, double z, Direction.Axis axis);
 
-    //Cycle 轴自身的轮转 对应原版 cycle(Axis)
+    //Cycle rotation of the axis itself, maps to vanilla cycle(Axis)
     public abstract Direction.Axis Cycle(Direction.Axis axis);
 
-    //Inverse 逆轮转 对应原版 inverse
+    //Inverse the inverse rotation, maps to vanilla inverse
     public abstract AxisCycle Inverse { get; }
 
-    //Between 取把 from 轴转到 to 轴的轮转 对应原版 AxisCycle.between
+    //Between the rotation that maps the from axis onto the to axis, maps to vanilla AxisCycle.between
     public static AxisCycle Between(Direction.Axis from, Direction.Axis to)
         => Values[FloorMod((int)to - (int)from, 3)];
 

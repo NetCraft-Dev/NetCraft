@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundRecipeBookSettingsPacket 配方书设置包对应原版 ClientboundRecipeBookSettingsPacket
-//字段 BookSettings(RecipeBookSettings)
+//ClientboundRecipeBookSettingsPacket recipe book settings packet, maps to vanilla ClientboundRecipeBookSettingsPacket
+//Field: BookSettings(RecipeBookSettings)
 public sealed record ClientboundRecipeBookSettingsPacket(object BookSettings) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundRecipeBookSettingsPacket> StreamCodec { get; } = new RecipeBookSettingsCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundRecipeBookSettingsPacket(object BookSettings) : 
     private sealed class RecipeBookSettingsCodec : StreamCodec<FriendlyByteBuf, ClientboundRecipeBookSettingsPacket>
     {
         public ClientboundRecipeBookSettingsPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundRecipeBookSettingsPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

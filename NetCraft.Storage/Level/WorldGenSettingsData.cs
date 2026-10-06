@@ -4,14 +4,14 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage;
 
-//WorldGenSettingsData 世界生成设置对应原版 WorldGenSettings SavedData
-//存 data/minecraft/world_gen_settings.dat 种子固化在存档维度 codec 暂存空占位
+//WorldGenSettingsData, world gen settings, maps to vanilla WorldGenSettings SavedData
+//Stored in data/minecraft/world_gen_settings.dat; the seed is fixed in the save, dimensions are a temporary empty placeholder for the codec
 public sealed class WorldGenSettingsData : SavedData
 {
-    //TypeId 存档标识对应原版 SavedDataType 的 minecraft:world_gen_settings
+    //TypeId, the save identifier, maps to the minecraft:world_gen_settings of the vanilla SavedDataType
     private const string TypeId = "minecraft:world_gen_settings";
 
-    //Type SavedData 工厂读档恢复 options 字段 dimensions 暂不解析
+    //Type, the SavedData factory; load restores the options field, dimensions is not parsed yet
     public static readonly SavedDataType<WorldGenSettingsData> Type = new WorldGenSettingsType();
 
     public long Seed { get; set; }
@@ -36,7 +36,7 @@ public sealed class WorldGenSettingsData : SavedData
         }
     }
 
-    //Save 写 options 与 dimensions 对齐原版 WorldGenSettings codec 空 dimensions 原版回退默认维度
+    //Save writes options and dimensions to align with the vanilla WorldGenSettings codec; with empty dimensions vanilla falls back to the default dimension
     public override CompoundTag Save(CompoundTag tag)
     {
         var options = new CompoundTag();
@@ -48,8 +48,8 @@ public sealed class WorldGenSettingsData : SavedData
         return tag;
     }
 
-    //ReadSeed 直读世界目录的 world_gen_settings.dat 取种子供启动流程在构造服务器前使用
-    //文件不存在或损坏返回 null 由调用方回退 server.properties
+    //ReadSeed reads world_gen_settings.dat from the world directory directly to get the seed, for the startup flow before the server is constructed
+    //Returns null when the file is missing or corrupt; the caller falls back to server.properties
     public static long? ReadSeed(string worldDir)
     {
         var path = Path.Combine(worldDir, "data", "minecraft", "world_gen_settings.dat");

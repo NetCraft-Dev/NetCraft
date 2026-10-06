@@ -1,33 +1,33 @@
 namespace NetCraft.Network;
 
-//IPacket 非泛型包接口
-//C# 泛型不变体下 Packet<父监听器> 不能转 Packet<子监听器> common 包桥接发送时需按 ID 派发
+//IPacket non-generic packet interface
+//Under C# generic invariance Packet<parent listener> cannot convert to Packet<child listener>, so common packets dispatched while bridging must be routed by ID
 public interface IPacket
 {
-    //PacketTypeId 包类型的网络 ID
-    //不叫 TypeId 是因为包自带的业务字段常叫 TypeId(方块实体类型/实体类型)
-    //同名属性会隐式实现接口成员并盖掉默认实现 网络 ID 会被当成业务字段发出去
+    //PacketTypeId is the packet type's network ID
+    //Not named TypeId because packets' own business fields are often called TypeId (block entity type/entity type)
+    //A property of the same name would implicitly implement the interface member and override the default implementation, causing the network ID to be sent as a business field
     int PacketTypeId { get; }
 }
 
-//Packet 协议包接口对应原版 net.minecraft.network.protocol.Packet
-//THandler 是协议处理器类型提供 Handle 方法接收处理器
+//Packet protocol packet interface, maps to vanilla net.minecraft.network.protocol.Packet
+//THandler is the protocol handler type, providing a Handle method that takes the handler
 public interface Packet<THandler> : IPacket
 {
-    //PacketType 包类型标识用于注册和编码
+    //PacketType is the packet type identity, used for registration and encoding
     PacketType<THandler> Type { get; }
 
-    //IPacket.PacketTypeId 显式实现从泛型 Type 取网络 ID
+    //IPacket.PacketTypeId is explicitly implemented to take the network ID from the generic Type
     int IPacket.PacketTypeId => Type.Id;
 
-    //Handle 调用处理器的对应方法
+    //Handle calls the handler's corresponding method
     void Handle(THandler handler);
 
-    //IsSkippable 是否可跳过默认 false 对齐原版 isSkippable
-    //解码失败时若可跳过则丢弃包继续否则抛异常
+    //IsSkippable indicates whether the packet can be skipped, false by default, aligns with vanilla isSkippable
+    //On a decode failure, a skippable packet is dropped and processing continues, otherwise an exception is thrown
     bool IsSkippable => false;
 
-    //IsTerminal 是否终止包默认 false 对齐原版 isTerminal
-    //终止包处理后关闭连接如 LoginDisconnectPacket
+    //IsTerminal indicates whether the packet is terminal, false by default, aligns with vanilla isTerminal
+    //A terminal packet closes the connection after handling, such as LoginDisconnectPacket
     bool IsTerminal => false;
 }

@@ -3,14 +3,14 @@ namespace NetCraft.DataFixer.Util;
 using System;
 using NetCraft.DataFixer.Kinds;
 
-//Pair容器存放Mu标记避免Pair<F,S>类型参数上下文
+//Pair container holding the Mu marker, avoiding the Pair<F,S> type parameter context
 public static class Pairs
 {
-    //一元HKT标记S为第二类型
+    //unary HKT marker; S is the second type
     public sealed class Mu<S> : K1 { }
 }
 
-//二元组对应原版com.mojang.datafixers.util.Pair的HKT版本
+//pair maps to the HKT version of vanilla com.mojang.datafixers.util.Pair
 public sealed class Pair<F, S> : App<Pairs.Mu<S>, F>
 {
     public F First { get; }
@@ -22,19 +22,19 @@ public sealed class Pair<F, S> : App<Pairs.Mu<S>, F>
         Second = second;
     }
 
-    //还原类型应用为Pair<F,S>
+    //recover the type application as Pair<F,S>
     public static Pair<F, S> Unbox(App<Pairs.Mu<S>, F> box) => (Pair<F, S>)(object)box!;
 
-    //swap互换两值
+    //swap the two values
     public Pair<S, F> Swap() => new(Second, First);
 
-    //mapFirst仅映射第一分量
+    //mapFirst maps only the first component
     public Pair<F2, S> MapFirst<F2>(Func<F, F2> function) => new(function(First), Second);
 
-    //mapSecond仅映射第二分量
+    //mapSecond maps only the second component
     public Pair<F, S2> MapSecond<S2>(Func<S, S2> function) => new(First, function(Second));
 
-    //工厂方法
+    //factory method
     public static Pair<F, S> Of(F first, S second) => new(first, second);
 
     public override string ToString() => $"({First}, {Second})";
@@ -48,7 +48,7 @@ public sealed class Pair<F, S> : App<Pairs.Mu<S>, F>
     public override int GetHashCode() => (First?.GetHashCode() ?? 0, Second?.GetHashCode() ?? 0).GetHashCode();
 }
 
-//Pair作为Traversable+CartesianLike的实例S2为第二类型
+//Pair as a Traversable+CartesianLike instance; S2 is the second type
 public sealed class PairInstance<S2> : Traversable<Pairs.Mu<S2>, PairInstance<S2>.Mu>, CartesianLike<Pairs.Mu<S2>, S2, PairInstance<S2>.Mu>
 {
     public sealed class Mu : ITraversableMu, ICartesianLikeMu { }

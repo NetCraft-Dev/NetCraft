@@ -1,7 +1,7 @@
 namespace NetCraft.DataFixer.Util;
 
-//多参数函数委托对应原版Function3..Function16
-//C#用delegate代替Java函数式接口
+//multi-parameter function delegates mapping to vanilla Function3..Function16
+//C# uses delegates in place of Java functional interfaces
 
 public delegate R Function3<T1, T2, T3, R>(T1 t1, T2 t2, T3 t3);
 public delegate R Function4<T1, T2, T3, T4, R>(T1 t1, T2 t2, T3 t3, T4 t4);

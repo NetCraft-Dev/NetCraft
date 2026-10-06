@@ -6,8 +6,8 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry;
 
-//ChunkStatus stub对应原版net.minecraft.world.level.chunk.status.ChunkStatus
-//最小集只支持EMPTY/FULL两个状态完整chain约90个实例待游戏内容就绪
+//ChunkStatus stub, maps to vanilla net.minecraft.world.level.chunk.status.ChunkStatus
+//Minimal set; a full chain of about 90 instances will come once game content is ready
 public sealed class ChunkStatus
 {
     private static readonly List<ChunkStatus> _order = new();
@@ -43,22 +43,22 @@ public sealed class ChunkStatus
         return status;
     }
 
-    //heightmapsAfter对应原版status.heightmapsAfter
-    //EMPTY返回空集其他返回常用六类
+    //heightmapsAfter maps to vanilla status.heightmapsAfter
+    //EMPTY returns an empty set and the others return the six common types
     public ISet<Heightmap.Types> HeightmapsAfter()
         => this == EMPTY
             ? new HashSet<Heightmap.Types>()
             : new HashSet<Heightmap.Types>(Heightmap.AllTypes);
 
-    //getChunkType对应原版status.getChunkType
-    //EMPTY为PROTOCHUNK其他为LEVELCHUNK
+    //getChunkType maps to vanilla status.getChunkType
+    //EMPTY is PROTOCHUNK and the others are LEVELCHUNK
     public ChunkType GetChunkType() => this == EMPTY ? ChunkType.ProtoChunk : ChunkType.LevelChunk;
 
-    //isOrAfter对应原版status.isOrAfter按静态注册顺序比较
+    //isOrAfter maps to vanilla status.isOrAfter, comparing by static registration order
     public bool IsOrAfter(ChunkStatus other) => _index >= other._index;
 
-    //ToSimpleState 把 ChunkStatus 映射到 SimpleChunkState 对应原版 ChunkStatus.toSimpleState
-    //简化状态机用于 chunk 任务调度阶段分组
+    //ToSimpleState maps ChunkStatus to SimpleChunkState, maps to vanilla ChunkStatus.toSimpleState
+    //A simplified state machine for chunk task scheduling stage grouping
     public SimpleChunkState ToSimpleState()
     {
         if (this == EMPTY) return SimpleChunkState.Empty;
@@ -73,8 +73,8 @@ public sealed class ChunkStatus
 
     public override string ToString() => Name;
 
-    //CODEC对应原版ChunkStatus.CODEC
-    //序列化为字符串Identifier查表找不到返回EMPTY
+    //CODEC maps to vanilla ChunkStatus.CODEC
+    //Serialized as a string Identifier; returns EMPTY when the table lookup misses
     public static readonly Codec<ChunkStatus> Codec = IdentifierCodec.Instance.ComapFlatMap(
         id =>
         {
@@ -86,7 +86,7 @@ public sealed class ChunkStatus
         status => Identifier.WithDefaultNamespace(status.Name));
 }
 
-//Heightmap stub对应原版net.minecraft.world.level.levelgen.Heightmap
+//Heightmap stub, maps to vanilla net.minecraft.world.level.levelgen.Heightmap
 public static class Heightmap
 {
     public enum Types
@@ -99,12 +99,12 @@ public static class Heightmap
         MotionBlockingNoLeaves
     }
 
-    //全部类型集合对应原版Heightmap.Types.values
+    //All types, maps to vanilla Heightmap.Types.values
     public static readonly IReadOnlyList<Types> AllTypes =
         Enum.GetValues<Types>().ToImmutableList();
 
-    //getSerializationKey对应原版Types.getSerializationKey
-    //返回大写下划线名
+    //getSerializationKey maps to vanilla Types.getSerializationKey
+    //Returns the uppercase underscore name
     public static string GetSerializationKey(this Types type)
         => type switch
         {
@@ -117,7 +117,7 @@ public static class Heightmap
             _ => type.ToString().ToUpperInvariant()
         };
 
-    //按serializationKey反查类型对应原版Types.getFromKey
+    //Reverse lookup the type by serializationKey, maps to vanilla Types.getFromKey
     public static Types? FromSerializationKey(string key)
         => key switch
         {
@@ -131,15 +131,15 @@ public static class Heightmap
         };
 }
 
-//ChunkType对应原版net.minecraft.world.level.chunk.status.ChunkType
+//ChunkType, maps to vanilla net.minecraft.world.level.chunk.status.ChunkType
 public enum ChunkType
 {
     ProtoChunk,
     LevelChunk
 }
 
-//SimpleChunkState 简化区块状态对应原版net.minecraft.world.level.chunk.status.SimpleChunkState
-//把13个ChunkStatus合并为5个简化阶段用于chunk任务调度
+//SimpleChunkState simplified chunk state, maps to vanilla net.minecraft.world.level.chunk.status.SimpleChunkState
+//Merges the 13 ChunkStatus values into 5 simplified stages for chunk task scheduling
 //EMPTY/STRUCTURE_STARTS/GENERATION/FEATURES/FULL
 public enum SimpleChunkState
 {
@@ -150,19 +150,19 @@ public enum SimpleChunkState
     Full
 }
 
-//ChunkStatePool 区块状态池对应原版ChunkStatus.StatePool
-//用于任务调度器跟踪每个chunk当前到达的简化状态
-//按ChunkPos.Pack索引避免重复对象创建
+//ChunkStatePool chunk state pool, maps to vanilla ChunkStatus.StatePool
+//Used by the task scheduler to track the simplified state each chunk has reached
+//Indexed by ChunkPos.Pack to avoid creating duplicate objects
 public sealed class ChunkStatePool
 {
     private readonly Dictionary<long, SimpleChunkState> _states = new();
 
-    //Get 获取chunk当前状态未记录返回 Empty
+    //Get the current state of a chunk, returning Empty when not recorded
     public SimpleChunkState Get(ChunkPos pos)
         => _states.TryGetValue(ChunkPos.Pack(pos.X, pos.Z), out var state) ? state : SimpleChunkState.Empty;
 
-    //Update 更新chunk状态为更靠后的阶段对应原版ChunkStatus.StatePool.update
-    //如果新状态比当前状态靠前则忽略保证状态单调推进
+    //Update advances the chunk state to a later stage, maps to vanilla ChunkStatus.StatePool.update
+    //If the new state is earlier than the current one it is ignored, keeping the state monotonic
     public void Update(ChunkPos pos, SimpleChunkState newState)
     {
         var key = ChunkPos.Pack(pos.X, pos.Z);
@@ -176,23 +176,23 @@ public sealed class ChunkStatePool
         }
     }
 
-    //Update 把ChunkStatus映射到SimpleChunkState再Update
+    //Update maps ChunkStatus to SimpleChunkState and then updates
     public void Update(ChunkPos pos, ChunkStatus status)
         => Update(pos, status.ToSimpleState());
 
-    //Clear 清空所有状态
+    //Clear all states
     public void Clear() => _states.Clear();
 }
 
-//LightLayer对应原版net.minecraft.world.level.LightLayer
+//LightLayer, maps to vanilla net.minecraft.world.level.LightLayer
 public enum LightLayer
 {
     Block,
     Sky
 }
 
-//UpgradeData stub对应原版net.minecraft.world.level.chunk.UpgradeData
-//最小集为空CompoundTag透传实际逻辑待游戏内容就绪
+//UpgradeData stub, maps to vanilla net.minecraft.world.level.chunk.UpgradeData
+//Minimal set passing through an empty CompoundTag; the real logic will come once game content is ready
 public sealed class UpgradeData
 {
     public static readonly UpgradeData Empty = new(new CompoundTag());
@@ -201,17 +201,17 @@ public sealed class UpgradeData
 
     public UpgradeData(CompoundTag data) => Data = data;
 
-    //isEmpty对应原版UpgradeData.isEmpty简化为Data为空
+    //isEmpty maps to vanilla UpgradeData.isEmpty, simplified to Data being empty
     public bool IsEmpty() => Data.IsEmpty;
 
-    //write对应原版UpgradeData.write直接返回内部CompoundTag副本
+    //write maps to vanilla UpgradeData.write, directly returning a copy of the internal CompoundTag
     public CompoundTag Write() => (CompoundTag)Data.Copy();
 
     public UpgradeData Copy() => new((CompoundTag)Data.Copy());
 }
 
-//BlendingData.Packed stub对应原版net.minecraft.world.level.levelgen.blending.BlendingData.Packed
-//最小集CompoundTag透传不实现完整codec
+//BlendingData.Packed stub, maps to vanilla net.minecraft.world.level.levelgen.blending.BlendingData.Packed
+//Minimal set passing through a CompoundTag; the full codec is not implemented
 public sealed class BlendingData
 {
     public sealed class Packed
@@ -224,8 +224,8 @@ public sealed class BlendingData
     }
 }
 
-//BelowZeroRetrogen stub对应原版net.minecraft.world.level.levelgen.BelowZeroRetrogen
-//最小集CompoundTag透传不实现完整codec
+//BelowZeroRetrogen stub, maps to vanilla net.minecraft.world.level.levelgen.BelowZeroRetrogen
+//Minimal set passing through a CompoundTag; the full codec is not implemented
 public sealed class BelowZeroRetrogen
 {
     public CompoundTag Data { get; }

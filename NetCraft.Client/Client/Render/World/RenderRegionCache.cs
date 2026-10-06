@@ -8,22 +8,22 @@ using Direction = NetCraft.Gpu.Direction;
 
 namespace NetCraft.Game.Client.Render.World;
 
-//RenderRegionCache 编译时跨 section 邻居方块查询解决 W7 越界视为 air 的边界面多渲染
-//Snapshot 一次性取 center 周围 3x3x3 共 27 个 LevelChunkSection 引用浅快照不深拷贝
-//GetBlockState 世界坐标查对应 section 的局部方块邻居未加载返回 air
-//ShouldCullFace 供 ChunkMeshBuilder 跨 section 面剔除查面外侧邻居是否 FullBlock
-//Direction 用 NetCraft.Gpu.Direction(enum)与 ChunkMeshBuilder/BakedQuad 一致 UnitVector 取方向向量
+//RenderRegionCache compile-time cross-section neighbor block query, fixing the over-rendering of boundary faces that W7 treats as air out of bounds
+//Snapshot takes a shallow snapshot of the 27 LevelChunkSection references around center in a 3x3x3, no deep copy
+//GetBlockState looks up the local block neighbor in the matching section by world coordinates; returns air when not loaded
+//ShouldCullFace for ChunkMeshBuilder's cross-section face culling: checks whether the face's outer neighbor is FullBlock
+//Direction uses NetCraft.Gpu.Direction (enum) for consistency with ChunkMeshBuilder/BakedQuad; UnitVector gives the direction vector
 public sealed class RenderRegionCache
 {
     private readonly SectionPos _center;
-    //_sections[dx+1,dy+1,dz+1] dx/dy/dz 范围 -1..1 null 表示邻居 section 未加载
+    //_sections[dx+1,dy+1,dz+1] with dx/dy/dz in -1..1; null means the neighbor section is not loaded
     private readonly LevelChunkSection?[,,] _sections = new LevelChunkSection[3, 3, 3];
 
     public SectionPos Center => _center;
 
     private RenderRegionCache(SectionPos center) => _center = center;
 
-    //Snapshot 取 center 周围 3x3x3 section 引用持 ClientLevel 读锁避免编译中途字典被改
+    //Snapshot takes 3x3x3 section references around center while holding ClientLevel's read lock to avoid the dictionary being modified mid-compile
     public static RenderRegionCache Snapshot(ClientLevel level, SectionPos center)
     {
         var cache = new RenderRegionCache(center);
@@ -34,7 +34,7 @@ public sealed class RenderRegionCache
         return cache;
     }
 
-    //GetBlockState 世界坐标查邻居方块越界 3x3x3 或 section 未加载返回 air
+    //GetBlockState looks up a neighbor block by world coordinates; returns air when out of the 3x3x3 or the section is not loaded
     public BlockState GetBlockState(int worldX, int worldY, int worldZ)
     {
         var sectionX = worldX >> 4;
@@ -50,8 +50,8 @@ public sealed class RenderRegionCache
         return section.GetBlockState(worldX & 15, worldY & 15, worldZ & 15);
     }
 
-    //ShouldCullFace 查面外侧邻居是否 FullBlock 供 ChunkMeshBuilder 跨 section 面剔除
-    //邻居 section 未加载时返回 false 保守不剔除等邻居加载后重编译剔除与 W7 越界视为 air 一致
+    //ShouldCullFace checks whether the face's outer neighbor is FullBlock, for ChunkMeshBuilder's cross-section face culling
+    //Returns false when the neighbor section is not loaded, conservatively not culling; once the neighbor loads it recompiles and culls, consistent with W7 treating out-of-bounds as air
     public bool ShouldCullFace(int worldX, int worldY, int worldZ, Direction dir)
     {
         var offset = dir.UnitVector();
@@ -63,7 +63,7 @@ public sealed class RenderRegionCache
         return BlockRenderShapeProvider.GetShape(neighbor) == BlockRenderShape.FullBlock;
     }
 
-    //HasSection 邻居坐标对应 section 是否在 3x3x3 快照内且已加载
+    //HasSection whether the section for the neighbor coordinates is in the 3x3x3 snapshot and loaded
     private bool HasSection(int worldX, int worldY, int worldZ)
     {
         var sectionX = worldX >> 4;

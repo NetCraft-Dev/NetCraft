@@ -3,8 +3,8 @@ using NetCraft.Commands.Exceptions;
 
 namespace NetCraft.Commands.Execution.Tasks;
 
-//ExecuteCommand 普通命令的最终执行动作对应原版 net.minecraft.commands.execution.tasks.ExecuteCommand
-//BUILD_EXECUTOR 段之后真正调用命令委托的地方
+//ExecuteCommand final execution action of an ordinary command, maps to vanilla net.minecraft.commands.execution.tasks.ExecuteCommand
+//Where the command delegate is actually called after the BUILD_EXECUTOR stage
 public class ExecuteCommand<T>
 {
     private readonly string _commandInput;
@@ -24,8 +24,8 @@ public class ExecuteCommand<T>
         try
         {
             context.IncrementCost();
-            //结果同时喂给源回调 return 模式再喂给帧的返回消费者
-            //等价原版把帧消费者链进源回调的做法 免掉引擎侧 WithCallback
+            //The result feeds both the source callback and, in return mode, the frame's return consumer
+            //Equivalent to vanilla chaining the frame consumer into the source callback, avoiding WithCallback on the engine side
             var frameConsumer = frame.ReturnValueConsumer;
             var isReturn = _modifiers.IsReturn();
             var result = ContextChain<T>.RunExecutable(_executionContext, sender,
@@ -50,7 +50,7 @@ public class ExecuteCommand<T>
         }
     }
 
-    //Bind 绑定发送者成队列动作
+    //Bind binds the sender into a queue action
     public EntryAction<T> Bind(T sender)
         => (context, frame) => Execute(sender, context, frame);
 }

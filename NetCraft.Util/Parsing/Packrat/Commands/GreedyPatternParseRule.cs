@@ -3,8 +3,8 @@ using NetCraft.Util;
 
 namespace NetCraft.Util.Parsing.Packrat.Commands;
 
-//贪婪正则匹配规则对应原版net.minecraft.util.parsing.packrat.commands.GreedyPatternParseRule
-//用Regex从cursor位置lookingAt匹配失败返回null
+//Greedy regex parse rule, maps to vanilla net.minecraft.util.parsing.packrat.commands.GreedyPatternParseRule
+//Uses Regex to lookingAt match from the cursor position, returns null on failure
 public sealed class GreedyPatternParseRule : Rule<CommandStringReader, string>
 {
     private readonly Regex _pattern;

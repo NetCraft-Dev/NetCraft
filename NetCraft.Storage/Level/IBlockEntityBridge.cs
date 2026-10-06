@@ -3,17 +3,17 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Storage;
 
-//IBlockEntityBridge 方块实体与区块存储之间的桥 由 Game 层实现
-//方块实体的具体类型只有 Game 层认识 Storage 层只搬运 NBT
-//落盘采集/读档还原/区块卸载清理三件事都经这条 对应原版 LevelChunk 自己持有 blockEntities 的职责
+//IBlockEntityBridge, bridge between block entities and chunk storage, implemented by the Game layer
+//Only the Game layer knows the concrete block entity types; the Storage layer just moves NBT
+//Collect for disk writes, restore on load and cleanup on chunk unload all go through it; maps to vanilla LevelChunk holding blockEntities itself
 public interface IBlockEntityBridge
 {
-    //Collect 取该区块内全部方块实体的完整 NBT(含 id 与坐标三元组)供落盘与区块包使用
+    //Collect returns the full NBT of all block entities in the chunk (including id and coord triplet), for disk writes and chunk packets
     List<CompoundTag> Collect(ChunkPos pos);
 
-    //Restore 把读档得到的方块实体 NBT 还原进关卡 未知 id 由实现跳过
+    //Restore applies the block entity NBT read from disk back into the level; unknown ids are skipped by the implementation
     void Restore(ChunkPos pos, List<CompoundTag> tags);
 
-    //Unload 区块卸载时清掉该区块的方块实体 对应原版区块卸载时的方块实体清理
+    //Unload clears the chunk's block entities on chunk unload; maps to vanilla block entity cleanup on chunk unload
     void Unload(ChunkPos pos);
 }

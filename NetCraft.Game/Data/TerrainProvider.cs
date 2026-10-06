@@ -4,10 +4,10 @@ using NetCraft.Util;
 
 namespace NetCraft.Game.Data;
 
-//TerrainProvider 地形样条构造器对应原版 net.minecraft.data.worldgen.TerrainProvider
-//为 NoiseRouterData.overworld 提供 offset/factor/jaggedness 三套 CubicSpline
-//Spline 树按 continents/erosion/ridges/weirdness 四维坐标分层决定地形高度系数
-//amplified 模式通过 valueTransformer 放大 offset/factor/jaggedness 实现放大世界
+//TerrainProvider terrain spline builder, maps to vanilla net.minecraft.data.worldgen.TerrainProvider
+//Provides the offset/factor/jaggedness CubicSpline sets for NoiseRouterData.overworld
+//The spline tree is layered by the four coordinates continents/erosion/ridges/weirdness and decides terrain height factors
+//Amplified mode scales offset/factor/jaggedness through valueTransformer to produce an amplified world
 public static class TerrainProvider
 {
     private const float DeepOceanContinentalness = -0.51f;
@@ -15,21 +15,21 @@ public static class TerrainProvider
     private const float PlainsContinentalness = 0.1f;
     private const float BeachContinentalness = -0.15f;
 
-    //NoTransform 恒等变换对应原版 NO_TRANSFORM
+    //NoTransform identity transform, maps to vanilla NO_TRANSFORM
     private static readonly Func<float, float> NoTransform = _ => _;
 
-    //AmplifiedOffset 放大世界偏移变换对应原版 AMPLIFIED_OFFSET
-    //负值保持(海平面以下不变)正值翻倍(陆地放大)
+    //AmplifiedOffset amplified-world offset transform, maps to vanilla AMPLIFIED_OFFSET
+    //Negative values stay (below sea level unchanged), positive values double (land amplified)
     private static readonly Func<float, float> AmplifiedOffset = offset => offset < 0.0f ? offset : offset * 2.0f;
 
-    //AmplifiedFactor 放大世界系数变换对应原版 AMPLIFIED_FACTOR
+    //AmplifiedFactor amplified-world factor transform, maps to vanilla AMPLIFIED_FACTOR
     private static readonly Func<float, float> AmplifiedFactor = factor => 1.25f - (6.25f / (factor + 5.0f));
 
-    //AmplifiedJaggedness 放大世界锯齿变换对应原版 AMPLIFIED_JAGGEDNESS
+    //AmplifiedJaggedness amplified-world jaggedness transform, maps to vanilla AMPLIFIED_JAGGEDNESS
     private static readonly Func<float, float> AmplifiedJaggedness = jaggedness => jaggedness * 2.0f;
 
-    //OverworldOffset 主世界偏移样条对应原版 overworldOffset
-    //按 continents 分层选择 beach/low/mid/high 四套 erosion 子样条决定基础高度偏移
+    //OverworldOffset overworld offset spline, maps to vanilla overworldOffset
+    //Layered by continents; picks one of the four erosion sub-splines beach/low/mid/high to decide the base height offset
     public static CubicSpline OverworldOffset(DensityFunction continents, DensityFunction erosion, DensityFunction ridges, bool amplified)
     {
         var offsetTransformer = amplified ? AmplifiedOffset : NoTransform;
@@ -51,8 +51,8 @@ public static class TerrainProvider
             .Build();
     }
 
-    //OverworldFactor 主世界系数样条对应原版 overworldFactor
-    //按 continents 分层选择 beach/-0.1/0.03/0.06 四套 erosion factor 子样条决定高度缩放
+    //OverworldFactor overworld factor spline, maps to vanilla overworldFactor
+    //Layered by continents; picks one of the four erosion factor sub-splines beach/-0.1/0.03/0.06 to decide height scaling
     public static CubicSpline OverworldFactor(DensityFunction continents, DensityFunction erosion, DensityFunction weirdness, DensityFunction ridges, bool amplified)
     {
         var factorTransformer = amplified ? AmplifiedFactor : NoTransform;
@@ -65,8 +65,8 @@ public static class TerrainProvider
             .Build();
     }
 
-    //OverworldJaggedness 主世界锯齿样条对应原版 overworldJaggedness
-    //按 continents 分层 -0.11/0.03/0.65 三段决定 jaggedness 噪声强度
+    //OverworldJaggedness overworld jaggedness spline, maps to vanilla overworldJaggedness
+    //Layered by continents; the three segments -0.11/0.03/0.65 decide the jaggedness noise strength
     public static CubicSpline OverworldJaggedness(DensityFunction continents, DensityFunction erosion, DensityFunction weirdness, DensityFunction ridges, bool amplified)
     {
         var jaggednessTransformer = amplified ? AmplifiedJaggedness : NoTransform;
@@ -77,7 +77,7 @@ public static class TerrainProvider
             .Build();
     }
 
-    //BuildErosionJaggednessSpline 按 erosion 分四段选择 ridge jaggedness 子样条对应原版 buildErosionJaggednessSpline
+    //BuildErosionJaggednessSpline picks a ridge jaggedness sub-spline in four erosion segments, maps to vanilla buildErosionJaggednessSpline
     private static CubicSpline BuildErosionJaggednessSpline(DensityFunction erosion, DensityFunction weirdness, DensityFunction ridges,
         float jaggednessFactorAtPeakRidgeAndErosionIndex0, float jaggednessFactorAtPeakRidgeAndErosionIndex1,
         float jaggednessFactorAtHighRidgeAndErosionIndex0, float jaggednessFactorAtHighRidgeAndErosionIndex1,
@@ -93,12 +93,12 @@ public static class TerrainProvider
             .Build();
     }
 
-    //PeaksAndValleys 把 weirdness 转为山脊山谷值对应原版 peaksAndValleys
-    //NoiseRouterData 用此把 ridges 转为 ridgesFolded
+    //PeaksAndValleys converts weirdness to a ridges/valleys value, maps to vanilla peaksAndValleys
+    //NoiseRouterData uses it to convert ridges into ridgesFolded
     public static float PeaksAndValleys(float weirdness)
         => (-Math.Abs(Math.Abs(weirdness) - 0.6666667f) + 0.33333334f) * 3.0f;
 
-    //BuildRidgeJaggednessSpline 按 ridges 分段选择 weirdness jaggedness 子样条对应原版 buildRidgeJaggednessSpline
+    //BuildRidgeJaggednessSpline picks a weirdness jaggedness sub-spline by ridges segments, maps to vanilla buildRidgeJaggednessSpline
     private static CubicSpline BuildRidgeJaggednessSpline(DensityFunction weirdness, DensityFunction ridges,
         float jaggednessFactorAtPeakRidge, float jaggednessFactorAtHighRidge, Func<float, float> jaggednessTransformer)
     {
@@ -118,7 +118,7 @@ public static class TerrainProvider
         return ridgeSpline.Build();
     }
 
-    //BuildWeirdnessJaggednessSpline 按 weirdness 分负正两段对应原版 buildWeirdnessJaggednessSpline
+    //BuildWeirdnessJaggednessSpline splits into negative and positive weirdness segments, maps to vanilla buildWeirdnessJaggednessSpline
     private static CubicSpline BuildWeirdnessJaggednessSpline(DensityFunction weirdness, float jaggednessFactor, Func<float, float> jaggednessTransformer)
     {
         var maxJaggednessAtNegativeWeirdness = 0.63f * jaggednessFactor;
@@ -129,8 +129,8 @@ public static class TerrainProvider
             .Build();
     }
 
-    //GetErosionFactor 按 erosion 分段选择 weirdness/ridges factor 子样条对应原版 getErosionFactor
-    //shatteredTerrain=true 走破碎地形分支否则走极端山丘分支
+    //GetErosionFactor picks a weirdness/ridges factor sub-spline by erosion segments, maps to vanilla getErosionFactor
+    //shatteredTerrain=true takes the shattered terrain branch, otherwise the extreme hills branch
     private static CubicSpline GetErosionFactor(DensityFunction erosion, DensityFunction weirdness, DensityFunction ridges,
         float baseValue, bool shatteredTerrain, Func<float, float> factorTransformer)
     {
@@ -160,12 +160,12 @@ public static class TerrainProvider
         return erosionPoints.Build();
     }
 
-    //CalculateSlope 两点斜率对应原版 calculateSlope
+    //CalculateSlope slope between two points, maps to vanilla calculateSlope
     private static float CalculateSlope(float y1, float y2, float x1, float x2)
         => (y2 - y1) / (x2 - x1);
 
-    //BuildMountainRidgeSplineWithPoints 山脊山地形样条对应原版 buildMountainRidgeSplineWithPoints
-    //modulation 控制山高saddle 控制是否在 0 处加鞍点
+    //BuildMountainRidgeSplineWithPoints mountain-ridge terrain spline, maps to vanilla buildMountainRidgeSplineWithPoints
+    //modulation controls the mountain height; saddle controls whether a saddle point is added at 0
     private static CubicSpline BuildMountainRidgeSplineWithPoints(DensityFunction ridges, float modulation, bool saddle, Func<float, float> offsetTransformer)
     {
         var build = CubicSpline.Builder(ridges, offsetTransformer);
@@ -203,8 +203,8 @@ public static class TerrainProvider
         return build.Build();
     }
 
-    //MountainContinentalness 山脊转大陆度对应原版 mountainContinentalness
-    //ridge < allowRiversBelow 时下限 -0.2222否则下限 0
+    //MountainContinentalness converts a ridge value to continentalness, maps to vanilla mountainContinentalness
+    //When ridge < allowRiversBelow the lower bound is -0.2222, otherwise 0
     private static float MountainContinentalness(float ridge, float modulation, float allowRiversBelow)
     {
         var ridgeSlope = 1.0f - ((1.0f - modulation) * 0.5f);
@@ -216,7 +216,7 @@ public static class TerrainProvider
         return Math.Max(continentalness, 0.0f);
     }
 
-    //CalculateMountainRidgeZeroContinentalnessPoint 计算大陆度为零的山脊点对应原版 calculateMountainRidgeZeroContinentalnessPoint
+    //CalculateMountainRidgeZeroContinentalnessPoint computes the ridge point where continentalness is zero, maps to vanilla calculateMountainRidgeZeroContinentalnessPoint
     private static float CalculateMountainRidgeZeroContinentalnessPoint(float modulation)
     {
         var ridgeSlope = 1.0f - ((1.0f - modulation) * 0.5f);
@@ -224,8 +224,8 @@ public static class TerrainProvider
         return (ridgeIntersect / (0.46082947f * ridgeSlope)) - 1.17f;
     }
 
-    //BuildErosionOffsetSpline 侵蚀偏移样条对应原版 buildErosionOffsetSpline
-    //按 erosion 分段选择 mountains/plateau/plains/swamps 等子样条
+    //BuildErosionOffsetSpline erosion offset spline, maps to vanilla buildErosionOffsetSpline
+    //Picks sub-splines such as mountains/plateau/plains/swamps by erosion segments
     public static CubicSpline BuildErosionOffsetSpline(DensityFunction erosion, DensityFunction ridges,
         float lowValley, float hill, float tallHill, float mountainFactor, float plain, float swamp,
         bool includeExtremeHills, bool saddle, Func<float, float> offsetTransformer)
@@ -254,8 +254,8 @@ public static class TerrainProvider
         return builder.Build();
     }
 
-    //RidgeSpline 山脊样条对应原版 ridgeSpline
-    //按 ridges -1/OCEAN/0/0.4/1 五点决定 valley/low/mid/high/peaks
+    //RidgeSpline ridge spline, maps to vanilla ridgeSpline
+    //The five points ridges -1/OCEAN/0/0.4/1 decide valley/low/mid/high/peaks
     private static CubicSpline RidgeSpline(DensityFunction ridges, float valley, float low, float mid, float high, float peaks, float minValleySteepness, Func<float, float> offsetTransformer)
     {
         var d1 = Math.Max(0.5f * (low - valley), minValleySteepness);

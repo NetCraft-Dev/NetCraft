@@ -9,14 +9,14 @@ using NetCraft.Network.Inventory;
 
 namespace NetCraft.Game.Gui.Screens;
 
-//ChestScreen 箱式容器界面对应原版 ContainerScreen 的 9x3 规格
-//槽位编号与坐标跟服务端 ChestMenu 一致 容器 0-26 背包 27-53 快捷栏 54-62
+//ChestScreen chest-style container screen, maps to vanilla ContainerScreen's 9x3 layout
+//Slot numbers and coordinates match the server's ChestMenu: container 0-26, inventory 27-53, hotbar 54-62
 public sealed class ChestScreen : Screen
 {
-    //PanelWidth 原版箱式面板宽度 176
+    //PanelWidth vanilla chest panel width 176
     private const int PanelWidth = 176;
 
-    //SlotSize 槽位边长 18 含 1 像素边框
+    //SlotSize slot edge length 18, including a 1-pixel border
     private const int SlotSize = 18;
 
     private readonly Component _title;
@@ -32,7 +32,7 @@ public sealed class ChestScreen : Screen
         _slots = BuildSlotLayout(rows);
     }
 
-    //RowsFor 菜单类型到容器行数 服务端只会下发 9x1 到 9x6 六档
+    //RowsFor menu type to container row count; the server only sends the six tiers 9x1 to 9x6
     public static int RowsFor(MenuType kind)
         => ReferenceEquals(kind, MenuTypes.GENERIC_9X1) ? 1
             : ReferenceEquals(kind, MenuTypes.GENERIC_9X2) ? 2
@@ -41,7 +41,7 @@ public sealed class ChestScreen : Screen
             : ReferenceEquals(kind, MenuTypes.GENERIC_9X5) ? 5
             : 6;
 
-    //IsChestKind 是否箱式界面 工作台那类界面的槽位布局与箱子不同 还没做不能拿箱子面板顶替
+    //IsChestKind whether it is a chest-style screen; crafting-table-style screens have a different slot layout and are not implemented, so the chest panel must not stand in for them
     public static bool IsChestKind(MenuType kind)
         => ReferenceEquals(kind, MenuTypes.GENERIC_9X1)
             || ReferenceEquals(kind, MenuTypes.GENERIC_9X2)
@@ -58,14 +58,14 @@ public sealed class ChestScreen : Screen
         _panelY = (GuiHeight - _panelHeight) / 2;
     }
 
-    //BuildSlotLayout 槽位布局与服务端 ChestMenu 完全对齐 槽号即发往服务端的 slotNum
+    //BuildSlotLayout slot layout fully aligned with the server's ChestMenu; the slot number is the slotNum sent to the server
     private static IReadOnlyList<(int Index, int X, int Y)> BuildSlotLayout(int rows)
     {
         var slots = new List<(int, int, int)>();
-        //容器网格从面板内 (8,18) 起
+        //The container grid starts at (8,18) inside the panel
         for (var i = 0; i < rows * 9; i++)
             slots.Add((i, 8 + i % 9 * 18, 18 + i / 9 * 18));
-        //玩家背包顶与箱子网格下沿留 13 像素 快捷栏再往下 58 像素
+        //Leave 13 pixels between the player inventory top and the chest grid bottom; the hotbar is 58 pixels further down
         var inventoryTop = 18 + rows * 18 + 13;
         var containerSlots = rows * 9;
         for (var i = 0; i < PlayerInventory.MainSlots; i++)
@@ -75,7 +75,7 @@ public sealed class ChestScreen : Screen
         return slots;
     }
 
-    //Inventory 客户端物品栏镜像 由服务端容器包填充
+    //Inventory client inventory mirror, filled by server container packets
     private ClientInventory? Inventory
         => (Minecraft.Connection?.Listener as ClientGamePacketListenerImpl)?.Inventory;
 
@@ -153,7 +153,7 @@ public sealed class ChestScreen : Screen
         return -1;
     }
 
-    //SendClick 发容器点击包 服务端按槽号与点击类型裁定结果并回发槽位变更
+    //SendClick sends the container click packet; the server decides by slot number and click type and sends back slot changes
     private void SendClick(int slot, byte button, ContainerInput input)
     {
         var connection = Minecraft.Connection;

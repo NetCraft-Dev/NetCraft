@@ -1,11 +1,11 @@
-//StaticRegistryTagData 静态注册表与 biome 的 tag 数据(从原版 jar 提取)
-//从原版 jar 提取并 resolve 成注册表 int id 客户端按 id 查自身注册表
-//#tag 引用递归展开 required:false 引用不在注册表时跳过 空结果 tag 仍发送
+//StaticRegistryTagData static tag data for registries and biome (extracted from the vanilla jar)
+//Extracted from the vanilla jar and resolved into registry int ids; the client looks up its own registry by id
+//#tag references are recursively expanded; required:false references not in the registry are skipped, and an empty-result tag is still sent
 namespace NetCraft.Network.Protocol.Configuration;
 
 public static class StaticRegistryTagData
 {
-    //All 每元素为(注册表 id, tag 名, entry int id 数组) 按注册表+tag 名排序
+    //All each element is (registry id, tag name, entry int id array), sorted by registry + tag name
     public static readonly (string Registry, string Tag, int[] Ids)[] All =
     {
         ("minecraft:block", "acacia_logs", new[] { 53,64,75,83 }),

@@ -2,16 +2,16 @@ using NetCraft.Registry;
 
 namespace NetCraft.Network.Component;
 
-//TypedDataComponentCodecs 带类型组件条目的流编解码 对应原版 TypedDataComponent.STREAM_CODEC
-//先写注册表 id 再按该类型的流编解码写值
-//放 Network 层是因为要在 RegistryFriendlyByteBuf 上读写注册表 id
+//TypedDataComponentCodecs stream codec for typed component entries, maps to vanilla TypedDataComponent.STREAM_CODEC
+//Writes the registry id first, then the value via that type's stream codec
+//Lives in the Network layer because it reads and writes registry ids on RegistryFriendlyByteBuf
 public static class TypedDataComponentCodecs
 {
     public static readonly StreamCodec<RegistryFriendlyByteBuf, TypedDataComponent<object>> StreamCodec
         = new TypedDataComponentStreamCodec();
 }
 
-//TypedDataComponentStreamCodec 条目流编解码实现
+//TypedDataComponentStreamCodec entry stream codec implementation
 internal sealed class TypedDataComponentStreamCodec : StreamCodec<RegistryFriendlyByteBuf, TypedDataComponent<object>>
 {
     public TypedDataComponent<object> Decode(RegistryFriendlyByteBuf buf)

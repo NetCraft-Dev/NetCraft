@@ -3,14 +3,14 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage;
 
-//LevelStorage 世界存储入口对应原版 net.minecraft.world.level.storage.LevelStorageSource
-//按世界名管理 LevelStorageAccess 实例，世界根目录 baseDir 下每个子目录一个世界
-//简化版不含 DirectoryLock 原版用文件锁防止多进程同时操作
+//LevelStorage, world storage entry point, maps to vanilla net.minecraft.world.level.storage.LevelStorageSource
+//Manages LevelStorageAccess instances by world name; under the root baseDir each subdirectory is one world
+//The simplified version omits DirectoryLock; vanilla uses a file lock to prevent multiple processes operating at once
 public sealed class LevelStorage
 {
     private readonly string _baseDir;
 
-    //BaseDir 世界根目录默认 worlds
+    //BaseDir, the world root, defaults to worlds
     public string BaseDir => _baseDir;
 
     public LevelStorage(string baseDir)
@@ -18,9 +18,9 @@ public sealed class LevelStorage
         _baseDir = baseDir;
     }
 
-    //CreateAccess 创建或加载世界存储访问入口
-    //worldName 世界名对应 baseDir 下子目录名
-    //acquireLock 是否获取 DirectoryLock 默认 true 测试场景传 false 避免独占冲突
+    //CreateAccess creates or loads the world storage access
+    //worldName, the world name, matching a subdirectory under baseDir
+    //acquireLock, whether to acquire DirectoryLock, default true; test scenarios pass false to avoid an exclusive conflict
     public LevelStorageAccess CreateAccess(string worldName, bool acquireLock = true)
     {
         var worldDir = Path.Combine(_baseDir, worldName);
@@ -28,7 +28,7 @@ public sealed class LevelStorage
         return new LevelStorageAccess(worldDir, worldName, acquireLock);
     }
 
-    //ListWorlds 列出 baseDir 下所有世界目录名
+    //ListWorlds lists all world directory names under baseDir
     public IEnumerable<string> ListWorlds()
     {
         if (!Directory.Exists(_baseDir)) return Enumerable.Empty<string>();
@@ -37,11 +37,11 @@ public sealed class LevelStorage
             .Where(name => name is not null);
     }
 
-    //WorldExists 判断指定世界是否存在
+    //WorldExists reports whether the given world exists
     public bool WorldExists(string worldName)
         => Directory.Exists(Path.Combine(_baseDir, worldName));
 
-    //DeleteWorld 删除指定世界目录及其所有内容
+    //DeleteWorld deletes the given world directory and all its contents
     public void DeleteWorld(string worldName)
     {
         var worldDir = Path.Combine(_baseDir, worldName);

@@ -1,21 +1,21 @@
 namespace NetCraft.Commands.Execution;
 
-//ExecutionControl 自定义执行器对队列的受控入口对应原版 net.minecraft.commands.execution.ExecutionControl
-//包装上下文与当前帧 入队的动作都记在当前帧深度下
+//ExecutionControl controlled entry point to the queue for custom executors, maps to vanilla net.minecraft.commands.execution.ExecutionControl
+//Wraps the context and the current frame; enqueued actions are recorded under the current frame depth
 public interface ExecutionControl<T>
 {
-    //QueueNext 追加一条动作
+    //QueueNext appends an action
     void QueueNext(EntryAction<T> action);
 
-    //Tracer 读写追踪器
+    //Tracer read/write the tracer
     void Tracer(TraceCallbacks? tracer);
 
     TraceCallbacks? Tracer();
 
-    //CurrentFrame 当前帧
+    //CurrentFrame current frame
     Frame CurrentFrame();
 
-    //Create 绑定上下文与帧
+    //Create binds a context and a frame
     public static ExecutionControl<T> Create(ExecutionContext<T> context, Frame frame)
     {
         return new BoundControl(context, frame);

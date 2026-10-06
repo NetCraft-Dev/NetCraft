@@ -2,9 +2,9 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry;
 
-//PermissionLevel 权限等级对应原版 net.minecraft.server.permissions.PermissionLevel
-//原版把 0-4 的裸数字等级命名化 all 到 owners 值序与原版 id 一致
-//StringRepresentable 与 ByIdMap.continuous(CLAMP) 的行为合并在序列化名与 ById 里
+//PermissionLevel permission level, maps to vanilla net.minecraft.server.permissions.PermissionLevel
+//Vanilla names the bare numeric levels 0-4 from all to owners, with values matching vanilla ids
+//StringRepresentable and ByIdMap.continuous(CLAMP) behavior are merged into the serialized name and ById
 public enum PermissionLevel
 {
     All = 0,
@@ -14,10 +14,10 @@ public enum PermissionLevel
     Owners = 4,
 }
 
-//PermissionLevel 静态成员与编解码
+//PermissionLevel static members and codecs
 public static class PermissionLevels
 {
-    //Codec 按序列化名编解码对应原版 StringRepresentable.fromEnum
+    //Codec encodes/decodes by serialized name, maps to vanilla StringRepresentable.fromEnum
     public static readonly Codec<PermissionLevel> Codec = Codecs.String.ComapFlatMap(
         name => PermissionLevelExtensions.TryFromSerializedName(name)
             is { } level
@@ -25,7 +25,7 @@ public static class PermissionLevels
             : DataResult<PermissionLevel>.Error(() => $"Unknown permission level: {name}"),
         level => PermissionLevelExtensions.SerializedName(level));
 
-    //IntCodec 按数字 id 编解码对应原版 Codec.INT.xmap(BY_ID)
+    //IntCodec encodes/decodes by numeric id, maps to vanilla Codec.INT.xmap(BY_ID)
     public static readonly Codec<PermissionLevel> IntCodec = Codecs.Int.ComapFlatMap(
         id => DataResult<PermissionLevel>.Success(PermissionLevelExtensions.ById(id)),
         level => (int)level);
@@ -33,7 +33,7 @@ public static class PermissionLevels
 
 public static class PermissionLevelExtensions
 {
-    //SerializedName 序列化名对应原版 getSerializedName
+    //SerializedName serialized name, maps to vanilla getSerializedName
     public static string SerializedName(this PermissionLevel level) => level switch
     {
         PermissionLevel.All => "all",
@@ -44,7 +44,7 @@ public static class PermissionLevelExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(level), level, null),
     };
 
-    //TryFromSerializedName 按序列化名反查
+    //TryFromSerializedName reverse lookup by serialized name
     public static PermissionLevel? TryFromSerializedName(string name) => name switch
     {
         "all" => PermissionLevel.All,
@@ -55,11 +55,11 @@ public static class PermissionLevelExtensions
         _ => null,
     };
 
-    //ById 按 id 取等级越界钳制到两端对应原版 ByIdMap 的 OutOfBoundsStrategy.CLAMP
+    //ById gets a level by id, clamping out-of-range to the bounds, maps to vanilla ByIdMap's OutOfBoundsStrategy.CLAMP
     public static PermissionLevel ById(int id)
         => (PermissionLevel)Math.Clamp(id, (int)PermissionLevel.All, (int)PermissionLevel.Owners);
 
-    //IsEqualOrHigherThan 等级不低于另一等级对应原版 isEqualOrHigherThan
+    //IsEqualOrHigherThan whether the level is at least another, maps to vanilla isEqualOrHigherThan
     public static bool IsEqualOrHigherThan(this PermissionLevel level, PermissionLevel other)
         => level >= other;
 }

@@ -6,8 +6,8 @@ using NetCraft.DataFixer;
 using NetCraft.DataFixer.Util;
 using T = NetCraft.DataFixer.Types;
 
-//Bang丢弃函数对应原版com.mojang.datafixers.functions.Bang
-//把任意A映射为Unit用于空字段
+//Bang discard function maps to vanilla com.mojang.datafixers.functions.Bang
+//maps any A to Unit, used for empty fields
 public sealed class Bang<A> : PointFree<Func<A, Unit>>
 {
     private readonly T.Type<A> _type;
@@ -17,7 +17,7 @@ public sealed class Bang<A> : PointFree<Func<A, Unit>>
         _type = type;
     }
 
-    //type返回A->Unit的函数类型对应DSL.func(type, emptyPartType)
+    //type returns the A->Unit function type, maps to DSL.func(type, emptyPartType)
     public override T.Type<Func<A, Unit>> Type()
         => DSL.Func(_type, DSL.EmptyPartType());
 

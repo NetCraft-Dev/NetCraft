@@ -1,7 +1,7 @@
 namespace NetCraft.Storage.Chunk;
 
-//光照数据层对应原版net.minecraft.world.level.chunk.DataLayer
-//2048字节byte数组存4096个4bit值用于光照存储
+//Light data layer, maps to vanilla net.minecraft.world.level.chunk.DataLayer
+//A 2048-byte byte array storing 4096 4-bit values, used for light storage
 public sealed class DataLayer
 {
     public const int LayerCount = 16;
@@ -57,7 +57,7 @@ public sealed class DataLayer
         _data = null;
     }
 
-    //把全填充值打包成字节对应原版packFilled
+    //Pack the fill value into a byte, maps to vanilla packFilled
     private static byte PackFilled(int value)
     {
         var packed = (byte)value;

@@ -1,7 +1,7 @@
 namespace NetCraft.Util.Thread;
 
-//默认执行器复用.NET全局ThreadPool对应原版Util.ioPool
-//简单跨平台零配置IO阻塞任务最多占一个线程因consecutiveExecutor串行
+//Default executor reuses the .NET global ThreadPool, maps to vanilla Util.ioPool
+//Simple cross-platform zero-config; blocking IO tasks occupy at most one thread since the consecutiveExecutor is serial
 public sealed class DefaultThreadPoolExecutor : IExecutor
 {
     public static readonly DefaultThreadPoolExecutor Instance = new();

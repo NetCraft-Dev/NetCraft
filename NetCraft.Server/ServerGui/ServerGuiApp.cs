@@ -7,8 +7,8 @@ using NetCraft.Game.Server;
 
 namespace NetCraft.Server.Gui;
 
-//ServerGuiApp Avalonia 应用 对应原版 showFrameFor 里建窗与挂收尾回调的那段
-//potato 为真时开土豆彩蛋 只在 Windows 上生效 见 PotatoIcon
+//ServerGuiApp, the Avalonia application, maps to the window creation and shutdown callback part of vanilla showFrameFor
+//When potato is true the potato easter egg turns on, only effective on Windows, see PotatoIcon
 public sealed class ServerGuiApp(MinecraftServer server, bool potato = false) : Application
 {
     public override void Initialize()
@@ -17,8 +17,8 @@ public sealed class ServerGuiApp(MinecraftServer server, bool potato = false) : 
         RequestedThemeVariant = ResolveThemeVariant();
     }
 
-    //ResolveThemeVariant 主题变体默认跟随系统暗亮色
-    //NETCRAFT_THEME 给了 light/dark 就按它强制 方便固定观感或临时排查
+    //ResolveThemeVariant, the theme variant follows the system dark/light setting by default
+    //If NETCRAFT_THEME is set to light/dark it is forced, handy for a fixed look or temporary debugging
     private static ThemeVariant ResolveThemeVariant()
         => Environment.GetEnvironmentVariable("NETCRAFT_THEME")?.Trim().ToLowerInvariant() switch
         {
@@ -34,9 +34,9 @@ public sealed class ServerGuiApp(MinecraftServer server, bool potato = false) : 
             var window = new ServerWindow(server);
             desktop.MainWindow = window;
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
-            //关窗即关服 对应原版 windowClosing 里的 server.halt(true)
+            //Closing the window shuts down the server, maps to server.halt(true) in vanilla windowClosing
             window.Closed += (_, _) => server.Stop();
-            //土豆彩蛋 窗口露出来之后平台句柄才有效 图标是异步拉的 拉不到就还用它原来的
+            //Potato easter egg, the platform handle is only valid after the window appears, the icon is fetched asynchronously and the original is kept if it fails
             if (potato) window.Opened += (_, _) => PotatoIcon.Apply(window);
         }
         base.OnFrameworkInitializationCompleted();

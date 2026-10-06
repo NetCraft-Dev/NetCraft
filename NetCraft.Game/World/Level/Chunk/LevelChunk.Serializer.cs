@@ -11,20 +11,20 @@ using NetCraft.Storage.Paletted;
 
 namespace NetCraft.Game.World.Level.Chunk;
 
-//LevelChunkSerializer 区块网络序列化器对应原版 net.minecraft.world.level.chunk.LevelChunk$Serializer
-//C# partial 不能跨项目 NetCraft.Storage 不引用 NetCraft.Network
-//改用独立静态类放 Game 层文件名 LevelChunk.Serializer.cs 保留原版语义
-//S4 对齐 26.2 ClientboundLevelChunkPacketData 格式
+//LevelChunkSerializer chunk network serializer, maps to vanilla net.minecraft.world.level.chunk.LevelChunk$Serializer
+//C# partial cannot span projects; NetCraft.Storage does not reference NetCraft.Network
+//Instead a standalone static class in the Game layer, file name LevelChunk.Serializer.cs, keeps the vanilla semantics
+//S4 aligns with the 26.2 ClientboundLevelChunkPacketData format
 //heightmaps map + varint bufferSize + buffer(sections) + blockEntities list
-//section 含 short blockCount + short fluidCount palette entries 写全局 id
+//section contains short blockCount + short fluidCount; palette entries write global ids
 public static class LevelChunkSerializer
 {
-    //Write 写入区块数据到 FriendlyByteBuf 对应原版 LevelChunk.Serializer.write
-    //S4 26.2 格式 heightmaps map(0 个) + buffer size varint + buffer + block entities
-    //blockEntities 由调用方按区块取 每项是含 id 与坐标的完整 compound 客户端据此建本地方块实体
+    //Write writes chunk data to FriendlyByteBuf, maps to vanilla LevelChunk.Serializer.write
+    //S4 26.2 format: heightmaps map (0 entries) + buffer size varint + buffer + block entities
+    //blockEntities are supplied per chunk by the caller; each is a full compound with id and coordinates, from which the client builds local block entities
     public static void Write(FriendlyByteBuf buf, ChunkAccess chunk, Func<PalettedContainer<BlockState>> statesFactory, Func<PalettedContainer<Holder<Biome>>> biomesFactory, IReadOnlyList<CompoundTag>? blockEntities = null)
     {
-        //先序列化 sections 到临时 buffer 计算总长度
+        //Serialize sections into a temporary buffer first to compute the total length
         var tmp = new FriendlyByteBuf();
         for (var i = 0; i < chunk.SectionsCount; i++)
         {
@@ -37,23 +37,23 @@ public static class LevelChunkSerializer
         }
         var buffer = tmp.ToArray();
 
-        //heightmaps map 空 0 个
+        //heightmaps map empty, 0 entries
         buf.WriteVarInt(0);
-        //buffer 长度 + 数据
+        //buffer length + data
         buf.WriteVarInt(buffer.Length);
         buf.WriteBytes(buffer);
-        //block entities 数量 + 每项原版 BlockEntityInfo
-        //早期实现只写了 compound 客户端按原版三字段前缀解析会把 NBT 头读歪
-        //表现为 Invalid tag id 直接断连 只要区块里有方块实体就必现
+        //block entities count + one vanilla BlockEntityInfo each
+        //An earlier implementation wrote only the compound; the client parsed it with the vanilla three-field prefix and misread the NBT header
+        //Manifesting as Invalid tag id and an immediate disconnect, always reproducible when a chunk contains a block entity
         var count = blockEntities?.Count ?? 0;
         buf.WriteVarInt(count);
         for (var i = 0; i < count; i++) WriteBlockEntityInfo(buf, blockEntities![i]);
     }
 
-    //WriteBlockEntityInfo 写单个方块实体条目 对应原版 ClientboundLevelChunkPacketData$BlockEntityInfo
-    //格式 byte packedXZ + short y + varint 类型号 + 无根名 compound
-    //坐标与类型号由这三个独立字段传 compound 内部不再承担定位职责
-    //packedXZ 位序与原版 create 一致 x 在高 4 位 z 在低 4 位
+    //WriteBlockEntityInfo writes a single block entity entry, maps to vanilla ClientboundLevelChunkPacketData$BlockEntityInfo
+    //Format: byte packedXZ + short y + varint type id + rootless compound
+    //Coordinates and type id are carried by these three separate fields; the compound no longer handles positioning
+    //packedXZ bit order matches vanilla create: x in the high 4 bits, z in the low 4 bits
     private static void WriteBlockEntityInfo(FriendlyByteBuf buf, CompoundTag tag)
     {
         var x = tag.GetIntOr("x", 0);
@@ -68,14 +68,14 @@ public static class LevelChunkSerializer
         buf.WriteNbt(tag);
     }
 
-    //Read 从 FriendlyByteBuf 读取区块数据对应原版 ClientboundLevelChunkPacketData 解码
-    //带回来的方块实体挂到 chunk.BlockEntityTags 由客户端消费
+    //Read reads chunk data from FriendlyByteBuf, maps to vanilla ClientboundLevelChunkPacketData decoding
+    //The block entities brought back are attached to chunk.BlockEntityTags and consumed by the client
     public static LevelChunk Read(FriendlyByteBuf buf, ChunkPos pos, int minSectionY, int sectionsCount,
         Func<PalettedContainer<BlockState>> statesFactory, Func<PalettedContainer<Holder<Biome>>> biomesFactory,
         PalettedContainerFactory? factory = null)
     {
         factory ??= PalettedContainerFactory.Default;
-        //heightmaps map 空跳过
+        //heightmaps map empty, skip
         var heightmapCount = buf.ReadVarInt();
         for (var i = 0; i < heightmapCount; i++)
         {
@@ -83,7 +83,7 @@ public static class LevelChunkSerializer
             var len = buf.ReadVarInt();
             for (var j = 0; j < len; j++) buf.ReadLong();
         }
-        //buffer 长度 + 数据 解析为独立 buf
+        //buffer length + data, parsed into a separate buf
         var bufferSize = buf.ReadVarInt();
         var bufferBytes = buf.ReadBytes(bufferSize);
         var chunkBuf = new FriendlyByteBuf(bufferBytes);
@@ -93,7 +93,7 @@ public static class LevelChunkSerializer
             var sectionY = minSectionY + i;
             ReadSectionInto(chunkBuf, chunk, sectionY, factory);
         }
-        //block entities 数量 + 每项原版 BlockEntityInfo
+        //block entities count + one vanilla BlockEntityInfo each
         var blockEntityCount = buf.ReadVarInt();
         if (blockEntityCount > 0)
         {
@@ -105,8 +105,8 @@ public static class LevelChunkSerializer
         return chunk;
     }
 
-    //ReadBlockEntityInfo 读单个方块实体条目并把坐标与类型号还原回 compound
-    //还原是为了让 BlockEntityTypes.Load 仍按 id/x/y/z 反查 读端消费口径不变
+    //ReadBlockEntityInfo reads a single block entity entry and restores coordinates and type id back into the compound
+    //Restoring keeps BlockEntityTypes.Load looking up by id/x/y/z, so the reader-side consumption contract is unchanged
     private static CompoundTag? ReadBlockEntityInfo(FriendlyByteBuf buf, ChunkPos pos)
     {
         var packedXZ = buf.ReadByte();
@@ -121,8 +121,8 @@ public static class LevelChunkSerializer
         return tag;
     }
 
-    //WriteSection 写入单个区段对应原版 LevelChunkSection.write
-    //S4 26.2 格式 short blockCount + short fluidCount + states + biomes
+    //WriteSection writes a single section, maps to vanilla LevelChunkSection.write
+    //S4 26.2 format: short blockCount + short fluidCount + states + biomes
     private static void WriteSection(FriendlyByteBuf buf, LevelChunkSection section)
     {
         buf.WriteShort(section.NonEmptyBlockCount);
@@ -131,7 +131,7 @@ public static class LevelChunkSerializer
         WritePalettedContainer(buf, section.Biomes, WriteBiome);
     }
 
-    //WriteEmptySection 空区段 air + plains 各 single value palette
+    //WriteEmptySection empty section, air + plains as single-value palettes
     private static void WriteEmptySection(FriendlyByteBuf buf)
     {
         buf.WriteShort(0);
@@ -144,7 +144,7 @@ public static class LevelChunkSerializer
         buf.WriteVarInt(0);
     }
 
-    //ReadSectionInto 从 buf 读取区段数据写入 chunk
+    //ReadSectionInto reads section data from buf into chunk
     private static void ReadSectionInto(FriendlyByteBuf buf, LevelChunk chunk, int sectionY,
         PalettedContainerFactory factory)
     {
@@ -156,11 +156,11 @@ public static class LevelChunkSerializer
         chunk.SetSection(sectionY, section);
     }
 
-    //WritePalettedContainer 写入 PalettedContainer 网络序列化
-    //S4 26.2 格式 bits byte + palette + storage(longs 无长度前缀)
-    //直接写运行时 palette 不重排对应原版 PalettedContainer.write
-    //bits=0 single value 写 1 个 entry 1<=bits<=8 写 varint count + entries 9+ global 不写
-    //ClientboundChunksBiomesPacket 复用本方法故开放到程序集内
+    //WritePalettedContainer writes PalettedContainer network serialization
+    //S4 26.2 format: bits byte + palette + storage (longs without length prefix)
+    //Writes the runtime palette directly without reordering, maps to vanilla PalettedContainer.write
+    //bits=0 single value writes 1 entry; 1<=bits<=8 writes varint count + entries; 9+ global writes none
+    //ClientboundChunksBiomesPacket reuses this method, hence internal to the assembly
     internal static void WritePalettedContainer<T>(
         FriendlyByteBuf buf,
         PalettedContainer<T> container,
@@ -171,25 +171,25 @@ public static class LevelChunkSerializer
 
         if (network.Bits == 0)
         {
-            //single value palette 只写 1 个全局 id
+            //single value palette writes only 1 global id
             writeElement(buf, network.PaletteEntries[0]);
         }
         else if (network.Bits <= 8)
         {
-            //linear 与 hashmap palette 都写 entries
+            //both linear and hashmap palettes write entries
             buf.WriteVarInt(network.PaletteEntries.Count);
             foreach (var entry in network.PaletteEntries)
                 writeElement(buf, entry);
         }
-        //bits 9+ global palette 不写 entries storage 即全局 id
+        //bits 9+ global palette writes no entries; the storage itself holds global ids
 
-        //storage longs 无长度前缀 客户端按 bits 与 entryCount 计算
+        //storage longs without length prefix; the client derives the length from bits and entryCount
         foreach (var v in network.RawStorage)
             buf.WriteLong(v);
     }
 
-    //ReadPalettedContainer 读 palette 与 storage 后构造 PackedData 走 factory.Unpack 反序列化
-    //storage 长度 = ceil(entryCount*bits/64) 无长度前缀
+    //ReadPalettedContainer reads palette and storage then builds PackedData and deserializes through factory.Unpack
+    //storage length = ceil(entryCount*bits/64), no length prefix
     private static PalettedContainer<T> ReadPalettedContainer<T>(
         FriendlyByteBuf buf,
         Func<PackedData<T>, PalettedContainer<T>> unpack,
@@ -208,9 +208,9 @@ public static class LevelChunkSerializer
             for (var i = 0; i < paletteCount; i++)
                 palette.Add(readElement(buf));
         }
-        //bits 9+ global palette 无 entries
+        //bits 9+ global palette has no entries
 
-        //storage 长度按 SimpleBitStorage 布局公式 valuesPerLong=64/bits下取整 非二的幂bits不能用bits*count/64
+        //storage length follows the SimpleBitStorage layout formula valuesPerLong=64/bits (floored); for non-power-of-two bits, bits*count/64 does not work
         var storageCount = 0;
         if (bits != 0)
         {
@@ -225,21 +225,21 @@ public static class LevelChunkSerializer
         return unpack(packed);
     }
 
-    //WriteBlockState 写全局 block state id 对齐原版 globalMap.getId
+    //WriteBlockState writes the global block state id, aligns with vanilla globalMap.getId
     private static void WriteBlockState(FriendlyByteBuf buf, BlockState state)
         => buf.WriteVarInt(state.Id);
 
-    //WriteBiome 写全局 biome id 对齐原版 BuiltInRegistries.BIOME getId
-    //ClientboundChunksBiomesPacket 复用本方法故开放到程序集内
+    //WriteBiome writes the global biome id, aligns with vanilla BuiltInRegistries.BIOME getId
+    //ClientboundChunksBiomesPacket reuses this method, hence internal to the assembly
     internal static void WriteBiome(FriendlyByteBuf buf, Holder<Biome> holder)
         => buf.WriteVarInt(Math.Max(0, BuiltInRegistries.BIOME.GetId(holder.Value)));
 
-    //ReadBlockState 按 BlockStateRegistry 全局 id 反查 与 Write 对称
-    //S4 不能用 BuiltInRegistries.BLOCK 查因 BlockStateRegistry 与 block 注册表 id 可能不一致
+    //ReadBlockState looks up by BlockStateRegistry global id, symmetric with Write
+    //S4 cannot use BuiltInRegistries.BLOCK because BlockStateRegistry and the block registry ids may differ
     private static BlockState ReadBlockState(FriendlyByteBuf buf, PalettedContainerFactory? factory = null)
         => BlockStateRegistry.GetState(buf.ReadVarInt());
 
-    //ReadBiome 按全局 id 查 BIOME 注册表返回 Holder
+    //ReadBiome looks up the BIOME registry by global id and returns a Holder
     private static Holder<Biome> ReadBiome(FriendlyByteBuf buf, PalettedContainerFactory? factory = null)
     {
         var id = buf.ReadVarInt();

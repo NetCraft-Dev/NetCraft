@@ -3,8 +3,8 @@ using NetCraft.Commands.Tree;
 
 namespace NetCraft.Commands.Context;
 
-//CommandContextBuilder 命令上下文构建器对应原版com.mojang.brigadier.context.CommandContextBuilder
-//解析过程中累积arguments/nodes/range/child/modifier/forks最终build成CommandContext
+//CommandContextBuilder maps to vanilla com.mojang.brigadier.context.CommandContextBuilder
+//Accumulates arguments/nodes/range/child/modifier/forks during parsing and finally builds a CommandContext
 public sealed class CommandContextBuilder<S>
 {
     private readonly Dictionary<string, ParsedArgument<S>> _arguments = new();
@@ -51,8 +51,8 @@ public sealed class CommandContextBuilder<S>
         return this;
     }
 
-    //WithCustomExecutor 登记自定义执行器对应原版命令节点上 CommandAdapter 的双重身份
-    //委托不可实现接口 命令槽放一个占位委托 自定义执行器单独存
+    //WithCustomExecutor registers a custom executor, mirroring the dual role of CommandAdapter on a vanilla command node
+    //A delegate cannot implement an interface, so the command slot gets a placeholder delegate and the custom executor is stored separately
     public CommandContextBuilder<S> WithCustomExecutor(CustomCommandExecutor<S> executor)
     {
         _command = CustomCommandExecutor<S>.NotExecutable;

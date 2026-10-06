@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundGameRuleValuesPacket 游戏规则值包对应原版 ClientboundGameRuleValuesPacket
-//字段 values Map ResourceKey GameRule String 业务类型占位
+//ClientboundGameRuleValuesPacket game rule values packet, maps to vanilla ClientboundGameRuleValuesPacket
+//Fields: values Map ResourceKey GameRule String business type placeholder
 public sealed record ClientboundGameRuleValuesPacket(object Values) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundGameRuleValuesPacket> StreamCodec { get; } = new GameRuleValuesCodec();
@@ -13,9 +13,9 @@ public sealed record ClientboundGameRuleValuesPacket(object Values) : Packet<Cli
     private sealed class GameRuleValuesCodec : StreamCodec<FriendlyByteBuf, ClientboundGameRuleValuesPacket>
     {
         public ClientboundGameRuleValuesPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("Map ResourceKey GameRule String 业务类型待实现");
+            => throw new NotImplementedException("Map ResourceKey GameRule String business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ClientboundGameRuleValuesPacket value)
-            => throw new NotImplementedException("Map ResourceKey GameRule String 业务类型待实现");
+            => throw new NotImplementedException("Map ResourceKey GameRule String business type not yet implemented");
     }
 }

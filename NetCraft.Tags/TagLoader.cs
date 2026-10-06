@@ -4,17 +4,17 @@ using NetCraft.Registry;
 
 namespace NetCraft.Tags;
 
-//TagLoader 标签加载器对应原版 net.minecraft.tags.TagLoader
-//从数据包目录加载所有 TagFile 构建标签到元素集合的映射
-//支持 replace 标志和标签引用递归构建
-//实现 ITagLoader 让 TagManager 可以非泛型方式持有引用绕过泛型不变性
+//TagLoader tag loader, maps to vanilla net.minecraft.tags.TagLoader
+//Loads all TagFiles from the data pack directory and builds the tag-to-element mapping
+//Supports the replace flag and recursive construction from tag references
+//Implements ITagLoader so TagManager can hold a reference non-generically and work around generic invariance
 public sealed class TagLoader<T> : ITagLoader
 {
-    //directory 数据包标签目录路径（相对资源根如 data/<namespace>/tags/）
+    //directory data pack tag directory path (relative to the resource root such as data/<namespace>/tags/)
     private readonly string _directory;
-    //elementGetter 元素 id 解析回调返回 Optional<T>
+    //elementGetter resolves an element id, returns Optional<T>
     private readonly Func<Identifier, Optional<T>> _elementGetter;
-    //tagIdResolver 标签 id 到构建后元素集合的回调递归解析用
+    //tagIdResolver callback from a tag id to the built element collection, used for recursive resolution
     private readonly Dictionary<Identifier, List<T>> _builtTags = new();
 
     public TagLoader(string directory, Func<Identifier, Optional<T>> elementGetter)
@@ -23,20 +23,20 @@ public sealed class TagLoader<T> : ITagLoader
         _elementGetter = elementGetter;
     }
 
-    //BuildSingle 构建单个 TagFile 的条目集合
+    //BuildSingle builds the entry collection of a single TagFile
     public List<T> BuildSingle(TagFile file)
     {
-        //Log.Debug($"BuildSingle 入口 file={file}");
+        //Log.Debug($"BuildSingle entry file={file}");
         var result = new List<T>();
         foreach (var entry in file.Entries)
         {
             entry.Build(_elementGetter, ResolveTag, result);
         }
-        //Log.Debug($"BuildSingle 出口 result={result}");
+        //Log.Debug($"BuildSingle exit result={result}");
         return result;
     }
 
-    //ResolveTag 标签引用解析回调从已构建的 _builtTags 取
+    //ResolveTag tag reference resolution callback, reads from the already built _builtTags
     private Optional<IEnumerable<T>> ResolveTag(Identifier tagId)
     {
         if (_builtTags.TryGetValue(tagId, out var values))
@@ -46,8 +46,8 @@ public sealed class TagLoader<T> : ITagLoader
         return Optional<IEnumerable<T>>.Empty();
     }
 
-    //BuildAll 批量构建多个 TagFile 按 replace 标志合并
-    //files 按 id -> List<TagFile> 组织同一 tag 多个数据包会合并
+    //BuildAll builds multiple TagFiles in batch, merging according to the replace flag
+    //files organized as id -> List<TagFile>, multiple data packs for the same tag are merged
     public Dictionary<Identifier, List<T>> BuildAll(Dictionary<Identifier, List<TagFile>> files)
     {
         Log.Debug($"BuildAll entry files={files}");
@@ -55,7 +55,7 @@ public sealed class TagLoader<T> : ITagLoader
         foreach (var (tagId, fileList) in files)
         {
             var merged = new List<T>();
-            //Log.Debug($"步骤1 构建标签 tagId={tagId} fileListCount={fileList.Count}");
+            //Log.Debug($"Step 1 build tag tagId={tagId} fileListCount={fileList.Count}");
             foreach (var file in fileList)
             {
                 if (file.Replace)
@@ -72,8 +72,8 @@ public sealed class TagLoader<T> : ITagLoader
         return result;
     }
 
-    //LoadDirectory 加载目录下所有 TagFile 返回 id -> List<TagFile>
-    //directoryPath 绝对路径如 data/<namespace>/tags/<category>
+    //LoadDirectory loads every TagFile under a directory, returns id -> List<TagFile>
+    //directoryPath absolute path such as data/<namespace>/tags/<category>
     public Dictionary<Identifier, List<TagFile>> LoadDirectory(string directoryPath)
     {
         Log.Debug($"LoadDirectory entry directoryPath={directoryPath}");
@@ -87,7 +87,7 @@ public sealed class TagLoader<T> : ITagLoader
         {
             var relative = Path.GetRelativePath(directoryPath, file);
             var idPath = relative.Replace(Path.DirectorySeparatorChar, '/').Replace(".json", "");
-            //解析 namespace:path 形式
+            //Parse the namespace:path form
             Identifier tagId;
             var slashIndex = idPath.IndexOf('/');
             if (slashIndex >= 0)

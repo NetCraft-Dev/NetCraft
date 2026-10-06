@@ -3,35 +3,35 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Storage.Updates;
 
-//IBlockUpdateBehaviour 方块更新行为契约 由 Game 层方块行为类实现
-//Registry.Block 只承载数据 行为在 Game 层 更新链靠本接口回调 不反向依赖 Game
-//方法签名与语义对齐原版 BlockBehaviour 的同名方法
+//IBlockUpdateBehaviour, block update behavior contract, implemented by Game-layer block behavior classes
+//Registry.Block carries data only; behavior is in the Game layer, the update chain calls back through this interface and does not depend back on Game
+//Method signatures and semantics align with the same-named methods on vanilla BlockBehaviour
 public interface IBlockUpdateBehaviour
 {
-    //NeighborChanged 邻接方块变化后回调 对应原版 neighborChanged
-    //changedBlock 是发生变化的那一方块 不是本方块
-    //原版该签名还有 orientation 参数 非实验红石下恒为 null 接实验红石时再补参数位
+    //NeighborChanged, callback after a neighboring block changes, maps to vanilla neighborChanged
+    //changedBlock is the block that changed, not this block
+    //The vanilla signature also has an orientation parameter; it is always null without experimental redstone, the parameter slot will be added when experimental redstone is wired in
     void NeighborChanged(ServerLevel level, BlockPos pos, BlockState state,
         NetCraft.Registry.Block changedBlock, bool movedByPiston);
 
-    //UpdateShape 邻接方块形状变化后重算自身 对应原版 updateShape 默认返回原状态
-    //directionToNeighbour 是从本方块指向邻接的方向
+    //UpdateShape recomputes itself after a neighbor's shape changes, maps to vanilla updateShape, defaults to returning the current state
+    //directionToNeighbour is the direction from this block toward the neighbor
     BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
         Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState);
 
-    //UpdateIndirectNeighbourShapes 间接形状更新 对应原版 updateIndirectNeighbourShapes 默认无行为
+    //UpdateIndirectNeighbourShapes, indirect shape update, maps to vanilla updateIndirectNeighbourShapes, no-op by default
     void UpdateIndirectNeighbourShapes(ServerLevel level, BlockPos pos, BlockState state,
         int updateFlags, int updateLimit);
 
-    //OnPlace 方块放置到位后回调 对应原版 onPlace
+    //OnPlace, callback after a block is placed, maps to vanilla onPlace
     void OnPlace(ServerLevel level, BlockPos pos, BlockState state, BlockState oldState, bool movedByPiston);
 
-    //AffectNeighborsAfterRemoval 本方块被移除后对邻接的额外影响 对应原版 affectNeighborsAfterRemoval 默认无行为
+    //AffectNeighborsAfterRemoval, extra effects on neighbors after this block is removed, maps to vanilla affectNeighborsAfterRemoval, no-op by default
     void AffectNeighborsAfterRemoval(ServerLevel level, BlockPos pos, BlockState state, bool movedByPiston);
 
-    //Tick 调度刻回调 对应原版 Block.tick 由方块刻驱动调用
+    //Tick, scheduled tick callback, maps to vanilla Block.tick, driven by the block tick
     void Tick(ServerLevel level, BlockPos pos, BlockState state, NetCraft.Util.Random.RandomSource random);
 
-    //TriggerEvent 方块事件回调 返回是否已处理 对应原版 Block.triggerEvent
+    //TriggerEvent, block event callback, returns whether it was handled, maps to vanilla Block.triggerEvent
     bool TriggerEvent(ServerLevel level, BlockPos pos, BlockState state, int paramA, int paramB);
 }

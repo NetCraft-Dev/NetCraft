@@ -8,27 +8,27 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//ChestBlockEntity 箱子方块实体对应原版 net.minecraft.world.level.block.entity.ChestBlockEntity
-//27 格容器 内容随区块落盘 右击由 ChestMenu 打开
+//ChestBlockEntity chest block entity, maps to vanilla net.minecraft.world.level.block.entity.ChestBlockEntity
+//27-slot container; contents persist with the chunk, opened by ChestMenu on right-click
 public class ChestBlockEntity : BlockEntity, Container, MenuProvider
 {
-    //ChestSize 箱子槽位数 9x3
+    //ChestSize chest slot count, 9x3
     public const int ChestSize = 27;
 
-    //ContainerDistanceSqr 菜单失效距离平方 原版 8 格
+    //ContainerDistanceSqr squared menu invalidation distance, vanilla 8 blocks
     private const double ContainerDistanceSqr = 64.0;
 
     private readonly SimpleContainer _items = new(ChestSize);
 
     public ChestBlockEntity(BlockPos pos) : base(BlockEntityTypes.CHEST, pos) { }
 
-    //供木桶等同类容器复用 类型不同行为一致 对应原版 BarrelBlockEntity 继承 ChestBlockEntity
+    //Reused by barrels and similar containers; same behavior, different type, maps to vanilla BarrelBlockEntity extending ChestBlockEntity
     protected ChestBlockEntity(BlockEntityType type, BlockPos pos) : base(type, pos) { }
 
-    //DisplayName 界面标题 对应原版 getDefaultName
+    //DisplayName screen title, maps to vanilla getDefaultName
     public virtual Component DisplayName => Component.Translatable("container.chest");
 
-    //CreateMenu 构造箱式菜单 对应原版 createMenu
+    //CreateMenu builds the chest-style menu, maps to vanilla createMenu
     public virtual AbstractContainerMenu CreateMenu(int containerId, PlayerInventory inventory, ServerPlayer player)
         => ChestMenu.ThreeRows(containerId, inventory, this);
 
@@ -50,7 +50,7 @@ public class ChestBlockEntity : BlockEntity, Container, MenuProvider
 
     public bool CanPlaceItem(int slot, ItemStack stack) => true;
 
-    //StillValid 菜单是否仍然有效 方块还在原位且玩家在 8 格内 对应原版 Container.stillValidBlockEntity
+    //StillValid whether the menu is still valid: block still in place and player within 8 blocks, maps to vanilla Container.stillValidBlockEntity
     public bool StillValid(ServerPlayer player)
     {
         if (Level is not ServerLevel level) return false;
@@ -60,7 +60,7 @@ public class ChestBlockEntity : BlockEntity, Container, MenuProvider
         return player.Position.DistanceToSqr(center) <= ContainerDistanceSqr;
     }
 
-    //SaveAdditional 槽位按 Slot 加物品写出 空槽不写 对应原版 ContainerHelper.saveAllItems
+    //SaveAdditional writes slots as Slot plus item, empty slots omitted, maps to vanilla ContainerHelper.saveAllItems
     public override void SaveAdditional(CompoundTag tag)
     {
         base.SaveAdditional(tag);
@@ -77,7 +77,7 @@ public class ChestBlockEntity : BlockEntity, Container, MenuProvider
         tag.Put("Items", items);
     }
 
-    //LoadAdditional 读回槽位 越界槽号与未知物品由 SetItem 与 ReadNbt 各自挡掉
+    //LoadAdditional reads slots back; out-of-range slot ids and unknown items are filtered by SetItem and ReadNbt respectively
     public override void LoadAdditional(CompoundTag tag)
     {
         base.LoadAdditional(tag);
@@ -92,15 +92,15 @@ public class ChestBlockEntity : BlockEntity, Container, MenuProvider
         }
     }
 
-    //OnRemoved 被移出世界前把内容物丢在原地 对应原版 BaseContainerBlockEntity.preRemoveSideEffects
-    //只有方块被替换才会走到这里 区块卸载不走该回调
+    //OnRemoved drops the contents in place before removal, maps to vanilla BaseContainerBlockEntity.preRemoveSideEffects
+    //Only reached when the block is replaced; chunk unload does not invoke this callback
     public override void OnRemoved()
     {
         if (Level is PersistentServerLevel level) Containers.DropContents(level, Pos, this);
     }
 }
 
-//BarrelBlockEntity 木桶方块实体 行为与箱子一致只是类型与标题不同 对应原版 BarrelBlockEntity
+//BarrelBlockEntity barrel block entity, behavior identical to a chest with different type and title, maps to vanilla BarrelBlockEntity
 public sealed class BarrelBlockEntity : ChestBlockEntity
 {
     public BarrelBlockEntity(BlockPos pos) : base(BlockEntityTypes.BARREL, pos) { }

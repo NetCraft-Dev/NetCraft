@@ -3,18 +3,18 @@ using NetCraft.Registry.Codec;
 
 namespace NetCraft.Registry.State;
 
-//BlockStateCodec 方块状态编解码对应原版 BlockState.CODEC
-//JSON 形式 {"Name":"minecraft:stone","Properties":{"snowy":"false"}} 属性段可缺省
-//Name 走 BLOCK 注册表查方块 Properties 逐项按属性名与取值名套用
-//放 Registry 层是因为区块存档的 Palette 也要用它: 存档必须连同属性一起落盘
-//否则带朝向的方块(楼梯/门/半砖)卸载再加载会被还原成默认状态
+//BlockStateCodec block state encoding/decoding, maps to vanilla BlockState.CODEC
+//JSON form {"Name":"minecraft:stone","Properties":{"snowy":"false"}} with the properties section optional
+//Name looks up the block in the BLOCK registry and Properties applies each entry by property name and value name
+//Placed in the Registry layer because the chunk save Palette also uses it: saves must persist properties too
+//Otherwise directional blocks (stairs/doors/slabs) would be restored to their default state after unloading and reloading
 public sealed class BlockStateCodec : ScalarCodec<BlockState>
 {
-    //Instance 默认实例 按内置 BLOCK 注册表查方块
+    //Instance default instance, looking up blocks in the built-in BLOCK registry
     public static readonly BlockStateCodec Instance = new(null);
 
-    //_lookup 自定义方块查找 为空时回落内置注册表
-    //区块存档的 Palette 用容器工厂自己登记过的那张表 测试里的 MockBlock 只在那里
+    //_lookup custom block lookup, falling back to the built-in registry when null
+    //The chunk save Palette uses the table registered by the container factory; MockBlock in tests only exists there
     private readonly Func<Identifier, Block?>? _lookup;
 
     public BlockStateCodec(Func<Identifier, Block?>? lookup) => _lookup = lookup;
@@ -59,8 +59,8 @@ public sealed class BlockStateCodec : ScalarCodec<BlockState>
         return DataResult<BlockState>.Success(state);
     }
 
-    //LookupBlock 先问 RegistryOps 携带的 BLOCK 注册表 再看自定义表 最后回落内置注册表
-    //默认注册表未知 id 会回落 air 必须先用 ContainsKey 拦住
+    //LookupBlock first consults the BLOCK registry carried by RegistryOps, then the custom table, and finally the built-in registry
+    //The default registry falls back to air for unknown ids, so ContainsKey must gate it first
     private Block? LookupBlock<U>(DynamicOps<U> ops, Identifier id)
     {
         if (ops is RegistryOps<U> registryOps)
@@ -73,7 +73,7 @@ public sealed class BlockStateCodec : ScalarCodec<BlockState>
         return BuiltInRegistries.BLOCK.ContainsKey(id) ? BuiltInRegistries.BLOCK.GetValue(id) : null;
     }
 
-    //FindProperty 按属性名在状态属性表里查找
+    //FindProperty looks up a property by name in the state's property set
     private static PropertyBase? FindProperty(BlockState state, string name)
     {
         foreach (var property in state.GetProperties())

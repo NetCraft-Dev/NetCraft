@@ -1,15 +1,15 @@
 namespace NetCraft.Util;
 
-//DummyFileAttributes 虚拟文件系统的占位属性 对应原版 net.minecraft.util.DummyFileAttributes
-//时间统一取 Unix 纪元 大小与文件键恒为空 只区分目录与文件两种
+//DummyFileAttributes placeholder attributes for the virtual filesystem, maps to vanilla net.minecraft.util.DummyFileAttributes
+//Time is always Unix epoch, size and file key are always empty; only distinguishes directory from file
 public abstract class DummyFileAttributes
 {
     private static readonly DateTimeOffset Epoch = DateTimeOffset.FromUnixTimeMilliseconds(0);
 
-    //Directory 目录占位属性
+    //Directory directory placeholder attributes
     public static readonly DummyFileAttributes Directory = new DirectoryEntry();
 
-    //File 文件占位属性
+    //File file placeholder attributes
     public static readonly DummyFileAttributes File = new FileEntry();
 
     public DateTimeOffset LastModifiedTime => Epoch;

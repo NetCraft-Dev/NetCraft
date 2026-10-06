@@ -3,8 +3,8 @@ using NetCraft.Logging;
 
 namespace NetCraft.Storage;
 
-//CopyOnWriteFileSystem 写时复制文件系统 对应原版 net.minecraft.util.filefix.virtualfilesystem.CopyOnWriteFileSystem
-//构建时把基础目录铺成一棵节点树 改动前先把文件复制进临时目录 最后收集搬运操作统一落盘
+//CopyOnWriteFileSystem, copy-on-write filesystem, maps to vanilla net.minecraft.util.filefix.virtualfilesystem.CopyOnWriteFileSystem
+//At build time the base directory is laid out as a node tree; before changes files are copied into the temp directory, and finally the move operations are collected and written to disk together
 public sealed class CopyOnWriteFileSystem
 {
     private readonly string _baseDirectory;
@@ -45,7 +45,7 @@ public sealed class CopyOnWriteFileSystem
 
     public IReadOnlySet<string> SupportedFileAttributeViews { get; } = new HashSet<string> { "basic" };
 
-    //Create 建文件系统 临时目录已存在直接报错 建完再真正落目录
+    //Create builds the filesystem; an existing temp directory errors out, and the directory is really created after construction
     public static CopyOnWriteFileSystem Create(string name, string baseDirectory, string tmpDirectory, Func<string, bool> skippedPaths)
     {
         if (Directory.Exists(tmpDirectory) || File.Exists(tmpDirectory))
@@ -61,19 +61,19 @@ public sealed class CopyOnWriteFileSystem
 
     public string GetSeparator() => Path.DirectorySeparatorChar.ToString();
 
-    //Close 清掉临时目录
+    //Close cleans up the temp directory
     public void Close()
     {
         if (Directory.Exists(_tmpDirectory)) Directory.Delete(_tmpDirectory, true);
     }
 
-    //ResetFileTreeToBaseFolderContent 重扫基础目录重建文件树 测试用
+    //ResetFileTreeToBaseFolderContent rescans the base directory and rebuilds the file tree, for tests
     public void ResetFileTreeToBaseFolderContent() => _fileTree = BuildFileTreeFrom(_baseDirectory);
 
-    //CreateTemporaryFilePath 分配一个新的临时文件路径
+    //CreateTemporaryFilePath allocates a new temp file path
     public string CreateTemporaryFilePath() => Path.Combine(_tmpDirectory, $"tmp_{Interlocked.Increment(ref _tmpFileIndex)}");
 
-    //BuildFileTreeFrom 递归把基础目录铺成节点树
+    //BuildFileTreeFrom recursively lays out the base directory as a node tree
     private DirectoryNode BuildFileTreeFrom(string baseDirectory)
     {
         var fileTree = new DirectoryNode(_rootPath);
@@ -102,7 +102,7 @@ public sealed class CopyOnWriteFileSystem
         }
     }
 
-    //CheckAttributes 符号链接与只读路径都不接受
+    //CheckAttributes rejects symlinks and read-only paths
     private static void CheckAttributes(string realPath)
     {
         var attributes = File.GetAttributes(realPath);
@@ -116,11 +116,11 @@ public sealed class CopyOnWriteFileSystem
         }
     }
 
-    //ToCowPath 真实路径换算成文件树里的虚拟路径
+    //ToCowPath converts a real path into the virtual path in the file tree
     private static CopyOnWriteFSPath ToCowPath(string baseDirectory, string realPath, DirectoryNode fileTree)
         => fileTree.Path.Resolve(Path.GetRelativePath(baseDirectory, realPath).Replace('\\', '/'));
 
-    //CollectMoveOperations 遍历文件树收集目录与两类文件搬运
+    //CollectMoveOperations walks the file tree and collects directories plus the two kinds of file moves
     public Moves CollectMoveOperations(string outPath)
     {
         var result = new Moves(new List<string>(), new List<FileMove>(), new List<FileMove>());
@@ -148,13 +148,13 @@ public sealed class CopyOnWriteFileSystem
         }
     }
 
-    //CreateDirectories 逐个建目录 父目录必须已存在
+    //CreateDirectories creates directories one by one; the parent must already exist
     public static void CreateDirectories(IReadOnlyList<string> directories)
     {
         foreach (var directory in directories) Directory.CreateDirectory(directory);
     }
 
-    //HardLinkFiles 未改动的文件硬链接到目标位置省空间
+    //HardLinkFiles hard-links unchanged files to the target to save space
     public static void HardLinkFiles(IReadOnlyList<FileMove> moves)
     {
         foreach (var move in moves)
@@ -170,7 +170,7 @@ public sealed class CopyOnWriteFileSystem
         foreach (var move in moves) File.Move(move.From, move.To);
     }
 
-    //MoveFilesWithRetry 搬回去时跳过已就位或已存在的 其余必须搬
+    //MoveFilesWithRetry skips already-in-place or existing entries when moving back, the rest must move
     public static void MoveFilesWithRetry(IReadOnlyList<FileMove> moves, bool overwrite = false)
     {
         foreach (var move in moves)
@@ -181,7 +181,7 @@ public sealed class CopyOnWriteFileSystem
         }
     }
 
-    //TryRevertMoves 把已搬走的文件搬回去 返回失败的项
+    //TryRevertMoves moves back files already moved away, returns the failures
     public static IReadOnlyList<FileMove> TryRevertMoves(IReadOnlyList<FileMove> moves, bool overwrite = false)
     {
         var failed = new List<FileMove>();
@@ -219,7 +219,7 @@ public sealed class CopyOnWriteFileSystem
         }
     }
 
-    //CreateHardLink 跨平台硬链接 Windows 与 Unix 各走一套系统调用
+    //CreateHardLink, cross-platform hard links with separate syscalls for Windows and Unix
     private static void CreateHardLink(string target, string source)
     {
         var success = OperatingSystem.IsWindows()
@@ -234,6 +234,6 @@ public sealed class CopyOnWriteFileSystem
     [DllImport("libc", EntryPoint = "link", SetLastError = true)]
     private static extern int CreateHardLinkUnix(string existingPath, string newPath);
 
-    //Moves 一次搬运涉及的目录 复制出来的文件 以及原有文件
+    //Moves, the directories, copied-out files and preexisting files involved in one move
     public record Moves(List<string> Directories, List<FileMove> CopiedFiles, List<FileMove> PreexistingFiles);
 }

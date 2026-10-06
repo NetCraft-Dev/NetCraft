@@ -4,8 +4,8 @@ using NetCraft.Logging;
 
 namespace NetCraft.Util;
 
-//崩溃报告对应原版net.minecraft.CrashReport
-//收集异常与上下文分类用于错误诊断 末尾附一段 System Details 系统信息
+//Crash report, maps to vanilla net.minecraft.CrashReport
+//Collects the exception and context categories for diagnostics; appends a System Details section at the end
 public sealed class CrashReport
 {
     private static readonly string NewLine = Environment.NewLine;
@@ -26,14 +26,14 @@ public sealed class CrashReport
     public string Title => _title;
     public Exception Exception => _exception;
 
-    //SaveFile 报告落盘的路径 没写过是 null 对应原版 getSaveFile
+    //SaveFile path the report was written to, null if never written, maps to vanilla getSaveFile
     public string? SaveFile => _saveFile;
 
-    //SystemReport 系统信息段 对应原版 getSystemReport
+    //SystemReport the System Details section, maps to vanilla getSystemReport
     public SystemReport SystemReport => _systemReport;
 
-    //添加上下文分类对应原版addCategory
-    //nestedOffset用于跳过当前栈帧
+    //Adds a context category, maps to vanilla addCategory
+    //nestedOffset is used to skip the current stack frame
     public CrashReportCategory AddCategory(string name) => AddCategory(name, 1);
 
     public CrashReportCategory AddCategory(string name, int nestedOffset)
@@ -47,11 +47,11 @@ public sealed class CrashReport
         return category;
     }
 
-    //GetFriendlyReport 不带报告头的精简版本 供日志与诊断命令直接取用
+    //GetFriendlyReport condensed version without the report header, for direct use by logs and diagnostic commands
     public string GetFriendlyReport() => GetFriendlyReport(ReportType.Crash);
 
-    //GetFriendlyReport 完整报告文本 对应原版 getFriendlyReport
-    //头部两行来自报告类型 之后是时间 描述 异常堆栈与各分类详情
+    //GetFriendlyReport full report text, maps to vanilla getFriendlyReport
+    //The first two lines come from the report type, followed by time, description, exception stack and category details
     public string GetFriendlyReport(ReportType reportType, IReadOnlyList<string>? extraComments = null)
     {
         var builder = new StringBuilder();
@@ -66,8 +66,8 @@ public sealed class CrashReport
         return builder.ToString();
     }
 
-    //SaveToFile 把报告写到指定路径 已写过直接返回 false 对应原版 saveToFile
-    //写失败只记日志不抛 崩溃处理链路上再抛就没有兜底了
+    //SaveToFile writes the report to the given path, returns false if already written, maps to vanilla saveToFile
+    //On write failure, only log and do not throw; throwing again on the crash path leaves nothing to fall back on
     public bool SaveToFile(string path, ReportType reportType, IReadOnlyList<string>? extraComments = null)
     {
         if (_saveFile is not null) return false;
@@ -81,7 +81,7 @@ public sealed class CrashReport
         }
         catch (Exception e)
         {
-            Log.Error($"崩溃报告写入失败 {path}: {e.GetType().Name}: {e.Message}");
+            Log.Error($"Failed to write crash report {path}: {e.GetType().Name}: {e.Message}");
             return false;
         }
     }
@@ -107,15 +107,15 @@ public sealed class CrashReport
         _systemReport.AppendToCrashReportString(builder);
     }
 
-    //输出异常message与堆栈
+    //Prints the exception message and stack
     private string GetExceptionMessage()
     {
         var ex = _exception;
         return ex.ToString();
     }
 
-    //从Throwable构造CrashReport对应原版forThrowable
-    //解包AggregateException并复用ReportedException内嵌的report
+    //Builds a CrashReport from a Throwable, maps to vanilla forThrowable
+    //Unwraps AggregateException and reuses the report embedded in ReportedException
     public static CrashReport ForThrowable(Exception throwable, string title)
     {
         while (throwable is AggregateException agg && agg.InnerException != null)

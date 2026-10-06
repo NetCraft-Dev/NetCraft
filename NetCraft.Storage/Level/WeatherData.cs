@@ -3,31 +3,31 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage;
 
-//WeatherData 天气状态存档对应原版 net.minecraft.world.level.saveddata.WeatherData
-//存 data/minecraft/weather.dat 服务器级一份 雨与雷各带一条剩余刻数与当前目标状态
+//WeatherData, weather state save data, maps to vanilla net.minecraft.world.level.saveddata.WeatherData
+//Stored in data/minecraft/weather.dat, one per server; rain and thunder each carry remaining ticks and a current target state
 public sealed class WeatherData : SavedData
 {
-    //TypeId 存档标识对应原版 SavedDataType 的 minecraft:weather
+    //TypeId, the save identifier, maps to the minecraft:weather of the vanilla SavedDataType
     private const string TypeId = "minecraft:weather";
 
-    //Type SavedDataType 工厂
+    //Type, the SavedDataType factory
     public static readonly SavedDataType<WeatherData> Type = new WeatherDataType();
 
     public override string Id => TypeId;
 
-    //ClearWeatherTime 强制放晴剩余刻数 大于零时雨与雷都停
+    //ClearWeatherTime, remaining ticks of forced clear weather; while above zero both rain and thunder stop
     public int ClearWeatherTime { get; private set; }
 
-    //RainTime 下雨状态剩余刻数 归零即翻转
+    //RainTime, remaining ticks of the rain state; flips when it reaches zero
     public int RainTime { get; private set; }
 
-    //ThunderTime 雷暴状态剩余刻数 归零即翻转
+    //ThunderTime, remaining ticks of the thunder state; flips when it reaches zero
     public int ThunderTime { get; private set; }
 
-    //Raining 天气目标是否下雨
+    //Raining, whether the weather target is raining
     public bool Raining { get; private set; }
 
-    //Thundering 天气目标是否雷暴
+    //Thundering, whether the weather target is thundering
     public bool Thundering { get; private set; }
 
     public void SetClearWeatherTime(int clearWeatherTime)
@@ -60,7 +60,7 @@ public sealed class WeatherData : SavedData
         SetDirty();
     }
 
-    //Save 字段名对齐原版 WeatherData codec
+    //Save field names align with the vanilla WeatherData codec
     public override CompoundTag Save(CompoundTag tag)
     {
         tag.PutInt("clear_weather_time", ClearWeatherTime);
@@ -71,7 +71,7 @@ public sealed class WeatherData : SavedData
         return tag;
     }
 
-    //WeatherDataType SavedDataType 实现 空标签即全新天气 字段缺失按默认值兜底
+    //WeatherDataType SavedDataType implementation; an empty tag is fresh weather, missing fields fall back to defaults
     private sealed class WeatherDataType : SavedDataType<WeatherData>
     {
         public string Id => TypeId;

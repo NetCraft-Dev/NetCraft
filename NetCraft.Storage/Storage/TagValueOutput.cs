@@ -4,8 +4,8 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Storage;
 
-//TagValueOutput 基于 CompoundTag 的 ValueOutput 实现对应原版 TagValueOutput
-//简化点不实现 ProblemReporter 错误路径走 Log.Warning 部分值忽略
+//TagValueOutput, a CompoundTag-based ValueOutput implementation, maps to vanilla TagValueOutput
+//Simplification: no ProblemReporter; error paths go to Log.Warning and partial values are ignored
 public sealed class TagValueOutput : ValueOutput
 {
     private readonly CompoundTag _output;
@@ -14,7 +14,7 @@ public sealed class TagValueOutput : ValueOutput
 
     private TagValueOutput(CompoundTag output) => _output = output;
 
-    //按 Codec 把值序列化到字段对应原版 store
+    //Serialize a value into a field with a Codec, maps to vanilla store
     public void Store<T>(string name, Codec<T> codec, T value)
     {
         var result = codec.EncodeStart(NbtOps.Instance, value);
@@ -28,7 +28,7 @@ public sealed class TagValueOutput : ValueOutput
         }
     }
 
-    //按 Codec 把可空值序列化到字段 null 跳过
+    //Serialize a nullable value into a field with a Codec; null is skipped
     public void StoreNullable<T>(string name, Codec<T> codec, T? value) where T : class
     {
         if (value is not null) Store(name, codec, value);
@@ -44,7 +44,7 @@ public sealed class TagValueOutput : ValueOutput
     public void PutString(string name, string value) => _output.PutString(name, value);
     public void PutIntArray(string name, int[] value) => _output.PutIntArray(name, value);
 
-    //创建子节点输出对应原版 child
+    //Create a child node output, maps to vanilla child
     public ValueOutput Child(string name)
     {
         var child = new CompoundTag();
@@ -52,7 +52,7 @@ public sealed class TagValueOutput : ValueOutput
         return new TagValueOutput(child);
     }
 
-    //创建子节点列表输出对应原版 childrenList
+    //Create a child node list output, maps to vanilla childrenList
     public ValueOutput.ValueOutputList ChildrenList(string name)
     {
         var list = new ListTag();
@@ -60,7 +60,7 @@ public sealed class TagValueOutput : ValueOutput
         return new ListWrapper(list);
     }
 
-    //按 Codec 创建类型化列表输出对应原版 list
+    //Create a typed list output with a Codec, maps to vanilla list
     public ValueOutput.TypedOutputList<T> List<T>(string name, Codec<T> codec)
     {
         var list = new ListTag();
@@ -72,10 +72,10 @@ public sealed class TagValueOutput : ValueOutput
 
     public bool IsEmpty() => _output.IsEmpty;
 
-    //构建结果返回内部 CompoundTag
+    //BuildResult returns the internal CompoundTag
     public CompoundTag BuildResult() => _output;
 
-    //ListWrapper 子节点列表实现对应原版 TagValueOutput.ListWrapper
+    //ListWrapper, child node list implementation, maps to vanilla TagValueOutput.ListWrapper
     private sealed class ListWrapper : ValueOutput.ValueOutputList
     {
         private readonly ListTag _list;
@@ -94,7 +94,7 @@ public sealed class TagValueOutput : ValueOutput
         public bool IsEmpty() => _list.IsEmpty;
     }
 
-    //TypedListWrapper 类型化列表实现对应原版 TagValueOutput.TypedListWrapper
+    //TypedListWrapper, typed list implementation, maps to vanilla TagValueOutput.TypedListWrapper
     private sealed class TypedListWrapper<T> : ValueOutput.TypedOutputList<T>
     {
         private readonly Codec<T> _codec;

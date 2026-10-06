@@ -2,11 +2,11 @@ using NetCraft.Codec;
 
 namespace NetCraft.Util.Collection;
 
-//Optional工具对应原版net.minecraft.util.Util.ifElse
+//Optional helper, maps to vanilla net.minecraft.util.Util.ifElse
 public static class OptionalUtil
 {
-    //ifElse按Optional是否present分支调用对应原版Util.ifElse
-    //返回原Optional便于链式调用
+    //ifElse branches on whether the Optional is present, maps to vanilla Util.ifElse
+    //Returns the original Optional for chaining
     public static Optional<T> IfElse<T>(Optional<T> input, Action<T> onTrue, Action onFalse)
     {
         if (input.IsPresent)

@@ -2,8 +2,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Registry.Codec;
 
-//Identifier codec对应原版Identifier.CODEC
-//序列化为StringTag用namespace:path格式
+//Identifier codec, maps to vanilla Identifier.CODEC
+//Serialized as a StringTag in namespace:path format
 public sealed class IdentifierCodec : ScalarCodec<Identifier>
 {
     public static readonly IdentifierCodec Instance = new();

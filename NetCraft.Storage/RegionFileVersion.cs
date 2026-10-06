@@ -4,14 +4,14 @@ using NetCraft.Logging;
 
 namespace NetCraft.Storage;
 
-//MCA压缩版本对应原版RegionFileVersion
-//GZIP DEFLATE NONE LZ4内置，CUSTOM暂stub抛NotSupported
+//MCA compression version, maps to vanilla RegionFileVersion
+//GZIP, DEFLATE, NONE and LZ4 are built in; CUSTOM is stubbed to throw NotSupported for now
 public sealed class RegionFileVersion
 {
     private static readonly Dictionary<int, RegionFileVersion> _versionsById = new();
     private static readonly Dictionary<string, RegionFileVersion> _versionsByName = new();
 
-    //WrapOutput用leaveOpen false，使BinaryWriter关闭链传到ChunkDataBuffer触发回写
+    //WrapOutput uses leaveOpen false so closing the BinaryWriter propagates to ChunkDataBuffer and triggers the write-back
     public static readonly RegionFileVersion VersionGzip = Register(new RegionFileVersion(
         1, null,
         s => new GZipStream(s, CompressionMode.Decompress, leaveOpen: true),
@@ -27,7 +27,7 @@ public sealed class RegionFileVersion
         s => s,
         s => s));
 
-    //LZ4用K4os.Compression.LZ4.Streams标准帧格式对应原版LZ4BlockInputStream/OutputStream
+    //LZ4 uses the standard frame format from K4os.Compression.LZ4.Streams, maps to vanilla LZ4BlockInputStream/OutputStream
     public static readonly RegionFileVersion VersionLz4 = Register(new RegionFileVersion(
         4, "lz4",
         s => LZ4Stream.Decode(s, new LZ4DecoderSettings(), leaveOpen: true, interactive: false),
@@ -67,7 +67,7 @@ public sealed class RegionFileVersion
 
     public static RegionFileVersion GetSelected() => _selected;
 
-    //按server.properties的region-file-compression值切换默认版本
+    //Switch the default version by the region-file-compression value in server.properties
     public static void Configure(string optionName)
     {
         if (_versionsByName.TryGetValue(optionName, out var v))

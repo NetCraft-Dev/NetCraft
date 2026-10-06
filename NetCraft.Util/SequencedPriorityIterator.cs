@@ -1,20 +1,20 @@
 namespace NetCraft.Util;
 
-//SequencedPriorityIterator 定序优先级队列 对应原版 net.minecraft.util.SequencedPriorityIterator
-//出队恒取当前最高优先级 同优先级保持入队先后 拼图装配靠它决定先展开哪个片段
+//SequencedPriorityIterator ordered priority queue, maps to vanilla net.minecraft.util.SequencedPriorityIterator
+//Dequeue always takes the current highest priority, same priority preserves enqueue order; puzzle assembly relies on it to decide which piece to expand first
 public sealed class SequencedPriorityIterator<T>
 {
-    //MinPriority 空优先级哨兵 对应原版 MIN_PRIO
+    //MinPriority empty priority sentinel, maps to vanilla MIN_PRIO
     private const int MinPriority = int.MinValue;
 
     private readonly Dictionary<int, Queue<T>> _queuesByPriority = new();
     private Queue<T>? _highestPriorityQueue;
     private int _highestPriority = MinPriority;
 
-    //Count 还在队列里的元素个数
+    //Count number of elements still in the queue
     public int Count { get; private set; }
 
-    //Add 入队 优先级等于当前最高时直接接在队尾 对应原版 add
+    //Add enqueues; when priority equals the current highest it is appended at the tail, maps to vanilla add
     public void Add(T data, int priority)
     {
         Count++;
@@ -34,22 +34,22 @@ public sealed class SequencedPriorityIterator<T>
         _highestPriority = priority;
     }
 
-    //HasNext 是否还有待出队元素 对应原版 hasNext
+    //HasNext whether any element remains to dequeue, maps to vanilla hasNext
     public bool HasNext => _highestPriorityQueue is { Count: > 0 };
 
-    //Next 出队当前最高优先级的下一个 对应原版 next
-    //取空最高优先级队列后立刻切到次高队列 下次出队就落在新队列上
+    //Next dequeues the next element of the current highest priority, maps to vanilla next
+    //Once the highest priority queue is drained it switches to the next-highest, so the next dequeue lands on the new queue
     public T Next()
     {
         var queue = _highestPriorityQueue;
-        if (queue is null || queue.Count == 0) throw new InvalidOperationException("队列已空");
+        if (queue is null || queue.Count == 0) throw new InvalidOperationException("Queue is empty");
         Count--;
         var result = queue.Dequeue();
         if (queue.Count == 0) SwitchToNextHighestPriorityQueue();
         return result;
     }
 
-    //SwitchToNextHighestPriorityQueue 重新挑出非空的最高优先级队列 对应原版 switchCacheToNextHighestPrioQueue
+    //SwitchToNextHighestPriorityQueue picks the next non-empty highest priority queue, maps to vanilla switchCacheToNextHighestPrioQueue
     private void SwitchToNextHighestPriorityQueue()
     {
         var foundPriority = MinPriority;
@@ -59,7 +59,7 @@ public sealed class SequencedPriorityIterator<T>
             if (priority <= foundPriority || queue.Count == 0) continue;
             foundPriority = priority;
             foundQueue = queue;
-            //已经找到紧邻的下一档就没有更高的了 对应原版提前跳出
+            //Once the adjacent next tier is found there is nothing higher, maps to vanilla early exit
             if (priority == _highestPriority - 1) break;
         }
         _highestPriority = foundPriority;

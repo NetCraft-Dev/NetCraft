@@ -1,11 +1,11 @@
 namespace NetCraft.Primitives.Phys;
 
-//IndirectMerger 通用索引归并 对应原版 IndirectMerger
-//两侧切分点交错不规律时走这条 双指针扫描并按容差合并几乎重合的点
-//firstOnlyMatters 为真表示只看第一侧落在格内的点 第二侧起辅助作用
+//IndirectMerger general-purpose index merge, maps to vanilla IndirectMerger
+//Used when the two sides' split points interleave irregularly, a two-pointer scan merges nearly coincident points within tolerance
+//firstOnlyMatters true means only the first side's in-cell points count, the second side plays a supporting role
 public sealed class IndirectMerger : IIndexMerger
 {
-    //容差 两个切分点相差小于它视作同一个点 对应原版 1.0E-7
+    //Tolerance, two split points differing by less than this are treated as the same point, maps to vanilla 1.0E-7
     private const double Tolerance = 1.0E-7;
 
     private static readonly double[] Empty = { 0.0 };
@@ -32,7 +32,7 @@ public sealed class IndirectMerger : IIndexMerger
         var secondIndex = 0;
         while (true)
         {
-            //这两个快照取循环开头 后面下标自增后判断仍用旧值 与原版一致
+            //These two snapshots are taken at the top of the loop, later checks still use the old values after the indices increment, same as vanilla
             var ranOutOfFirst = firstIndex >= firstSize;
             var ranOutOfSecond = secondIndex >= secondSize;
             if (ranOutOfFirst && ranOutOfSecond) break;
@@ -62,7 +62,7 @@ public sealed class IndirectMerger : IIndexMerger
                 continue;
             }
 
-            //与上一个点重合 改写上一格的下标而不新增坐标
+            //Coincides with the previous point, rewrites the previous cell's indices instead of adding a coordinate
             _firstIndices[resultIndex - 1] = currentFirstIndex;
             _secondIndices[resultIndex - 1] = currentSecondIndex;
         }

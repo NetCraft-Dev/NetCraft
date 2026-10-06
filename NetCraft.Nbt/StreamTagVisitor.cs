@@ -1,48 +1,48 @@
 namespace NetCraft.Nbt;
 
-//流式 NBT 访问者。对应原版 net.minecraft.nbt.StreamTagVisitor。
-//与 TagVisitor 不同，流式访问不构建完整 Tag 对象，直接处理原始数据。
-//用于大 NBT 的高效解析（如区块数据）。
-//与原版接口完全对齐：
-//<item>ValueResult 三态：Continue / Break / Halt（无 Skip）。</item>
-//<item>EntryResult 四态：Enter / Skip / Break / Halt。</item>
-//<item>VisitList 返回 ValueResult（无单独 NestedResult）。</item>
-//<item>VisitEnd / VisitContainerEnd 返回 ValueResult。</item>
-//<item>列表元素访问通过 VisitElement 单独回调（与原版一致）。</item>
-//数组访问接受 ReadOnlySpan&lt;T&gt;（优于原版 byte[]，避免数组分配），
-//需要数组的调用方（如 CollectToTag）用 System.MemoryExtensions.ToArray 转换。
+//Streaming NBT visitor. Mirrors vanilla net.minecraft.nbt.StreamTagVisitor.
+//Unlike TagVisitor, streaming access does not build full Tag objects and works on raw data.
+//Used for efficient parsing of large NBT (chunk data, for example).
+//Fully aligned with the vanilla interface:
+//<item>ValueResult has three states: Continue / Break / Halt (no Skip).</item>
+//<item>EntryResult has four states: Enter / Skip / Break / Halt.</item>
+//<item>VisitList returns ValueResult (no separate NestedResult).</item>
+//<item>VisitEnd / VisitContainerEnd return ValueResult.</item>
+//<item>List elements are visited through a separate VisitElement callback (same as vanilla).</item>
+//Array access takes ReadOnlySpan&lt;T&gt; (better than vanilla byte[], no array allocation),
+//callers that need an array (such as CollectToTag) convert with System.MemoryExtensions.ToArray.
 public interface StreamTagVisitor
 {
-    //容器条目访问结果。
+    //Result of visiting a container entry.
     public enum EntryResult
     {
-        //进入当前条目，正常递归访问其子值。
+        //Enter the current entry and visit its children normally.
         Enter,
 
-        //跳过当前条目数据（由调用方负责 skip 字节），继续访问兄弟条目。
+        //Skip the current entry's data (the caller skips the bytes) and continue with sibling entries.
         Skip,
 
-        //停止访问当前容器（跳出当前层），但容器本身正常结束（触发 VisitContainerEnd）。
+        //Stop visiting the current container (leave this level) but end it normally (VisitContainerEnd fires).
         Break,
 
-        //立即停止整个解析过程（不触发后续回调）。
+        //Stop the whole parse immediately (no further callbacks).
         Halt,
     }
 
-    //值访问结果。
+    //Result of visiting a value.
     public enum ValueResult
     {
-        //继续访问。
+        //Continue visiting.
         Continue,
 
-        //结束当前容器并触发 VisitContainerEnd，但继续外层访问。
+        //End the current container and fire VisitContainerEnd, then continue with the outer level.
         Break,
 
-        //立即停止整个解析（不触发 VisitContainerEnd 等后续回调）。
+        //Stop the whole parse immediately (VisitContainerEnd and later callbacks do not fire).
         Halt,
     }
 
-    // ============ 标量值访问 ============
+    // ============ scalar value visitors ============
 
     ValueResult VisitEnd();
 
@@ -60,7 +60,7 @@ public interface StreamTagVisitor
 
     ValueResult VisitDouble(double value);
 
-    // ============ 数组访问 ============
+    // ============ array visitors ============
 
     ValueResult VisitByteArray(ReadOnlySpan<byte> value);
 
@@ -68,29 +68,29 @@ public interface StreamTagVisitor
 
     ValueResult VisitLongArray(ReadOnlySpan<long> value);
 
-    // ============ 容器访问 ============
+    // ============ container visitors ============
 
-    //开始访问列表。elementType 为元素类型，length 为元素数。
+    //Start visiting a list. elementType is the element type and length the element count.
     ValueResult VisitList(TagType elementType, int length);
 
-    //开始访问无名容器条目（ListTag 元素 / TagVisitor 路径）。
+    //Start visiting an unnamed container entry (ListTag element / TagVisitor path).
     EntryResult VisitEntry(TagType type);
 
-    //开始访问复合标签的有名字段。
+    //Start visiting a named field of a compound tag.
     EntryResult VisitEntry(TagType type, string name);
 
-    //访问列表元素（index 为下标）。原版用于区分 CompoundTag 字段与 ListTag 元素。
+    //Visit a list element (index is the position). Vanilla uses this to tell CompoundTag fields from ListTag elements.
     EntryResult VisitElement(TagType type, int index);
 
-    //容器结束。原版 visitContainerEnd，返回 ValueResult。
+    //End of a container. Vanilla visitContainerEnd, returns ValueResult.
     ValueResult VisitContainerEnd();
 
-    //访问根条目（最外层 Tag 的类型声明）。
+    //Visit the root entry (the type declaration of the outermost Tag).
     ValueResult VisitRootEntry(TagType type);
 }
 
-//简单的 StreamTagVisitor 基类，所有方法默认返回 Continue/Enter。
-//子类只需重写关心的方法。对应原版 interface default method 行为。
+//Simple StreamTagVisitor base class; every method returns Continue/Enter by default.
+//Subclasses only override the methods they care about. Mirrors vanilla interface default method behavior.
 public abstract class StreamTagVisitorBase : StreamTagVisitor
 {
     public virtual StreamTagVisitor.ValueResult VisitRootEntry(TagType type) => StreamTagVisitor.ValueResult.Continue;

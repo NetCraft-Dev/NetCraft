@@ -1,8 +1,8 @@
 namespace NetCraft.Primitives;
 
-//区块段坐标对应原版net.minecraft.core.SectionPos
-//段大小16段内block坐标4位段坐标22+20+22位对应原版位运算
-//含blockToSectionCoord/sectionToBlockCoord/asLong/of位运算
+//Section position, maps to vanilla net.minecraft.core.SectionPos
+//Section size 16, in-section block coordinates take 4 bits, section coordinates use 22+20+22 bits, maps to the vanilla bitwise packing
+//Includes blockToSectionCoord/sectionToBlockCoord/asLong/of bitwise operations
 public readonly struct SectionPos : IEquatable<SectionPos>
 {
     public const int SectionBits = 4;
@@ -36,37 +36,37 @@ public readonly struct SectionPos : IEquatable<SectionPos>
         Z = z;
     }
 
-    //of按x/y/z构造
+    //of constructs from x/y/z
     public static SectionPos Of(int x, int y, int z) => new(x, y, z);
 
-    //of按BlockPos构造转段坐标
+    //of constructs from a BlockPos, converting to section coordinates
     public static SectionPos Of(BlockPos pos)
         => new(BlockToSectionCoord(pos.X), BlockToSectionCoord(pos.Y), BlockToSectionCoord(pos.Z));
 
-    //of按ChunkPos+sectionY构造
+    //of constructs from a ChunkPos + sectionY
     public static SectionPos Of(ChunkPos chunkPos, int sectionY)
         => new(chunkPos.X, sectionY, chunkPos.Z);
 
-    //of按packed long解压
+    //of unpacks from a packed long
     public static SectionPos Of(long packed)
         => new(GetX(packed), GetY(packed), GetZ(packed));
 
-    //blockToSectionCoord把block坐标右移4位变段坐标
+    //blockToSectionCoord shifts block coordinates right by 4 bits into section coordinates
     public static int BlockToSectionCoord(int blockCoord) => blockCoord >> SectionBits;
 
-    //sectionToBlockCoord把段坐标左移4位并补0变block坐标
+    //sectionToBlockCoord shifts section coordinates left by 4 bits and zero-fills into block coordinates
     public static int SectionToBlockCoord(int sectionCoord) => sectionCoord << SectionBits;
 
-    //blockToSectionCoord取double版原版用于entity
+    //blockToSectionCoord double version, vanilla uses it for entities
     public static int BlockToSectionCoord(double blockCoord) => (int)Math.Floor(blockCoord / SectionSize);
 
-    //getX/getY/getZ从packed long取段坐标
-    //必须用左移顶到符号位再算术右移还原符号 只做掩码会把负数段坐标(主世界 y 段从 -4 开始)还原成正数
+    //getX/getY/getZ read section coordinates from a packed long
+    //Must shift left to the sign bit then arithmetic shift right to restore the sign, masking alone would turn negative section coordinates (overworld y sections start at -4) into positive ones
     public static int GetX(long packed) => (int)(packed << (64 - XOffset - PackedXLength) >> (64 - PackedXLength));
     public static int GetY(long packed) => (int)(packed << (64 - YOffset - PackedYLength) >> (64 - PackedYLength));
     public static int GetZ(long packed) => (int)(packed << (64 - ZOffset - PackedZLength) >> (64 - PackedZLength));
 
-    //asLong把段坐标压缩为long对应原版序列化存储
+    //asLong packs section coordinates into a long, maps to the vanilla serialized storage
     public long AsLong() => AsLong(X, Y, Z);
 
     public static long AsLong(int x, int y, int z)
@@ -74,32 +74,32 @@ public readonly struct SectionPos : IEquatable<SectionPos>
          | ((long)y & PackedYMask) << YOffset
          | ((long)z & PackedZMask) << ZOffset;
 
-    //blockToSection把 packed BlockPos 转 packed SectionPos 光照按 blockNode 找 sectionNode
+    //blockToSection converts a packed BlockPos to a packed SectionPos, lighting uses it to find the sectionNode from a blockNode
     public static long BlockToSection(long blockNode)
         => AsLong(
             BlockToSectionCoord(BlockPos.GetX(blockNode)),
             BlockToSectionCoord(BlockPos.GetY(blockNode)),
             BlockToSectionCoord(BlockPos.GetZ(blockNode)));
 
-    //getZeroNode抹掉 y 段只留 x/z 对应原版 column 概念 y 段占低 20 位
+    //getZeroNode clears the y section leaving only x/z, maps to the vanilla column concept where the y section occupies the low 20 bits
     public static long GetZeroNode(long sectionNode) => sectionNode & (-1048576L);
 
     public static long GetZeroNode(int x, int z) => GetZeroNode(AsLong(x, 0, z));
 
-    //sectionRelative段内 block 相对偏移 0..15
+    //sectionRelative block-relative offset within the section, 0..15
     public static int SectionRelative(int blockCoord) => blockCoord & SectionMask;
 
-    //sectionRelativePos把 BlockPos 压成 12 位段内偏移 x 高位 z 中 y 低位
+    //sectionRelativePos packs a BlockPos into a 12-bit in-section offset, x high, z middle, y low
     public static short SectionRelativePos(BlockPos pos)
         => (short)((SectionRelative(pos.X) << 8) | (SectionRelative(pos.Z) << 4) | SectionRelative(pos.Y));
 
-    //sectionToBlockCoord带段内偏移的重载
+    //sectionToBlockCoord overload with an in-section offset
     public static int SectionToBlockCoord(int sectionCoord, int offset) => SectionToBlockCoord(sectionCoord) + offset;
 
-    //posToSectionCoord由 double 坐标求段坐标
+    //posToSectionCoord derives section coordinates from a double coordinate
     public static int PosToSectionCoord(double pos) => BlockToSectionCoord((int)Math.Floor(pos));
 
-    //aroundAndAtBlockPos遍历该 block 及其相邻段 光照 setStoredLevel 用它标记受影响段
+    //aroundAndAtBlockPos iterates the block and its neighboring sections, lighting setStoredLevel uses it to mark affected sections
     public static void AroundAndAtBlockPos(long blockNode, Action<long> consumer)
         => AroundAndAtBlockPos(BlockPos.GetX(blockNode), BlockPos.GetY(blockNode), BlockPos.GetZ(blockNode), consumer);
 
@@ -122,20 +122,20 @@ public readonly struct SectionPos : IEquatable<SectionPos>
             consumer(AsLong(sx, sy, sz));
     }
 
-    //offset按方向偏移packed long
+    //offset offsets a packed long along a direction
     public static long Offset(long packed, Direction direction)
         => Offset(packed, direction.StepX, direction.StepY, direction.StepZ);
 
     public static long Offset(long packed, int stepX, int stepY, int stepZ)
         => AsLong(GetX(packed) + stepX, GetY(packed) + stepY, GetZ(packed) + stepZ);
 
-    //asBlockPos转BlockPos段左移4位
+    //asBlockPos converts to a BlockPos, shifting the section left by 4 bits
     public BlockPos AsBlockPos() => new(X << SectionBits, Y << SectionBits, Z << SectionBits);
 
-    //blockToChunk返回段所在ChunkPos
+    //blockToChunk returns the ChunkPos containing the section
     public ChunkPos AsChunkPos() => new(X, Z);
 
-    //relativeX取段内block相对偏移的X位
+    //relativeX reads the X part of the in-section block-relative offset
     public static int RelativeX(long packed) => (int)(packed >> RelativeXShift) & SectionMask;
     public static int RelativeY(long packed) => (int)(packed >> RelativeYShift) & SectionMask;
     public static int RelativeZ(long packed) => (int)(packed >> RelativeZShift) & SectionMask;

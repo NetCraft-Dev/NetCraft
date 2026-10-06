@@ -1,7 +1,7 @@
 namespace NetCraft.Nbt;
 
-//NBT 访问者接口。对应原版 net.minecraft.nbt.TagVisitor。
-//与 StreamTagVisitor 不同，TagVisitor 访问已构建的 Tag 对象树。
+//NBT visitor interface. Mirrors vanilla net.minecraft.nbt.TagVisitor.
+//Unlike StreamTagVisitor, TagVisitor visits an already-built Tag object tree.
 public interface TagVisitor
 {
     void VisitByte(ByteTag tag);

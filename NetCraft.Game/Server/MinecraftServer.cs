@@ -13,6 +13,7 @@ using NetCraft.Network;
 using NetCraft.Primitives;
 using NetCraft.Registry;
 using NetCraft.Storage;
+using NetCraft.Util;
 
 namespace NetCraft.Game.Server;
 
@@ -265,7 +266,9 @@ public abstract class MinecraftServer
                 catch (Exception e)
                 {
                     Log.Error($"Server tick exception, main loop exiting {e}");
-                    WriteErrorLog(e);
+                    //崩溃现场走崩溃报告 落程序根的 crash-reports/ 与客户端同一条路 原版也是这样
+                    CrashHandler.Handle(e, "服务端 Tick 异常");
+                    Log.Flush();
                     try { Stop(); }
                     catch (Exception stopEx) { Log.Error($"Exception stop flush failed {stopEx}"); }
                     break;
@@ -288,22 +291,6 @@ public abstract class MinecraftServer
         {
             _running = false;
             Log.Info($"MinecraftServer main loop exited after {_tickCount} ticks");
-        }
-    }
-
-    //WriteErrorLog 崩溃信息追加到根目录 error.log 供事后排查
-    //先把异步日志缓冲刷出去 日志由独立线程写出 不刷的话崩溃现场最后几条会留在内存里丢掉
-    private static void WriteErrorLog(Exception e)
-    {
-        try
-        {
-            Log.Flush();
-            File.AppendAllText(Path.Combine(AppPaths.BaseDirectory, "error.log"),
-                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] 服务端 Tick 异常:\n{e}\n\n");
-        }
-        catch
-        {
-            //写日志失败不再抛出
         }
     }
 

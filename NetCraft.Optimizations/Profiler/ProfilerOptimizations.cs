@@ -2,33 +2,33 @@ using NetCraft.Config;
 
 namespace NetCraft.Optimizations.Profiler;
 
-//Profiler 优化模块对应核心优化点 2.12
-//实际优化待 NetCraft.Util/Profiler 子系统就绪后集成
-//当前仅暴露开关查询 API 对齐原版 ProfilerFiller 字符串拼接路径
+//Profiler optimization module, covers core optimization point 2.12
+//The actual optimization lands once the NetCraft.Util/Profiler subsystem is ready
+//Currently only exposes the toggle query API, aligned with the vanilla ProfilerFiller string concatenation path
 public static class ProfilerOptimizations
 {
     public const string ModuleName = "Profiler Optimization";
     public const string TargetSubsystem = "NetCraft.Util (Profiler)";
 
-    //对应优化点 2.12 Profiler 路径用 Span<char> 栈分配
-    //开关启用表示 Profiler 子系统就绪后将采用 Span<char> 替代 string 拼接
+    //Optimization point 2.12, profiler paths use stack allocated Span<char>
+    //When the toggle is on, once the Profiler subsystem is ready it uses Span<char> instead of string concatenation
     public static bool IsSpanPathEnabled => OptimizationFlags.ProfilerSpanPath;
 
-    //对应优化点 2.12 Profiler 用 InterpolatedStringHandler 零分配
-    //开关启用表示 push/pop 路径将采用 InterpolatedStringHandler 避免 string 分配
+    //Optimization point 2.12, profiler uses a zero-allocation InterpolatedStringHandler
+    //When the toggle is on, the push/pop path uses InterpolatedStringHandler to avoid string allocations
     public static bool IsZeroAllocEnabled => OptimizationFlags.ProfilerZeroAlloc;
 
-    //IsOptimized 检查两开关是否全开判断 Profiler 优化是否启用
+    //IsOptimized checks whether both toggles are on to decide if Profiler optimization is enabled
     public static bool IsOptimized => IsSpanPathEnabled && IsZeroAllocEnabled;
 
-    //GetStats 返回 Profiler 优化统计信息用于诊断
+    //GetStats returns the Profiler optimization stats for diagnostics
     public static ProfilerOptimizationStats GetStats() => new(
         SpanPath: IsSpanPathEnabled,
         ZeroAlloc: IsZeroAllocEnabled,
         IsOptimized: IsOptimized);
 }
 
-//Profiler 优化统计快照
+//Profiler optimization stats snapshot
 public readonly record struct ProfilerOptimizationStats(
     bool SpanPath,
     bool ZeroAlloc,

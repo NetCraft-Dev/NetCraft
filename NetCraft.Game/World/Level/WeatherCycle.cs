@@ -6,18 +6,18 @@ using IntProvider = NetCraft.Game.World.Level.LevelGen.IntProvider;
 
 namespace NetCraft.Game.World.Level;
 
-//WeatherCycle 天气状态机对应原版 ServerLevel.advanceWeatherCycle
-//雨与雷各一条计时线 归零即翻转状态并按当前状态重新采样时长 强制放晴倒计时优先级最高
+//WeatherCycle weather state machine, maps to vanilla ServerLevel.advanceWeatherCycle
+//Rain and thunder each have a timer line; hitting zero flips the state and resamples the duration for the current state; the forced clear-weather countdown has the highest priority
 public static class WeatherCycle
 {
-    //时序常量对齐原版 ServerLevel 的四个 UniformInt
+    //Timing constants align with the four UniformInts in vanilla ServerLevel
     public static readonly IntProvider RainDelay = UniformInt.Of(12000, 180000);
     public static readonly IntProvider RainDuration = UniformInt.Of(12000, 24000);
     public static readonly IntProvider ThunderDelay = UniformInt.Of(12000, 180000);
     public static readonly IntProvider ThunderDuration = UniformInt.Of(3600, 15600);
 
-    //AdvanceCycle 推进一刻的天气计时与目标状态 对应原版 advanceWeatherCycle 的状态段
-    //advanceWeather 规则关闭时调用方不该调它 原版就是整段包在规则判断里
+    //AdvanceCycle advance one tick of weather timers and target states, maps to the state section of vanilla advanceWeatherCycle
+    //Callers should not invoke this when the advanceWeather rule is off; vanilla wraps the whole block in a rule check
     public static void AdvanceCycle(WeatherData data, RandomSource random)
     {
         var clearWeatherTime = data.ClearWeatherTime;
@@ -27,7 +27,7 @@ public static class WeatherCycle
         var raining = data.Raining;
         if (clearWeatherTime > 0)
         {
-            //放晴倒计时期间把两条计时线收到 0/1 雨雷状态一并压平
+            //During the clear-weather countdown both timer lines are clamped to 0/1 and the rain/thunder states are flattened
             clearWeatherTime--;
             thunderTime = thundering ? 0 : 1;
             rainTime = raining ? 0 : 1;
@@ -43,7 +43,7 @@ public static class WeatherCycle
             }
             else
             {
-                //计时线见底时按当前是否在下雨/打雷采样下一段时长
+                //When a timer line bottoms out, resample the next duration based on whether it is currently raining/thundering
                 thunderTime = thundering ? ThunderDuration.Sample(random) : ThunderDelay.Sample(random);
             }
             if (rainTime > 0)
@@ -63,8 +63,8 @@ public static class WeatherCycle
         data.SetRaining(raining);
     }
 
-    //AdvanceLevel 推进一刻的雨量与雷声等级 对应原版 advanceWeatherCycle 的渐变段
-    //每刻向目标走 0.01 到 1 为止 所以切换状态到玩家看见要 20 刻左右
+    //AdvanceLevel advance one tick of rain and thunder levels, maps to the interpolation section of vanilla advanceWeatherCycle
+    //Each tick steps 0.01 toward the target up to 1, so it takes around 20 ticks for a state change to become visible to players
     public static void AdvanceLevel(ServerLevel level, WeatherData data)
     {
         level.OThunderLevel = level.ThunderLevel;

@@ -6,9 +6,9 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Phys.Collision;
 
-//LevelCollisionGetter 用碰撞查询口径读服务端关卡的视图
-//原版 Level 自己就实现 CollisionGetter 这里关卡在 Storage 层做不了形状 只能另起一层适配
-//ServerLevel 只有 BlockPos 版读方块 这里补上 BlockGetter 的三坐标版与高度范围
+//LevelCollisionGetter a view reading the server level with the collision query interface
+//Vanilla Level itself implements CollisionGetter; here the level lives in the Storage layer and cannot do shapes, so a separate adapter layer is added
+//ServerLevel only reads blocks by BlockPos here, so the BlockGetter three-coordinate version and the height range are added
 public sealed class LevelCollisionGetter : CollisionGetter
 {
     private readonly ServerLevel _level;
@@ -28,13 +28,13 @@ public sealed class LevelCollisionGetter : CollisionGetter
 
     public int SectionsCount => _sectionsCount;
 
-    //未加载的区块与区段按空气处理 与原版 BlockGetter 一致 否则碰撞会凭空多出方块
+    //Unloaded chunks and sections are treated as air, consistent with vanilla BlockGetter; otherwise collisions would gain blocks out of nowhere
     public BlockState GetBlockState(int x, int y, int z)
         => _level.GetBlockState(new BlockPos(x, y, z)) ?? Blocks.AIR.DefaultBlockState;
 
-    //IsUnobstructed 形状放进关卡是否不压到实体 对应原版 EntityGetter.isUnobstructed
-    //只算能阻挡建造的实体 掉落物一类不算 已移除的不算
-    //玩家不在实体管理器里 由 Game 层注入的玩家包围盒另算
+    //IsUnobstructed whether placing a shape into the level does not crush entities, maps to vanilla EntityGetter.isUnobstructed
+    //Only entities that block building count; drops and the like do not, and removed ones do not
+    //Players are not in the entity manager, so the player bounding box injected by the Game layer is counted separately
     public bool IsUnobstructed(NetCraft.Registry.Entity? source, VoxelShape shape)
     {
         if (shape.IsEmpty) return true;

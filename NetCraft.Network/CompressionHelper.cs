@@ -2,13 +2,13 @@ using System.IO.Compression;
 
 namespace NetCraft.Network;
 
-//CompressionHelper 包压缩辅助对应原版 CompressionEncoder/CompressionDecoder
-//原版用 zlib deflate 这里用 .NET DeflateStream
-//包格式未压缩 [数据长度=0][Packet ID][数据]
-//包格式压缩   [数据长度>0][deflate([Packet ID][数据])]
+//CompressionHelper packet compression helper, maps to vanilla CompressionEncoder/CompressionDecoder
+//Vanilla uses zlib deflate; here we use .NET DeflateStream
+//Uncompressed packet format: [data length=0][Packet ID][data]
+//Compressed packet format:   [data length>0][deflate([Packet ID][data])]
 public static class CompressionHelper
 {
-    //CompressIfNeeded 数据长度超阈值才压缩否则标记 0 不压缩
+    //CompressIfNeeded compresses only when the data length exceeds the threshold, otherwise marks 0 to skip compression
     public static byte[] CompressIfNeeded(byte[] data, int threshold)
     {
         using var outBuf = new MemoryStream();
@@ -31,7 +31,7 @@ public static class CompressionHelper
         return outBuf.ToArray();
     }
 
-    //Decompress 解压包数据按数据长度前缀判断是否压缩
+    //Decompress decompresses packet data, judging compression by the data length prefix
     public static byte[] Decompress(byte[] payload)
     {
         using var inBuf = new MemoryStream(payload);
@@ -65,7 +65,7 @@ public static class CompressionHelper
         do
         {
             b = stream.ReadByte();
-            if (b < 0) throw new EndOfStreamException("VarInt 读取提前结束");
+            if (b < 0) throw new EndOfStreamException("VarInt ended early");
             result |= (b & 0x7F) << shift;
             shift += 7;
         } while ((b & 0x80) != 0);

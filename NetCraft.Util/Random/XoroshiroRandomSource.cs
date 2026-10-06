@@ -2,51 +2,51 @@ using System.Text;
 
 namespace NetCraft.Util.Random;
 
-//Xoroshiro随机源主实现对应原版net.minecraft.world.level.levelgen.XoroshiroRandomSource
-//包装Xoroshiro128PlusPlus提供RandomSource接口与位置性工厂
+//Xoroshiro random source main implementation, maps to vanilla net.minecraft.world.level.levelgen.XoroshiroRandomSource
+//Wraps Xoroshiro128PlusPlus, provides the RandomSource interface and positional factory
 public sealed class XoroshiroRandomSource : RandomSource
 {
-    //FLOAT_UNIT 24位浮点单位2^-24对应原版FLOAT_UNIT
+    //FLOAT_UNIT 24-bit float unit 2^-24, maps to vanilla FLOAT_UNIT
     private const float FloatUnit = 5.9604645E-8f;
 
-    //DOUBLE_UNIT 53位双精度单位2^-53对应原版DOUBLE_UNIT
+    //DOUBLE_UNIT 53-bit double unit 2^-53, maps to vanilla DOUBLE_UNIT
     private const double DoubleUnit = 1.1102230246251565E-16d;
 
     private Xoroshiro128PlusPlus _randomNumberGenerator;
     private readonly MarsagliaPolarGaussian _gaussianSource;
 
-    //按单long种子构造对应原版XoroshiroRandomSource(long)
-    //单long种子升级到128位保证状态空间
+    //Constructs from a single long seed, maps to vanilla XoroshiroRandomSource(long)
+    //Upgrades a single long seed to 128 bits to ensure the state space
     public XoroshiroRandomSource(long seed)
     {
         _randomNumberGenerator = new Xoroshiro128PlusPlus(RandomSupport.UpgradeSeedTo128bit(seed));
         _gaussianSource = new MarsagliaPolarGaussian(this);
     }
 
-    //按Seed128bit构造对应原版XoroshiroRandomSource(Seed128bit)
+    //Constructs from Seed128bit, maps to vanilla XoroshiroRandomSource(Seed128bit)
     public XoroshiroRandomSource(RandomSupport.Seed128bit seed)
     {
         _randomNumberGenerator = new Xoroshiro128PlusPlus(seed);
         _gaussianSource = new MarsagliaPolarGaussian(this);
     }
 
-    //按双long构造对应原版XoroshiroRandomSource(long,long)
+    //Constructs from two longs, maps to vanilla XoroshiroRandomSource(long,long)
     public XoroshiroRandomSource(long seedLo, long seedHi)
     {
         _randomNumberGenerator = new Xoroshiro128PlusPlus(seedLo, seedHi);
         _gaussianSource = new MarsagliaPolarGaussian(this);
     }
 
-    //fork派生新随机源对应原版fork
-    //用当前生成器两次nextLong作为新种子避免相关性
+    //fork derives a new random source, maps to vanilla fork
+    //Uses two nextLong calls from the current generator as the new seed to avoid correlation
     public RandomSource Fork()
         => new XoroshiroRandomSource(_randomNumberGenerator.NextLong(), _randomNumberGenerator.NextLong());
 
-    //forkPositional派生位置性工厂对应原版forkPositional
+    //forkPositional derives a positional factory, maps to vanilla forkPositional
     public PositionalRandomFactory ForkPositional()
         => new XoroshiroPositionalRandomFactory(_randomNumberGenerator.NextLong(), _randomNumberGenerator.NextLong());
 
-    //setSeed重置种子并清空高斯缓存对应原版setSeed
+    //setSeed resets the seed and clears the Gaussian cache, maps to vanilla setSeed
     public void SetSeed(long seed)
     {
         _randomNumberGenerator = new Xoroshiro128PlusPlus(RandomSupport.UpgradeSeedTo128bit(seed));
@@ -55,8 +55,8 @@ public sealed class XoroshiroRandomSource : RandomSource
 
     public int NextInt() => (int)_randomNumberGenerator.NextLong();
 
-    //nextInt(bound)无偏有界整数对应原版nextInt(int)
-    //无偏拒绝采样保证均匀分布C#用unchecked(uint)强转模拟Java toUnsignedLong
+    //nextInt(bound) unbiased bounded integer, maps to vanilla nextInt(int)
+    //Unbiased rejection sampling ensures uniform distribution; C# casts with unchecked(uint) to simulate Java toUnsignedLong
     public int NextInt(int bound)
     {
         if (bound <= 0)
@@ -90,19 +90,19 @@ public sealed class XoroshiroRandomSource : RandomSource
 
     public double NextGaussian() => _gaussianSource.NextGaussian();
 
-    //consumeCount消耗指定轮次对应原版consumeCount重写直接调nextLong避免int截断
+    //consumeCount consumes the given number of rounds, maps to vanilla consumeCount; override calls nextLong directly to avoid int truncation
     public void ConsumeCount(int rounds)
     {
         for (var i = 0; i < rounds; i++)
             _randomNumberGenerator.NextLong();
     }
 
-    //nextBits取高bits位对应原版nextBits无符号右移保证高位有效
+    //nextBits takes the high bits, maps to vanilla nextBits; unsigned shift keeps the high bits valid
     private long NextBits(int bits)
         => _randomNumberGenerator.NextLong() >>> (64 - bits);
 
-    //XoroshiroPositionalRandomFactory位置性工厂对应原版XoroshiroPositionalRandomFactory
-    //持有双long种子按位置或哈希派生稳定RandomSource
+    //XoroshiroPositionalRandomFactory positional factory, maps to vanilla XoroshiroPositionalRandomFactory
+    //Holds a two-long seed, derives a stable RandomSource from position or hash
     public sealed class XoroshiroPositionalRandomFactory : PositionalRandomFactory
     {
         private readonly long _seedLo;
@@ -114,8 +114,8 @@ public sealed class XoroshiroRandomSource : RandomSource
             _seedHi = seedHi;
         }
 
-        //at按坐标派生随机源对应原版at(int,int,int)
-        //用Mth.getSeed生成位置种子后异或seedLo作为新种子
+        //at derives a random source from coordinates, maps to vanilla at(int,int,int)
+        //Uses Mth.getSeed to generate the position seed then XORs seedLo as the new seed
         public RandomSource At(int x, int y, int z)
         {
             var positionalSeed = Mth.GetSeed(x, y, z);
@@ -123,18 +123,18 @@ public sealed class XoroshiroRandomSource : RandomSource
             return new XoroshiroRandomSource(randomSeed, _seedHi);
         }
 
-        //fromHashOf按字符串哈希派生随机源对应原版fromHashOf(String)
+        //fromHashOf derives a random source from a string hash, maps to vanilla fromHashOf(String)
         public RandomSource FromHashOf(string name)
         {
             var seed = RandomSupport.SeedFromHashOf(name);
             return new XoroshiroRandomSource(seed.Xor(_seedLo, _seedHi));
         }
 
-        //fromSeed按long种子派生随机源对应原版fromSeed(long)
+        //fromSeed derives a random source from a long seed, maps to vanilla fromSeed(long)
         public RandomSource FromSeed(long seed)
             => new XoroshiroRandomSource(seed ^ _seedLo, seed ^ _seedHi);
 
-        //parityConfigString输出奇偶校验调试信息对应原版parityConfigString
+        //parityConfigString outputs parity debug info, maps to vanilla parityConfigString
         public void ParityConfigString(StringBuilder sb)
             => sb.Append("seedLo: ").Append(_seedLo).Append(", seedHi: ").Append(_seedHi);
     }

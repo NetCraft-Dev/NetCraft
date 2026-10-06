@@ -1,12 +1,12 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundSetTimePacket 时间设置包对应原版 ClientboundSetTimePacket
-//字段 GameTime(long) ClockUpdates(Map<Holder<WorldClock>, ClockNetworkState>)
-//网络格式 gameTime 定长 long + map(varint 个数 + holderRegistry(varint id) + VAR_LONG totalTicks + float partialTick + float rate)
+//ClientboundSetTimePacket set time packet, maps to vanilla ClientboundSetTimePacket
+//Fields: GameTime(long), ClockUpdates(Map<Holder<WorldClock>, ClockNetworkState>)
+//Network format: gameTime fixed-length long + map (varint count + holderRegistry (varint id) + VAR_LONG totalTicks + float partialTick + float rate)
 public sealed record ClientboundSetTimePacket(long GameTime, IReadOnlyList<ClientboundSetTimePacket.ClockUpdate> ClockUpdates)
     : Packet<ClientGamePacketListener>
 {
-    //ClockUpdate 单个世界时钟的网络状态对应原版 ClockNetworkState
+    //ClockUpdate network state of a single world clock, maps to vanilla ClockNetworkState
     public readonly record struct ClockUpdate(int ClockId, long TotalTicks, float PartialTick, float Rate);
 
     public static StreamCodec<FriendlyByteBuf, ClientboundSetTimePacket> StreamCodec { get; } = new SetTimeCodec();

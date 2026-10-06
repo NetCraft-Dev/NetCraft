@@ -3,17 +3,17 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft;
 
-//NcLanguageFiles NC 自有语言文件在磁盘上的落地与读取
-//语言文件编译期内嵌进 NetCraft.Game 启动时解压到程序根目录的 lang/
-//之后一律从磁盘读 用户可以直接改文件或者往里补新语言 不必重新编译
+//NcLanguageFiles writes and reads NC's own language files on disk
+//Language files are embedded into NetCraft.Game at compile time and extracted to the program root's lang/ at startup
+//Afterwards they are always read from disk; users can edit the files or add new languages without recompiling
 public static class NcLanguageFiles
 {
-    //_embeddedPrefix 内嵌资源名前缀 与 csproj 的 LogicalName 对应
+    //_embeddedPrefix embedded resource name prefix, matching the csproj's LogicalName
     private const string EmbeddedPrefix = "assets/netcraft/lang/";
 
-    //Extract 把内嵌语言文件解压到语言目录 返回新释放的文件数
-    //已存在的文件不覆盖 用户改过的翻译要留住
-    //targetRoot 为空时落程序根目录 测试可指定临时目录避免污染
+    //Extract unpacks embedded language files into the language directory and returns the number of newly released files
+    //Existing files are not overwritten; users' edited translations are preserved
+    //When targetRoot is empty, lands in the program root; tests can point to a temp directory to avoid pollution
     public static int Extract(string? targetRoot = null)
     {
         var dir = Dir(targetRoot);
@@ -35,11 +35,11 @@ public static class NcLanguageFiles
         return written;
     }
 
-    //Exists 语言目录里有没有该语言码的文件
+    //Exists checks whether the language directory has a file for the given language code
     public static bool Exists(string code, string? targetRoot = null)
         => File.Exists(Path.Combine(Dir(targetRoot), code + ".json"));
 
-    //Load 读该语言码的文件并入表 文件不存在返回 false
+    //Load reads the file for the language code into the table; returns false when the file does not exist
     public static bool Load(string code, Dictionary<string, string> entries, string? targetRoot = null)
     {
         var path = Path.Combine(Dir(targetRoot), code + ".json");
@@ -49,7 +49,7 @@ public static class NcLanguageFiles
         return true;
     }
 
-    //Dir 语言目录 程序根目录下的 lang/
+    //Dir the language directory, lang/ under the program root
     public static string Dir(string? targetRoot = null)
         => Path.Combine(targetRoot ?? AppPaths.BaseDirectory, "lang");
 }

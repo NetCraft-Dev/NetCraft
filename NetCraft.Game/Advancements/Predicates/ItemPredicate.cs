@@ -5,13 +5,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Advancements.Predicates;
 
-//ItemPredicate 物品谓词 物品集合加堆叠数量加组件匹配 对应原版 net.minecraft.advancements.predicates.ItemPredicate
+//ItemPredicate item predicate, item set plus stack count plus component matching, maps to vanilla net.minecraft.advancements.predicates.ItemPredicate
 public sealed record ItemPredicate(
     Optional<HolderSet<Item>> Items,
     MinMaxBounds.Ints Count,
     DataComponentMatchers Components) : IValuePredicate<ItemStack>
 {
-    //Codec 持久化编解码 字段名 items 与 count 对应原版 CODEC
+    //Codec persistence codec, field names items/count, maps to vanilla CODEC
     public static readonly Codec<ItemPredicate> Codec = RecordCodecBuilder.Of3(
         HolderSetCodecs.ItemSet.OptionalFieldOf("items")
             .ForGetter((ItemPredicate predicate) => predicate.Items),
@@ -20,7 +20,7 @@ public sealed record ItemPredicate(
         DataComponentMatchers.Codec.ForGetter((ItemPredicate predicate) => predicate.Components),
         (items, count, components) => new ItemPredicate(items, count, components));
 
-    //Test 物品栈是否满足物品类型与数量与组件三重条件
+    //Test whether the item stack satisfies the item type, count and component conditions
     public bool Test(ItemStack stack)
     {
         if (Items.IsPresent)

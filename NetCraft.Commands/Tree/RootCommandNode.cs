@@ -4,8 +4,8 @@ using NetCraft.Commands.Suggestion;
 
 namespace NetCraft.Commands.Tree;
 
-//RootCommandNode 根节点对应原版com.mojang.brigadier.tree.RootCommandNode
-//dispatcher树顶层节点无命令无重定向modifier返回单源集合
+//RootCommandNode maps to vanilla com.mojang.brigadier.tree.RootCommandNode
+//Top-level node of the dispatcher tree, with no command and no redirect modifier, returning a single-source collection
 public sealed class RootCommandNode<S> : CommandNode<S>
 {
     public RootCommandNode()

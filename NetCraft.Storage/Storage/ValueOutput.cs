@@ -2,14 +2,14 @@ using NetCraft.Codec;
 
 namespace NetCraft.Storage;
 
-//ValueOutput NBT 写入抽象对应原版 net.minecraft.world.level.storage.ValueOutput
-//提供按字段名写标量与子节点与列表的入口
+//ValueOutput, NBT write abstraction, maps to vanilla net.minecraft.world.level.storage.ValueOutput
+//Provides entry points to write scalars, children and lists by field name
 public interface ValueOutput
 {
-    //按 Codec 把值序列化到字段
+    //Serialize a value into a field with a Codec
     void Store<T>(string name, Codec<T> codec, T value);
 
-    //按 Codec 把可空值序列化到字段 null 跳过
+    //Serialize a nullable value into a field with a Codec; null is skipped
     void StoreNullable<T>(string name, Codec<T> codec, T? value) where T : class;
 
     void PutBoolean(string name, bool value);
@@ -22,28 +22,28 @@ public interface ValueOutput
     void PutString(string name, string value);
     void PutIntArray(string name, int[] value);
 
-    //创建子节点输出
+    //Create a child node output
     ValueOutput Child(string name);
 
-    //创建子节点列表输出
+    //Create a child node list output
     ValueOutputList ChildrenList(string name);
 
-    //按 Codec 创建类型化列表输出
+    //Create a typed list output with a Codec
     TypedOutputList<T> List<T>(string name, Codec<T> codec);
 
-    //丢弃指定字段
+    //Discard the given field
     void Discard(string name);
 
     bool IsEmpty();
 
-    //类型化列表输出对应原版 ValueOutput.TypedOutputList
+    //Typed list output, maps to vanilla ValueOutput.TypedOutputList
     public interface TypedOutputList<T>
     {
         void Add(T value);
         bool IsEmpty();
     }
 
-    //子节点列表输出对应原版 ValueOutput.ValueOutputList
+    //Child node list output, maps to vanilla ValueOutput.ValueOutputList
     public interface ValueOutputList
     {
         ValueOutput AddChild();

@@ -5,18 +5,18 @@ using NetCraft.Server.Diagnostics;
 
 namespace NetCraft.Server.Gui;
 
-//ServerStatsPanel 统计面板 对应原版 net.minecraft.server.gui.StatsComponent
-//原版只画两行文本加一张内存占用柱状图 这里保持一致
+//ServerStatsPanel, stats panel, maps to vanilla net.minecraft.server.gui.StatsComponent
+//Vanilla draws only two lines of text plus a memory usage bar chart, kept consistent here
 public sealed partial class ServerStatsPanel : UserControl
 {
-    //原版 DECIMAL_FORMAT 是 ########0.000 三位小数
+    //Vanilla DECIMAL_FORMAT is ########0.000, three decimal places
     private const string TickFormat = "0.000";
-    //柱图上限的步进 1GB
-    //不拿物理内存当分母 16GB 机器上占用常年 1% 上下 柱子全贴地看不出变化
+    //Step for the bar chart cap, 1GB
+    //Physical memory is not used as the denominator, on a 16GB machine usage stays around 1% year-round and the bars would all sit flat on the floor with no visible change
     private const long MemoryGraphStep = 1024L * 1024 * 1024;
 
     private readonly MinecraftServer _server;
-    //柱图当前上限 随实际占用在 1/2/3... GB 之间升降 至少 1GB
+    //Current bar chart cap, rises and falls between 1/2/3... GB with actual usage, at least 1GB
     private long _memoryGraphCap = MemoryGraphStep;
 
     public ServerStatsPanel(MinecraftServer server)
@@ -25,12 +25,12 @@ public sealed partial class ServerStatsPanel : UserControl
         InitializeComponent();
     }
 
-    //Refresh 重新采样一次 由窗口的 500ms 定时器驱动 与原版 Timer(500) 同频
+    //Refresh samples once, driven by the window's 500ms timer, same frequency as vanilla Timer(500)
     public void Refresh()
     {
         var workingSet = Environment.WorkingSet;
-        //到顶抬一档 跌破上限一档再降回来
-        //中间这 1GB 是迟滞区间 在阈值附近抖动时不会来回换挡
+        //Raise one step when hitting the cap, lower it only after falling one step below the cap
+        //The 1GB in between is the hysteresis band, so jitter near the threshold does not shift back and forth
         var rescale = false;
         if (workingSet >= _memoryGraphCap)
         {

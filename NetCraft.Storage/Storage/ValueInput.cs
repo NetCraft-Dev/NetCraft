@@ -3,30 +3,30 @@ using NetCraft.Registry;
 
 namespace NetCraft.Storage;
 
-//ValueInput NBT 读取抽象对应原版 net.minecraft.world.level.storage.ValueInput
-//提供按字段名读标量与子节点与列表的入口
-//简化点用 T? 替代 Optional<T> 不实现完整 ProblemReporter
+//ValueInput, NBT read abstraction, maps to vanilla net.minecraft.world.level.storage.ValueInput
+//Provides entry points to read scalars, children and lists by field name
+//Simplification: T? replaces Optional<T> and no full ProblemReporter is implemented
 public interface ValueInput
 {
-    //按 Codec 从字段名解析值缺失返回 null
+    //Parse the value from the field name with a Codec; returns null when missing
     T? Read<T>(string name, Codec<T> codec);
 
-    //取子节点缺失返回 null
+    //Get a child node; returns null when missing
     ValueInput? Child(string name);
 
-    //取子节点缺失返回空 ValueInput
+    //Get a child node; returns an empty ValueInput when missing
     ValueInput ChildOrEmpty(string name);
 
-    //取子节点列表缺失返回 null
+    //Get a child node list; returns null when missing
     IReadOnlyList<ValueInput>? ChildrenList(string name);
 
-    //取子节点列表缺失返回空列表
+    //Get a child node list; returns an empty list when missing
     IReadOnlyList<ValueInput> ChildrenListOrEmpty(string name);
 
-    //按 Codec 列表解析缺失返回 null
+    //Parse a list with a Codec; returns null when missing
     IReadOnlyList<T>? List<T>(string name, Codec<T> codec);
 
-    //按 Codec 列表解析缺失返回空列表
+    //Parse a list with a Codec; returns an empty list when missing
     IReadOnlyList<T> ListOrEmpty<T>(string name, Codec<T> codec);
 
     bool GetBooleanOr(string name, bool defaultValue);
@@ -42,7 +42,7 @@ public interface ValueInput
     string GetStringOr(string name, string defaultValue);
     int[]? GetIntArray(string name);
 
-    //注册表访问入口用于 Codec 解析时查表
+    //Registry access entry point, used by Codec parsing for lookups
     RegistryAccess Lookup();
 
     bool IsEmpty();

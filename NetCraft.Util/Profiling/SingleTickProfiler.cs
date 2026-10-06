@@ -3,8 +3,8 @@ using NetCraft.Logging;
 
 namespace NetCraft.Util.Profiling;
 
-//单tick profiler对应原版net.minecraft.util.profiling.SingleTickProfiler
-//超过阈值耗时的tick写文件记录
+//Single-tick profiler, maps to vanilla net.minecraft.util.profiling.SingleTickProfiler
+//Ticks exceeding the time threshold are written to a file
 public sealed class SingleTickProfiler
 {
     private readonly Func<long> _realTime;
@@ -42,14 +42,14 @@ public sealed class SingleTickProfiler
         }
     }
 
-    //创建tick profiler对应原版createTickProfiler按DEBUG_MONITOR_TICK_TIMES开关
+    //Creates a tick profiler, maps to vanilla createTickProfiler gated by DEBUG_MONITOR_TICK_TIMES
     public static SingleTickProfiler? CreateTickProfiler(string name)
     {
-        //NetCraft暂无DEBUG_MONITOR_TICK_TIMES常量默认不创建
+        //NetCraft has no DEBUG_MONITOR_TICK_TIMES constant yet, so nothing is created by default
         return null;
     }
 
-    //合并filler对应原版decorateFiller
+    //Merges fillers, maps to vanilla decorateFiller
     public static ProfilerFiller DecorateFiller(ProfilerFiller filler, SingleTickProfiler? tickProfiler)
     {
         if (tickProfiler is not null)

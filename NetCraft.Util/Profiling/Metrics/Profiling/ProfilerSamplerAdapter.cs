@@ -3,8 +3,8 @@ using NetCraft.Util.Profiling.Metrics;
 
 namespace NetCraft.Util.Profiling.Metrics.Profiling;
 
-//profiler采样器适配器对应原版net.minecraft.util.profiling.metrics.profiling.ProfilerSamplerAdapter
-//从chartedPaths中扫描新路径创建MetricSampler
+//Profiler sampler adapter, maps to vanilla net.minecraft.util.profiling.metrics.profiling.ProfilerSamplerAdapter
+//Scans chartedPaths for new paths to create MetricSampler
 public sealed class ProfilerSamplerAdapter
 {
     private readonly HashSet<string> _previouslyFoundSamplerNames = new();

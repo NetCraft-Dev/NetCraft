@@ -3,12 +3,12 @@ using NetCraft.Commands.Tree;
 
 namespace NetCraft.Commands.Context;
 
-//CommandContext 命令上下文对应原版com.mojang.brigadier.context.CommandContext
-//持source/input/command/arguments/nodes/range/child/modifier/forks
-//getArgument按类型校验PRIMITIVE_TO_WRAPPER在C#值类型即类型本身保留以对齐Java语义
+//CommandContext maps to vanilla com.mojang.brigadier.context.CommandContext
+//Holds source/input/command/arguments/nodes/range/child/modifier/forks
+//getArgument checks the type against PRIMITIVE_TO_WRAPPER; in C# a value type maps to itself, kept to align with Java semantics
 public sealed class CommandContext<S>
 {
-    //PRIMITIVE_TO_WRAPPER 在C#值类型即类型自身映射仅占位对齐Java设计
+    //PRIMITIVE_TO_WRAPPER in C# a value type maps to itself; kept only as a placeholder aligning with the Java design
     private static readonly Dictionary<Type, Type> _primitiveToWrapper = new()
     {
         { typeof(bool), typeof(bool) },
@@ -75,7 +75,7 @@ public sealed class CommandContext<S>
 
     public Command<S>? GetCommand() => _command;
 
-    //CustomExecutor 自定义执行器 BuildContexts 检测后不走普通命令委托路径
+    //CustomExecutor custom executor; once BuildContexts detects it, execution bypasses the ordinary command delegate path
     public CustomCommandExecutor<S>? CustomExecutor => _customExecutor;
 
     public S GetSource() => _source;
@@ -85,8 +85,8 @@ public sealed class CommandContext<S>
         return GetArgument<V>(name, typeof(V));
     }
 
-    //GetArgument 按name取出ParsedArgument校验类型可赋值后返回
-    //clazz参数对齐Java Class<V>语义实际与typeof(V)等价
+    //GetArgument looks up the ParsedArgument by name, checks the type is assignable and returns it
+    //The clazz parameter aligns with Java's Class<V> semantics and is effectively equivalent to typeof(V)
     public V GetArgument<V>(string name, Type clazz)
     {
         if (!_arguments.TryGetValue(name, out var argument))

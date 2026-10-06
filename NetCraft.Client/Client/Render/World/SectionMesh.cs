@@ -3,11 +3,11 @@ using NetCraft.Gpu;
 
 namespace NetCraft.Game.Client.Render.World;
 
-//SectionMesh 编译完成 mesh 按 RenderLayer 持顶点 byte[]+索引 int[]
-//从 ChunkMeshData 的 VertexConsumer3D.Vertices(List<float>) 经 MemoryMarshal.AsBytes 转 byte[]
-//索引按 QUADS 6/quad 生成与 ItemPipRenderer.GenerateQuadIndices 一致
-//stride 40 字节 position3+color1+uv2+light1+normal3 对齐 POSITION_COLOR_UV_LIGHT_NORMAL
-//顶点已 bake section offset ChunkMeshBuilder.Build 内 pose.Translate 完成 SectionMesh 不再处理 origin
+//SectionMesh a compiled mesh holding vertices as byte[] and indices as int[] per RenderLayer
+//Converted from ChunkMeshData's VertexConsumer3D.Vertices(List<float>) to byte[] via MemoryMarshal.AsBytes
+//Indices generated as QUADS with 6/quad, matching ItemPipRenderer.GenerateQuadIndices
+//stride 40 bytes position3+color1+uv2+light1+normal3, aligning with POSITION_COLOR_UV_LIGHT_NORMAL
+//Vertices already bake the section offset (done by pose.Translate inside ChunkMeshBuilder.Build); SectionMesh does not handle the origin again
 public sealed class SectionMesh
 {
     private const int FloatsPerVertex = 10;
@@ -15,8 +15,8 @@ public sealed class SectionMesh
     private const int IndicesPerQuad = 6;
     private const int LayerCount = 3;
 
-    //_vertexData/_indexData 按 (int)RenderLayer 索引 Solid=0 Cutout=1 Translucent=2
-    //null 表示该 layer 无顶点 GetVertices 返回空 span
+    //_vertexData/_indexData indexed by (int)RenderLayer: Solid=0 Cutout=1 Translucent=2
+    //null means the layer has no vertices; GetVertices returns an empty span
     private readonly byte[]?[] _vertexData = new byte[LayerCount][];
     private readonly int[]?[] _indexData = new int[LayerCount][];
     private readonly int[] _vertexCounts = new int[LayerCount];
@@ -34,8 +34,8 @@ public sealed class SectionMesh
 
     public int GetVertexCount(RenderLayer layer) => _vertexCounts[(int)layer];
 
-    //FromChunkMeshData 把 ChunkMeshData 各 layer 顶点转 byte[] 索引按 QUADS 6/quad 生成
-    //MemoryMarshal.AsBytes 直接 memcpy List<float> 与 ItemPipRenderer.VerticesToBytes 一致
+    //FromChunkMeshData converts each layer's vertices in ChunkMeshData to byte[], with indices generated as QUADS 6/quad
+    //MemoryMarshal.AsBytes directly memcpys List<float>, matching ItemPipRenderer.VerticesToBytes
     public static SectionMesh FromChunkMeshData(ChunkMeshData data)
     {
         var mesh = new SectionMesh();
@@ -48,7 +48,7 @@ public sealed class SectionMesh
         return mesh;
     }
 
-    //SetLayer 把 List<float> 顶点拷贝为 byte[] 生成 QUADS 索引
+    //SetLayer copies List<float> vertices into byte[] and generates QUADS indices
     private void SetLayer(RenderLayer layer, List<float> vertices)
     {
         var vertexCount = vertices.Count / FloatsPerVertex;
@@ -62,7 +62,7 @@ public sealed class SectionMesh
         TotalIndexCount += indices.Length;
     }
 
-    //GenerateQuadIndices 每 quad 6 索引 0-1-2-2-3-0 与 ItemPipRenderer 一致
+    //GenerateQuadIndices 6 indices per quad 0-1-2-2-3-0, matching ItemPipRenderer
     private static int[] GenerateQuadIndices(int quadCount)
     {
         var indices = new int[quadCount * IndicesPerQuad];

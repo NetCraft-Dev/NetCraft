@@ -1,13 +1,13 @@
 namespace NetCraft.Network.Protocol.Handshake;
 
-//ServerHandshakePacketListener 服务端握手包监听器对应原版 net.minecraft.network.protocol.handshake.ServerHandshakePacketListener
-//继承 ServerboundPacketListener Flow 固定 SERVERBOUND
-//Protocol 固定 HANDSHAKE
+//ServerHandshakePacketListener server-side handshake packet listener, maps to vanilla net.minecraft.network.protocol.handshake.ServerHandshakePacketListener
+//Inherits ServerboundPacketListener; Flow is fixed to SERVERBOUND
+//Protocol is fixed to HANDSHAKE
 public interface ServerHandshakePacketListener : ServerboundPacketListener
 {
-    //HandleIntention 处理客户端意图包
+    //HandleIntention handles the client intent packet
     void HandleIntention(ClientIntentionPacket packet);
 
-    //Protocol 固定为 HANDSHAKE
+    //Protocol is fixed to HANDSHAKE
     ConnectionProtocol PacketListener.Protocol => ConnectionProtocol.Handshake;
 }

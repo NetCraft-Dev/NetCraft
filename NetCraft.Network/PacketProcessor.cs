@@ -4,9 +4,9 @@ using NetCraft.Logging;
 
 namespace NetCraft.Network;
 
-//PacketProcessor 包处理器对应原版 net.minecraft.network.PacketProcessor
-//在主线程上调度和执行包处理避免并发问题
-//runningThread 是主线程引用用于 IsSameThread 判断
+//PacketProcessor packet processor, maps to vanilla net.minecraft.network.PacketProcessor
+//Schedules and executes packet handling on the main thread to avoid concurrency issues
+//runningThread is the main thread reference used for the IsSameThread check
 public sealed class PacketProcessor : IDisposable
 {
     private readonly Thread _runningThread;
@@ -19,28 +19,28 @@ public sealed class PacketProcessor : IDisposable
         _runningThread = runningThread ?? Thread.CurrentThread;
     }
 
-    //IsSameThread 当前线程是否为主线程
+    //IsSameThread indicates whether the current thread is the main thread
     public bool IsSameThread => ReferenceEquals(Thread.CurrentThread, _runningThread);
 
-    //IsClosed 是否已关闭
+    //IsClosed indicates whether it is closed
     public bool IsClosed => _closed;
 
-    //ScheduleIfPossible 泛型版调度包到主线程处理
+    //ScheduleIfPossible generic version schedules a packet for main-thread handling
     public void ScheduleIfPossible<THandler>(THandler listener, Packet<THandler> packet)
         where THandler : class
         => ScheduleIfPossible((object)listener, (object)packet);
 
-    //ScheduleIfPossible 非泛型版调度包到主线程处理
-    //Connection.Receive 解码后用 object 装箱调用此方法
+    //ScheduleIfPossible non-generic version schedules a packet for main-thread handling
+    //Connection.Receive calls this method after decoding, boxing with object
     public void ScheduleIfPossible(object listener, object packet)
     {
         if (_closed)
-            throw new InvalidOperationException("PacketProcessor 已关闭");
+            throw new InvalidOperationException("PacketProcessor is closed");
         _packetsToBeHandled.Enqueue(new ListenerAndPacket(listener, packet));
     }
 
-    //ProcessQueuedPackets 处理所有排队包
-    //关闭后直接返回
+    //ProcessQueuedPackets handles all queued packets
+    //Returns directly when closed
     public void ProcessQueuedPackets()
     {
         if (_closed) return;
@@ -48,9 +48,9 @@ public sealed class PacketProcessor : IDisposable
             item.Handle(this);
     }
 
-    //HandleNow 在调用线程直接处理一个包 不经过队列
-    //握手与状态阶段对应原版在 netty 线程处理 不走主线程调度
-    //主 Tick 未启动时(出生点预生成窗口)也要能应答这两个阶段的包
+    //HandleNow handles one packet directly on the calling thread without going through the queue
+    //Handshake and status phases map to vanilla handling on the netty thread and skip main-thread scheduling
+    //Packets from these two phases must still be answered before the main Tick starts (spawn pre-generation window)
     public void HandleNow(object listener, object packet)
     {
         if (_closed) return;
@@ -64,8 +64,8 @@ public sealed class PacketProcessor : IDisposable
         _handleCache.Clear();
     }
 
-    //ListenerAndPacket 监听器和包的关联
-    //类型擦除存储用反射调用 Handle
+    //ListenerAndPacket associates a listener with a packet
+    //Stored type-erased, invoking Handle via reflection
     private readonly struct ListenerAndPacket
     {
         private readonly object _listener;
@@ -90,16 +90,16 @@ public sealed class PacketProcessor : IDisposable
             }
             catch (Exception ex)
             {
-                //反射Invoke把处理器内的真实异常包成TargetInvocationException 这里解包再报
-                //不改用CreateDelegate是因为处理器异常需要完整暴露给运维
+                //Reflection Invoke wraps the real exception from the handler in TargetInvocationException, so it is unwrapped here before reporting
+                //Not switching to CreateDelegate because handler exceptions must be fully exposed to operations
                 var cause = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
                 Log.Warning($"Packet handling failed {_packet.GetType().Name}: {cause.GetType().Name} {cause.Message}");
             }
         }
     }
 
-    //BuildHandleInvoker 构造 (listener, packet) -> 调用 packet.Handle(listener) 的委托
-    //首次反射查找 Handle 方法后续直接委托调用避免重复反射开销
+    //BuildHandleInvoker builds a delegate (listener, packet) -> calls packet.Handle(listener)
+    //The Handle method is looked up by reflection once and then invoked directly via the delegate to avoid repeated reflection overhead
     private static Action<object, object> BuildHandleInvoker(Type packetType, Type listenerType)
     {
         var handleMethod = packetType.GetMethod(

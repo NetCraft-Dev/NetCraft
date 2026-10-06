@@ -17,33 +17,33 @@ using NetCraft.Storage;
 
 namespace NetCraft.Server.Gui;
 
-//ServerChunkPage 区块页 左边是生成任务与玩家名单 右边是以某个区块为中心的方格图
-//图只覆盖已建持有器的区块 视距外没有持有器 不画就是卸载态
-//中心来源有三处: 默认出生点、跟随某个玩家、手动跳转或拖动 同一时刻只有跟随会自己动
+//ServerChunkPage, the chunk page, the left side is generation tasks and the player list, the right side is a grid centered on some chunk
+//The grid only covers chunks with a built holder, there is no holder beyond the view distance and not drawing means unloaded
+//The center has three sources: the default spawn, following a player, and a manual jump or drag, only following moves on its own at any moment
 public sealed partial class ServerChunkPage : UserControl
 {
-    //每按一档缩放改变的格边长像素
+    //Pixels of cell size changed per zoom step
     private const double ZoomStep = 2;
-    //列表项淡入淡出的时长
+    //Fade duration for list items
     private const int FadeMilliseconds = 200;
 
     private readonly MinecraftServer _server;
-    //_followName 正在跟随的玩家 为空表示中心由 _manualX/_manualZ 决定
-    //点玩家开始跟随 再点一次、拖动地图或跳到指定区块都会退出跟随
+    //_followName the player being followed, empty means the center is decided by _manualX/_manualZ
+    //Clicking a player starts following, clicking again, dragging the map, or jumping to a chunk all exit following
     private string? _followName;
-    //_manualX/_manualZ 手动中心 跟随期间会顺手记下目标玩家所在区块 于是他一掉线中心正好停在原地
+    //_manualX/_manualZ the manual center, during following it also records the target player's chunk so the center stays in place when they go offline
     private double _manualX;
     private double _manualZ;
     private bool _centerReady;
 
-    //_shownPlayers/_shownSelected 上一次画出来的玩家名单与跟随对象
-    //两者都没变就不重建按钮 否则每 500ms 重建一次会把悬停状态抖掉
+    //_shownPlayers/_shownSelected the player list and follow target drawn last time
+    //Rebuilds buttons only when both changed, otherwise rebuilding every 500ms shakes the hover state
     private List<string> _shownPlayers = new();
     private string? _shownSelected;
-    //_taskItems 生成任务项 按坐标字符串复用 只动真正增删的那几项
+    //_taskItems generation task items, reused by coordinate string, only the ones actually added or removed are touched
     private readonly Dictionary<string, TextBlock> _taskItems = new();
 
-    //_cells/_players 复用同一份缓冲 每帧只清空重填 不重新分配
+    //_cells/_players reuse the same buffer, cleared and refilled each frame without reallocating
     private readonly List<(ChunkPos Pos, bool Strong)> _cells = new();
     private readonly List<(ChunkPos Pos, string Name)> _players = new();
 
@@ -53,11 +53,11 @@ public sealed partial class ServerChunkPage : UserControl
         InitializeComponent();
 
         Focusable = true;
-        //滚轮管缩放 但只有按下 Ctrl 才算
+        //The wheel handles zoom, but only with Ctrl held
         ChunkGrid.PointerWheelChanged += OnWheel;
-        //键盘缩放要先有点击把焦点拿过来
+        //Keyboard zoom needs a click first to take focus
         ChunkGrid.PointerPressed += (_, _) => Focus();
-        //拖动地图要退出跟随 顺手把中心同步回页面
+        //Dragging the map exits following and syncs the center back to the page
         ChunkGrid.CenterPanned += OnCenterPanned;
         ChunkGrid.HoverChanged += OnHoverChanged;
         KeyDown += OnKeyDown;
@@ -69,13 +69,13 @@ public sealed partial class ServerChunkPage : UserControl
         UpdateScaleLabel();
     }
 
-    //Refresh 由窗口的 500ms 轮询驱动 与原版统计面板同频
+    //Refresh is driven by the window's 500ms poll, same frequency as the vanilla stats panel
     public void Refresh()
     {
-        //主循环没起来时关卡还不存在 这页先留空
+        //The level does not exist yet when the main loop is not up, leave this page blank
         if (!_server.Running) return;
 
-        //第一次拿到出生点才定初始中心 之后中心只由跟随与手动操作改
+        //The initial center is set the first time the spawn is available, afterwards only following and manual operations change the center
         if (!_centerReady)
         {
             var spawn = _server.SpawnPos;
@@ -93,12 +93,12 @@ public sealed partial class ServerChunkPage : UserControl
         FillCells(source);
         ChunkGrid.SetSnapshot(centerX, centerZ, _cells, _players);
 
-        //把持有与绘制数摆在明面上 图上空白时一眼能分出是没数据还是没画出来
+        //Put the holder and drawn counts out in the open, when the grid is blank one can tell at a glance whether there is no data or nothing drawn
         CenterLabel.Text = Loc.Format("netcraft.gui.chunk.center",
             Math.Round(centerX), Math.Round(centerZ), source.HoldersCount, _cells.Count);
     }
 
-    //OnWheel Ctrl 加滚轮缩放
+    //OnWheel Ctrl plus wheel zoom
     private void OnWheel(object? sender, PointerWheelEventArgs e)
     {
         if (!e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.Delta.Y == 0) return;
@@ -106,7 +106,7 @@ public sealed partial class ServerChunkPage : UserControl
         e.Handled = true;
     }
 
-    //OnKeyDown Ctrl 加方向键或加减号缩放
+    //OnKeyDown Ctrl plus arrow keys or plus/minus zoom
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
@@ -139,10 +139,10 @@ public sealed partial class ServerChunkPage : UserControl
         => ScaleLabel.Text = Loc.Format("netcraft.gui.chunk.scale",
             ChunkGrid.CellSize.ToString("0.#", CultureInfo.CurrentCulture));
 
-    //OnGoto 跳到指定区块 输入的是区块坐标 和左边任务列表方括号里的数字一致
+    //OnGoto jumps to a given chunk, the input is chunk coordinates matching the numbers in brackets in the task list on the left
     private void OnGoto(object? sender, RoutedEventArgs e)
     {
-        //两个框都填对了才动 否则光标还停在半截数字上 直接跳走会莫名其妙
+        //Only acts when both fields are valid, otherwise the cursor is still on a half-typed number and jumping away would be baffling
         if (!int.TryParse(GotoX.Text?.Trim(), out var x)) return;
         if (!int.TryParse(GotoZ.Text?.Trim(), out var z)) return;
         _followName = null;
@@ -151,7 +151,7 @@ public sealed partial class ServerChunkPage : UserControl
         Refresh();
     }
 
-    //OnGotoKey 坐标框里回车等同于点前往
+    //OnGotoKey Enter in a coordinate field is the same as clicking go
     private void OnGotoKey(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter) return;
@@ -159,7 +159,7 @@ public sealed partial class ServerChunkPage : UserControl
         e.Handled = true;
     }
 
-    //OnHoverChanged 悬停格变化时刷新信息带 格里站着玩家就一并报名字
+    //OnHoverChanged refreshes the info bar when the hovered cell changes, players standing in the cell are named too
     private void OnHoverChanged(ChunkPos? pos, IReadOnlyList<string> names)
     {
         if (pos is not { } chunk)
@@ -172,18 +172,18 @@ public sealed partial class ServerChunkPage : UserControl
             : Loc.Format("netcraft.gui.chunk.hover_players", chunk.X, chunk.Z, string.Join(", ", names));
     }
 
-    //OnCenterPanned 拖动地图改中心 既然要自己看就说明不想再跟着谁 顺手退出跟随
+    //OnCenterPanned changes the center by dragging, wanting to look yourself means no longer following anyone, so it exits following
     private void OnCenterPanned(double x, double z)
     {
         _manualX = x;
         _manualZ = z;
         if (_followName is null) return;
         _followName = null;
-        //按钮上的选中标记要跟着撤掉 名字没变时这行会自己短路
+        //The selected mark on the buttons must be cleared too, this line short-circuits by itself when the name is unchanged
         RebuildPlayerList();
     }
 
-    //ResolveCenter 跟随中的玩家在线就取它所在区块 顺手记下来 万一它掉线中心正好停在这一格
+    //ResolveCenter takes the followed player's chunk if online and records it, so the center lands on that cell if they go offline
     private (double X, double Z) ResolveCenter()
     {
         if (_followName is not null)
@@ -198,7 +198,7 @@ public sealed partial class ServerChunkPage : UserControl
         return (_manualX, _manualZ);
     }
 
-    //DropOfflineFollow 跟随的玩家不在了就撤掉跟随 中心留在 _manualX/_manualZ 上不再动
+    //DropOfflineFollow stops following when the followed player is gone, the center stays at _manualX/_manualZ and no longer moves
     private void DropOfflineFollow()
     {
         if (_followName is null) return;
@@ -232,13 +232,13 @@ public sealed partial class ServerChunkPage : UserControl
         }
     }
 
-    //SelectPlayer 点玩家开始跟随 点同一个就是取消 取消后中心停在当前画面上不再追
+    //SelectPlayer starts following on click, clicking the same one cancels, after cancelling the center stays on the current view and no longer chases
     private void SelectPlayer(ServerPlayer player)
     {
         var name = player.Profile.Name;
         if (_followName == name)
         {
-            //定在原地取的是当前渲染中心而不是玩家位置 否则取消的瞬间画面还要再往前滑一下
+            //Freezing in place takes the current rendered center rather than the player position, otherwise the view slides forward one more time at the moment of cancelling
             var (x, z) = ChunkGrid.CurrentCenter;
             _manualX = x;
             _manualZ = z;
@@ -246,7 +246,7 @@ public sealed partial class ServerChunkPage : UserControl
         }
         else _followName = name;
 
-        //重建放到这次点击派发完之后 否则正在处理点击的那个按钮会被自己清掉
+        //The rebuild is posted after this click dispatch finishes, otherwise the button handling the click would clear itself
         Dispatcher.UIThread.Post(() =>
         {
             RebuildPlayerList();
@@ -254,7 +254,7 @@ public sealed partial class ServerChunkPage : UserControl
         }, DispatcherPriority.Background);
     }
 
-    //RebuildGenerationList 列出已提交加载但还没完成的区块 这些就是正在跑的地形生成
+    //RebuildGenerationList lists chunks submitted for load but not yet finished, these are the terrain generations in progress
     private void RebuildGenerationList()
     {
         var source = _server.Overworld.ChunkSource;
@@ -272,12 +272,12 @@ public sealed partial class ServerChunkPage : UserControl
         SyncTaskItems(tasks);
     }
 
-    //SyncTaskItems 按新列表增量维护任务项 只动真正增删的那几个
-    //整列清空重建会让没变的项跟着闪一下 动画反而更乱
+    //SyncTaskItems maintains task items incrementally against the new list, only the ones actually added or removed are touched
+    //Clearing and rebuilding the whole column makes unchanged items flicker and the animation becomes messier
     private void SyncTaskItems(List<string> tasks)
     {
         var wanted = new HashSet<string>(tasks);
-        //消失的项先淡出 等过渡跑完再摘掉 直接移除是瞬间消失
+        //Vanished items fade out first and are removed after the transition, a direct removal disappears instantly
         var stale = _taskItems.Keys.Where(key => !wanted.Contains(key)).ToList();
         foreach (var key in stale)
         {
@@ -291,7 +291,7 @@ public sealed partial class ServerChunkPage : UserControl
             var key = tasks[i];
             if (_taskItems.TryGetValue(key, out var existing))
             {
-                //顺序变了就挪位置 挪过的项本身不动 只有旁边的项跟着让位
+                //When the order changes it moves position, the moved item itself does not change and only the neighbors shift aside
                 var at = GenerationList.Children.IndexOf(existing);
                 if (at != i) GenerationList.Children.Move(at, i);
                 continue;
@@ -301,12 +301,12 @@ public sealed partial class ServerChunkPage : UserControl
             ApplyFade(item);
             _taskItems[key] = item;
             GenerationList.Children.Insert(Math.Min(i, GenerationList.Children.Count), item);
-            //先以全透明进树 下一拍再提上来 过渡才会真的跑
+            //Enter the tree fully transparent and raise it on the next tick so the transition actually runs
             Dispatcher.UIThread.Post(() => item.Opacity = 1, DispatcherPriority.Background);
         }
     }
 
-    //ApplyFade 让透明度变化走过渡而不是瞬切
+    //ApplyFade makes opacity changes go through a transition instead of snapping
     private static void ApplyFade(Control item)
         => item.Transitions = new Transitions
         {
@@ -317,7 +317,7 @@ public sealed partial class ServerChunkPage : UserControl
             },
         };
 
-    //FadeOut 淡出后再摘掉 等待时间比过渡略长 免得动画没跑完就被摘走
+    //FadeOut fades then removes, the wait is slightly longer than the transition so it is not removed before the animation finishes
     private static void FadeOut(Control item)
     {
         item.Opacity = 0;
@@ -327,15 +327,15 @@ public sealed partial class ServerChunkPage : UserControl
         }, TimeSpan.FromMilliseconds(FadeMilliseconds + 60));
     }
 
-    //FillCells 把持有器表转成图上的一格格 票等级落在可 tick 档之外的不画
-    //只画方块可 tick 及以内: 更外层的持有器是加载范围的外圈 图上按未加载显示
+    //FillCells turns the holder table into grid cells, holders whose ticket level is outside the ticking tier are not drawn
+    //Only block-ticking and closer are drawn: outer holders are the border of the loaded range and show as unloaded on the grid
     private void FillCells(ServerChunkCache source)
     {
         _cells.Clear();
         foreach (var holder in source.Holders)
         {
             if (!ChunkLevel.IsBlockTicking(holder.TicketLevel)) continue;
-            //强弱按模拟等级分: 模拟距离之外只加载不推进 就是那一圈弱加载
+            //Strong or weak is decided by the simulation level: beyond the simulation distance chunks load without ticking, that ring is weak loading
             _cells.Add((holder.Pos, source.InEntityTickingRange(holder.Pos.Pack())));
         }
 
@@ -345,6 +345,6 @@ public sealed partial class ServerChunkPage : UserControl
                 player.Profile.Name));
     }
 
-    //ToChunk 世界坐标到区块坐标 先取整再右移 负数才会落进正确的那一格
+    //ToChunk world coordinate to chunk coordinate, floor first then shift right so negatives land in the correct cell
     private static double ToChunk(double value) => (int)Math.Floor(value) >> 4;
 }

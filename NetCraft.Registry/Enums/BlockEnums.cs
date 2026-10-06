@@ -1,9 +1,9 @@
 namespace NetCraft.Registry.Enums;
 
-//BlockEnums 从原版方块属性枚举生成 成员名即原版序列化名 顺序即原版声明顺序
-//顺序直接决定 BlockState 全局 id 的分配 不能随意调整
-//单独放一个命名空间 免得 Direction/Axis 这类常见名与既有类型撞车
-//本文件由 __gen_blocks.py 整份重写 手写的派生成员放 BlockEnumsExtensions.cs
+//BlockEnums generated from vanilla block property enums; member names are the vanilla serialized names and order is the vanilla declaration order
+//The order directly determines BlockState global id assignment and must not be changed casually
+//Kept in its own namespace to avoid common names like Direction/Axis colliding with existing types
+//This file is rewritten entirely by __gen_blocks.py; hand-written derived members go in BlockEnumsExtensions.cs
 public static class BlockEnums
 {
     private static readonly Dictionary<string, Type> ByName = new()
@@ -40,11 +40,11 @@ public static class BlockEnums
         ["WallSide"] = typeof(WallSide),
     };
 
-    //Resolve 按原版枚举名取生成的枚举类型
+    //Resolve gets the generated enum type by vanilla enum name
     public static Type? Resolve(string name) => ByName.GetValueOrDefault(name);
 }
 
-//AttachFace 对应原版同名枚举
+//AttachFace maps to the vanilla enum of the same name
 public enum AttachFace
 {
     floor,
@@ -52,7 +52,7 @@ public enum AttachFace
     ceiling,
 }
 
-//Axis 对应原版同名枚举
+//Axis maps to the vanilla enum of the same name
 public enum Axis
 {
     x,
@@ -60,7 +60,7 @@ public enum Axis
     z,
 }
 
-//BambooLeaves 对应原版同名枚举
+//BambooLeaves maps to the vanilla enum of the same name
 public enum BambooLeaves
 {
     none,
@@ -68,14 +68,14 @@ public enum BambooLeaves
     large,
 }
 
-//BedPart 对应原版同名枚举
+//BedPart maps to the vanilla enum of the same name
 public enum BedPart
 {
     head,
     foot,
 }
 
-//BellAttachType 对应原版同名枚举
+//BellAttachType maps to the vanilla enum of the same name
 public enum BellAttachType
 {
     floor,
@@ -84,7 +84,7 @@ public enum BellAttachType
     double_wall,
 }
 
-//ChestType 对应原版同名枚举
+//ChestType maps to the vanilla enum of the same name
 public enum ChestType
 {
     single,
@@ -92,14 +92,14 @@ public enum ChestType
     right,
 }
 
-//ComparatorMode 对应原版同名枚举
+//ComparatorMode maps to the vanilla enum of the same name
 public enum ComparatorMode
 {
     compare,
     subtract,
 }
 
-//CreakingHeartState 对应原版同名枚举
+//CreakingHeartState maps to the vanilla enum of the same name
 public enum CreakingHeartState
 {
     uprooted,
@@ -107,7 +107,7 @@ public enum CreakingHeartState
     awake,
 }
 
-//Direction 对应原版同名枚举
+//Direction maps to the vanilla enum of the same name
 public enum Direction
 {
     down,
@@ -118,21 +118,21 @@ public enum Direction
     east,
 }
 
-//DoorHingeSide 对应原版同名枚举
+//DoorHingeSide maps to the vanilla enum of the same name
 public enum DoorHingeSide
 {
     left,
     right,
 }
 
-//DoubleBlockHalf 对应原版同名枚举
+//DoubleBlockHalf maps to the vanilla enum of the same name
 public enum DoubleBlockHalf
 {
     upper,
     lower,
 }
 
-//FrontAndTop 对应原版同名枚举
+//FrontAndTop maps to the vanilla enum of the same name
 public enum FrontAndTop
 {
     down_east,
@@ -149,14 +149,14 @@ public enum FrontAndTop
     south_up,
 }
 
-//Half 对应原版同名枚举
+//Half maps to the vanilla enum of the same name
 public enum Half
 {
     top,
     bottom,
 }
 
-//NoteBlockInstrument 对应原版同名枚举
+//NoteBlockInstrument maps to the vanilla enum of the same name
 public enum NoteBlockInstrument
 {
     harp,
@@ -188,14 +188,14 @@ public enum NoteBlockInstrument
     custom_head,
 }
 
-//PistonType 对应原版同名枚举
+//PistonType maps to the vanilla enum of the same name
 public enum PistonType
 {
     normal,
     sticky,
 }
 
-//Pose 对应原版同名枚举
+//Pose maps to the vanilla enum of the same name
 public enum Pose
 {
     standing,
@@ -204,7 +204,7 @@ public enum Pose
     star,
 }
 
-//PotentSulfurState 对应原版同名枚举
+//PotentSulfurState maps to the vanilla enum of the same name
 public enum PotentSulfurState
 {
     dry,
@@ -214,7 +214,7 @@ public enum PotentSulfurState
     continuous,
 }
 
-//RailShape 对应原版同名枚举
+//RailShape maps to the vanilla enum of the same name
 public enum RailShape
 {
     north_south,
@@ -229,7 +229,7 @@ public enum RailShape
     north_east,
 }
 
-//RedstoneSide 对应原版同名枚举
+//RedstoneSide maps to the vanilla enum of the same name
 public enum RedstoneSide
 {
     up,
@@ -237,7 +237,7 @@ public enum RedstoneSide
     none,
 }
 
-//SculkSensorPhase 对应原版同名枚举
+//SculkSensorPhase maps to the vanilla enum of the same name
 public enum SculkSensorPhase
 {
     inactive,
@@ -245,7 +245,7 @@ public enum SculkSensorPhase
     cooldown,
 }
 
-//SideChainPart 对应原版同名枚举
+//SideChainPart maps to the vanilla enum of the same name
 public enum SideChainPart
 {
     unconnected,
@@ -254,7 +254,7 @@ public enum SideChainPart
     left,
 }
 
-//SlabType 对应原版同名枚举
+//SlabType maps to the vanilla enum of the same name
 public enum SlabType
 {
     top,
@@ -262,7 +262,7 @@ public enum SlabType
     @double,
 }
 
-//SpeleothemThickness 对应原版同名枚举
+//SpeleothemThickness maps to the vanilla enum of the same name
 public enum SpeleothemThickness
 {
     tip_merge,
@@ -272,7 +272,7 @@ public enum SpeleothemThickness
     @base,
 }
 
-//StairsShape 对应原版同名枚举
+//StairsShape maps to the vanilla enum of the same name
 public enum StairsShape
 {
     straight,
@@ -282,7 +282,7 @@ public enum StairsShape
     outer_right,
 }
 
-//StructureMode 对应原版同名枚举
+//StructureMode maps to the vanilla enum of the same name
 public enum StructureMode
 {
     save,
@@ -291,7 +291,7 @@ public enum StructureMode
     data,
 }
 
-//TestBlockMode 对应原版同名枚举
+//TestBlockMode maps to the vanilla enum of the same name
 public enum TestBlockMode
 {
     start,
@@ -300,7 +300,7 @@ public enum TestBlockMode
     accept,
 }
 
-//Tilt 对应原版同名枚举
+//Tilt maps to the vanilla enum of the same name
 public enum Tilt
 {
     none,
@@ -309,7 +309,7 @@ public enum Tilt
     full,
 }
 
-//TrialSpawnerState 对应原版同名枚举
+//TrialSpawnerState maps to the vanilla enum of the same name
 public enum TrialSpawnerState
 {
     inactive,
@@ -320,7 +320,7 @@ public enum TrialSpawnerState
     cooldown,
 }
 
-//VaultState 对应原版同名枚举
+//VaultState maps to the vanilla enum of the same name
 public enum VaultState
 {
     inactive,
@@ -329,7 +329,7 @@ public enum VaultState
     ejecting,
 }
 
-//WallSide 对应原版同名枚举
+//WallSide maps to the vanilla enum of the same name
 public enum WallSide
 {
     none,
