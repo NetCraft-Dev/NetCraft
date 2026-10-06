@@ -8,6 +8,7 @@ using NetCraft.Game.World.Level.LevelGen;
 using NetCraft.Game.World.Level.LevelGen.Carver;
 using NetCraft.Game.World.Level.LevelGen.Features.Impl.Misc;
 using NetCraft.Game.World.Level.LevelGen.Structure;
+using NetCraft.Game.World.Level.Material;
 using NetCraft.Game.World.Clock;
 using NetCraft.Game.World.Timeline;
 using NetCraft.Logging;
@@ -142,32 +143,8 @@ public static class GameBootstrap
 
     //RegisterFluids 登记五个内置流体
     //雕刻器的 matching_fluids 与湖特征的 fluid 字段都按注册名引用 缺一个整条配置就解不出来
-    //项目还没有流体流动与流体状态体系 这里只登记注册名与"是否为空"所需的身份
-    private static void RegisterFluids()
-    {
-        RegisterFluid("empty");
-        RegisterFluid("flowing_water");
-        RegisterFluid("water");
-        RegisterFluid("flowing_lava");
-        RegisterFluid("lava");
-    }
-
-    private static void RegisterFluid(string path)
-    {
-        var id = Identifier.WithDefaultNamespace(path);
-        BuiltInRegistries.FLUID.Register(ResourceKey<Fluid>.Create(Registries.FLUID, id),
-            new SimpleFluid(id), RegistrationInfo.BuiltIn);
-    }
-
-    //SimpleFluid 只带注册名的流体 供注册表身份识别
-    private sealed class SimpleFluid : Fluid
-    {
-        private readonly Identifier _id;
-
-        public SimpleFluid(Identifier id) => _id = id;
-
-        public override Identifier Id => _id;
-    }
+    //实现在 Material/Fluids 那一份里 这里只触发它的静态初始化按序登记
+    private static void RegisterFluids() => _ = Fluids.Empty;
 
     //RegisterBiomes 注册兜底生物群系到 BuiltInRegistries.BIOME 并把全部群系同步进容器工厂
     //真实群系由第 8 步数据驱动装载 这里只在 BIOME 里没有 plains 时补占位(无数据包场景)

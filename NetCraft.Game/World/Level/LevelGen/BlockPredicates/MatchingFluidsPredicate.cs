@@ -9,7 +9,7 @@ namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 public class MatchingFluidsPredicate : StateTestingPredicate
 {
     //EmptyFluid 空流体占位 对应原版 Fluids.EMPTY 流体注册表尚未装载内容
-    public static readonly Fluid EmptyFluid = new EmptyFluidPlaceholder();
+    public static readonly Fluid EmptyFluid = Fluid.Empty;
 
     public static readonly Codec<MatchingFluidsPredicate> Codec =
         RecordCodecBuilder.Of2<MatchingFluidsPredicate, Vec3i, HolderSet<Fluid>>(
@@ -38,10 +38,4 @@ public class MatchingFluidsPredicate : StateTestingPredicate
     }
 
     public override BlockPredicateType Type => BlockPredicateType.MatchingFluids;
-}
-
-//EmptyFluidPlaceholder 空流体占位实现 待流体注册表装载后由真实流体取代
-internal sealed class EmptyFluidPlaceholder : Fluid
-{
-    public override Identifier Id => Identifier.WithDefaultNamespace("empty");
 }

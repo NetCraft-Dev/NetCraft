@@ -137,11 +137,11 @@ public static partial class Blocks
     public static readonly LavaBlock LAVA = new();
     public static readonly BedrockBlock BEDROCK = new();
 
-    //水的流体状态 回退成方块时用 level=0 的源
+    //水的流体源态 回退成方块时是 level=0 的水方块
     //必须延迟到首次访问 静态字段初始化会抢在方块注册之前构建水方块状态打乱全局状态 id
-    public static FluidState WaterFluidState => _waterFluidState ??= new FluidState(WATER.DefaultBlockState);
-    //岩浆的流体状态 回退成方块时用 level=0 的源
-    public static FluidState LavaFluidState => _lavaFluidState ??= new FluidState(LAVA.DefaultBlockState);
+    public static FluidState WaterFluidState => _waterFluidState ??= Material.Fluids.Water.DefaultFluidState;
+    //岩浆的流体源态 回退成方块时是 level=0 的岩浆方块
+    public static FluidState LavaFluidState => _lavaFluidState ??= Material.Fluids.Lava.DefaultFluidState;
 
     private static FluidState? _waterFluidState;
     private static FluidState? _lavaFluidState;

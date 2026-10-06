@@ -363,6 +363,17 @@ public abstract class ServerLevel : ILevelReader
             Log.Debug($"redstone schedule {pos} block={block.Id} delay={delay} priority={priority} now={GameTime} due={GameTime + delay}");
     }
 
+    //ScheduleTick 排入流体调度刻 对应原版 LevelAccessor.scheduleTick 的流体重载
+    public void ScheduleTick(BlockPos pos, NetCraft.Registry.Fluid fluid, int delay)
+        => ScheduleTick(pos, fluid, delay, TickPriority.Normal);
+
+    public void ScheduleTick(BlockPos pos, NetCraft.Registry.Fluid fluid, int delay, TickPriority priority)
+    {
+        EnsureChunkTicksRegistered(new ChunkPos(pos.X >> 4, pos.Z >> 4));
+        FluidTicks.Schedule(new ScheduledTick<NetCraft.Registry.Fluid>(
+            fluid, pos, GameTime + delay, priority, _subTickCount++));
+    }
+
     //HasScheduledTick 该位置是否已排了同一方块的调度刻
     public bool HasScheduledTick(BlockPos pos, NetCraft.Registry.Block block)
         => BlockTicks.HasScheduledTick(pos, block);
@@ -374,6 +385,21 @@ public abstract class ServerLevel : ILevelReader
     //TickBlockTicks 推进方块调度刻 预算对齐原版 ServerLevel.tick 里那个 65536
     public void TickBlockTicks(int maxTicksToProcess = 65536)
         => BlockTicks.Tick(GameTime, maxTicksToProcess, TickBlock);
+
+    //TickFluidTicks 推进流体调度刻 预算与方块刻同源 对应原版 ServerLevel.tick 里的 FluidTicks.tick
+    public void TickFluidTicks(int maxTicksToProcess = 65536)
+        => FluidTicks.Tick(GameTime, maxTicksToProcess, TickFluid);
+
+    //TickFluid 流体刻回调 该位置现在的流体与排刻时登记的不是同一种就丢弃
+    private void TickFluid(BlockPos pos, NetCraft.Registry.Fluid fluid)
+    {
+        var state = GetBlockState(pos);
+        if (state is null) return;
+        var fluidState = GetFluidState(pos);
+        if (!ReferenceEquals(fluidState.Type, fluid)) return;
+        if (fluid is IFluidBehaviour behaviour)
+            behaviour.Tick(this, pos, state.Value, fluidState);
+    }
 
     //TickBlock 执行一次方块刻 对应原版 ServerLevel.tickBlock
     //位置上的方块必须还是排入时那一个 否则丢弃 原版就靠这个挡掉过期的刻
