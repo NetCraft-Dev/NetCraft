@@ -84,7 +84,7 @@ Note the order: **declarations are scanned, rewritten bytes are loaded, and entr
 | Mod carrier | jar containing `fabric.mod.json` | dll embedding `ncmod.json` |
 | Declaration reading | read a file inside the jar | `MetadataReader` statically reads embedded resources without loading assemblies |
 | Code injection | Mixin (annotations in source; members are mixed into the target class at class load) | `Lead.Hook` (rules declared in a manifest or annotations; bytes are rewritten in place during assembly resolution, and mixins move members into the target type) |
-| Injection granularity | any line in a method body, including locals and intermediate expression values | thirteen forms (call site, field read/write, constructor, type check, boxing, local variable, constant, whole-method-body replacement, probes, etc.), with insert-before or insert-after |
+| Injection granularity | any line in a method body, including locals and intermediate expression values | fourteen forms (call site, single call argument, field read/write, constructor, type check, boxing, local variable, constant, whole-method-body replacement, probes, etc.), with insert-before or insert-after |
 | Loading model | Fabric Loader + Knot class loader | single default ALC + `AssemblyLoadContext.Resolving` |
 | Official API scope | Fabric API has a great many modules | NetCraft-ModApi currently has only event and command extension points |
 
@@ -137,12 +137,12 @@ Conversely, **a mod that does not reference `NetCraft.ModApi` can only use the m
 The differences from Fabric remain:
 
 - **How and when changes happen**: Mixin has a transformer **mix members of the mixin class into** the target class at **class load**, so what gets loaded is a synthesized new class and the original no longer exists; NC rewrites the target method's instructions in place **before the assembly enters memory**, so the class is still the same class, only its method body changes. Both rewrite at load time, neither modifies bytecode at compile time — Mixin's annotation processor only generates a refmap (obfuscation mapping) and performs validation at build time, while NC is not obfuscated and has no such layer at all.
-- Mixin can inject at **any position in the middle of a method body**; NC can target a specific call site, field access, construction, local variable read/write, or constant within a specified host method, and can insert before or after it (`InType`/`InMethod` narrow the scope, `Placement` decides insert or replace), but it **cannot reach an arbitrary line number** and cannot change a jump target or an intermediate expression value on the stack.
+- Mixin can inject at **any position in the middle of a method body**; NC can target a specific call site, field access, construction, local variable read/write, or constant within a specified host method, and can insert before or after it (`InType`/`InMethod` narrow the scope, `Placement` decides insert or replace), but it **cannot reach an arbitrary line number** and cannot change a jump target. Rewriting one argument of a call is reachable through `CallArg` (see [2.9](#29-modifying-a-single-call-argument)).
 - Mixin targets use a string method name plus descriptor; NC uses "full type name + method name", so same-name overloads all match, and precision to a single one requires `InType`/`InMethod`.
 
 **Which layer handles annotations**: the annotation type (`InjectAttribute`) is provided by `NetCraft.ModApi.Extension`, and it is resolved by `NetCraft.ModLoader` — when scanning mods it statically reads the `CustomAttribute` table with `MetadataReader`, without loading assemblies. **`Lead.Hook` does not recognize annotations**; it only sees the merged rule table, and the native injection layer recognizes only the description bytes compiled on the managed side, not even reading `ncmod.json`.
 
-This determines what annotations can express: what you can write depends entirely on which fields `InjectAttribute` has. Currently there are seven — target type, method name, `HookType`, `Label`, `Environment`, `PatchMode`, `Ordinal` — and `InType`/`InMethod`/`Placement` from [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) and `LocalIndex`/`ConstantValue` from [2.5](#25-in-method-body-anchors-local-variables-and-constants) **cannot be written in annotations**; use the C# API or wait for the manifest to catch up. The manifest side is missing these too — the only thing it accepts beyond annotations is `ordinal`.
+This determines what annotations can express: what you can write depends entirely on which fields `InjectAttribute` has. Currently there are ten — target type, method name, `HookType`, `Label`, `Environment`, `PatchMode`, `Ordinal`, `ArgumentIndex`, `SliceFrom`, `SliceTo` — and `InType`/`InMethod`/`Placement` from [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) and `LocalIndex`/`ConstantValue` from [2.5](#25-in-method-body-anchors-local-variables-and-constants) **cannot be written in annotations**. The manifest accepts the same set, so those five are reachable only through the C# API.
 
 For the fourteen injection forms see the [modding-guide appendix](#appendix-hooktype-overview) and [mod-api.md](mod-api.md).
 
@@ -627,6 +627,8 @@ The judgment basis is the `version` field in the depended-on mod's manifest. So 
 | `type` | injection form, see the appendix |
 | `patchMode` | landing method, `ILRewrite` (default) or `RuntimeInject`, see [2.6](#26-runtime-injection-modifying-already-running-code) |
 | `ordinal` | when the same anchor matches multiple places in the host method, pick which, 0-based, see [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) |
+| `argumentIndex` | which argument `CallArg` rewrites, 0-based; for instance calls `this` counts as 0, see [2.9](#29-modifying-a-single-call-argument) |
+| `sliceFrom` / `sliceTo` | fence the match, written as `"TypeFullName::MethodName"`; see [2.4](#24-narrowing-to-one-site-host-scoping-and-placement) |
 | `replaceType` | full name of the class containing the replacement method |
 | `replaceMethod` | replacement method name |
 | `label` | probe label, used only by `Mark` and `Probe` |
@@ -647,6 +649,8 @@ public static void OnSomeMethod(object self) { }
 | `type` | named parameter `HookType`, default `CallSite` |
 | `patchMode` | named parameter `PatchMode`, default `ILRewrite` |
 | `ordinal` | named parameter `Ordinal` |
+| `argumentIndex` | named parameter `ArgumentIndex` |
+| `sliceFrom` / `sliceTo` | named parameters `SliceFrom` / `SliceTo` |
 | `label` | named parameter `Label` |
 | `environment` | named parameter `Environment`, default `both` |
 | `replaceType` | not written; taken automatically from the class it annotates |

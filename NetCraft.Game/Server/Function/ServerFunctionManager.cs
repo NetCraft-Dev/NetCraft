@@ -1,5 +1,7 @@
 using NetCraft.Commands;
+using NetCraft.Commands.Execution;
 using NetCraft.Commands.Functions;
+using NetCraft.Game.Commands;
 using NetCraft.Logging;
 using NetCraft.Registry;
 using NetCraft.Util.Profiling;
@@ -90,7 +92,7 @@ public sealed class ServerFunctionManager
         {
             var function = functionIn.Instantiate(null, Dispatcher);
             _server.Commands.ExecuteInContext(sender,
-                context => ExecutionContext<CommandSourceStack>.QueueInitialFunctionCall(
+                context => NetCraft.Commands.Execution.ExecutionContext<CommandSourceStack>.QueueInitialFunctionCall(
                     context, function, sender, CommandResultCallback.Empty));
         }
         catch (FunctionInstantiationException)

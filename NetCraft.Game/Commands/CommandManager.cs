@@ -166,7 +166,8 @@ public sealed class CommandManager
         //链长与分叉上限取游戏规则 对应原版 MAX_COMMAND_SEQUENCE_LENGTH 与 MAX_COMMAND_FORKS
         var chainLimit = Math.Max(1, _server.GameRules.GetInt(NetCraft.Game.World.Level.GameRules.MaxCommandSequenceLength));
         var forkLimit = Math.Max(1, _server.GameRules.GetInt(NetCraft.Game.World.Level.GameRules.MaxCommandForks));
-        using var context = new ExecutionContext<CommandSourceStack>(chainLimit, forkLimit, Profiler.Get());
+        //System.Threading 也有个非泛型 ExecutionContext 全限定免歧义
+        using var context = new NetCraft.Commands.Execution.ExecutionContext<CommandSourceStack>(chainLimit, forkLimit, Profiler.Get());
         _currentExecutionContext.Value = context;
         try
         {

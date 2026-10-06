@@ -56,8 +56,7 @@ public sealed class ServerFunctionLibrary : PreparableReloadListener
         var errors = 0;
         foreach (var resource in ListFunctionResources(resourceManager))
         {
-            var id = FunctionIdOf(resource.Location);
-            if (id is null) continue;
+            if (FunctionIdOf(resource.Location) is not { } id) continue;
             try
             {
                 var lines = ReadLines(resource);
@@ -136,8 +135,7 @@ public sealed class ServerFunctionLibrary : PreparableReloadListener
             foreach (var resource in resourceManager.ListResources(PackType.ServerData, ns, TagsDir))
             {
                 if (!resource.Location.Path.EndsWith(".json", StringComparison.Ordinal)) continue;
-                var id = TagIdOf(resource.Location);
-                if (id is null) continue;
+                if (TagIdOf(resource.Location) is not { } id) continue;
                 try
                 {
                     using var stream = resource.Open();
@@ -154,8 +152,7 @@ public sealed class ServerFunctionLibrary : PreparableReloadListener
                         //标签引用 #ns:path 记成原始串后续展开
                         if (text.StartsWith("#", StringComparison.Ordinal))
                         {
-                            var referenceId = Identifier.TryParse(text[1..]);
-                            if (referenceId is not null) entries.Add(referenceId);
+                            if (Identifier.TryParse(text[1..]) is { } referenceId) entries.Add(referenceId);
                         }
                         else if (Identifier.TryParse(text) is { } functionId)
                         {

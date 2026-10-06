@@ -121,9 +121,12 @@ public class TimerQueue<T> : SavedData
     public override string Id => "minecraft:scheduled_events";
 
     //Save 写盘字段名对齐原版 codec
+    //只有服务端队列参与落盘 其余 T 的队列不持久化
     public override CompoundTag Save(CompoundTag tag)
     {
-        var encoded = CreateCodec(TimerCallbacks.ServerCallbacks).EncodeStart(NbtOps.Instance, this).GetOrThrow();
+        if (this is not TimerQueue<MinecraftServer> serverQueue)
+            throw new InvalidOperationException("Only the server timer queue persists to disk");
+        var encoded = TimerQueueTypes.ServerCodec.EncodeStart(NbtOps.Instance, serverQueue).GetOrThrow();
         return encoded as CompoundTag ?? throw new InvalidOperationException("scheduled_events must encode to a compound tag");
     }
 
