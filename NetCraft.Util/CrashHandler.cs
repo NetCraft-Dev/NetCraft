@@ -48,6 +48,8 @@ public static class CrashHandler
         }
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+        //Vanilla preloads the report path at startup so a report can still be built once the process is in a bad state
+        CrashReport.Preload();
     }
 
     //CrashReportFilename report filename, maps to vanilla crash-<time>-<role>.txt

@@ -15,7 +15,7 @@ public sealed class CrashReport
     private readonly SystemReport _systemReport = new();
     private string? _saveFile;
     private bool _trackingStackTrace = true;
-    private StackTrace _uncategorizedStackTrace = new(skipFrames: 1, fNeedFileInfo: true);
+    private StackFrame[] _uncategorizedStackTrace = Array.Empty<StackFrame>();
 
     public CrashReport(string title, Exception exception)
     {
@@ -41,7 +41,18 @@ public sealed class CrashReport
         var category = new CrashReportCategory(name);
         if (_trackingStackTrace)
         {
-            category.FillInStackTrace(nestedOffset + 1);
+            //Vanilla compares how deep this category sits against how deep the exception was thrown; the difference is
+            //the part of the exception trace nothing has claimed yet, and that part becomes the Head section
+            var size = category.FillInStackTrace(nestedOffset + 1);
+            var fullTrace = new StackTrace(_exception, fNeedFileInfo: true).GetFrames() ?? Array.Empty<StackFrame>();
+            var traceIndex = fullTrace.Length - size;
+            var source = traceIndex >= 0 && traceIndex < fullTrace.Length ? fullTrace[traceIndex] : null;
+            var next = traceIndex + 1 >= 0 && traceIndex + 1 < fullTrace.Length ? fullTrace[traceIndex + 1] : null;
+            _trackingStackTrace = category.ValidateStackTrace(source, next);
+            if (fullTrace.Length >= size && traceIndex >= 0 && traceIndex < fullTrace.Length)
+                _uncategorizedStackTrace = fullTrace[..traceIndex];
+            else
+                _trackingStackTrace = false;
         }
         _details.Add(category);
         return category;
@@ -88,14 +99,14 @@ public sealed class CrashReport
 
     public void GetDetails(StringBuilder builder)
     {
-        if (_uncategorizedStackTrace.FrameCount > 0)
+        if (_uncategorizedStackTrace.Length > 0)
         {
             builder.Append("-- Head --").Append(NewLine);
-            builder.Append("Thread: ").Append(Environment.CurrentManagedThreadId).Append(NewLine);
+            builder.Append("Thread: ").Append(System.Threading.Thread.CurrentThread.Name ?? $"#{Environment.CurrentManagedThreadId}").Append(NewLine);
             builder.Append("Stacktrace:").Append(NewLine);
-            foreach (var frame in _uncategorizedStackTrace.GetFrames() ?? Array.Empty<StackFrame>())
+            foreach (var frame in _uncategorizedStackTrace)
             {
-                builder.Append("\tat ").Append(frame).Append(NewLine);
+                builder.Append("\tat ").Append(FormatFrame(frame)).Append(NewLine);
             }
             builder.Append(NewLine);
         }
@@ -107,11 +118,44 @@ public sealed class CrashReport
         _systemReport.AppendToCrashReportString(builder);
     }
 
-    //Prints the exception message and stack
+    //GetExceptionMessage prints the exception type, message and stack
+    //Vanilla builds a fresh NullPointerException / StackOverflowError / OutOfMemoryError carrying the report
+    //title when the original has no message; the CLR cannot rebuild an exception's inner exception and stack,
+    //so the title is written in place of the missing message instead
     private string GetExceptionMessage()
     {
-        var ex = _exception;
-        return ex.ToString();
+        var builder = new StringBuilder();
+        AppendException(builder, _exception, isCause: false);
+        return builder.ToString();
+    }
+
+    //AppendException writes one exception and its causes in the vanilla stack trace layout
+    //Vanilla prints a frame as "\tat type.method(file:line)" and marks nested exceptions with "Caused by:"
+    private void AppendException(StringBuilder builder, Exception ex, bool isCause)
+    {
+        var message = string.IsNullOrEmpty(ex.Message) && NeedsTitleFallback(ex) ? _title : ex.Message;
+        if (isCause) builder.Append("Caused by: ");
+        builder.Append(ex.GetType().FullName).Append(": ").Append(message).Append(NewLine);
+        foreach (var frame in new StackTrace(ex, fNeedFileInfo: true).GetFrames() ?? Array.Empty<StackFrame>())
+            builder.Append("\tat ").Append(FormatFrame(frame)).Append(NewLine);
+        if (ex.InnerException is not null) AppendException(builder, ex.InnerException, isCause: true);
+    }
+
+    //NeedsTitleFallback the exception kinds vanilla replaces with a titled copy
+    private static bool NeedsTitleFallback(Exception ex)
+        => ex is NullReferenceException or StackOverflowException or OutOfMemoryException;
+
+    //FormatFrame renders one frame the way vanilla prints a stack trace element
+    //The CLR's own StackFrame.ToString carries an IL offset, a trailing line break and column info; vanilla shows none of those
+    internal static string FormatFrame(StackFrame frame)
+    {
+        var method = frame.GetMethod();
+        var type = method?.DeclaringType?.FullName ?? "<unknown>";
+        var name = method?.Name ?? "<unknown>";
+        var file = frame.GetFileName();
+        return file is null
+            ? $"{type}.{name}(Unknown Source)"
+            : $"{type}.{name}({file}:{frame.GetFileLineNumber()})";
     }
 
     //Builds a CrashReport from a Throwable, maps to vanilla forThrowable
@@ -123,5 +167,14 @@ public sealed class CrashReport
         if (throwable is ReportedException reported)
             return reported.Report;
         return new CrashReport(title, throwable);
+    }
+
+    //Preload reserves the memory block and builds one report so the crash path is already warm, maps to vanilla preload
+    //Vanilla runs it at startup: the report code is jitted and every type it touches is loaded, so a report still gets
+    //written when the process is already in a bad state
+    public static void Preload()
+    {
+        MemoryReserve.Allocate();
+        new CrashReport("Don't panic!", new Exception()).GetFriendlyReport(ReportType.Crash);
     }
 }
