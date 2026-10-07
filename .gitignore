@@ -68,3 +68,4 @@ NetCraft.ClientHarness/
 NetCraft.Experimental/
 .pslocal/
 .psctx.json
+NetCraft.TestCrash/
