@@ -1,6 +1,6 @@
 using System.Diagnostics.Tracing;
 using Microsoft.Diagnostics.NETCore.Client;
-using Microsoft.Diagnostics.Tracing.Parsers.Clr;
+using Microsoft.Diagnostics.Tracing.Parsers;
 using NetCraft.Game.Server;
 using NetCraft.Logging;
 
