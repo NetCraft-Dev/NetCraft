@@ -49,6 +49,7 @@ public static class DebugCommand
             .Then(LeaveNode())
             .Then(PlayerNode())
             .Then(TickNode())
+            .Then(TraceNode())
             .Then(ChunkNode())
             .Then(CommandsNode()));
     }
@@ -828,6 +829,50 @@ public static class DebugCommand
             if (candidate.StartsWith(remaining, StringComparison.Ordinal))
                 builder.Add(candidate);
         return builder.BuildFuture();
+    }
+
+    //--- debug trace runtime capture ---
+
+    //TraceNode debug trace on|off records this process's runtime events to a file
+    //on starts a capture and prints the file being written; off ends it and prints where the file landed
+    //The capture carries CPU samples and the runtime events, a nettrace readable by PerfView/dotnet-trace/Visual Studio
+    private static LiteralArgumentBuilder<CommandSourceStack> TraceNode()
+        => LiteralArgumentBuilder<CommandSourceStack>.Literal("trace")
+            .Then(LiteralArgumentBuilder<CommandSourceStack>.Literal("on")
+                .Executes(StartTrace))
+            .Then(LiteralArgumentBuilder<CommandSourceStack>.Literal("off")
+                .Executes(StopTrace));
+
+    //StartTrace debug trace on begins a capture
+    private static int StartTrace(CommandContext<CommandSourceStack> context)
+    {
+        var source = RequireSource(context);
+        if (source is null) return 0;
+        var path = source.Server.Trace.Start();
+        if (path is null)
+        {
+            source.SendFailure("a trace is already running or the capture could not be started; see the server log");
+            return 0;
+        }
+        Log.Info($"[debug] trace recording to {path}");
+        source.SendSuccess($"trace recording to {path}; run debug trace off to finish it");
+        return 1;
+    }
+
+    //StopTrace debug trace off ends the capture and reports the file that was written
+    private static int StopTrace(CommandContext<CommandSourceStack> context)
+    {
+        var source = RequireSource(context);
+        if (source is null) return 0;
+        var path = source.Server.Trace.Stop();
+        if (path is null)
+        {
+            source.SendFailure("no trace is running");
+            return 0;
+        }
+        Log.Info($"[debug] trace written to {path}");
+        source.SendSuccess($"trace written to {path}");
+        return 1;
     }
 
     //--- common helpers ---

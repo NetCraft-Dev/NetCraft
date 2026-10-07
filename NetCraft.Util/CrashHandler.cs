@@ -46,12 +46,18 @@ public static class CrashHandler
             _reportType = reportType ?? ReportType.Crash;
             _installed = true;
         }
+
+        //The native layer only loads if the profiler variables are present while the process starts, so a run without
+        //them restarts itself once here. This does not return in that case: the restarted process carries on from the
+        //top and reaches this point again with the layer already in
+        NativeStackGuard.RelaunchIfNeeded();
+
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         //Vanilla preloads the report path at startup so a report can still be built once the process is in a bad state
         CrashReport.Preload();
         //A stack overflow is the one failure the managed path cannot catch; the native layer reports that case instead
-        NativeStackGuard.Install();
+        NativeStackGuard.Register();
     }
 
     //CrashReportFilename report filename, maps to vanilla crash-<time>-<role>.txt

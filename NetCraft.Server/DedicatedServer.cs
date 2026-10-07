@@ -26,6 +26,7 @@ using NetCraft.Network;
 using NetCraft.Network.Protocol;
 using NetCraft.Primitives;
 using NetCraft.Registry;
+using NetCraft.Server.Diagnostics;
 using NetCraft.Storage;
 using NetCraft.Storage.Paletted;
 using NetCraft.Util.Random;
@@ -251,6 +252,10 @@ public sealed class DedicatedServer : MinecraftServer, ServerHandshakeContext, S
 
     //DebugPlayers the fake player manager, the operation entry for /debug join and /debug player
     public override DebugPlayerManager DebugPlayers => _debugPlayers;
+
+    //Trace the runtime trace capture control, the operation entry for /debug trace
+    //Holds no session until a capture starts, so constructing it costs nothing
+    public override ServerTraceControl Trace { get; } = new RuntimeTraceRecorder();
 
     //ServerStatus the server status, used to respond to StatusRequest
     public ServerStatus ServerStatus => _serverStatus;

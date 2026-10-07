@@ -105,6 +105,8 @@ public abstract class MinecraftServer
     public abstract Stopwatches Stopwatches { get; }
     //DebugPlayers fake player manager
     public abstract DebugPlayerManager DebugPlayers { get; }
+    //Trace runtime trace capture control, operated by debug trace
+    public abstract ServerTraceControl Trace { get; }
     //Commands command manager
     public abstract CommandManager Commands { get; }
     //EntityTracker entity tracker

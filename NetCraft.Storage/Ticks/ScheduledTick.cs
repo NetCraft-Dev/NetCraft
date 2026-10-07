@@ -118,4 +118,9 @@ public sealed class SavedTick<T> where T : class
         public int GetHashCode(SavedTick<T> o)
             => (31 * o.Pos.GetHashCode()) + o.Type.GetHashCode();
     }
+
+    //Probe builds a dummy entry used only for a set lookup, maps to vanilla SavedTick.probe
+    //Dedup looks at position and type alone, so the remaining fields carry placeholder values
+    public static SavedTick<T> Probe(T type, BlockPos pos)
+        => new(type, pos, 0, TickPriority.Normal);
 }

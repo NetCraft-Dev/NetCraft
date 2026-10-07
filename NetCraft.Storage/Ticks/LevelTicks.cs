@@ -6,7 +6,7 @@ namespace NetCraft.Storage.Ticks;
 //LevelTicks, the whole-level scheduled tick collection, maps to vanilla net.minecraft.world.tick.LevelTicks
 //Two-layer structure: one container per chunk, plus a min-heap ordered by each container's head element
 //Each tick has three steps: collect, run, cleanup; the collected count is bounded by a budget and leftovers wait for the next tick
-public sealed class LevelTicks<T> where T : class
+public sealed class LevelTicks<T> : ILevelTickAccess<T> where T : class
 {
     private readonly Func<long, bool> _tickCheck;
     private readonly Dictionary<long, LevelChunkTicks<T>> _allContainers = new();
@@ -34,6 +34,17 @@ public sealed class LevelTicks<T> where T : class
 
     //ContainerCount, the number of chunks with a registered container
     public int ContainerCount => _allContainers.Count;
+
+    //Count, the total number of scheduled ticks across every container, maps to vanilla count
+    public int Count
+    {
+        get
+        {
+            var total = 0;
+            foreach (var container in _allContainers.Values) total += container.Count;
+            return total;
+        }
+    }
 
     //AddContainer registers a container when a chunk starts ticking, maps to vanilla addContainer
     public void AddContainer(ChunkPos pos, LevelChunkTicks<T> container)

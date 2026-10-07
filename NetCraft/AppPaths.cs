@@ -34,6 +34,9 @@ public static class AppPaths
     //CrashReportsDir crash-reports/ subdirectory of the crash report root, aligning with vanilla
     public static string CrashReportsDir => Path.Combine(BaseDirectory, "crash-reports");
 
+    //TracesDir traces/ subdirectory, where /debug trace writes its captures
+    public static string TracesDir => Path.Combine(BaseDirectory, "traces");
+
     //OptionsPath client config file path assets/options.txt
     public static string OptionsPath => Path.Combine(AssetsDir, "options.txt");
 

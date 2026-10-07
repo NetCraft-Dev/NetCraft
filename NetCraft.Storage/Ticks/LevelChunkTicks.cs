@@ -2,19 +2,18 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Storage.Ticks;
 
-//ITickContainerAccess, chunk-level scheduled tick container interface, maps to vanilla TickContainerAccess
-public interface ITickContainerAccess<T> where T : class
+//ITickContainerAccess, the chunk-level container shape, maps to vanilla TickContainerAccess
+//Vanilla stops at the three members of TickAccess and keeps willTickThisTick on the level side; the extra member is
+//kept here because LevelChunkTicks already exposed it, and reshaping the interface would ripple through callers
+public interface ITickContainerAccess<T> : ITickAccess<T> where T : class
 {
-    void Schedule(ScheduledTick<T> tick);
-    bool HasScheduledTick(BlockPos pos, T type);
     bool WillTickThisTick(BlockPos pos, T type);
-    int Count { get; }
 }
 
 //LevelChunkTicks, scheduled tick container for one chunk, maps to vanilla net.minecraft.world.tick.LevelChunkTicks
 //A priority queue plus a dedup set; the same pos and type keeps only the first scheduled one
 //pendingTicks is the batch read from disk but not yet converted to absolute ticks; it is expanded once the chunk starts ticking
-public sealed class LevelChunkTicks<T> : ITickContainerAccess<T> where T : class
+public sealed class LevelChunkTicks<T> : ITickContainerAccess<T>, ISerializableTickContainer<T> where T : class
 {
     private List<SavedTick<T>>? _pendingTicks;
     private Action<LevelChunkTicks<T>, ScheduledTick<T>>? _onTickAdded;
