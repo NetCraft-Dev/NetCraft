@@ -50,6 +50,8 @@ public static class CrashHandler
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         //Vanilla preloads the report path at startup so a report can still be built once the process is in a bad state
         CrashReport.Preload();
+        //A stack overflow is the one failure the managed path cannot catch; the native layer reports that case instead
+        NativeStackGuard.Install();
     }
 
     //CrashReportFilename report filename, maps to vanilla crash-<time>-<role>.txt

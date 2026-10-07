@@ -20,6 +20,7 @@ node_modules/
 dist/
 .vite/
 webui - 副本/
+run/
 
 *.log
 temp*.py
@@ -64,8 +65,8 @@ NetCraft.Test1/
 NetCraft.Test2/
 NetCraft.Test3/
 NetCraft.TestMode/
+NetCraft.TestCrash/
 NetCraft.ClientHarness/
 NetCraft.Experimental/
 .pslocal/
 .psctx.json
-NetCraft.TestCrash/

@@ -34,11 +34,9 @@ pub extern "C" fn ncn_on_initialize(_profiler_info_unknown: *mut c_void) -> i32 
         std::process::id()
     ));
 
-    match stack::install() {
-        Ok(()) => logging::write("stack overflow guard installed"),
-        Err(message) => logging::write(&format!("stack overflow guard not installed: {message}")),
-    }
-
+    // The handler is deliberately not installed here
+    // Vectored handlers run newest first, and the runtime registers its own while it starts up, so a handler put in
+    // place this early would sit behind it; waiting until the managed side asks for the callback puts this one first
     0
 }
 
@@ -71,6 +69,13 @@ pub unsafe extern "C" fn ncn_register_stack_overflow_callback(
     // The managed side hands over the address of a static method declared with the C calling convention
     let handler: stack::StackOverflowCallback = std::mem::transmute(callback);
     stack::register_callback(handler, directory);
+
+    // Installed here rather than at profiler startup, for the ordering reason noted in ncn_on_initialize
+    match stack::install() {
+        Ok(()) => logging::write("stack overflow guard installed"),
+        Err(message) => logging::write(&format!("stack overflow guard not installed: {message}")),
+    }
+
     0
 }
 
