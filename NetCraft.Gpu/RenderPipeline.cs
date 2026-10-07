@@ -2,9 +2,9 @@ using NetCraft.Gpu.Pipeline;
 
 namespace NetCraft.Gpu;
 
-//CompiledRenderPipeline 编译后的渲染管线对标原版 CompiledRenderPipeline 接口
-//由 IGpuDevice.PrecompilePipeline 编译声明式 RenderPipeline 产生
-//VulkanRenderPipeline 是其 Vulkan 后端实现持有 VkPipeline 句柄
+//CompiledRenderPipeline compiled render pipeline, maps to the vanilla CompiledRenderPipeline interface
+//Produced by IGpuDevice.PrecompilePipeline compiling a declarative RenderPipeline
+//VulkanRenderPipeline is its Vulkan backend implementation holding a VkPipeline handle
 public abstract class CompiledRenderPipeline : IDisposable
 {
     public RenderPipelineDescription Description { get; }
@@ -17,7 +17,7 @@ public abstract class CompiledRenderPipeline : IDisposable
     public virtual void Dispose() { }
 }
 
-//GpuVertexFormat 顶点属性格式
+//GpuVertexFormat vertex attribute format
 public enum GpuVertexFormat
 {
     Float,
@@ -27,7 +27,7 @@ public enum GpuVertexFormat
     Byte4Norm
 }
 
-//GpuVertexAttribute 顶点属性描述
+//GpuVertexAttribute vertex attribute description
 public sealed class GpuVertexAttribute
 {
     public int Location { get; set; }
@@ -35,7 +35,7 @@ public sealed class GpuVertexAttribute
     public int Offset { get; set; }
 }
 
-//GpuVertexBinding 顶点绑定描述
+//GpuVertexBinding vertex binding description
 public sealed class GpuVertexBinding
 {
     public int Binding { get; set; }
@@ -43,7 +43,7 @@ public sealed class GpuVertexBinding
     public List<GpuVertexAttribute> Attributes { get; set; } = new();
 }
 
-//GpuPrimitiveTopology 图元拓扑
+//GpuPrimitiveTopology primitive topology
 public enum GpuPrimitiveTopology
 {
     TriangleList,
@@ -52,44 +52,44 @@ public enum GpuPrimitiveTopology
     PointList
 }
 
-//RenderPipelineDescription 渲染管线描述
-//子类根据此描述创建底层管线
+//RenderPipelineDescription render pipeline description
+//Subclasses create the underlying pipeline from this description
 public sealed class RenderPipelineDescription
 {
-    //VertexShaderSource vertex shader SPIR-V 字节码
-    //null 表示用 PoC 内置三角形 shader
+    //VertexShaderSource vertex shader SPIR-V bytecode
+    //null means use the PoC's built-in triangle shader
     public byte[]? VertexShaderSpirv { get; set; }
-    //FragmentShaderSource fragment shader SPIR-V 字节码
+    //FragmentShaderSource fragment shader SPIR-V bytecode
     public byte[]? FragmentShaderSpirv { get; set; }
-    //VertexBindings 顶点布局绑定空列表表示无顶点输入走 gl_VertexIndex
+    //VertexBindings vertex layout bindings; an empty list means no vertex input and uses gl_VertexIndex
     public List<GpuVertexBinding> VertexBindings { get; set; } = new();
-    //DescriptorLayouts 描述符集布局列表用于 uniform buffer/sampler 绑定
-    //空列表表示管线不需要外部资源绑定
+    //DescriptorLayouts descriptor set layout list for uniform buffer/sampler binding
+    //An empty list means the pipeline needs no external resource bindings
     public List<GpuDescriptorLayout> DescriptorLayouts { get; set; } = new();
-    //DescriptorLayoutDescriptions 描述符集布局描述列表用于声明式 RenderPipeline 转 description 后由 device 编译
-    //非空时 PrecompilePipeline 实现负责编译为 GpuDescriptorLayout 后填入 DescriptorLayouts
+    //DescriptorLayoutDescriptions descriptor set layout description list, used after converting a declarative RenderPipeline to a description for the device to compile
+    //When non-empty, the PrecompilePipeline implementation compiles them into GpuDescriptorLayouts and fills in DescriptorLayouts
     public List<GpuDescriptorLayoutDescription> DescriptorLayoutDescriptions { get; set; } = new();
-    //Topology 图元拓扑
+    //Topology primitive topology
     public GpuPrimitiveTopology Topology { get; set; } = GpuPrimitiveTopology.TriangleList;
-    //DepthTestEnabled 深度测试
+    //DepthTestEnabled depth test
     public bool DepthTestEnabled { get; set; }
-    //DepthCompareOp 深度比较函数 默认 Less VulkanRenderPipeline 从此字段读取不再硬编码
+    //DepthCompareOp depth compare function, default Less; VulkanRenderPipeline reads this field instead of hardcoding
     public CompareOp DepthCompareOp { get; set; } = CompareOp.Less;
-    //BlendEnabled alpha 混合
+    //BlendEnabled alpha blending
     public bool BlendEnabled { get; set; }
-    //DynamicScissorEnabled 启用 VK_DYNAMIC_STATE_SCISSOR 运行时 vkCmdSetScissor 设置裁剪
-    //GUI pipeline 设 true 三角形/立方体 pipeline 保持 false 默认
+    //DynamicScissorEnabled enables VK_DYNAMIC_STATE_SCISSOR, setting the scissor at runtime with vkCmdSetScissor
+    //GUI pipelines set true; triangle/cube pipelines keep the false default
     public bool DynamicScissorEnabled { get; set; }
-    //TargetFormat 目标颜色附件格式 null 表示用 swapchain 格式
+    //TargetFormat target color attachment format; null means use the swapchain format
     public GpuImageFormat? TargetFormat { get; set; }
-    //TargetExtent 目标 extent 0 表示用 swapchain extent
+    //TargetExtent target extent; 0 means use the swapchain extent
     public int TargetWidth { get; set; }
     public int TargetHeight { get; set; }
-    //ClearColor 清屏色 RGBA
+    //ClearColor clear color RGBA
     public (float R, float G, float B, float A) ClearColor { get; set; } = (0f, 0f, 0f, 1f);
 
-    //FromDeclaration 从声明式 RenderPipeline 转换为 RenderPipelineDescription
-    //阶段 8 通过 ShaderManager 加载嵌入 GLSL 编译为 SPIR-V 注入 ShaderDefines
+    //FromDeclaration converts a declarative RenderPipeline into a RenderPipelineDescription
+    //Stage 8 loads embedded GLSL via ShaderManager, compiles to SPIR-V and injects ShaderDefines
     public static RenderPipelineDescription FromDeclaration(RenderPipeline declaration, ShaderManager shaderManager)
     {
         var desc = new RenderPipelineDescription

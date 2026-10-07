@@ -9,29 +9,29 @@ using Direction = NetCraft.Primitives.Direction;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//音符盒 对应原版 net.minecraft.world.level.block.NoteBlock
-//音色按下方方块决定 上方放生物头则改用头颅音色 通电发声 右键升调 左键试听
-//发声与音符粒子都由方块事件驱动 服务端算出事件后客户端自己再跑一遍 triggerEvent
+//Note block, maps to vanilla net.minecraft.world.level.block.NoteBlock
+//The instrument comes from the block below, a mob head above switches to the head instrument; powered plays a note, right click raises the pitch and left click previews
+//Sound and note particles are driven by block events; after the server computes the event the client runs triggerEvent itself
 public static partial class Blocks
 {
     public static readonly NoteBlock NOTE_BLOCK = new();
 
-    //RegisterNoteBlock 音符盒登记进真实方块表
+    //RegisterNoteBlock registers the note block into the real block table
     private static void RegisterNoteBlock(Dictionary<string, BlockBehaviour> real)
         => real[NOTE_BLOCK.Id.Path] = NOTE_BLOCK;
 
     public sealed class NoteBlock : BlockBehaviour
     {
-        //NoteVolume 原版固定音量 对应 NOTE_VOLUME
+        //NoteVolume vanilla fixed volume, maps to NOTE_VOLUME
         private const float NoteVolume = 3f;
 
         public override Identifier Id => Identifier.WithDefaultNamespace("note_block");
 
-        //原版音符盒硬度 0.8
+        //Vanilla note block hardness 0.8
         public override float DestroySpeed => 0.8f;
 
-        //Properties 状态按 blocks.txt 的 instrument|note|powered 走
-        //表里那份是另建的属性实例 GetValue 取不到 必须自己声明 顺序变了全局状态 id 会错位
+        //Properties states follow instrument|note|powered in blocks.txt
+        //The one in the table is a separately built property instance that GetValue cannot find; it must be declared here, and changing the order shifts the global state ids
         public override IDictionary<string, PropertyBase> Properties => new Dictionary<string, PropertyBase>
         {
             ["instrument"] = BlockStateProperties.NoteBlockInstrumentProperty,
@@ -39,18 +39,18 @@ public static partial class Blocks
             ["powered"] = BlockStateProperties.Powered,
         };
 
-        //GetStateForPlacement 落位时按上下方块定音色 对应原版 getStateForPlacement
+        //GetStateForPlacement the instrument is decided by the blocks above and below at placement, maps to vanilla getStateForPlacement
         public override BlockState? GetStateForPlacement(ServerLevel level, BlockPos pos, Direction face,
             Direction horizontalFacing)
             => SetInstrument(level, pos, DefaultBlockState);
 
-        //UpdateShape 上下邻居变了要重定音色 对应原版 updateShape 只在 Y 轴上动作
+        //UpdateShape a vertical neighbor change re-decides the instrument, maps to vanilla updateShape which only acts on the Y axis
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
             => directionToNeighbour.AxisValue == Direction.Axis.Y ? SetInstrument(level, pos, state) : state;
 
-        //NeighborChanged 通电态翻转时先发声再写状态 对应原版 neighborChanged
-        //flags 3 同时通知邻居与客户端 客户端收到方块事件也会自己出一遍粒子
+        //NeighborChanged plays the note before writing the state when the powered state flips, maps to vanilla neighborChanged
+        //flags 3 notifies neighbors and the client at once; the client also emits its own particles on the block event
         public override void NeighborChanged(ServerLevel level, BlockPos pos, BlockState state,
             NetCraft.Registry.Block changedBlock, bool movedByPiston)
         {
@@ -61,7 +61,7 @@ public static partial class Blocks
                 BlockUpdateFlags.Neighbours | BlockUpdateFlags.Clients);
         }
 
-        //UseOn 右键升一个音 对应原版 useWithoutItem 音高溢出时自己回绕
+        //UseOn right click raises one note, maps to vanilla useWithoutItem, the pitch wraps on overflow
         public override bool UseOn(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state,
             Direction face)
         {
@@ -71,12 +71,12 @@ public static partial class Blocks
             return true;
         }
 
-        //OnAttack 左键敲一下试听 对应原版 attack
+        //OnAttack left click previews once, maps to vanilla attack
         public override void OnAttack(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state)
             => PlayNote(level, pos, state);
 
-        //TriggerEvent 发声 对应原版 triggerEvent
-        //基础乐器按 note 算音高 生物头固定音高 自定义头要读上方头颅的音效 本作没有头颅方块实体直接作废
+        //TriggerEvent plays the note, maps to vanilla triggerEvent
+        //Base instruments compute the pitch from note, mob heads have a fixed pitch and custom heads read the sound from the head above; this project has no head block entity so it is discarded
         public override bool TriggerEvent(ServerLevel level, BlockPos pos, BlockState state, int paramA, int paramB)
         {
             var instrument = state.GetValue(BlockStateProperties.NoteBlockInstrumentProperty);
@@ -86,11 +86,11 @@ public static partial class Blocks
             return true;
         }
 
-        //PitchFromNote 音高换算 每十二个半音翻一倍 对应原版 getPitchFromNote
+        //PitchFromNote pitch conversion, doubles every twelve semitones, maps to vanilla getPitchFromNote
         public static float PitchFromNote(int note) => (float)Math.Pow(2.0, (note - 12) / 12.0);
 
-        //PlayNote 触发发声事件 对应原版 playNote
-        //生物头这类要看上方是否有方块挡住 上方是空气才发得出来
+        //PlayNote fires the sound event, maps to vanilla playNote
+        //Mob heads and the like check whether a block blocks the top; only air above lets it sound
         private static void PlayNote(ServerLevel level, BlockPos pos, BlockState state)
         {
             var instrument = state.GetValue(BlockStateProperties.NoteBlockInstrumentProperty);
@@ -99,8 +99,8 @@ public static partial class Blocks
             level.BlockEvent(pos, NOTE_BLOCK, 0, 0);
         }
 
-        //SetInstrument 上方是乐器就用上方 否则看下方 下方的乐器若是头颅那一类则退成竖琴
-        //与原版 setInstrument 一致 空气的乐器是竖琴 取不到方块时也按竖琴处理
+        //SetInstrument uses the block above when it is an instrument, otherwise the block below; a head-like instrument below falls back to the harp
+        //Matches vanilla setInstrument, air's instrument is the harp and a missing block also counts as the harp
         private static BlockState SetInstrument(ServerLevel level, BlockPos pos, BlockState state)
         {
             if (InstrumentOf(level.GetBlockState(pos.Offset(Direction.Up))) is { } above
@@ -111,7 +111,7 @@ public static partial class Blocks
             return state.SetValue(BlockStateProperties.NoteBlockInstrumentProperty, instrument);
         }
 
-        //InstrumentOf 取方块作为底座时给出的乐器 空气与未实现方块按竖琴
+        //InstrumentOf returns the instrument a block gives as a base, air and unimplemented blocks count as the harp
         private static NoteBlockInstrument? InstrumentOf(BlockState? state)
             => state?.Owner is BlockBehaviour behaviour ? behaviour.Instrument : null;
     }

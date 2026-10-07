@@ -8,26 +8,26 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//BlockInput 方块参数解析结果对应原版 BlockInput
-//Nbt 是可选方块实体数据 语法里跟在方块状态之后
+//BlockInput block argument parse result, maps to vanilla BlockInput
+//Nbt is the optional block entity data, written after the block state in the syntax
 public sealed record BlockInput(BlockState State, CompoundTag? Nbt);
 
-//BlockStateArgument 方块状态参数对应原版 net.minecraft.commands.arguments.blocks.BlockStateArgument
-//语法 namespace:path[属性=值,...]{方块实体nbt} 属性与nbt都可省略
-//nbt 含空格时整段用双引号包裹 引号内按转义规则解析
+//BlockStateArgument block state argument, maps to vanilla net.minecraft.commands.arguments.blocks.BlockStateArgument
+//Syntax: namespace:path[property=value,...]{block entity nbt}; both properties and nbt are optional
+//When the nbt contains spaces the whole segment is wrapped in double quotes and parsed inside by escape rules
 public sealed class BlockStateArgument : ArgumentType<BlockInput>
 {
     public static readonly DynamicCommandExceptionType ErrorUnknownBlock =
-        new(id => new LiteralMessage($"未知方块 {id}"));
+        new(id => new LiteralMessage($"unknown block {id}"));
 
     public static readonly SimpleCommandExceptionType ErrorInvalidState =
-        new(new LiteralMessage("方块状态格式非法"));
+        new(new LiteralMessage("invalid block state syntax"));
 
     public static readonly SimpleCommandExceptionType ErrorUnknownProperty =
-        new(new LiteralMessage("方块不存在该属性"));
+        new(new LiteralMessage("block does not have that property"));
 
     public static readonly SimpleCommandExceptionType ErrorInvalidPropertyValue =
-        new(new LiteralMessage("属性取值非法"));
+        new(new LiteralMessage("invalid property value"));
 
     public static BlockStateArgument Block() => new();
 
@@ -35,7 +35,7 @@ public sealed class BlockStateArgument : ArgumentType<BlockInput>
     {
         var text = ReadToken(reader);
 
-        //状态部分截止到首个属性段或nbt段 之后按顺序各解析一次
+        //The state part ends at the first property or nbt section; the rest are parsed once each in order
         var stateEnd = text.Length;
         var bracket = text.IndexOf('[');
         var brace = text.IndexOf('{');
@@ -46,7 +46,7 @@ public sealed class BlockStateArgument : ArgumentType<BlockInput>
         var identifier = stateText.Contains(':')
             ? Identifier.TryParse(stateText)
             : Identifier.TryParse("minecraft:" + stateText);
-        //BLOCK 是带默认值的注册表 未知 id 取出来会是 air 必须先用 ContainsKey 拦住
+        //BLOCK is a defaulted registry, so an unknown id resolves to air and must be caught with ContainsKey first
         if (identifier is null || !BuiltInRegistries.BLOCK.ContainsKey(identifier.Value))
             throw ErrorUnknownBlock.Create(stateText);
         var state = BuiltInRegistries.BLOCK.GetValue(identifier.Value)!.DefaultBlockState;
@@ -68,7 +68,7 @@ public sealed class BlockStateArgument : ArgumentType<BlockInput>
         return new BlockInput(state, nbt);
     }
 
-    //ApplyProperties 逐个匹配属性名并取值 名字或取值不在定义内直接报语法错误
+    //ApplyProperties matches property names one by one and reads values; an unknown name or value is a syntax error
     private static BlockState ApplyProperties(BlockState state, string text)
     {
         if (text.Length == 0) return state;
@@ -93,7 +93,7 @@ public sealed class BlockStateArgument : ArgumentType<BlockInput>
         return state;
     }
 
-    //ReadToken 读整段方块参数 带引号走转义解析 否则读到空白为止
+    //ReadToken reads the whole block argument; quoted input goes through escape parsing, otherwise it reads to whitespace
     private static string ReadToken(StringReader reader)
     {
         if (reader.CanRead() && StringReader.IsQuotedStringStart(reader.Peek()))

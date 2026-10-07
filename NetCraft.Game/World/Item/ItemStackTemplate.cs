@@ -6,12 +6,12 @@ using NetCraft.Util;
 
 namespace NetCraft.Game.World.Items;
 
-//ItemStackTemplate 物品栈模板 对应原版 net.minecraft.world.item.ItemStackTemplate
-//只存物品 数量 与组件补丁 需要真正入包时再 Create 出 ItemStack
+//ItemStackTemplate item stack template, maps to vanilla net.minecraft.world.item.ItemStackTemplate
+//Stores only the item, count and component patch, Create materializes an ItemStack when it actually needs to go on the wire
 public sealed record ItemStackTemplate(Holder<Item> Item, int Count, DataComponentPatch Components) : ItemInstance
 {
-    //PersistentCodec 持久化编解码 对应原版 MAP_CODEC 与 CODEC 两段
-    //先按字段组解码 失败再退化成只认物品名的简写形式
+    //PersistentCodec persistence codec, covers the vanilla MAP_CODEC and CODEC forms
+    //Decodes the field group first, falling back to the item-name-only shorthand when that fails
     public static readonly Codec<ItemStackTemplate> PersistentCodec = Codecs.WithAlternative(
         RecordCodecBuilder.Of3(
             NetCraft.Registry.Item.CODEC.FieldOf("id").ForGetter((ItemStackTemplate template) => template.Item),
@@ -26,10 +26,10 @@ public sealed record ItemStackTemplate(Holder<Item> Item, int Count, DataCompone
 
     public Holder<Item> TypeHolder => Item;
 
-    //FromStack 从一个非空物品栈取模板
+    //FromStack takes a template from a non-empty stack
     public static ItemStackTemplate FromStack(ItemStack stack) => new(stack.GetTypeHolder()!, stack.GetCount(), stack.GetComponents().AsPatch());
 
-    //FromNonEmptyStack 空栈直接拒绝
+    //FromNonEmptyStack rejects empty stacks outright
     public static ItemStackTemplate FromNonEmptyStack(ItemStack stack)
     {
         if (stack.IsEmpty()) throw new InvalidOperationException("Stack must be non-empty");
@@ -38,10 +38,10 @@ public sealed record ItemStackTemplate(Holder<Item> Item, int Count, DataCompone
 
     public ItemStackTemplate WithCount(int count) => Count == count ? this : new ItemStackTemplate(Item, count, Components);
 
-    //Create 物化成物品栈 原版还会走一遍严格校验 该能力尚未接入
+    //Create materializes an item stack; vanilla also runs a strict validation pass, not yet wired up
     public ItemStack Create() => new(Item, Count, Components);
 
-    //Get 先查自身补丁 再回退物品自带的组件
+    //Get checks the stack's own patch first, then falls back to the item's built-in components
     public T? Get<T>(DataComponentType<T> type) where T : class
     {
         var patched = Components.Get(type);
@@ -50,7 +50,7 @@ public sealed record ItemStackTemplate(Holder<Item> Item, int Count, DataCompone
     }
 }
 
-//ItemStackTemplateStreamCodec 对应原版 STREAM_CODEC 物品 数量 组件补丁依次写
+//ItemStackTemplateStreamCodec maps to vanilla STREAM_CODEC, writes item, count and component patch in order
 internal sealed class ItemStackTemplateStreamCodec : StreamCodec<RegistryFriendlyByteBuf, ItemStackTemplate>
 {
     public ItemStackTemplate Decode(RegistryFriendlyByteBuf buf)

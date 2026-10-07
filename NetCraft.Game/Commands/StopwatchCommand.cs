@@ -8,8 +8,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Commands;
 
-//StopwatchCommand stopwatch 命令对应原版 net.minecraft.server.commands.StopwatchCommand
-//按 id 创建查询重启移除调试计时器 查询的返回值是耗时秒数乘倍率
+//StopwatchCommand stopwatch command, maps to vanilla net.minecraft.server.commands.StopwatchCommand
+//Creates, queries, restarts and removes debug timers by id; the query return value is the elapsed seconds times a scale
 public static class StopwatchCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -32,64 +32,64 @@ public static class StopwatchCommand
                     .Executes(Remove))));
     }
 
-    //Create 新建计时器 重名则报错
+    //Create creates a timer; a duplicate name errors
     private static int Create(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var id = IdentifierArgument.GetId(context, "id");
         if (!source.Server.Stopwatches.Add(id, Stopwatches.CurrentTime()))
         {
-            source.SendFailure($"计时器 {id} 已存在");
+            source.SendFailure($"timer {id} already exists");
             return 0;
         }
 
-        source.SendSuccess($"已创建计时器 {id}");
+        source.SendSuccess($"created timer {id}");
         return 1;
     }
 
-    //Query 回执经过的秒数 返回值按倍率缩放
+    //Query reports the elapsed seconds; the return value is scaled
     private static int Query(CommandContext<CommandSourceStack> context, double scale)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var id = IdentifierArgument.GetId(context, "id");
         if (source.Server.Stopwatches.GetStart(id) is not long start)
         {
-            source.SendFailure($"计时器 {id} 不存在");
+            source.SendFailure($"timer {id} does not exist");
             return 0;
         }
 
         var elapsed = (Stopwatches.CurrentTime() - start) / 1000.0;
-        source.SendSuccess($"计时器 {id} 已运行 {elapsed:F3} 秒");
+        source.SendSuccess($"timer {id} has run {elapsed:F3} seconds");
         return (int)(elapsed * scale);
     }
 
-    //Restart 把计时器重置到现在
+    //Restart resets the timer to now
     private static int Restart(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var id = IdentifierArgument.GetId(context, "id");
         if (!source.Server.Stopwatches.Restart(id, Stopwatches.CurrentTime()))
         {
-            source.SendFailure($"计时器 {id} 不存在");
+            source.SendFailure($"timer {id} does not exist");
             return 0;
         }
 
-        source.SendSuccess($"已重启计时器 {id}");
+        source.SendSuccess($"restarted timer {id}");
         return 1;
     }
 
-    //Remove 移除计时器
+    //Remove removes the timer
     private static int Remove(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var id = IdentifierArgument.GetId(context, "id");
         if (!source.Server.Stopwatches.Remove(id))
         {
-            source.SendFailure($"计时器 {id} 不存在");
+            source.SendFailure($"timer {id} does not exist");
             return 0;
         }
 
-        source.SendSuccess($"已移除计时器 {id}");
+        source.SendSuccess($"removed timer {id}");
         return 1;
     }
 }

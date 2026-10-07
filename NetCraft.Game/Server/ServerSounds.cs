@@ -3,15 +3,15 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Server;
 
-//ServerSounds 服务端播放音效对应原版 Level.playSound 的广播语义
-//声音走内联 holder 不做距离裁剪 全服直接广播
+//ServerSounds server-side sound playback, maps to the broadcast semantics of vanilla Level.playSound
+//Sounds use an inline holder with no distance culling and broadcast to the whole server
 public static class ServerSounds
 {
-    //PlaySound 向所有在线玩家播放位置音效
+    //PlaySound plays a positional sound to all online players
     public static void PlaySound(PlayerList players, SoundEvent sound, SoundSource source, double x, double y, double z, float volume, float pitch)
         => players.BroadcastAll(new ClientboundSoundPacket(sound, source, x, y, z, volume, pitch, Random.Shared.NextInt64()));
 
-    //PlaySoundExcept 向除指定玩家外的所有在线玩家播放位置音效
+    //PlaySoundExcept plays a positional sound to all online players except the given one
     public static void PlaySoundExcept(PlayerList players, ServerPlayer? exclude, SoundEvent sound, SoundSource source, double x, double y, double z, float volume, float pitch)
     {
         var packet = new ClientboundSoundPacket(sound, source, x, y, z, volume, pitch, Random.Shared.NextInt64());
@@ -19,7 +19,7 @@ public static class ServerSounds
         else players.BroadcastAllExcept(exclude, packet);
     }
 
-    //PlaySoundEntity 向所有在线玩家播放实体音效 实体 id 由调用方给
+    //PlaySoundEntity plays an entity sound to all online players; the entity id is given by the caller
     public static void PlaySoundEntity(PlayerList players, SoundEvent sound, SoundSource source, int entityId, float volume, float pitch)
         => players.BroadcastAll(new ClientboundSoundEntityPacket(sound, source, entityId, volume, pitch, Random.Shared.NextInt64()));
 }

@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundPlayerAbilitiesPacket 玩家能力包对应原版 ServerboundPlayerAbilitiesPacket
-//客户端只在切换飞行状态时发送 网络格式为单字节位掩码 bit1=flying
+//ServerboundPlayerAbilitiesPacket player abilities packet, maps to vanilla ServerboundPlayerAbilitiesPacket
+//The client sends this only when toggling flight; the network format is a single-byte bitmask, bit1=flying
 public sealed record ServerboundPlayerAbilitiesPacket(bool IsFlying) : Packet<ServerGamePacketListener>
 {
     private const byte FlagFlying = 2;

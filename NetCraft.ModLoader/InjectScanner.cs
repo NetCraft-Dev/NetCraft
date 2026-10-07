@@ -2,24 +2,24 @@ using System.Reflection.Metadata;
 
 namespace NetCraft.ModLoader;
 
-//InjectScanner 从程序集元数据里读 Inject 注解 产出与清单同形的规则
-//全程只读 CustomAttribute 表 不加载程序集也不解析特性类型
-//这点与清单走的是同一条路 所以注解规则和清单规则在装配阶段没有任何区别
+//InjectScanner: reads Inject annotations from assembly metadata and produces rules with the same shape as the manifest
+//Reads only the CustomAttribute table without loading assemblies or resolving attribute types
+//This follows the same path as the manifest, so annotation rules and manifest rules are indistinguishable at the assembly stage
 internal static class InjectScanner
 {
-    //InjectAttributeName 识别注解用的类型全名
-    //按字符串比对而不是解析类型 一解析就要求 NetCraft.ModApi 在场 那就退回加载了
+    //InjectAttributeName: the type full name used to recognize the annotation
+    //Compared by string rather than resolving the type; resolving would require NetCraft.ModApi to be present, which falls back to loading
     private const string InjectAttributeName = "NetCraft.ModApi.Extension.InjectAttribute";
 
-    //MixinAttributeName 识别混入注解用的类型全名
+    //MixinAttributeName: the type full name used to recognize the mixin annotation
     private const string MixinAttributeName = "NetCraft.ModApi.Extension.MixinAttribute";
 
-    //SystemTypeName System.Type 的类型名
-    //元数据里的 System.Type 引用与 GetSystemType 必须给同一个值 否则解码器认不出 typeof 参数
+    //SystemTypeName: the type name of System.Type
+    //The System.Type reference in the metadata and GetSystemType must return the same value, otherwise the decoder cannot recognize typeof arguments
     private const string SystemTypeName = "System.Type";
 
-    //Scan 扫出该程序集里全部 Inject 注解 按元数据顺序返回
-    //单条解不开只跳过它 不影响其余规则
+    //Scan: scans all Inject annotations in this assembly and returns them in metadata order
+    //A single entry that cannot be decoded is skipped without affecting the rest
     public static List<ModHookRule> Scan(MetadataReader reader)
     {
         var rules = new List<ModHookRule>();
@@ -43,8 +43,8 @@ internal static class InjectScanner
         return rules;
     }
 
-    //ScanMixins 扫出该程序集里全部 Mixin 注解 标在类上
-    //与 Inject 相反 来源类型就是被标注的那个类 从注解里读的是目标
+    //ScanMixins: scans all Mixin annotations in this assembly, placed on the class
+    //Unlike Inject, the source type is the annotated class itself and the target is read from the annotation
     public static List<ModMixinRule> ScanMixins(MetadataReader reader)
     {
         var rules = new List<ModMixinRule>();
@@ -64,7 +64,7 @@ internal static class InjectScanner
         return rules;
     }
 
-    //ReadMixin 解一条混入特性 不是 Mixin 或没写目标时返回 null
+    //ReadMixin: decodes one mixin attribute, returns null when it is not a Mixin or has no target
     private static ModMixinRule? ReadMixin(
         MetadataReader reader,
         CustomAttributeHandle handle,
@@ -96,7 +96,7 @@ internal static class InjectScanner
 
         foreach (var named in value.NamedArguments)
         {
-            //Interfaces 是 Type[] 解出来是一串类型序列化名
+            //Interfaces is Type[], decoded as a list of type serialized names
             if (named.Name != "Interfaces" || named.Value is not System.Collections.IEnumerable items)
                 continue;
 
@@ -112,8 +112,8 @@ internal static class InjectScanner
         return rule;
     }
 
-    //ReadRule 解一条特性 不是 Inject 或参数不全时返回 null
-    //替换类与替换方法固定是标注这个方法的类与方法
+    //ReadRule: decodes one attribute, returns null when it is not Inject or lacks arguments
+    //The replacement class and method are fixed as the class and method carrying this annotation
     private static ModHookRule? ReadRule(
         MetadataReader reader,
         CustomAttributeHandle handle,
@@ -132,7 +132,7 @@ internal static class InjectScanner
         }
         catch (Exception)
         {
-            //参数里出现了解不了的形态 例如枚举 跳过这一条
+            //An undecipherable form appeared in the arguments, such as an enum; skip this entry
             return null;
         }
 
@@ -200,17 +200,17 @@ internal static class InjectScanner
         return rule;
     }
 
-    //BoxedConstant 取常量参数的裸值 解成包装形态的再剥一层
-    //装箱后是什么类型就是什么类型 引擎比对时按那个类型走
+    //BoxedConstant: gets the raw value of a constant argument, unwrapping the decoded wrapper form
+    //Whatever type it is after boxing is what the engine compares against
     private static object? BoxedConstant(object? value)
         => value is CustomAttributeTypedArgument<string> typed ? typed.Value : value;
 
-    //ArgumentText 取一个固定参数的值
-    //typeof 参数编进元数据的是类型序列化名 落在 Value 上 退化时再看 Type
+    //ArgumentText: gets the value of a fixed argument
+    //For a typeof argument what is baked into the metadata is the type serialized name, carried on Value, falling back to Type when absent
     private static string? ArgumentText(CustomAttributeTypedArgument<string> argument)
         => argument.Value as string ?? argument.Type;
 
-    //AttributeTypeName 取特性构造器所属类型的全名
+    //AttributeTypeName: gets the full name of the type owning the attribute constructor
     private static string? AttributeTypeName(MetadataReader reader, CustomAttribute attribute)
     {
         switch (attribute.Constructor.Kind)
@@ -233,9 +233,9 @@ internal static class InjectScanner
         }
     }
 
-    //SerializedNameToFullName 把类型序列化名收敛成元数据里的全名
-    //typeof 编出来的是 "全名, 程序集名, Version=..." 这种形态
-    //泛型实参里也有逗号 所以只有方括号外的那个才是名字与程序集的分隔
+    //SerializedNameToFullName: reduces a type serialized name to the full name used in metadata
+    //typeof emits a form like "FullName, AssemblyName, Version=..."
+    //Generic arguments also contain commas, so only the one outside the brackets separates the name from the assembly
     private static string SerializedNameToFullName(string serialized)
     {
         var depth = 0;
@@ -250,10 +250,10 @@ internal static class InjectScanner
         return Normalize(serialized);
     }
 
-    //Normalize 嵌套类型元数据里用斜杠 序列化名里用加号
+    //Normalize: nested types use a slash in metadata and a plus in serialized names
     private static string Normalize(string name) => name.Trim().Replace('+', '/');
 
-    //TypeFullName 拼类型定义的全名 嵌套类型逐层向外拼成 a.b/c 形式
+    //TypeFullName: builds the full name of a type definition; nested types are assembled outward as a.b/c
     private static string TypeFullName(MetadataReader reader, TypeDefinition type)
     {
         var name = reader.GetString(type.Name);
@@ -265,7 +265,7 @@ internal static class InjectScanner
         return ns.Length == 0 ? name : ns + "." + name;
     }
 
-    //TypeRefName 拼类型引用的全名
+    //TypeRefName: builds the full name of a type reference
     private static string TypeRefName(MetadataReader reader, TypeReference reference)
     {
         var name = reader.GetString(reference.Name);
@@ -277,8 +277,8 @@ internal static class InjectScanner
         return ns.Length == 0 ? name : ns + "." + name;
     }
 
-    //NameOnlyTypeProvider 只认名字的类型提供者
-    //解码过程中它会被问各种类型 全部按字符串往返 一个都不落到程序集加载上
+    //NameOnlyTypeProvider: a type provider that only works with names
+    //During decoding it is asked for various types; everything round-trips as strings so nothing falls back to assembly loading
     private sealed class NameOnlyTypeProvider : ICustomAttributeTypeProvider<string>
     {
         public string GetPrimitiveType(PrimitiveTypeCode typeCode) => typeCode switch
@@ -304,6 +304,6 @@ internal static class InjectScanner
         public string GetTypeFromSerializedName(string name) => SerializedNameToFullName(name);
 
         public PrimitiveTypeCode GetUnderlyingEnumType(string type)
-            => throw new BadImageFormatException($"注入注解不支持枚举参数 {type}");
+            => throw new BadImageFormatException($"injection annotations do not support enum arguments {type}");
     }
 }

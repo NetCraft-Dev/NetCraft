@@ -2,13 +2,13 @@ using System.Numerics;
 
 namespace NetCraft.Gpu;
 
-//PoseStack 矩阵栈对标原版 com.mojang.blaze3d.vertex.PoseStack
-//3D 物品渲染链路用 translate/scale 把物品放到图集槽位 item.submit 时 pushPose 快照变换
-//法线矩阵从 pose 逆转置取 3x3 部分原版有 trustedNormals 优化当前简化为按需重算
+//PoseStack matrix stack, maps to vanilla com.mojang.blaze3d.vertex.PoseStack
+//The 3D item render chain uses translate/scale to place the item in the atlas slot; item.submit pushPose snapshots the transform
+//The normal matrix is the inverse transpose of the pose's 3x3 part; vanilla has a trustedNormals optimization, simplified here to recompute on demand
 public sealed class PoseStack
 {
     private readonly Stack<Matrix4x4> _poses = new();
-    //法线矩阵缓存 dirty 时从栈顶 pose 重算
+    //Normal matrix cache, recomputed from the top pose when dirty
     private Matrix4x4 _normal = Matrix4x4.Identity;
     private bool _normalDirty = true;
 
@@ -17,14 +17,14 @@ public sealed class PoseStack
         _poses.Push(Matrix4x4.Identity);
     }
 
-    //Pose 取栈顶模型矩阵法线矩阵按需重算
+    //Pose gets the top model matrix and recomputes the normal matrix on demand
     public Matrix4x4 Pose()
     {
         _normalDirty = true;
         return _poses.Peek();
     }
 
-    //Normal 取栈顶法线矩阵 pose 的逆转置 3x3 部分
+    //Normal gets the top normal matrix, the inverse transpose 3x3 part of the pose
     public Matrix4x4 Normal()
     {
         if (_normalDirty)
@@ -39,7 +39,7 @@ public sealed class PoseStack
     public void PopPose() => _poses.Pop();
     public bool IsEmpty => _poses.Count == 1;
 
-    //Translate 平移栈顶矩阵
+    //Translate translates the top matrix
     public void Translate(float x, float y, float z)
     {
         var top = _poses.Pop();
@@ -48,7 +48,7 @@ public sealed class PoseStack
         _normalDirty = true;
     }
 
-    //Scale 缩放栈顶矩阵 GuiItemAtlas 用 scale(size,-size,size) 翻转 Y
+    //Scale scales the top matrix; GuiItemAtlas uses scale(size,-size,size) to flip Y
     public void Scale(float x, float y, float z)
     {
         var top = _poses.Pop();
@@ -57,7 +57,7 @@ public sealed class PoseStack
         _normalDirty = true;
     }
 
-    //MulPose 右乘任意矩阵用于 itemTransform 应用
+    //MulPose right-multiplies an arbitrary matrix, used to apply itemTransform
     public void MulPose(Matrix4x4 matrix)
     {
         var top = _poses.Pop();
@@ -66,7 +66,7 @@ public sealed class PoseStack
         _normalDirty = true;
     }
 
-    //Rotate 用四元数旋转栈顶
+    //Rotate rotates the top with a quaternion
     public void Rotate(Quaternion rotation)
     {
         var top = _poses.Pop();
@@ -83,19 +83,19 @@ public sealed class PoseStack
         _normalDirty = false;
     }
 
-    //TransformPosition 用栈顶 pose 变换顶点位置到目标空间
+    //TransformPosition transforms a vertex position to the target space with the top pose
     public Vector3 TransformPosition(float x, float y, float z)
         => Vector3.Transform(new Vector3(x, y, z), _poses.Peek());
 
-    //TransformNormal 用法线矩阵变换法线
+    //TransformNormal transforms a normal with the normal matrix
     public Vector3 TransformNormal(float x, float y, float z)
         => Vector3.Normalize(Vector3.TransformNormal(new Vector3(x, y, z), Normal()));
 
-    //Copy 快照栈顶 pose 供 submit 延迟渲染后续 execute 时 poseStack 已 pop 也能绘制
+    //Copy snapshots the top pose for submit's deferred render, so it can still draw at execute even after poseStack has popped
     public Matrix4x4 Copy() => _poses.Peek();
 
-    //ComputeNormalMatrix 从 pose 矩阵计算法线矩阵逆转置取 3x3 部分
-    //System.Numerics 无 Matrix3x3 用 Matrix4x4 的逆转置取上 3x3
+    //ComputeNormalMatrix computes the normal matrix from the pose matrix, the inverse transpose 3x3 part
+    //System.Numerics has no Matrix3x3 so the upper 3x3 of a Matrix4x4 inverse transpose is used
     private static Matrix4x4 ComputeNormalMatrix(Matrix4x4 pose)
     {
         if (Matrix4x4.Invert(pose, out var inv))

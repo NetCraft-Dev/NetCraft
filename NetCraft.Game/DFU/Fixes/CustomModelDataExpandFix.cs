@@ -7,8 +7,8 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//自定义模型数据扩展修复对应原版CustomModelDataExpandFix
-//1.21.4把custom_model_data从单float值包装为{floats:[value]}结构
+//Custom model data expand fix, maps to vanilla CustomModelDataExpandFix
+//1.21.4 wraps custom_model_data from a single float value into a {floats:[value]} structure
 public class CustomModelDataExpandFix : DataFix
 {
     public CustomModelDataExpandFix(Schema outputSchema) : base(outputSchema, false) { }

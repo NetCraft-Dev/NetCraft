@@ -1,22 +1,22 @@
 namespace NetCraft.Gpu;
 
-//TextureStitcher 纹理图集拼接器对标原版 TextureAtlas stitching 阶段
-//把多个 sprite 打包到最小图集纹理用 shelf 算法
-//sprite 按高度降序排列逐行放置同行高度对齐简单可靠
-//方块纹理大多 16x16 shelf 利用率足够
-//纯算法不依赖 GpuDevice 由 BlockTextureAtlas 调用后拿结果上传 GpuImage
+//TextureStitcher texture atlas stitcher, maps to the vanilla TextureAtlas stitching stage
+//Packs multiple sprites into the smallest atlas texture using a shelf algorithm
+//Sprites are sorted by descending height and placed row by row with rows aligned to their height; simple and reliable
+//Most block textures are 16x16, so shelf utilization is sufficient
+//A pure algorithm independent of GpuDevice; BlockTextureAtlas calls it and uploads the result to a GpuImage
 public sealed class TextureStitcher
 {
-    //Padding sprite 之间的像素间隔防止线性采样 bleeding
+    //Padding pixel gap between sprites to prevent linear-sampling bleeding
     private const int Padding = 1;
 
     private readonly int _maxAtlasSize;
 
-    //AtlasWidth/AtlasHeight 拼接后的图集尺寸
+    //AtlasWidth/AtlasHeight the stitched atlas size
     public int AtlasWidth { get; private set; }
     public int AtlasHeight { get; private set; }
 
-    //_placed 已放置 sprite 列表按输入顺序
+    //_placed list of placed sprites in input order
     private readonly List<PlacedSprite> _placed = new();
     public IReadOnlyList<PlacedSprite> Placed => _placed;
 
@@ -25,9 +25,9 @@ public sealed class TextureStitcher
         _maxAtlasSize = maxAtlasSize;
     }
 
-    //Stitch 拼接所有 sprite 返回是否成功
-    //按高度降序排列大 sprite 先放提高 shelf 利用率
-    //图集尺寸从 16 开始倍增直到装下所有 sprite 或达到 maxAtlasSize
+    //Stitch stitches all sprites and returns whether it succeeded
+    //Sorts by descending height so large sprites go first, improving shelf utilization
+    //The atlas size doubles from 16 until all sprites fit or maxAtlasSize is reached
     public bool Stitch(IReadOnlyList<SpriteInput> sprites)
     {
         if (sprites.Count == 0)
@@ -37,7 +37,7 @@ public sealed class TextureStitcher
             return true;
         }
         var sorted = sprites.OrderByDescending(s => Math.Max(s.Width, s.Height)).ThenBy(s => s.Name).ToList();
-        //先尝试正方形 2 的幂
+        //Tries a square power of two first
         for (var size = 16; size <= _maxAtlasSize; size *= 2)
         {
             if (TryPack(sorted, size, size))
@@ -48,7 +48,7 @@ public sealed class TextureStitcher
                 return true;
             }
         }
-        //正方形装不下尝试 2:1 宽矩形
+        //If the square does not fit, tries a 2:1 wide rectangle
         for (var h = 16; h <= _maxAtlasSize; h *= 2)
         {
             var w = Math.Min(h * 2, _maxAtlasSize);
@@ -63,9 +63,9 @@ public sealed class TextureStitcher
         return false;
     }
 
-    //TryPack shelf 算法打包
-    //currentShelfY 当前行底部 y currentShelfH 当前行高度 currentX 当前行已用宽度
-    //sprite 放不下当前行就换行新行高度=当前 sprite 高度
+    //TryPack shelf-algorithm packing
+    //currentShelfY current row bottom y currentShelfH current row height currentX current used row width
+    //If a sprite does not fit the current row, start a new row with height=the sprite's height
     private bool TryPack(List<SpriteInput> sorted, int atlasWidth, int atlasHeight)
     {
         var shelfY = 0;
@@ -76,16 +76,16 @@ public sealed class TextureStitcher
             var w = sprite.Width;
             var h = sprite.Height;
             if (w > atlasWidth || h > atlasHeight) return false;
-            //当前行放不下换行
+            //Does not fit the current row, start a new one
             if (shelfX + w > atlasWidth)
             {
                 shelfY += shelfH + Padding;
                 shelfX = 0;
                 shelfH = 0;
             }
-            //高度超出图集放不下
+            //Height exceeds the atlas, does not fit
             if (shelfY + h > atlasHeight) return false;
-            //行高度取最大 sprite 高度
+            //Row height takes the tallest sprite height
             if (h > shelfH) shelfH = h;
             sprite._atlasX = shelfX;
             sprite._atlasY = shelfY;
@@ -94,7 +94,7 @@ public sealed class TextureStitcher
         return true;
     }
 
-    //BuildPlaced 按原始输入顺序构造 PlacedSprite 列表
+    //BuildPlaced builds the PlacedSprite list in original input order
     private void BuildPlaced(IReadOnlyList<SpriteInput> sprites)
     {
         _placed.Clear();
@@ -102,10 +102,10 @@ public sealed class TextureStitcher
             _placed.Add(new PlacedSprite(s.Name, s._atlasX, s._atlasY, s.Width, s.Height, s.Pixels));
     }
 
-    //SpriteInput 拼接输入 sprite
-    //Name 标识符 minecraft:block/stone
-    //Width/Height 像素尺寸
-    //Pixels RGBA 数据 null 表示占位
+    //SpriteInput stitching input sprite
+    //Name identifier minecraft:block/stone
+    //Width/Height pixel size
+    //Pixels RGBA data; null means placeholder
     public sealed class SpriteInput
     {
         public string Name { get; }
@@ -123,6 +123,6 @@ public sealed class TextureStitcher
         }
     }
 
-    //PlacedSprite 拼接结果含图集位置
+    //PlacedSprite stitching result including the atlas position
     public sealed record PlacedSprite(string Name, int AtlasX, int AtlasY, int Width, int Height, byte[]? Pixels);
 }

@@ -10,21 +10,21 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//DimensionArgument 维度参数对应原版 net.minecraft.commands.arguments.DimensionArgument
-//解析维度标识 执行时到服务端已建的维度表里取实例 取不到按原版抛未知维度
+//DimensionArgument dimension argument, maps to vanilla net.minecraft.commands.arguments.DimensionArgument
+//Parses the dimension identifier; at execution time it fetches the instance from the server's built dimension table and throws unknown dimension like vanilla when not found
 public sealed class DimensionArgument : ArgumentType<Identifier>
 {
     private static readonly IReadOnlyList<string> ExamplesList =
         new[] { "overworld", "overworld:the_nether", "minecraft:the_end" };
 
     public static readonly DynamicCommandExceptionType ErrorUnknownDimension =
-        new(id => new LiteralMessage($"未知维度 {id}"));
+        new(id => new LiteralMessage($"unknown dimension {id}"));
 
     public static DimensionArgument Dimension() => new();
 
     public Identifier Parse(StringReader reader) => IdentifierArgument.ReadIdentifier(reader);
 
-    //GetDimension 取维度世界 对应原版 DimensionArgument.getDimension
+    //GetDimension gets the dimension world, maps to vanilla DimensionArgument.getDimension
     public static PersistentServerLevel GetDimension(CommandContext<CommandSourceStack> context, string name)
     {
         var id = context.GetArgument<Identifier>(name);

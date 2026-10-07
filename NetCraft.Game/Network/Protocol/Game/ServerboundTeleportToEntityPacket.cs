@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundTeleportToEntityPacket 数据包对应原版 ServerboundTeleportToEntityPacket
-//字段 Uuid(UUID)
+//ServerboundTeleportToEntityPacket teleport to entity packet, maps to vanilla ServerboundTeleportToEntityPacket
+//Field: Uuid(UUID)
 public sealed record ServerboundTeleportToEntityPacket(Guid Uuid) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundTeleportToEntityPacket> StreamCodec { get; } = new TeleportToEntityCodec();
@@ -12,7 +12,7 @@ public sealed record ServerboundTeleportToEntityPacket(Guid Uuid) : Packet<Serve
 
     private sealed class TeleportToEntityCodec : StreamCodec<FriendlyByteBuf, ServerboundTeleportToEntityPacket>
     {
-        //旁观者点击实体进行传送时发送 只有目标实体 uuid
+        //Sent when a spectator clicks an entity to teleport; carries only the target entity uuid
         public ServerboundTeleportToEntityPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadUuid());
 

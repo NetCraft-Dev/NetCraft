@@ -2,13 +2,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//StructureSet 结构集合 对应原版 net.minecraft.world.level.levelgen.structure.StructureSet
-//一个集合 = 一个放置配置 + 一组按权重抽取的结构 生成时同一步内只会挑中其中一个
-//对应原版每个集合只有一份 placement 不是每个结构一份
+//StructureSet structure set, maps to vanilla net.minecraft.world.level.levelgen.structure.StructureSet
+//A set = one placement config + a weighted pool of structures; only one of them is picked within the same generation step
+//Maps to vanilla: each set has a single placement, not one per structure
 public sealed record StructureSet(StructurePlacement Placement, IReadOnlyList<StructureSelectionEntry> Structures)
     : NetCraft.Registry.StructureSet
 {
-    //WeightTotal 权重总和 按权重抽取时用作随机上界
+    //WeightTotal total weight, used as the random bound for weighted selection
     public int WeightTotal
     {
         get
@@ -20,6 +20,6 @@ public sealed record StructureSet(StructurePlacement Placement, IReadOnlyList<St
     }
 }
 
-//StructureSelectionEntry 集合里的一项 对应原版 StructureSet.StructureSelectionEntry
-//structure 是结构注册表引用 weight 是正整数权重
+//StructureSelectionEntry one entry of a set, maps to vanilla StructureSet.StructureSelectionEntry
+//structure is a structure registry reference, weight is a positive integer weight
 public sealed record StructureSelectionEntry(Holder<NetCraft.Registry.Structure> Structure, int Weight);

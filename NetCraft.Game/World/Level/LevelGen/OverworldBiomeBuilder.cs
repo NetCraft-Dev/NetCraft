@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//OverworldBiomeBuilder 主世界气候参数点到生物群系的映射表对应原版 net.minecraft.world.level.biome.OverworldBiomeBuilder
-//由近海、13 段 weirdness 内陆切片、洞穴三组构成 MultiNoisePreset.Overworld 的数据来源
+//OverworldBiomeBuilder maps overworld climate parameter points to biomes, maps to vanilla net.minecraft.world.level.biome.OverworldBiomeBuilder
+//Made up of three groups: offshore, the 13 weirdness inland slices, and caves; the data source for MultiNoisePreset.Overworld
 public sealed class OverworldBiomeBuilder
 {
     private const float LOW_START = 0.26666668f;
@@ -136,7 +136,7 @@ public sealed class OverworldBiomeBuilder
         UNFROZEN_RANGE = Climate.Parameter.Span(temperatures[1], temperatures[4]);
     }
 
-    //SpawnTarget 出生点搜索目标参数点对应原版 spawnTarget
+    //SpawnTarget parameter points searched for the spawn point, maps to vanilla spawnTarget
     public IReadOnlyList<Climate.ParameterPoint> SpawnTarget()
     {
         var surfaceDepth = Climate.Parameter.Point(0.0f);
@@ -151,7 +151,7 @@ public sealed class OverworldBiomeBuilder
         };
     }
 
-    //AddBiomes 产出主世界全部参数点条目对应原版 addBiomes
+    //AddBiomes emits every overworld parameter point entry, maps to vanilla addBiomes
     public void AddBiomes(Action<(Climate.ParameterPoint Point, ResourceKey<Biome> Biome)> consumer)
     {
         AddOffCoastBiomes(consumer);
@@ -159,7 +159,7 @@ public sealed class OverworldBiomeBuilder
         AddUndergroundBiomes(consumer);
     }
 
-    //NetherBiomes Nether 预设的 5 条硬编码参数对应原版 Preset.NETHER
+    //NetherBiomes the five hard-coded parameters of the Nether preset, maps to vanilla Preset.NETHER
     public static IReadOnlyList<(Climate.ParameterPoint Point, ResourceKey<Biome> Biome)> NetherBiomes()
         => new[]
         {
@@ -170,8 +170,8 @@ public sealed class OverworldBiomeBuilder
             (Climate.Parameters(-0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.175f), Biomes.BASALT_DELTAS)
         };
 
-    //IsDeepDarkRegion 判断采样点是否落在深暗之域区域对应原版 isDeepDarkRegion
-    //含水层算液面时命中该区域会把淹没度拉满负值直接判定为无流体
+    //IsDeepDarkRegion whether the sample point falls in the deep dark region, maps to vanilla isDeepDarkRegion
+    //When the aquifer computes fluid levels, hitting this region drives floodedness far negative and rules out fluid entirely
     public static bool IsDeepDarkRegion(DensityFunction erosion, DensityFunction depth, FunctionContext context)
         => erosion.Compute(context) < -0.22499999403953552 && depth.Compute(context) > 0.8999999761581421;
 

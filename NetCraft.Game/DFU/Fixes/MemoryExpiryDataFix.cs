@@ -7,8 +7,8 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//记忆过期数据修复对应原版MemoryExpiryDataFix
-//1.20.2把Brain.memories下每个memory值包装为{value:memory}结构
+//Memory expiry data fix, maps to vanilla MemoryExpiryDataFix
+//1.20.2 wraps each memory value under Brain.memories into a {value:memory} structure
 public class MemoryExpiryDataFix : NamedEntityFix
 {
     public MemoryExpiryDataFix(Schema schema, string entityType)
@@ -30,11 +30,11 @@ public class MemoryExpiryDataFix : NamedEntityFix
     private Dynamic<object> UpdateMemories(Dynamic<object> memories)
         => memories.UpdateMapValues(UpdateMemoryEntry);
 
-    //updateMemoryEntry对value应用WrapMemoryValue对应原版memoryEntry.mapSecond
+    //updateMemoryEntry applies WrapMemoryValue to the value, maps to vanilla memoryEntry.mapSecond
     private Pair<Dynamic<object>, Dynamic<object>> UpdateMemoryEntry(Pair<Dynamic<object>, Dynamic<object>> memoryEntry)
         => new(memoryEntry.First, WrapMemoryValue(memoryEntry.Second));
 
-    //wrapMemoryValue把memory值包装为{value:原值}结构
+    //wrapMemoryValue wraps the memory value into a {value:original} structure
     private Dynamic<object> WrapMemoryValue(Dynamic<object> dynamic)
         => dynamic.CreateMap(new[] { new Pair<Dynamic<object>, Dynamic<object>>(dynamic.CreateString("value"), dynamic) });
 }

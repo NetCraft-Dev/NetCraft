@@ -11,15 +11,15 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//审判台配置转注册表ID修复对应原版TrialSpawnerConfigInRegistryFix
-//1.21把trial_spawner实体的normal_config/ominous_config两个内联CompoundTag匹配到原版预设并替换为注册表字符串ID
+//Trial spawner config to registry ID fix, maps to vanilla TrialSpawnerConfigInRegistryFix
+//1.21 matches the trial_spawner entity's normal_config/ominous_config inline CompoundTags against vanilla presets and replaces them with registry string IDs
 public class TrialSpawnerConfigInRegistryFix : NamedEntityFix
 {
     public TrialSpawnerConfigInRegistryFix(Schema outputSchema)
         : base(outputSchema, false, "TrialSpawnerConfigInRegistryFix",
             References.BlockEntity, "minecraft:trial_spawner") { }
 
-    //fixTag按normal_config/ominous_config查找注册表ID命中则替换为字符串ID加/normal或/ominous后缀
+    //fixTag looks up registry IDs by normal_config/ominous_config; on a hit it replaces with the string ID plus a /normal or /ominous suffix
     public Dynamic<Tag> FixTag(Dynamic<Tag> input)
     {
         var normalConfigOpt = input.Get("normal_config").Result();
@@ -33,7 +33,7 @@ public class TrialSpawnerConfigInRegistryFix : NamedEntityFix
                     .Set("ominous_config", input.CreateString(registryLocation.WithSuffix("/ominous").ToString()));
     }
 
-    //fix把输入Dynamic转NbtOps调用FixTag后再转回原ops对齐原版双ops转换
+    //fix converts the input Dynamic to NbtOps, calls FixTag then converts back to the original ops, aligned with the vanilla dual-ops conversion
     protected override Typed<object> Fix(Typed<object> entity)
         => entity.Update(DSL.RemainderFinder(), input =>
         {
@@ -42,11 +42,11 @@ public class TrialSpawnerConfigInRegistryFix : NamedEntityFix
             return result.Convert(inputOps);
         });
 
-    //VanillaTrialChambers原版预设审判台配置集合
-    //注册时把每个location的normal/ominous SNBT解析成CompoundTag存入3个变体到ConfigsToKey
+    //VanillaTrialChambers the vanilla preset trial spawner config set
+    //On registration it parses each location's normal/ominous SNBT into CompoundTag and stores 3 variants into ConfigsToKey
     private static class VanillaTrialChambers
     {
-        //ConfigsToKey用自定义相等比较器按Tag内容递归比较避免依赖字段顺序
+        //ConfigsToKey uses a custom equality comparer comparing Tag content recursively to avoid depending on field order
         public static readonly Dictionary<Pair<Dynamic<Tag>, Dynamic<Tag>>, Identifier> ConfigsToKey
             = new(PairDynamicEqualityComparer.Instance);
 
@@ -96,7 +96,7 @@ public class TrialSpawnerConfigInRegistryFix : NamedEntityFix
                 "{loot_tables_to_eject: [{data: \"minecraft:spawners/ominous/trial_chamber/key\", weight: 3}, {data: \"minecraft:spawners/ominous/trial_chamber/consumables\", weight: 7}], simultaneous_mobs: 4.0f, total_mobs: 12.0f}");
         }
 
-        //register解析normal/ominous SNBT构造3个变体存入ConfigsToKey
+        //register parses normal/ominous SNBT, builds 3 variants and stores them into ConfigsToKey
         private static void Register(Identifier location, string normalNbt, string ominousNbt)
         {
             try
@@ -119,7 +119,7 @@ public class TrialSpawnerConfigInRegistryFix : NamedEntityFix
 
         private static Dynamic<Tag> AsDynamic(CompoundTag tag) => new(NbtOps.Instance, tag);
 
-        //parse用TagParser.ParseCompoundFully失败转IllegalArgumentException
+        //parse throws IllegalArgumentException when TagParser.ParseCompoundFully fails
         private static CompoundTag Parse(string nbt)
         {
             try
@@ -132,7 +132,7 @@ public class TrialSpawnerConfigInRegistryFix : NamedEntityFix
             }
         }
 
-        //removeDefaults移除等于原版默认值的字段对应原版removeDefaults
+        //removeDefaults removes fields equal to the vanilla default values, maps to vanilla removeDefaults
         private static CompoundTag RemoveDefaults(CompoundTag tag)
         {
             if (tag.GetIntOr("spawn_range", 0) == 4) tag.Remove("spawn_range");
@@ -145,7 +145,7 @@ public class TrialSpawnerConfigInRegistryFix : NamedEntityFix
         }
     }
 
-    //PairDynamicEqualityComparer按Dynamic的Tag内容递归比较避免依赖字段顺序
+    //PairDynamicEqualityComparer compares Dynamic Tag content recursively to avoid depending on field order
     private sealed class PairDynamicEqualityComparer : IEqualityComparer<Pair<Dynamic<Tag>, Dynamic<Tag>>>
     {
         public static readonly PairDynamicEqualityComparer Instance = new();
@@ -157,7 +157,7 @@ public class TrialSpawnerConfigInRegistryFix : NamedEntityFix
         public int GetHashCode(Pair<Dynamic<Tag>, Dynamic<Tag>> obj)
             => HashCode.Combine(TagHash(obj.First.Value), TagHash(obj.Second.Value));
 
-        //tagEquals按Tag.Id先区分类型再按类型比较内容
+        //tagEquals first distinguishes by Tag.Id then compares content by type
         private static bool TagEquals(Tag? a, Tag? b)
         {
             if (ReferenceEquals(a, b)) return true;
@@ -182,7 +182,7 @@ public class TrialSpawnerConfigInRegistryFix : NamedEntityFix
             };
         }
 
-        //listEquals按长度逐元素递归比较
+        //listEquals compares element by element recursively by length
         private static bool ListEquals(ListTag a, ListTag b)
         {
             if (a.Count != b.Count) return false;
@@ -193,7 +193,7 @@ public class TrialSpawnerConfigInRegistryFix : NamedEntityFix
             return true;
         }
 
-        //compoundEquals按key集合一致后逐key递归比较
+        //compoundEquals compares key by key recursively after the key sets match
         private static bool CompoundEquals(CompoundTag a, CompoundTag b)
         {
             if (a.Count != b.Count) return false;
@@ -205,7 +205,7 @@ public class TrialSpawnerConfigInRegistryFix : NamedEntityFix
             return true;
         }
 
-        //tagHash按Tag.Id+内容混合避免不同类型同哈希冲突
+        //tagHash mixes Tag.Id + content to avoid hash collisions across different types
         private static int TagHash(Tag? t)
         {
             if (t is null) return 0;

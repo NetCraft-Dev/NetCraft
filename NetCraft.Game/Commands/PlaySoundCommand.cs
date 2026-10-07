@@ -9,8 +9,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Commands;
 
-//PlaySoundCommand playsound 命令对应原版 net.minecraft.server.commands.PlaySoundCommand
-//在目标位置播放指定音效 原版的 source 位置音量渐隐分支暂缺只保留音效与目标
+//PlaySoundCommand playsound command, maps to vanilla net.minecraft.server.commands.PlaySoundCommand
+//Plays the given sound at the target position; vanilla's source/position/volume fade branches are missing, only the sound and targets are kept
 public static class PlaySoundCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -23,14 +23,14 @@ public static class PlaySoundCommand
                     .Executes(context => Play(context, EntityArgument.GetPlayers(context, "targets"))))));
     }
 
-    //Play 逐目标发播放音效包 省略目标时只放给执行者
+    //Play sends the play-sound packet per target; without targets it plays only to the executor
     private static int Play(CommandContext<CommandSourceStack> context, IReadOnlyList<ServerPlayer>? explicitTargets)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var raw = StringArgumentType.GetString(context, "sound");
         if (Identifier.TryParse(raw) is not { } id)
         {
-            source.SendFailure($"音效标识符非法 {raw}");
+            source.SendFailure($"invalid sound identifier {raw}");
             return 0;
         }
 
@@ -44,7 +44,7 @@ public static class PlaySoundCommand
             played++;
         }
 
-        source.SendSuccess($"已为 {played} 名玩家播放音效 {id}");
+        source.SendSuccess($"played sound {id} for {played} players");
         return played;
     }
 }

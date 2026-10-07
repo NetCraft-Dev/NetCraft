@@ -3,19 +3,19 @@ namespace NetCraft.DataFixer.Fixes;
 using System;
 using NetCraft.DataFixer.Schemas;
 
-//区块高度与生物群系修复对应原版net.minecraft.util.datafix.fixes.ChunkHeightAndBiomeFix
-//将旧版16段chunk升级到24段增加-4..19范围对齐1.18新增高度
-//MakeRule完整实现依赖SerializableChunkData.copyOf/read + NoiseRouterData + JigsawBlockEntity
-//三者均属NetCraft.Game游戏业务范畴待游戏业务模块开发后接通
+//chunk height and biome fix, maps to vanilla net.minecraft.util.datafix.fixes.ChunkHeightAndBiomeFix
+//upgrades old 16-section chunks to 24 sections, adding the -4..19 range to align with 1.18's new height
+//the full MakeRule implementation depends on SerializableChunkData.copyOf/read + NoiseRouterData + JigsawBlockEntity
+//all three belong to the NetCraft.Game business domain, to be wired up once the game module is developed
 public class ChunkHeightAndBiomeFix : DataFix
 {
-    //DATAFIXER_CONTEXT_TAG数据修复上下文tag名SimpleRegionStorage持有同名常量
+    //DATAFIXER_CONTEXT_TAG data fix context tag name; SimpleRegionStorage holds a constant with the same name
     public const string DatafixerContextTag = "__context";
 
     public ChunkHeightAndBiomeFix(Schema outputSchema) : base(outputSchema, changesType: true) { }
 
-    //makeRule完整实现依赖NetCraft.Game的SerializableChunkData等游戏内容
-    //NetCraft.Game作为可选业务模块最后开发完成后再实现此处
+    //the full makeRule implementation depends on NetCraft.Game's SerializableChunkData and other game content
+    //NetCraft.Game is an optional business module; implement this once it is finished
     protected override TypeRewriteRule MakeRule()
-        => throw new NotSupportedException("ChunkHeightAndBiomeFix.MakeRule 待 NetCraft.Game 游戏业务模块接通");
+        => throw new NotSupportedException("ChunkHeightAndBiomeFix.MakeRule pending NetCraft.Game business module integration");
 }

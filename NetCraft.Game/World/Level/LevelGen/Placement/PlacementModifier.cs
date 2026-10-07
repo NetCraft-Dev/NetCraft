@@ -5,14 +5,14 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//PlacementContext 放置上下文对应原版 PlacementContext
-//在生成范围之外还带上世界与生成器 修饰器靠它查高度图/方块/群系
+//PlacementContext placement context, maps to vanilla PlacementContext
+//Carries the world and generator in addition to the generation range; modifiers use it to query heightmaps, blocks and biomes
 public sealed class PlacementContext : WorldGenerationContext
 {
     public WorldGenRegion Level { get; }
     public ChunkGenerator Generator { get; }
 
-    //TopFeature 当前正在放置的已放置特征 群系过滤要靠它反查所属群系
+    //TopFeature the placed feature currently being placed; the biome filter uses it to look up the owning biomes
     public PlacedFeature? TopFeature { get; }
 
     public PlacementContext(WorldGenRegion level, ChunkGenerator generator, PlacedFeature? topFeature)
@@ -24,21 +24,21 @@ public sealed class PlacementContext : WorldGenerationContext
     }
 }
 
-//PlacementModifierType 放置修饰器类型单例对应原版 PlacementModifierType
-//持类型 id 与「map → 实例」的解码入口 注册进 PLACEMENT_MODIFIER_TYPE 注册表
+//PlacementModifierType placement modifier type singleton, maps to vanilla PlacementModifierType
+//Holds the type id and the map-to-instance decode entry, registered into the PLACEMENT_MODIFIER_TYPE registry
 public abstract class PlacementModifierType : NetCraft.Registry.PlacementModifierType
 {
     public Identifier Id { get; }
 
     protected PlacementModifierType(Identifier id) => Id = id;
 
-    //Decode 从 map 解出一个带参数的修饰器实例 type 字段已由外层消费
+    //Decode decode a parameterized modifier instance from the map; the type field is already consumed by the caller
     public abstract DataResult<PlacementModifier> Decode<U>(DynamicOps<U> ops, MapLike<U> input);
 
-    //EncodeFields 把实例参数累积进 builder type 字段由外层补
+    //EncodeFields accumulate the instance fields into the builder; the type field is added by the caller
     public abstract void EncodeFields<U>(DynamicOps<U> ops, PlacementModifier value, RecordBuilder<U> builder);
 
-    //Register 注册进 PLACEMENT_MODIFIER_TYPE 并返回自身 便于静态字段直接赋值
+    //Register register into PLACEMENT_MODIFIER_TYPE and return itself, so static fields can assign it directly
     protected static T Register<T>(Identifier id, T type) where T : PlacementModifierType
     {
         Registry<NetCraft.Registry.PlacementModifierType>.Register(
@@ -47,7 +47,7 @@ public abstract class PlacementModifierType : NetCraft.Registry.PlacementModifie
     }
 }
 
-//PlacementModifierType<P> 具体修饰器类型的泛型中间层 子类只需给出一个 MapCodec<P>
+//PlacementModifierType<P> generic middle layer for a concrete modifier type; subclasses only supply one MapCodec<P>
 public abstract class PlacementModifierType<P> : PlacementModifierType where P : PlacementModifier
 {
     private readonly MapCodec<P> _codec;
@@ -63,20 +63,20 @@ public abstract class PlacementModifierType<P> : PlacementModifierType where P :
     }
 }
 
-//PlacementModifier 放置修饰器实例基类对应原版 PlacementModifier
-//从一批候选位置推出下一批 多个修饰器串起来构成放置链
+//PlacementModifier placement modifier instance base, maps to vanilla PlacementModifier
+//Derives the next batch of positions from the current one; chaining several modifiers forms the placement pipeline
 public abstract class PlacementModifier
 {
-    //Type 所属类型单例 编码与日志要靠它拿 id
+    //Type owning type singleton; encoding and logging use it to get the id
     public abstract PlacementModifierType Type { get; }
 
-    //GetPositions 从起点推出一批位置对应原版 getPositions
+    //GetPositions derive a batch of positions from the origin, maps to vanilla getPositions
     public abstract IEnumerable<BlockPos> GetPositions(PlacementContext context, RandomSource random, BlockPos origin);
 }
 
-//PlacementModifierCodec 按 type 字段查 PLACEMENT_MODIFIER_TYPE 再委派给该类型解码
-//对应原版 BuiltInRegistries.PLACEMENT_MODIFIER_TYPE.byNameCodec().dispatch(...)
-//type 与参数平铺在同一层 与原版把 MapCodec 字段内联进 dispatch 结果的行为一致
+//PlacementModifierCodec look up PLACEMENT_MODIFIER_TYPE by the type field then delegate decoding to that type
+//Maps to vanilla BuiltInRegistries.PLACEMENT_MODIFIER_TYPE.byNameCodec().dispatch(...)
+//type and its parameters are flattened onto the same level, matching vanilla inlining the MapCodec fields into the dispatch result
 internal sealed class PlacementModifierCodec : ScalarCodec<PlacementModifier>
 {
     public static readonly PlacementModifierCodec Instance = new();
@@ -87,15 +87,15 @@ internal sealed class PlacementModifierCodec : ScalarCodec<PlacementModifier>
     private static DataResult<PlacementModifier> DecodeModifier<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var typeTag = input.Get("type");
-        if (!typeTag.IsPresent) return DataResult<PlacementModifier>.Error(() => "放置修饰器缺 type 字段");
+        if (!typeTag.IsPresent) return DataResult<PlacementModifier>.Error(() => "placement modifier is missing the type field");
         var typeText = ops.GetStringValue(typeTag.Get());
         if (!typeText.Result().IsPresent)
-            return DataResult<PlacementModifier>.Error(() => "放置修饰器的 type 必须是字符串");
+            return DataResult<PlacementModifier>.Error(() => "placement modifier type must be a string");
         var typeId = Identifier.TryParse(typeText.GetOrThrow());
         if (typeId is null)
-            return DataResult<PlacementModifier>.Error(() => $"非法的修饰器类型: {typeText.GetOrThrow()}");
+            return DataResult<PlacementModifier>.Error(() => $"invalid modifier type: {typeText.GetOrThrow()}");
         if (BuiltInRegistries.PLACEMENT_MODIFIER_TYPE.GetValue(typeId.Value) is not PlacementModifierType type)
-            return DataResult<PlacementModifier>.Error(() => $"未知的修饰器类型: {typeId}");
+            return DataResult<PlacementModifier>.Error(() => $"unknown modifier type: {typeId}");
         return type.Decode(ops, input);
     }
 

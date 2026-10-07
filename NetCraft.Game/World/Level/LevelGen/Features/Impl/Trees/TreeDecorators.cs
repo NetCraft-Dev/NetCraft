@@ -10,7 +10,7 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Trees;
 
-//TreeDecoratorType 树木装饰器类型基类 对应原版 TreeDecoratorType<P>
+//TreeDecoratorType tree decorator type base, maps to vanilla TreeDecoratorType<P>
 public abstract class TreeDecoratorType : NetCraft.Registry.TreeDecoratorType<object>
 {
     public Identifier Id { get; }
@@ -22,7 +22,7 @@ public abstract class TreeDecoratorType : NetCraft.Registry.TreeDecoratorType<ob
     public abstract void EncodeFields<U>(DynamicOps<U> ops, TreeDecorator value, RecordBuilder<U> builder);
 }
 
-//TreeDecoratorType<P> 具体装饰器类型的泛型中间层
+//TreeDecoratorType<P> generic middle layer for a concrete decorator type
 public abstract class TreeDecoratorType<P> : TreeDecoratorType where P : TreeDecorator
 {
     private readonly MapCodec<P> _codec;
@@ -44,7 +44,7 @@ internal sealed class SimpleTreeDecoratorType<P> : TreeDecoratorType<P> where P 
         : base(Identifier.WithDefaultNamespace(id), codec) { }
 }
 
-//TreeDecoratorTypes 内置装饰器类型登记 对应原版 TreeDecoratorType 的静态字段
+//TreeDecoratorTypes built-in decorator type registration, maps to the static fields of vanilla TreeDecoratorType
 public static class TreeDecoratorTypes
 {
     public static readonly TreeDecoratorType<TrunkVineDecorator> TrunkVine =
@@ -83,7 +83,7 @@ public static class TreeDecoratorTypes
     }
 }
 
-//TreeDecoratorProperties 装饰器要写的方块属性 按名与值类型与方块表里的实例判等
+//TreeDecoratorProperties block properties written by decorators; matched by name and value type against the block registry instances
 internal static class TreeDecoratorProperties
 {
     public static readonly BooleanProperty VineEast = new("east");
@@ -91,7 +91,7 @@ internal static class TreeDecoratorProperties
     public static readonly BooleanProperty VineNorth = new("north");
     public static readonly BooleanProperty VineSouth = new("south");
     public static readonly IntegerProperty CocoaAge = new("age", 0, 2);
-    //字段名避开枚举类型名 免得同名成员遮蔽类型
+    //The field name avoids the enum type name so a member of the same name does not shadow the type
     public static readonly EnumProperty<CreakingHeartState> CreakingHeartStateProperty =
         new("creaking_heart_state", new[]
         {
@@ -101,7 +101,7 @@ internal static class TreeDecoratorProperties
         });
     public static readonly BooleanProperty Natural = new("natural");
 
-    //ToEnumDirection 游戏方向转 facade 属性用的枚举方向
+    //ToEnumDirection convert a game direction to the enum direction used by the facade property
     public static EnumDirection ToEnumDirection(PrimDirection direction) => direction.Id3D switch
     {
         PrimDirection.NorthId => EnumDirection.north,
@@ -111,7 +111,7 @@ internal static class TreeDecoratorProperties
     };
 }
 
-//TreeDecorator 树木装饰器基类 对应原版 TreeDecorator
+//TreeDecorator tree decorator base, maps to vanilla TreeDecorator
 public abstract class TreeDecorator
 {
     public static readonly Codec<TreeDecorator> Codec = new TreeDecoratorDispatchCodec();
@@ -120,23 +120,23 @@ public abstract class TreeDecorator
 
     public abstract void Place(Context context);
 
-    //Context 装饰器上下文 把树已放置的位置与随机源交给装饰器 对应原版 TreeDecorator.Context
+    //Context decorator context handing the tree's placed positions and the random source to decorators, maps to vanilla TreeDecorator.Context
     public sealed class Context
     {
         private readonly WorldGenRegion _level;
         private readonly Action<BlockPos, BlockState> _decorationSetter;
         private readonly RandomSource _random;
 
-        //Generator 供装饰器放置内嵌配置化特征使用 对应原版 context.level().getLevel().getChunkSource().getGenerator()
+        //Generator used by decorators to place embedded configured features, maps to vanilla context.level().getLevel().getChunkSource().getGenerator()
         public ChunkGenerator? Generator { get; }
 
-        //Roots 树根位置 按 Y 升序
+        //Roots root positions, sorted by ascending Y
         public List<BlockPos> Roots { get; }
 
-        //Logs 树干位置 按 Y 升序
+        //Logs trunk positions, sorted by ascending Y
         public List<BlockPos> Logs { get; }
 
-        //Leaves 树叶位置 按 Y 升序
+        //Leaves leaf positions, sorted by ascending Y
         public List<BlockPos> Leaves { get; }
 
         public Context(WorldGenRegion level, Action<BlockPos, BlockState> decorationSetter, RandomSource random,
@@ -152,7 +152,7 @@ public abstract class TreeDecorator
             Leaves = foliageSet.OrderBy(pos => pos.Y).ToList();
         }
 
-        //PlaceVine 在该位置放一格只朝指定面附着的藤蔓 对应原版 placeVine
+        //PlaceVine place one vine attached only to the given face, maps to vanilla placeVine
         public void PlaceVine(BlockPos pos, BooleanProperty direction)
             => SetBlock(pos, TreeUtil.Vine.DefaultBlockState.SetValue(direction, true));
 
@@ -169,7 +169,7 @@ public abstract class TreeDecorator
     }
 }
 
-//TreeDecoratorDispatchCodec 按 type 字段查 TREE_DECORATOR_TYPE 再委派给该类型
+//TreeDecoratorDispatchCodec look up TREE_DECORATOR_TYPE by the type field then delegate to that type
 internal sealed class TreeDecoratorDispatchCodec : ScalarCodec<TreeDecorator>
 {
     public override DataResult<TreeDecorator> Parse<U>(DynamicOps<U> ops, U input)
@@ -178,15 +178,15 @@ internal sealed class TreeDecoratorDispatchCodec : ScalarCodec<TreeDecorator>
     private static DataResult<TreeDecorator> DecodeDecorator<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var typeTag = input.Get("type");
-        if (!typeTag.IsPresent) return DataResult<TreeDecorator>.Error(() => "树木装饰器缺 type 字段");
+        if (!typeTag.IsPresent) return DataResult<TreeDecorator>.Error(() => "tree decorator is missing the type field");
         var typeText = ops.GetStringValue(typeTag.Get());
         if (!typeText.Result().IsPresent)
-            return DataResult<TreeDecorator>.Error(() => "树木装饰器的 type 必须是字符串");
+            return DataResult<TreeDecorator>.Error(() => "tree decorator type must be a string");
         var typeId = Identifier.TryParse(typeText.GetOrThrow());
         if (typeId is null)
-            return DataResult<TreeDecorator>.Error(() => $"非法的装饰器类型: {typeText.GetOrThrow()}");
+            return DataResult<TreeDecorator>.Error(() => $"invalid decorator type: {typeText.GetOrThrow()}");
         if (BuiltInRegistries.TREE_DECORATOR_TYPE.GetValue(typeId.Value) is not TreeDecoratorType type)
-            return DataResult<TreeDecorator>.Error(() => $"未知的树木装饰器类型: {typeId}");
+            return DataResult<TreeDecorator>.Error(() => $"unknown tree decorator type: {typeId}");
         return type.Decode(ops, input);
     }
 
@@ -199,7 +199,7 @@ internal sealed class TreeDecoratorDispatchCodec : ScalarCodec<TreeDecorator>
     }
 }
 
-//UnitMapCodec 无字段的 map codec 对应原版 MapCodec.unit
+//UnitMapCodec fieldless map codec, maps to vanilla MapCodec.unit
 internal sealed class UnitMapCodec<T> : AbstractMapCodec<T>
 {
     private readonly Func<T> _factory;
@@ -212,10 +212,10 @@ internal sealed class UnitMapCodec<T> : AbstractMapCodec<T>
     public override RecordBuilder<U> EncodeTo<U>(DynamicOps<U> ops, T value, RecordBuilder<U> builder) => builder;
 }
 
-//TrunkVineDecorator 树干挂藤 对应原版 TrunkVineDecorator
+//TrunkVineDecorator trunk vines, maps to vanilla TrunkVineDecorator
 public sealed class TrunkVineDecorator : TreeDecorator
 {
-    //Instance 先声明 Codec 引用的静态字段必须已初始化 否则空值分析会报可能空引用
+    //Instance declared first: static fields referenced by Codec must be initialized, otherwise nullability analysis reports a possible null reference
     public static readonly TrunkVineDecorator Instance = new();
 
     public static readonly MapCodec<TrunkVineDecorator> Codec = new UnitMapCodec<TrunkVineDecorator>(() => Instance);
@@ -253,7 +253,7 @@ public sealed class TrunkVineDecorator : TreeDecorator
     }
 }
 
-//LeaveVineDecorator 树叶垂藤 对应原版 LeaveVineDecorator
+//LeaveVineDecorator hanging leaf vines, maps to vanilla LeaveVineDecorator
 public sealed class LeaveVineDecorator : TreeDecorator
 {
     public static readonly MapCodec<LeaveVineDecorator> Codec =
@@ -296,7 +296,7 @@ public sealed class LeaveVineDecorator : TreeDecorator
         }
     }
 
-    //AddHangingVine 从落点往下连最多四格藤 对应原版 addHangingVine
+    //AddHangingVine hang up to four vine blocks downward from the position, maps to vanilla addHangingVine
     private static void AddHangingVine(BlockPos pos, BooleanProperty direction, Context context)
     {
         context.PlaceVine(pos, direction);
@@ -309,7 +309,7 @@ public sealed class LeaveVineDecorator : TreeDecorator
     }
 }
 
-//CocoaDecorator 可可豆 对应原版 CocoaDecorator
+//CocoaDecorator cocoa bean decorator, maps to vanilla CocoaDecorator
 public sealed class CocoaDecorator : TreeDecorator
 {
     public static readonly MapCodec<CocoaDecorator> Codec =
@@ -350,8 +350,8 @@ public sealed class CocoaDecorator : TreeDecorator
     }
 }
 
-//BeehiveDecorator 蜂巢 对应原版 BeehiveDecorator
-//原版还会往蜂巢方块实体里塞蜜蜂 本作方块实体数据未接入 只落蜂巢方块本身
+//BeehiveDecorator beehive decorator, maps to vanilla BeehiveDecorator
+//Vanilla also stores bees in the beehive block entity; block entity data is not wired up here, so only the beehive block itself is placed
 public sealed class BeehiveDecorator : TreeDecorator
 {
     public static readonly MapCodec<BeehiveDecorator> Codec =
@@ -403,7 +403,7 @@ public sealed class BeehiveDecorator : TreeDecorator
     }
 }
 
-//AlterGroundDecorator 树周地表改造 对应原版 AlterGroundDecorator
+//AlterGroundDecorator alters the ground around a tree, maps to vanilla AlterGroundDecorator
 public sealed class AlterGroundDecorator : TreeDecorator
 {
     public static readonly MapCodec<AlterGroundDecorator> Codec =
@@ -441,7 +441,7 @@ public sealed class AlterGroundDecorator : TreeDecorator
         }
     }
 
-    //PlaceCircle 铺一块 5x5 去掉四角的地表 对应原版 placeCircle
+    //PlaceCircle lay a 5x5 ground patch with the corners removed, maps to vanilla placeCircle
     private void PlaceCircle(Context context, BlockPos pos)
     {
         for (var xx = -2; xx <= 2; xx++)
@@ -454,7 +454,7 @@ public sealed class AlterGroundDecorator : TreeDecorator
         }
     }
 
-    //PlaceBlockAt 从上往下找第一处可改造的地表 对应原版 placeBlockAt
+    //PlaceBlockAt search downward for the first alterable ground, maps to vanilla placeBlockAt
     private void PlaceBlockAt(Context context, BlockPos pos)
     {
         for (var dy = 2; dy >= -3; dy--)
@@ -471,7 +471,7 @@ public sealed class AlterGroundDecorator : TreeDecorator
     }
 }
 
-//AttachedToLeavesDecorator 树叶下挂果实 红树胎生苗靠它 对应原版 AttachedToLeavesDecorator
+//AttachedToLeavesDecorator hangs fruit under leaves, used by mangrove propagules, maps to vanilla AttachedToLeavesDecorator
 public sealed class AttachedToLeavesDecorator : TreeDecorator
 {
     public static readonly MapCodec<AttachedToLeavesDecorator> Codec =
@@ -534,7 +534,7 @@ public sealed class AttachedToLeavesDecorator : TreeDecorator
         }
     }
 
-    //HasRequiredEmptyBlocks 沿放置方向要连续若干格空气 对应原版 hasRequiredEmptyBlocks
+    //HasRequiredEmptyBlocks requires several consecutive air blocks along the placement direction, maps to vanilla hasRequiredEmptyBlocks
     private bool HasRequiredEmptyBlocks(Context context, BlockPos leafPos, PrimDirection direction)
     {
         for (var i = 1; i <= RequiredEmptyBlocks; i++)
@@ -544,7 +544,7 @@ public sealed class AttachedToLeavesDecorator : TreeDecorator
     }
 }
 
-//PlaceOnGroundDecorator 地面撒装饰 树叶堆靠它 对应原版 PlaceOnGroundDecorator
+//PlaceOnGroundDecorator scatters decoration on the ground, used by leaf piles, maps to vanilla PlaceOnGroundDecorator
 public sealed class PlaceOnGroundDecorator : TreeDecorator
 {
     public static readonly MapCodec<PlaceOnGroundDecorator> Codec =
@@ -606,7 +606,7 @@ public sealed class PlaceOnGroundDecorator : TreeDecorator
         }
     }
 
-    //AttemptToPlaceBlockAbove 上方是空气或藤蔓且脚下实心才放 对应原版 attemptToPlaceBlockAbove
+    //AttemptToPlaceBlockAbove place only when above is air or vines and the support is solid, maps to vanilla attemptToPlaceBlockAbove
     private void AttemptToPlaceBlockAbove(Context context, BlockPos pos)
     {
         var abovePos = pos.Offset(0, 1, 0);
@@ -618,8 +618,8 @@ public sealed class PlaceOnGroundDecorator : TreeDecorator
     }
 }
 
-//PaleMossDecorator 苍白苔藓 对应原版 PaleMossDecorator
-//原版在地面概率命中时放置 pale_moss_patch 配置化特征 这里按注册名查找后放置
+//PaleMossDecorator pale moss decorator, maps to vanilla PaleMossDecorator
+//Vanilla places the pale_moss_patch configured feature when the ground roll hits; here it is looked up by registry name and placed
 public sealed class PaleMossDecorator : TreeDecorator
 {
     public static readonly MapCodec<PaleMossDecorator> Codec =
@@ -672,7 +672,7 @@ public sealed class PaleMossDecorator : TreeDecorator
         }
     }
 
-    //AddMossHanger 从落点往下挂苔藓 末端标 tip 对应原版 addMossHanger
+    //AddMossHanger hang moss downward from the position, marking the tip at the end, maps to vanilla addMossHanger
     private static void AddMossHanger(BlockPos pos, Context context)
     {
         while (context.IsAir(pos.Offset(0, -1, 0)) && context.Random.NextFloat() >= 0.5d)
@@ -686,8 +686,8 @@ public sealed class PaleMossDecorator : TreeDecorator
     }
 }
 
-//CreakingHeartDecorator 嘎吱之心 对应原版 CreakingHeartDecorator
-//原版落方块后靠方块实体接管 本作方块实体未接入 只落方块本身
+//CreakingHeartDecorator creaking heart decorator, maps to vanilla CreakingHeartDecorator
+//Vanilla hands off to the block entity after placing; block entities are not wired up here, so only the block itself is placed
 public sealed class CreakingHeartDecorator : TreeDecorator
 {
     public static readonly MapCodec<CreakingHeartDecorator> Codec =

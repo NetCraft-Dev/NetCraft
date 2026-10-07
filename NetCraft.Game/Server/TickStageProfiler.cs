@@ -2,15 +2,15 @@ using System.Diagnostics;
 
 namespace NetCraft.Game.Server;
 
-//TickStageProfiler tick 阶段计时 累计每拍各阶段耗时供 perf 命令输出占比表
-//默认关闭 关闭时 Now 返回 0 Record 直接跳过 整条路径只多一次判断
-//多维度时同一阶段记录多次 累计值按拍数取平均 报的是所有维度加起来的每拍开销
+//TickStageProfiler tick stage timing, accumulating per-tick stage costs for the perf command's share table
+//Off by default; when off Now returns 0 and Record is skipped, adding only one check to the whole path
+//With multiple dimensions the same stage is recorded several times; the accumulated value is averaged by tick count, reporting the per-tick cost summed over all dimensions
 public static class TickStageProfiler
 {
-    //StageCount 阶段数 与 TickStage 枚举末位对齐
+    //StageCount the number of stages, aligned with the last TickStage enum value
     public const int StageCount = (int)TickStage.Count;
 
-    //秒表刻度到纳秒的换算系数
+    //Conversion factor from stopwatch ticks to nanoseconds
     private static readonly double NanosecondsPerTimestampTick = 1_000_000_000.0 / Stopwatch.Frequency;
 
     private static readonly long[] Totals = new long[StageCount];
@@ -19,7 +19,7 @@ public static class TickStageProfiler
 
     public static bool Enabled => _enabled;
 
-    //Start 清空累计并开启对应 perf start
+    //Start clears the accumulation and starts the corresponding perf start
     public static void Start()
     {
         Array.Clear(Totals);
@@ -27,26 +27,26 @@ public static class TickStageProfiler
         _enabled = true;
     }
 
-    //Stop 停止累计 已有数据留着供取报告
+    //Stop stops accumulating; existing data is kept for the report
     public static void Stop() => _enabled = false;
 
-    //EndTick 一拍收尾 占比按拍数取平均
+    //EndTick ends one tick; the share is averaged by tick count
     public static void EndTick()
     {
         if (_enabled) _ticks++;
     }
 
-    //Now 取计时起点 未启用返回 0 由 Record 认出来跳过
+    //Now takes the timing start; returns 0 when disabled, which Record recognizes and skips
     public static long Now() => _enabled ? Stopwatch.GetTimestamp() : 0;
 
-    //Record 记一段耗时 start 为 0 表示未启用
+    //Record records a duration; start 0 means disabled
     public static void Record(TickStage stage, long start)
     {
         if (start != 0) Totals[(int)stage] += Stopwatch.GetTimestamp() - start;
     }
 
-    //Report 输出各阶段每拍平均微秒与占比 跳过没走过的阶段
-    //占比分母取 Tick 本体耗时 分项之和与它的差额就是没被分项盖住的部分
+    //Report prints each stage's per-tick average microseconds and share, skipping stages never entered
+    //The share denominator is the Tick body time; the difference from the sum of parts is the part not covered by any stage
     public static IReadOnlyList<string> Report()
     {
         var lines = new List<string>(StageCount + 3);
@@ -59,7 +59,7 @@ public static class TickStageProfiler
         }
         var basis = tickTotal > 0 ? tickTotal : body;
 
-        lines.Add($"tick 阶段耗时 {_ticks} 拍平均 单位微秒");
+            lines.Add($"tick stage time, {_ticks} tick average, in microseconds");
         for (var i = 0; i < StageCount; i++)
         {
             if (Totals[i] == 0) continue;
@@ -70,13 +70,13 @@ public static class TickStageProfiler
 
         var bodyMicros = body * NanosecondsPerTimestampTick / 1000.0 / ticks;
         var bodyShare = basis == 0 ? 0 : body * 100.0 / basis;
-        lines.Add($"  {"分项合计",-16}{bodyMicros,10:F1} {bodyShare,6:F1}%");
+            lines.Add($"  {"parts total",-16}{bodyMicros,10:F1} {bodyShare,6:F1}%");
         return lines;
     }
 }
 
-//TickStage tick 内各计时段 与 DedicatedServer.Tick 的段落一一对应
-//TickTotal 是 Tick 本体总耗时 用它和分项之和对照可知分项有没有漏掉大段工作
+    //TickStage the timing segments within a tick, mapping one to one to the sections of DedicatedServer.Tick
+    //TickTotal is the Tick body total; comparing it with the sum of parts shows whether a large chunk of work is missing from the parts
 public enum TickStage
 {
     TickTotal,

@@ -9,15 +9,15 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//EntityArgument 实体参数对应原版 net.minecraft.commands.arguments.EntityArgument
-//四工厂entity/entities/player/players覆盖单多与实体玩家两维度
-//执行期把解析出的选择器按命令源解析成目标集合
+//EntityArgument entity argument, maps to vanilla net.minecraft.commands.arguments.EntityArgument
+//Four factories entity/entities/player/players cover the single/multiple and entity/player dimensions
+//At execution time the parsed selector is resolved against the command source into a target set
 public sealed class EntityArgument(bool single, bool playersOnly) : ArgumentType<EntitySelector>
 {
     private static readonly IReadOnlyList<string> ExamplesList = new[]
         { "Player", "0123", "@e", "@e[type=foo]", "dd12be42-52a9-4a91-a8a1-11c01849e498" };
 
-    //六个选择器前缀 补全时按已输入前缀过滤
+    //The six selector prefixes; suggestions filter by the already-typed prefix
     private static readonly string[] SelectorPrefixes = { "@a", "@e", "@n", "@p", "@r", "@s" };
 
     public static readonly SimpleCommandExceptionType ErrorNotSingleEntity =
@@ -31,29 +31,29 @@ public sealed class EntityArgument(bool single, bool playersOnly) : ArgumentType
     public static readonly SimpleCommandExceptionType NoPlayersFound =
         new(new TranslatableMessage("argument.entity.notfound.player"));
 
-    //Entity 单实体参数
+    //Entity single entity argument
     public static EntityArgument Entity() => new(true, false);
 
-    //Entities 多实体参数
+    //Entities multiple entities argument
     public static EntityArgument Entities() => new(false, false);
 
-    //Player 单玩家参数
+    //Player single player argument
     public static EntityArgument Player() => new(true, true);
 
-    //Players 多玩家参数
+    //Players multiple players argument
     public static EntityArgument Players() => new(false, true);
 
-    //Single 是否单目标 网络序列化用
+    //Single whether it is a single target, used for network serialization
     public bool Single { get; } = single;
 
-    //PlayersOnly 是否仅玩家目标 网络序列化用
+    //PlayersOnly whether only players are targeted, used for network serialization
     public bool PlayersOnly { get; } = playersOnly;
 
-    //Parse 解析选择器并按参数维度校验单多与玩家限定 不满足回滚到参数起点
+    //Parse parses the selector and validates single/multiple and the player restriction by the argument dimension; rolls back to the argument start on failure
     public EntitySelector Parse(StringReader reader)
     {
         var start = reader.Cursor;
-        //玩家命令源权限恒放行选择器
+        //Player command sources always pass the selector permission
         var parser = new EntitySelectorParser(reader, allowSelectors: true);
         var selector = parser.Parse();
         if (selector.MaxResults > 1 && single)
@@ -69,19 +69,19 @@ public sealed class EntityArgument(bool single, bool playersOnly) : ArgumentType
         return selector;
     }
 
-    //GetEntity 取单实体目标 本作 tp 只支持玩家 命中非玩家实体按原版只允许玩家的报错处理
+    //GetEntity gets a single entity target; tp supports players only here, so a non-player hit is reported with vanilla's players-only error
     public static ServerPlayer GetEntity(CommandContext<CommandSourceStack> context, string name)
     {
         var target = context.GetArgument<EntitySelector>(name).FindSingleEntity(GetSource(context));
         return target.Player ?? throw ErrorOnlyPlayersAllowed.Create();
     }
 
-    //GetSingleTarget 取单个实体目标 玩家与关卡实体都可能返回 对应原版 EntityArgument.getEntity
-    //既有 GetEntity 只给玩家 /data 这类要操作任意实体的命令走这条
+    //GetSingleTarget gets one entity target; may return either a player or a level entity, maps to vanilla EntityArgument.getEntity
+    //The existing GetEntity only gives players; commands such as /data that operate on arbitrary entities go through this
     public static CommandTarget GetSingleTarget(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<EntitySelector>(name).FindSingleEntity(GetSource(context));
 
-    //GetEntities 取多实体目标 含玩家与关卡实体 空结果抛NO_ENTITIES_FOUND
+    //GetEntities gets multiple entity targets, including players and level entities; an empty result throws NO_ENTITIES_FOUND
     public static IReadOnlyList<CommandTarget> GetEntities(CommandContext<CommandSourceStack> context, string name)
     {
         var result = GetOptionalEntities(context, name);
@@ -90,15 +90,15 @@ public sealed class EntityArgument(bool single, bool playersOnly) : ArgumentType
         return result;
     }
 
-    //GetOptionalEntities 取多实体目标 允许空结果
+    //GetOptionalEntities gets multiple entity targets, allowing an empty result
     public static IReadOnlyList<CommandTarget> GetOptionalEntities(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<EntitySelector>(name).FindEntities(GetSource(context));
 
-    //GetPlayer 取单玩家目标
+    //GetPlayer gets a single player target
     public static ServerPlayer GetPlayer(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<EntitySelector>(name).FindSinglePlayer(GetSource(context));
 
-    //GetPlayers 取多玩家目标 空结果抛NO_PLAYERS_FOUND
+    //GetPlayers gets multiple player targets; an empty result throws NO_PLAYERS_FOUND
     public static IReadOnlyList<ServerPlayer> GetPlayers(CommandContext<CommandSourceStack> context, string name)
     {
         var players = context.GetArgument<EntitySelector>(name).FindPlayers(GetSource(context));
@@ -107,15 +107,15 @@ public sealed class EntityArgument(bool single, bool playersOnly) : ArgumentType
         return players;
     }
 
-    //GetOptionalPlayers 取多玩家目标 允许空结果
+    //GetOptionalPlayers gets multiple player targets, allowing an empty result
     public static IReadOnlyList<ServerPlayer> GetOptionalPlayers(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<EntitySelector>(name).FindPlayers(GetSource(context));
 
     private static ServerCommandSource GetSource(CommandContext<CommandSourceStack> context)
         => (ServerCommandSource)context.GetSource();
 
-    //ListSuggestions 补全选择器类型前缀与在线玩家名 对应原版 EntitySelectorParser 的建议
-    //空输入与 @ 开头都给选择器类型 前者额外再给在线玩家名
+    //ListSuggestions suggests selector type prefixes and online player names, maps to vanilla EntitySelectorParser suggestions
+    //Empty input and input starting with @ both suggest selector types; the former additionally suggests online player names
     public Task<Suggestions> ListSuggestions<S>(CommandContext<S> context, SuggestionsBuilder builder)
     {
         var remaining = builder.Remaining;

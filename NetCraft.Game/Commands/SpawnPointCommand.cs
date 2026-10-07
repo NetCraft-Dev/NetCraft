@@ -8,8 +8,8 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Commands;
 
-//SpawnPointCommand spawnpoint 命令对应原版 net.minecraft.server.commands.SetSpawnCommand 的 spawnpoint 字面量
-//设置玩家个人重生点 省略目标时用执行者自己 省略坐标时用执行者当前位置取整
+//SpawnPointCommand spawnpoint command, maps to the spawnpoint literal of vanilla net.minecraft.server.commands.SetSpawnCommand
+//Sets a player's personal respawn point; without a target the executor is used; without coordinates the executor's current position is floored
 public static class SpawnPointCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -27,8 +27,8 @@ public static class SpawnPointCommand
                             BlockPosArgument.GetBlockPos(context, "pos"), FloatArgumentType.GetFloat(context, "angle")))))));
     }
 
-    //Set 写目标玩家的个人重生点 落点在方块中心故 x/z 加半格
-    //原版走 getSpawnablePos 会挑安全高度 nc 直接用给定坐标
+    //Set writes the target player's personal respawn point; the landing point is the block center so x/z add half a block
+    //Vanilla goes through getSpawnablePos to pick a safe height; nc uses the given coordinate directly
     private static int Set(CommandContext<CommandSourceStack> context, IReadOnlyList<ServerPlayer>? targets, BlockPos? pos, float angle)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -45,9 +45,9 @@ public static class SpawnPointCommand
         }
 
         if (players.Count == 1)
-            source.SendSuccess($"已将 {players[0].Profile.Name} 的重生点设为 {spawn.X} {spawn.Y} {spawn.Z}");
+            source.SendSuccess($"set {players[0].Profile.Name}'s respawn point to {spawn.X} {spawn.Y} {spawn.Z}");
         else
-            source.SendSuccess($"已将 {players.Count} 名玩家的重生点设为 {spawn.X} {spawn.Y} {spawn.Z}");
+            source.SendSuccess($"set {players.Count} players' respawn point to {spawn.X} {spawn.Y} {spawn.Z}");
         return players.Count;
     }
 }

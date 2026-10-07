@@ -5,11 +5,11 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//RandomOffsetPlacement 随机偏移对应原版 RandomOffsetPlacement
-//按两个整数提供者分别偏移 xz 与 y
+//RandomOffsetPlacement random offset, maps to vanilla RandomOffsetPlacement
+//Offsets xz and y using two int providers
 public sealed class RandomOffsetPlacement : PlacementModifier
 {
-    //SpreadCodec 偏移范围校验对应原版 IntProviders.codec(-16, 16)
+    //SpreadCodec offset range validation, maps to vanilla IntProviders.codec(-16, 16)
     private static readonly Codec<IntProvider> SpreadCodec = new RangeValidatedIntProviderCodec(IntProviders.Codec, -16, 16);
 
     public static readonly Codec<RandomOffsetPlacement> Codec =
@@ -29,17 +29,17 @@ public sealed class RandomOffsetPlacement : PlacementModifier
         YSpread = ySpread;
     }
 
-    //Of 构造入口对应原版 of
+    //Of construction entry, maps to vanilla of
     public static RandomOffsetPlacement Of(IntProvider xzSpread, IntProvider ySpread) => new(xzSpread, ySpread);
 
-    //OfTriangle 三角分布构造对应原版 ofTriangle
+    //OfTriangle triangular distribution construction, maps to vanilla ofTriangle
     public static RandomOffsetPlacement OfTriangle(int xzRange, int yRange)
         => new(TrapezoidInt.Triangle(xzRange), TrapezoidInt.Triangle(yRange));
 
-    //Vertical 只竖直偏移对应原版 vertical
+    //Vertical vertical offset only, maps to vanilla vertical
     public static RandomOffsetPlacement Vertical(IntProvider ySpread) => new(ConstantInt.Of(0), ySpread);
 
-    //Horizontal 只水平偏移对应原版 horizontal
+    //Horizontal horizontal offset only, maps to vanilla horizontal
     public static RandomOffsetPlacement Horizontal(IntProvider xzSpread) => new(xzSpread, ConstantInt.Of(0));
 
     public override IEnumerable<BlockPos> GetPositions(PlacementContext context, RandomSource random, BlockPos origin)
@@ -54,7 +54,7 @@ public sealed class RandomOffsetPlacement : PlacementModifier
     public override PlacementModifierType Type => RandomOffsetPlacementType.Instance;
 }
 
-//RandomOffsetPlacementType 对应原版 PlacementModifierType.RANDOM_OFFSET
+//RandomOffsetPlacementType, maps to vanilla PlacementModifierType.RANDOM_OFFSET
 public sealed class RandomOffsetPlacementType : PlacementModifierType<RandomOffsetPlacement>
 {
     public static readonly RandomOffsetPlacementType Instance = Register(

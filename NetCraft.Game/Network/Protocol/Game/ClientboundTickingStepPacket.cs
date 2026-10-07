@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundTickingStepPacket Tick 步进包对应原版 ClientboundTickingStepPacket
-//字段 TickSteps(int)
+//ClientboundTickingStepPacket tick step packet, maps to vanilla ClientboundTickingStepPacket
+//Field: TickSteps(int)
 public sealed record ClientboundTickingStepPacket(int TickSteps) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundTickingStepPacket> StreamCodec { get; } = new TickingStepCodec();

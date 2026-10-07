@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundSetJigsawBlockPacket 数据包对应原版 ServerboundSetJigsawBlockPacket
-//字段 Pos(BlockPos) Name(Identifier) Target(Identifier) Pool(Identifier) FinalState(String) Joint(JigsawBlockEntity.JointType)
+//ServerboundSetJigsawBlockPacket set jigsaw block packet, maps to vanilla ServerboundSetJigsawBlockPacket
+//Fields: Pos(BlockPos), Name(Identifier), Target(Identifier), Pool(Identifier), FinalState(String), Joint(JigsawBlockEntity.JointType)
 public sealed record ServerboundSetJigsawBlockPacket(object Pos, object Name, object Target, object Pool, string FinalState, object Joint, int SelectionPriority, int PlacementPriority) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundSetJigsawBlockPacket> StreamCodec { get; } = new SetJigsawBlockCodec();
@@ -13,9 +13,9 @@ public sealed record ServerboundSetJigsawBlockPacket(object Pos, object Name, ob
     private sealed class SetJigsawBlockCodec : StreamCodec<FriendlyByteBuf, ServerboundSetJigsawBlockPacket>
     {
         public ServerboundSetJigsawBlockPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ServerboundSetJigsawBlockPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

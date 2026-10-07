@@ -4,7 +4,7 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//WouldSurvivePredicate 方块能否在此存活对应原版 WouldSurvivePredicate
+//WouldSurvivePredicate whether the block can survive here, maps to vanilla WouldSurvivePredicate
 public class WouldSurvivePredicate : BlockPredicate
 {
     public static readonly Codec<WouldSurvivePredicate> Codec =
@@ -28,7 +28,7 @@ public class WouldSurvivePredicate : BlockPredicate
 
     public BlockState State => _state;
 
-    //NetCraft 还没有 BlockState.canSurvive 生存判定 恒真占位
+    //NetCraft has no BlockState.canSurvive yet, so always true as a placeholder
     public override bool Test(WorldGenRegion level, BlockPos origin) => true;
 
     public override BlockPredicateType Type => BlockPredicateType.WouldSurvive;

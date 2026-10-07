@@ -3,23 +3,23 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.World.Items.Component;
 
-//FireworkExplosion 烟花爆炸效果 对应原版 net.minecraft.world.item.component.FireworkExplosion
-//形状加主色加褪色加拖尾与闪烁四个要素
+//FireworkExplosion firework explosion effect, maps to vanilla net.minecraft.world.item.component.FireworkExplosion
+//Four elements: shape, colors, fade colors, and trail plus twinkle
 public sealed class FireworkExplosion : IEquatable<FireworkExplosion>
 {
-    //ShapeCodec 形状按名字编解码 对应原版 Shape.CODEC
-    //必须先于 Codec 声明 静态字段按声明顺序初始化
+    //ShapeCodec encodes the shape by name, maps to vanilla Shape.CODEC
+    //Must be declared before Codec, static fields initialize in declaration order
     public static readonly Codec<ShapeKind> ShapeCodec = Codecs.String.ComapFlatMap(
         name =>
         {
             foreach (var shape in Enum.GetValues<ShapeKind>())
                 if (string.Equals(shape.ToString(), name, StringComparison.OrdinalIgnoreCase))
                     return DataResult<ShapeKind>.Success(shape);
-            return DataResult<ShapeKind>.Error(() => $"未知的烟花形状: {name}");
+            return DataResult<ShapeKind>.Error(() => $"unknown firework shape: {name}");
         },
         shape => shape.ToString().ToLowerInvariant());
 
-    //Codec 持久化编解码 字段名 shape 与 colors 与 fade_colors 与 trail 与 twinkle 对应原版 CODEC
+    //Codec persistence codec, field names shape, colors, fade_colors, trail and twinkle, maps to vanilla CODEC
     public static readonly Codec<FireworkExplosion> Codec = RecordCodecBuilder.Of5(
         ShapeCodec.FieldOf("shape").ForGetter((FireworkExplosion explosion) => explosion.Shape),
         Codecs.Int.ListOf().OptionalFieldOf("colors", Array.Empty<int>())
@@ -31,7 +31,7 @@ public sealed class FireworkExplosion : IEquatable<FireworkExplosion>
         (shape, colors, fadeColors, trail, twinkle)
             => new FireworkExplosion(shape, colors, fadeColors, trail, twinkle));
 
-    //StreamCodec 网络编解码 形状写 id 颜色写变长整数列表 对应原版 STREAM_CODEC
+    //StreamCodec network codec, the shape writes as an id and colors as a VarInt list, maps to vanilla STREAM_CODEC
     public static readonly StreamCodec<RegistryFriendlyByteBuf, FireworkExplosion> StreamCodec =
         new FireworkExplosionStreamCodec();
 
@@ -51,13 +51,13 @@ public sealed class FireworkExplosion : IEquatable<FireworkExplosion>
     public bool Trail { get; }
     public bool Twinkle { get; }
 
-    //HasShape 非小型视为有形状 对应原版 hasShape
+    //HasShape anything other than small counts as having a shape, maps to vanilla hasShape
     public bool HasShape() => Shape != ShapeKind.Small;
 
-    //ById 按网络 id 取形状
+    //ById resolves a shape by network id
     public static ShapeKind ById(int id) => (ShapeKind)id;
 
-    //ShapeKind 烟花形状 值即网络 id 对应原版 Shape
+    //ShapeKind firework shape, the value is the network id, maps to vanilla Shape
     public enum ShapeKind
     {
         Small,
@@ -67,7 +67,7 @@ public sealed class FireworkExplosion : IEquatable<FireworkExplosion>
         Creeper
     }
 
-    //判等按内容 颜色列表逐项比较
+    //Equality compares by content, the color lists are compared entry by entry
     public bool Equals(FireworkExplosion? other)
         => other is not null
            && Shape == other.Shape
@@ -93,7 +93,7 @@ public sealed class FireworkExplosion : IEquatable<FireworkExplosion>
         => $"FireworkExplosion[{Shape}, colors={Colors.Count}, fadeColors={FadeColors.Count}, trail={Trail}, twinkle={Twinkle}]";
 }
 
-//FireworkExplosionStreamCodec 形状 id 加两个颜色列表加两个布尔 对应原版 STREAM_CODEC
+//FireworkExplosionStreamCodec shape id plus two color lists plus two booleans, maps to vanilla STREAM_CODEC
 internal sealed class FireworkExplosionStreamCodec : StreamCodec<RegistryFriendlyByteBuf, FireworkExplosion>
 {
     public FireworkExplosion Decode(RegistryFriendlyByteBuf buf)
@@ -115,7 +115,7 @@ internal sealed class FireworkExplosionStreamCodec : StreamCodec<RegistryFriendl
         buf.WriteBoolean(value.Twinkle);
     }
 
-    //ReadIntList 变长整数长度前缀再逐个变长整数
+    //ReadIntList a VarInt length prefix followed by each VarInt
     private static IReadOnlyList<int> ReadIntList(RegistryFriendlyByteBuf buf)
     {
         var size = buf.ReadVarInt();

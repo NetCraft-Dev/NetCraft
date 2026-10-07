@@ -9,8 +9,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Misc;
 
-//DesertWellFeature 沙漠水井特征 对应原版 DesertWellFeature
-//从原点往下找第一格非空气 判定它是沙子后铺三层砂岩与水井轮廓 最后埋两坨可疑的沙
+//DesertWellFeature desert well feature, maps to vanilla DesertWellFeature
+//Finds the first non-air block below the origin, checks it is sand, then lays three sandstone layers and the well outline, and finally buries two suspicious sand blocks
 public sealed class DesertWellFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "desert_well";
@@ -94,8 +94,8 @@ public sealed class DesertWellFeature : Feature<NoneFeatureConfiguration>
         return true;
     }
 
-    //PlaceSuspiciousSand 埋一坨可疑的沙 对应原版 placeSusSand
-    //原版还会给方块实体挂考古战利品表 本作区块方块实体体系未接 只放方块
+    //PlaceSuspiciousSand bury one suspicious sand block, maps to vanilla placeSusSand
+    //Vanilla also attaches the archaeology loot table to the block entity; NetCraft has no chunk block entity system yet, so only the block is placed
     private static void PlaceSuspiciousSand(WorldGenRegion level, BlockPos pos)
         => Set(level, pos, VegetationSupport.StateOf("suspicious_sand"));
 
@@ -104,8 +104,8 @@ public sealed class DesertWellFeature : Feature<NoneFeatureConfiguration>
     private static void Set(WorldGenRegion level, BlockPos pos, BlockState state) => VegetationSupport.Set(level, pos, state);
 }
 
-//LakeConfiguration 湖泊配置 对应原版 LakeFeature.Configuration
-//流体 屏障与三段可替换判定都来自配置
+//LakeConfiguration lake configuration, maps to vanilla LakeFeature.Configuration
+//The fluid, barrier and three replaceable predicates all come from the config
 public sealed class LakeConfiguration : FeatureConfiguration
 {
     public static readonly Codec<LakeConfiguration> Codec =
@@ -142,8 +142,8 @@ public sealed class LakeConfiguration : FeatureConfiguration
     }
 }
 
-//LakeFeature 湖泊特征 对应原版 LakeFeature
-//先在 16x8x16 的三维格子里随机揉几坨椭球 再按格子与邻居的关系决定填流体还是掏空气
+//LakeFeature lake feature, maps to vanilla LakeFeature
+//First randomly kneads a few ellipsoids into a 16x8x16 3D grid, then decides per cell and neighbor whether to fill fluid or carve air
 public sealed class LakeFeature : Feature<LakeConfiguration>
 {
     private const string FeatureId = "lake";
@@ -212,7 +212,7 @@ public sealed class LakeFeature : Feature<LakeConfiguration>
                     var placePos = origin2.Offset(xx, yy, zz);
                     if (!config.CanReplaceWithAirOrFluid.Test(level, placePos)) continue;
                     var placeAir = yy >= 4;
-                    //原版放下方空气时会安排一次刻并登记后处理 本作世界生成阶段没有刻队列 略过
+                    //Vanilla schedules a tick and registers post-processing when placing air below; there is no tick queue during world generation here, so skip it
                     Set(level, placePos, placeAir ? air : fluid);
                 }
             }
@@ -236,11 +236,11 @@ public sealed class LakeFeature : Feature<LakeConfiguration>
                 }
             }
         }
-        //原版水湖会在水面结冰 冰层判定依赖群系温度 本作世界生成上下文取不到群系 略过这一段
+        //Vanilla freezes the surface of water lakes; the ice check depends on biome temperature, which the world generation context cannot reach here, so skip that part
         return true;
     }
 
-    //IsShell 该格不在椭球里但有个邻居在椭球里 也就是外壳 对应原版 check
+    //IsShell the cell is outside the ellipsoid but has a neighbor inside it, i.e. a shell, maps to vanilla check
     private static bool IsShell(int xx, int zz, int yy, bool[] grid)
     {
         if (grid[GridIndex(xx, zz, yy)]) return false;
@@ -252,11 +252,11 @@ public sealed class LakeFeature : Feature<LakeConfiguration>
         return yy > 0 && grid[GridIndex(xx, zz, yy - 1)];
     }
 
-    //GridIndex 三维格子压成一维 对应原版 ((xx * 16) + zz) * 8 + yy
+    //GridIndex flatten the 3D grid to 1D, maps to vanilla ((xx * 16) + zz) * 8 + yy
     private static int GridIndex(int xx, int zz, int yy) => ((xx * 16) + zz) * 8 + yy;
 
-    //IsSolid 该状态是否算实心 对应原版 isSolid
-    //本作没有材质体系 这里用「有碰撞且不是空气且不带流体」近似
+    //IsSolid whether the state counts as solid, maps to vanilla isSolid
+    //NetCraft has no material system, so approximate with "has collision, is not air and carries no fluid"
     private static bool IsSolid(BlockState state)
         => !state.Owner.IsAir && state.FluidState.IsEmpty
             && state.Owner is BlockBehaviour behaviour && behaviour.HasCollision;

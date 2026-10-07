@@ -3,22 +3,22 @@ using NetCraft.Logging;
 
 namespace NetCraft.Game;
 
-//LanguageAssets 语言素材准备 把资源对象里的语言表与语言清单落到程序根目录
-//原版客户端 jar 只带 en_us 其余语言放在资源服务器的对象存储 由启动器按资源索引下载
-//这里按同一份索引取 本地对象已有且大小匹配就直接复制 缺的从资源服务器补回
-//只处理语言相关条目 贴图模型等素材仍由 jar 解压提供
+//LanguageAssets language asset preparation; lands the language table and language manifest from resource objects into the program root
+//The vanilla client jar only ships en_us; the other languages live in the resource server's object storage and are downloaded by the launcher by resource index
+//Here the same index is used: if the local object exists and the size matches it is copied directly, otherwise it is fetched from the resource server
+//Only language-related entries are handled; textures, models and the like are still provided by jar extraction
 public static class LanguageAssets
 {
-    //ObjectHost 资源对象地址前缀 与启动器使用的完全一致
+    //ObjectHost resource object URL prefix, exactly the one the launcher uses
     private const string ObjectHost = "https://resources.download.minecraft.net";
 
-    //Client 对象下载客户端 复用连接 只在本地缺对象时才用到
+    //Client object download client, reusing the connection; only used when the local object is missing
     private static readonly HttpClient Client = new() { Timeout = TimeSpan.FromSeconds(30) };
 
-    //Prepare 按资源索引把语言素材落到程序根目录 返回落下的文件数
-    //assetsDir 是启动器那级的 assets 目录 内含 indexes 与 objects
-    //assetIndex 为空时取 indexes 目录里最近修改的一份
-    //targetRoot 为空时落程序根目录 测试可指定临时目录避免污染
+    //Prepare lands the language assets into the program root by resource index and returns the number of files landed
+    //assetsDir is the launcher-level assets directory, containing indexes and objects
+    //When assetIndex is empty the most recently modified one in the indexes directory is used
+    //When targetRoot is empty it lands in the program root; tests can pass a temp directory to avoid pollution
     public static int Prepare(string assetsDir, string assetIndex = "", string? targetRoot = null)
     {
         if (string.IsNullOrEmpty(assetsDir) || !Directory.Exists(assetsDir)) return 0;
@@ -59,7 +59,7 @@ public static class LanguageAssets
         return dropped;
     }
 
-    //LocateIndex 定位资源索引文件 未指定名字时取 indexes 目录里最近修改的一份
+    //LocateIndex locates the resource index file; without a name it uses the most recently modified one in the indexes directory
     private static string? LocateIndex(string assetsDir, string assetIndex)
     {
         var indexes = Path.Combine(assetsDir, "indexes");
@@ -74,14 +74,14 @@ public static class LanguageAssets
             .FirstOrDefault();
     }
 
-    //IsWanted 只挑语言表与语言清单 其余素材由 jar 解压提供
+    //IsWanted only picks the language tables and language manifest; other assets are provided by jar extraction
     private static bool IsWanted(string sourcePath)
         => sourcePath.Equals("pack.mcmeta", StringComparison.Ordinal)
            || (sourcePath.StartsWith("minecraft/lang/", StringComparison.Ordinal)
                && sourcePath.EndsWith(".json", StringComparison.Ordinal));
 
-    //MapTarget 索引里的源路径映射到目标根的落地位置
-    //pack.mcmeta 这类根文件直接落根 其余按 assets/<路径> 还原成资源包结构
+    //MapTarget maps the source path in the index to its landing location under the target root
+    //Root files such as pack.mcmeta land at the root; the rest restore the resource pack structure as assets/<path>
     private static string MapTarget(string sourcePath, string root)
     {
         var relative = sourcePath.Contains('/')
@@ -90,7 +90,7 @@ public static class LanguageAssets
         return Path.Combine(root, relative);
     }
 
-    //EnsureObject 保证对象在本地且大小匹配 缺的从资源服务器取回 失败返回 null
+    //EnsureObject ensures the object is local with a matching size, fetching from the resource server when missing; returns null on failure
     private static string? EnsureObject(string objectsDir, string hash, long size)
     {
         var path = Path.Combine(objectsDir, hash[..2], hash);

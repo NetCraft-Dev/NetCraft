@@ -13,16 +13,16 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//门 对应原版 net.minecraft.world.level.block.DoorBlock
-//占上下两格 合页在左还是在右由落位时的两侧墙与点击位置决定 开合按玩家朝向与合页转向
-//铁门不能徒手开 红石只看自己与另一半那一格有没有信号
+//Doors, maps to vanilla net.minecraft.world.level.block.DoorBlock
+//Occupies two cells vertically; the hinge side is decided by the walls on both sides and the click position at placement, opening follows the player facing and hinge
+//Iron doors cannot be opened bare-handed; redstone only checks for a signal on itself and the other half
 public static partial class Blocks
 {
     public static readonly DoorBlock OAK_DOOR = new("oak_door", BlockSet.Wood);
     public static readonly DoorBlock IRON_DOOR = new("iron_door", BlockSet.Iron);
     public static readonly DoorBlock COPPER_DOOR = new("copper_door", BlockSet.Copper);
 
-    //RegisterDoors 门登记进真实方块表 注册名到材质档照原版 Blocks.java
+    //RegisterDoors registers doors into the real block table, registry name to material tier follows vanilla Blocks.java
     private static void RegisterDoors(Dictionary<string, BlockBehaviour> real)
     {
         RegisterDoor(real, OAK_DOOR);
@@ -53,7 +53,7 @@ public static partial class Blocks
 
     public sealed class DoorBlock : BlockBehaviour
     {
-        //DoorShapes 门板形状 十六格宽十六格高三格厚 对应原版 SHAPES
+        //DoorShapes door panel shapes, sixteen by sixteen by three, maps to vanilla SHAPES
         private static readonly Dictionary<Direction, VoxelShape> DoorShapes =
             NetCraft.Primitives.Phys.Shapes.RotateHorizontal(NetCraft.Registry.Block.BoxZ(16.0, 13.0, 16.0));
 
@@ -67,22 +67,22 @@ public static partial class Blocks
         {
             _name = name;
             _material = material;
-            //铁门不能徒手开 其余材质都可以 对应原版 BlockSetType.canOpenByHand
+            //Iron doors cannot be opened bare-handed while the other tiers can, maps to vanilla BlockSetType.canOpenByHand
             _canOpenByHand = material != BlockSet.Iron;
             (_openSound, _closeSound) = SoundsOf(material);
         }
 
         public override Identifier Id => Identifier.WithDefaultNamespace(_name);
 
-        //木质门硬度 3 铁门 5 铜门 3 对应原版各档 strength
+        //Wooden door hardness 3, iron 5, copper 3, maps to the strength of each vanilla tier
         public override float DestroySpeed => _material == BlockSet.Iron ? 5f : 3f;
 
-        //木质空手可挖 铁与铜要正确工具
+        //Wood is mineable bare-handed, iron and copper need the correct tool
         public override bool RequiresCorrectToolForDrops
             => _material is BlockSet.Iron or BlockSet.Copper;
 
-        //Properties 状态按 blocks.txt 的 facing|half|hinge|open|powered 走
-        //表里那份是另建的属性实例 GetValue 取不到 必须自己声明 顺序变了全局状态 id 会错位
+        //Properties states follow facing|half|hinge|open|powered in blocks.txt
+        //The one in the table is a separately built property instance that GetValue cannot find; it must be declared here, and changing the order shifts the global state ids
         public override IDictionary<string, PropertyBase> Properties => new Dictionary<string, PropertyBase>
         {
             ["facing"] = BlockStateProperties.HorizontalFacing,
@@ -92,7 +92,7 @@ public static partial class Blocks
             ["powered"] = BlockStateProperties.Powered,
         };
 
-        //GetShape 关着贴朝向那面 开着按合页转到朝向的左右一侧 对应原版 getShape
+        //GetShape closed hugs the facing side, open rotates to the left or right of the facing per the hinge, maps to vanilla getShape
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos,
             CollisionContext context)
         {
@@ -105,8 +105,8 @@ public static partial class Blocks
             return DoorShapes[doorDirection];
         }
 
-        //GetStateForPlacement 只给下半 上方能被替换才放得下 合页侧由两侧与点击位置定
-        //旁边自己或上方有信号就直接落成打开且通电 对应原版 getStateForPlacement
+        //GetStateForPlacement returns only the lower half, it fits only when the cell above can be replaced, the hinge side comes from both sides and the click position
+        //A signal beside or above places it already open and powered, maps to vanilla getStateForPlacement
         public override BlockState? GetStateForPlacement(ServerLevel level, BlockPos pos, Direction face,
             Direction horizontalFacing, Direction lookingDirection, Vec3 hitLocal)
         {
@@ -121,14 +121,14 @@ public static partial class Blocks
                 .SetValue(BlockStateProperties.DoubleBlockHalfProperty, DoubleBlockHalf.lower);
         }
 
-        //SetPlacedBy 放完下半顺手在上面补上半 对应原版 setPlacedBy
+        //SetPlacedBy places the upper half right after the lower one, maps to vanilla setPlacedBy
         public override void SetPlacedBy(ServerLevel level, BlockPos pos, BlockState state, ServerPlayer player)
             => level.SetBlock(pos.Offset(Direction.Up),
                 state.SetValue(BlockStateProperties.DoubleBlockHalfProperty, DoubleBlockHalf.upper),
                 BlockUpdateFlags.Neighbours | BlockUpdateFlags.Clients);
 
-        //UpdateShape 上下那格邻居变了要跟另一半对齐 半截门自己消失 对应原版 updateShape
-        //下半下方没支撑也消失
+        //UpdateShape the vertical neighbor changing must re-align with the other half and a lone half disappears, maps to vanilla updateShape
+        //The lower half also disappears without support below
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
         {
@@ -137,7 +137,7 @@ public static partial class Blocks
             if ((directionToNeighbour == Direction.Up || directionToNeighbour == Direction.Down)
                 && (half == DoubleBlockHalf.lower) == neighbourAbove)
             {
-                //另一半是门的另一截就跟着它对齐 否则本截没有存在的意义
+                //Realigns with the other half when it is a door half, otherwise this half has no reason to exist
                 if (neighbourState.Owner is DoorBlock
                     && neighbourState.GetValue(BlockStateProperties.DoubleBlockHalfProperty) != half)
                     return neighbourState.SetValue(BlockStateProperties.DoubleBlockHalfProperty, half);
@@ -149,7 +149,7 @@ public static partial class Blocks
             return state;
         }
 
-        //CanSurvive 下半要下方能顶住 上半要下方是自己 对应原版 canSurvive
+        //CanSurvive the lower half needs support below and the upper needs itself below, maps to vanilla canSurvive
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             var below = pos.Offset(Direction.Down);
@@ -160,39 +160,39 @@ public static partial class Blocks
             return belowState is { } lower && ReferenceEquals(lower.Owner, this);
         }
 
-        //AffectNeighborsAfterRemoval 自己没了就把另一半无掉落抹掉 对应原版双格方块的掉落抑制
-        //不抹的话剩下的那半会跟着形状更新销毁再掉一份 整扇门一次掉两个(Mojira MC-188675)
-        //原版把这件事放在 playerWillDestroy 里 只覆盖玩家破坏 这里改挂移除钩子
-        //玩家破坏与支撑丢失两条路径都能覆盖 结果都是整扇门只掉一份
+        //AffectNeighborsAfterRemoval removes the other half without drops when this one is gone, maps to the vanilla double-block drop suppression
+        //Otherwise the remaining half would be destroyed by the shape update and drop again, dropping two doors at once (Mojira MC-188675)
+        //Vanilla does this in playerWillDestroy covering only player breaks; here it is attached to the removal hook instead
+        //Both player breaks and lost support are covered, and the whole door drops only once
         public override void AffectNeighborsAfterRemoval(ServerLevel level, BlockPos pos, BlockState state,
             bool movedByPiston)
         {
             var half = state.GetValue(BlockStateProperties.DoubleBlockHalfProperty);
             var otherPos = half == DoubleBlockHalf.lower ? pos.Offset(Direction.Up) : pos.Offset(Direction.Down);
-            //另一半得是同一扇门的另一截 已经不是门就直接收手 顺带断掉两边互相抹的递归
+            //The other half must be the other part of the same door; once it is no longer a door this stops, which also breaks the mutual erase recursion
             if (level.GetBlockState(otherPos) is not { } other
                 || !ReferenceEquals(other.Owner, this)
                 || other.GetValue(BlockStateProperties.DoubleBlockHalfProperty) == half)
                 return;
-            //只写状态不产生掉落 原版 preventDropFromBottomPart 也是用 setBlock 直接替换成空气
+            //Writes the state without drops; vanilla preventDropFromBottomPart also replaces it with air using setBlock
             level.SetBlock(otherPos, AIR.DefaultBlockState,
                 BlockUpdateFlags.Neighbours | BlockUpdateFlags.Clients);
         }
 
-        //UseOn 徒手开合 打不开的材质直接不受理 对应原版 useWithoutItem
+        //UseOn bare-hand open and close, tiers that cannot be opened are rejected outright, maps to vanilla useWithoutItem
         public override bool UseOn(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state,
             Direction face)
         {
             if (!_canOpenByHand) return false;
             var updated = state.Cycle(BlockStateProperties.Open);
-            //原版只同步客户端不通知邻居 形状更新会把新状态带给另一半让它一起转
+            //Vanilla only syncs the client without notifying neighbors; the shape update carries the new state to the other half so both turn together
             level.SetBlock(pos, updated, BlockUpdateFlags.Clients);
             PlaySound(level, pos, updated.GetValue(BlockStateProperties.Open));
             return true;
         }
 
-        //NeighborChanged 自己或另一半那格有信号就开合并记通电 对应原版 neighborChanged
-        //变化的就是门自己时不动 免得开门触发自己再跑一遍
+        //NeighborChanged opens and marks powered when a signal appears on itself or the other half, maps to vanilla neighborChanged
+        //Does nothing when the change is the door itself, so opening does not retrigger it
         public override void NeighborChanged(ServerLevel level, BlockPos pos, BlockState state,
             RegBlock changedBlock, bool movedByPiston)
         {
@@ -206,15 +206,15 @@ public static partial class Blocks
                 .SetValue(BlockStateProperties.Open, signal), BlockUpdateFlags.Clients);
         }
 
-        //PlaySound 开合音效 音高在 0.9 到 1.0 之间抖动 对应原版 playSound
+        //PlaySound open and close sound, the pitch jitters between 0.9 and 1.0, maps to vanilla playSound
         private void PlaySound(ServerLevel level, BlockPos pos, bool opening)
         {
             var sound = opening ? _openSound : _closeSound;
             level.PlaySound(sound, SoundSource.Blocks, pos, 1f, Random.Shared.NextSingle() * 0.1f + 0.9f);
         }
 
-        //GetHinge 合页侧判定 先看左右两列有没有挡的方块与已有的门下截 都看不出才按点击点在门的哪半边
-        //对应原版 getHinge
+        //GetHinge hinge side decision, it first checks the left and right columns for blocking blocks and existing lower door halves, and only falls back to which side of the door the click is on
+        //Maps to vanilla getHinge
         private static DoorHingeSide GetHinge(ServerLevel level, BlockPos pos, Direction placeDirection,
             Vec3 hitLocal)
         {
@@ -242,18 +242,18 @@ public static partial class Blocks
             return right ? DoorHingeSide.right : DoorHingeSide.left;
         }
 
-        //IsFullBlock 该状态的碰撞形状是否占满整格 对应原版 isCollisionShapeFullBlock
-        //形状只看方块自身 世界视图给空的即可
+        //IsFullBlock whether this state's collision shape fills the block, maps to vanilla isCollisionShapeFullBlock
+        //The shape only looks at the block itself, an empty world view suffices
         private static bool IsFullBlock(BlockState? state, BlockPos pos)
             => state is { Owner: BlockBehaviour behaviour }
                 && behaviour.IsCollisionShapeFullBlock(state.Value, EmptyBlockGetter.Instance, pos);
 
-        //IsLowerDoor 该状态是不是别人的门下截 对应原版 getHinge 里的 doorLeft/doorRight
+        //IsLowerDoor whether this state is the lower half of another door, maps to doorLeft/doorRight in vanilla getHinge
         private static bool IsLowerDoor(BlockState? state)
             => state is { Owner: DoorBlock }
                 && state.Value.GetValue(BlockStateProperties.DoubleBlockHalfProperty) == DoubleBlockHalf.lower;
 
-        //SoundsOf 材质档对应的开合音效 对应原版 BlockSetType 各档的 doorOpen/doorClose
+        //SoundsOf the open and close sounds for a material tier, maps to doorOpen/doorClose of each vanilla BlockSetType tier
         private static (SoundEvent Open, SoundEvent Close) SoundsOf(BlockSet material) => material switch
         {
             BlockSet.Iron => (SoundEvents.IronDoorOpen, SoundEvents.IronDoorClose),
@@ -264,7 +264,7 @@ public static partial class Blocks
             _ => (SoundEvents.WoodenDoorOpen, SoundEvents.WoodenDoorClose),
         };
 
-        //ToPropertyFacing 几何方向折成方块属性用的枚举成员 门只会用到水平四个
+        //ToPropertyFacing converts a geometry direction into the enum member used by block properties, doors only use the four horizontal ones
         private static NetCraft.Registry.Enums.Direction ToPropertyFacing(Direction direction)
         {
             if (direction == Direction.North) return NetCraft.Registry.Enums.Direction.north;
@@ -273,7 +273,7 @@ public static partial class Blocks
             return NetCraft.Registry.Enums.Direction.east;
         }
 
-        //ToGeometry 属性枚举折回几何方向 只用来查形状表与转向
+        //ToGeometry converts the property enum back to a geometry direction, only used to look up shape tables and rotate
         private static Direction ToGeometry(NetCraft.Registry.Enums.Direction direction) => direction switch
         {
             NetCraft.Registry.Enums.Direction.north => Direction.North,

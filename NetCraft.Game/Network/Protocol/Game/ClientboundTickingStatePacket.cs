@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundTickingStatePacket Tick 状态包对应原版 ClientboundTickingStatePacket
-//字段 TickRate(float) IsFrozen(boolean)
+//ClientboundTickingStatePacket tick state packet, maps to vanilla ClientboundTickingStatePacket
+//Fields: TickRate(float), IsFrozen(boolean)
 public sealed record ClientboundTickingStatePacket(float TickRate, bool IsFrozen) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundTickingStatePacket> StreamCodec { get; } = new TickingStateCodec();

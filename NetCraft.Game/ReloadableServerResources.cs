@@ -9,19 +9,19 @@ using NetCraft.Tags;
 
 namespace NetCraft.Game;
 
-//ReloadableServerResources 服务端可重载资源集合对应原版同名类精简版
-//持有 ResourceManager 与已注册 listener 列表 LoadResources 一次性构建并触发首次重载
-//不含 Advancements/Functions 等业务监听器留给后续阶段
-//原版异步 CompletableFuture 调度在此简化为同步 SimpleReloadInstance.Run
+//ReloadableServerResources server-side reloadable resource set, a trimmed version of the vanilla same-named class
+//Holds the ResourceManager and the registered listener list; LoadResources builds everything at once and triggers the first reload
+//Omits business listeners such as Advancements/Functions, left for later phases
+//Vanilla's async CompletableFuture scheduling is simplified here to synchronous SimpleReloadInstance.Run
 public sealed class ReloadableServerResources
 {
-    //ResourceManager 资源包聚合入口 listeners 共享同一实例
+    //ResourceManager the resource pack aggregation entry; listeners share the same instance
     public ResourceManager ResourceManager { get; }
-    //TagManager 标签管理器供 BindAll 入口暴露给启动序列
+    //TagManager tag manager, exposed to the startup sequence through the BindAll entry
     public TagManager TagManager { get; }
-    //Recipes 配方管理器 合成结果查询与配方书都走它
+    //Recipes recipe manager; crafting result queries and the recipe book both go through it
     public RecipeManager Recipes { get; }
-    //Listeners 已注册的重载监听器按注册顺序执行
+    //Listeners the registered reload listeners, executed in registration order
     private readonly List<PreparableReloadListener> _listeners = new();
     public IReadOnlyList<PreparableReloadListener> Listeners => _listeners;
 
@@ -32,42 +32,42 @@ public sealed class ReloadableServerResources
         Recipes = recipes;
     }
 
-    //LoadResources 构建实例注册内置 listener 并触发首次重载
-    //registryAccess 由 BuiltInRegistries.CreateRegistryAccess 提供用于 TagManager.BindAll
-    //必须在 BootstrapClass.BootStrap 之后调用因 BindAll 要求 Registry 已 Freeze
-    //extraListeners 附加监听器 客户端用它挂语言表 服务端不传
+    //LoadResources builds the instance, registers built-in listeners and triggers the first reload
+    //registryAccess is provided by BuiltInRegistries.CreateRegistryAccess for TagManager.BindAll
+    //Must be called after BootstrapClass.BootStrap because BindAll requires the Registry to be frozen
+    //extraListeners additional listeners; the client uses it to attach the language table, the server passes none
     public static ReloadableServerResources LoadResources(ResourceManager rm, RegistryAccess registryAccess,
         IEnumerable<PreparableReloadListener>? extraListeners = null)
     {
-        //Log.Debug($"ReloadableServerResources.LoadResources 入口");
+        //Log.Debug($"ReloadableServerResources.LoadResources enter");
         var tm = new TagManager();
         var recipes = new RecipeManager();
         var rsr = new ReloadableServerResources(rm, tm, recipes);
-        //标签要先绑 配方原料可以用物品标签 解析时就要能查到集合
+        //Tags must be bound first; recipe ingredients may use item tags and the set must be queryable at parse time
         rsr._listeners.Add(new TagsReloadListener(tm, registryAccess));
         rsr._listeners.Add(new RecipeReloadListener(recipes));
-        //未来此处追加 AdvancementListener/FunctionListener
+        //Add AdvancementListener/FunctionListener here in the future
         if (extraListeners is not null) rsr._listeners.AddRange(extraListeners);
         rsr.Reload();
-        //菜单算合成结果要拿配方表 装配完就挂上
+        //The menu needs the recipe table to compute crafting results, so it is attached right after assembly
         RecipeManager.Active = recipes;
-        //Log.Debug($"ReloadableServerResources.LoadResources 出口");
+        //Log.Debug($"ReloadableServerResources.LoadResources exit");
         return rsr;
     }
 
-    //Reload 触发所有 listener 按顺序重载同步执行
-    //用于运行时 /reload 命令或 Pack 增删后手动触发
+    //Reload triggers all listeners to reload in order, synchronously
+    //Used by the runtime /reload command or after pack additions/removals
     public void Reload()
     {
         Log.Debug($"ReloadableServerResources.Reload entry listenerCount={_listeners.Count}");
         SimpleReloadInstance.Run(ResourceManager, _listeners);
-        //燃料表按物品标签展开 必须等标签绑完再建 标签重载后也要跟着重建
+        //The fuel table expands by item tags, so it must be built after tags are bound and rebuilt after a tag reload
         FuelValues.Active = FuelValues.VanillaBurnTimes();
         Log.Debug($"ReloadableServerResources.Reload exit fuel item count={FuelValues.Active.FuelItemCount}");
     }
 
-    //AttachFunctionLibrary 挂函数库并按当前资源立即重载对应原版 loadResources 里的函数库重载段
-    //挂进 listener 列表之后 /reload 也会带着函数库一起重载
+    //AttachFunctionLibrary attaches the function library and immediately reloads it with the current resources, maps to the function library reload section of vanilla loadResources
+    //After attaching to the listener list /reload also reloads the function library
     public void AttachFunctionLibrary(ServerFunctionLibrary library)
     {
         _listeners.Add(library);

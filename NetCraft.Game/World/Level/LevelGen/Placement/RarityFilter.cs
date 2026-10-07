@@ -5,15 +5,15 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//RarityFilter 稀有度过滤对应原版 RarityFilter
-//平均每 chance 次放一次
+//RarityFilter rarity filter, maps to vanilla RarityFilter
+//Places once every chance attempts on average
 public sealed class RarityFilter : PlacementFilter
 {
-    //PositiveInt 正数校验对应原版 ExtraCodecs.POSITIVE_INT
+    //PositiveInt positive-number validation, maps to vanilla ExtraCodecs.POSITIVE_INT
     private static readonly Codec<int> PositiveInt = Codecs.Int.ComapFlatMap(
         value => value > 0
             ? DataResult<int>.Success(value)
-            : DataResult<int>.Error(() => $"chance 必须为正数: {value}"),
+            : DataResult<int>.Error(() => $"chance must be positive: {value}"),
         value => value);
 
     public static readonly Codec<RarityFilter> Codec =
@@ -26,7 +26,7 @@ public sealed class RarityFilter : PlacementFilter
 
     private RarityFilter(int chance) => Chance = chance;
 
-    //OnAverageOnceEvery 构造入口对应原版 onAverageOnceEvery
+    //OnAverageOnceEvery construction entry, maps to vanilla onAverageOnceEvery
     public static RarityFilter OnAverageOnceEvery(int chance) => new(chance);
 
     protected override bool ShouldPlace(PlacementContext context, RandomSource random, BlockPos origin)
@@ -35,7 +35,7 @@ public sealed class RarityFilter : PlacementFilter
     public override PlacementModifierType Type => RarityFilterType.Instance;
 }
 
-//RarityFilterType 对应原版 PlacementModifierType.RARITY_FILTER
+//RarityFilterType, maps to vanilla PlacementModifierType.RARITY_FILTER
 public sealed class RarityFilterType : PlacementModifierType<RarityFilter>
 {
     public static readonly RarityFilterType Instance = Register(

@@ -1,8 +1,8 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundMovePlayerPacket 玩家移动包对应原版 ServerboundMovePlayerPacket
-//原版是抽象基类派生出 Pos/PosRot/Rot/StatusOnly 四个包 ID 这里用单类承载四个变体
-//由 HasPos/HasRot 区分变体 未携带的分量保持 0 flags 单字节: 位0 着地 位1 水平碰撞
+//ServerboundMovePlayerPacket player movement packet, maps to vanilla ServerboundMovePlayerPacket
+//Vanilla is an abstract base deriving four packet IDs Pos/PosRot/Rot/StatusOnly; here a single class carries all four variants
+//HasPos/HasRot distinguish the variants, components not carried stay 0; flags is a single byte: bit0 on-ground, bit1 horizontal collision
 public sealed record ServerboundMovePlayerPacket(
     double X,
     double Y,
@@ -14,16 +14,16 @@ public sealed record ServerboundMovePlayerPacket(
     bool HasPos,
     bool HasRot) : Packet<ServerGamePacketListener>
 {
-    //PosStreamCodec 对应原版 Pos 三 double 位置 + flags
+    //PosStreamCodec maps to vanilla Pos: three double positions + flags
     public static StreamCodec<FriendlyByteBuf, ServerboundMovePlayerPacket> PosStreamCodec { get; } = new PosCodec();
-    //PosRotStreamCodec 对应原版 PosRot 三 double 位置 + 两 float 朝向 + flags
+    //PosRotStreamCodec maps to vanilla PosRot: three double positions + two float rotations + flags
     public static StreamCodec<FriendlyByteBuf, ServerboundMovePlayerPacket> PosRotStreamCodec { get; } = new PosRotCodec();
-    //RotStreamCodec 对应原版 Rot 两 float 朝向 + flags
+    //RotStreamCodec maps to vanilla Rot: two float rotations + flags
     public static StreamCodec<FriendlyByteBuf, ServerboundMovePlayerPacket> RotStreamCodec { get; } = new RotCodec();
-    //StatusOnlyStreamCodec 对应原版 StatusOnly 仅 flags
+    //StatusOnlyStreamCodec maps to vanilla StatusOnly: flags only
     public static StreamCodec<FriendlyByteBuf, ServerboundMovePlayerPacket> StatusOnlyStreamCodec { get; } = new StatusOnlyCodec();
 
-    //Type 按 HasPos/HasRot 还原原版四个子类各自的 PacketType
+    //Type restores each of the four vanilla subclass PacketTypes from HasPos/HasRot
     public PacketType<ServerGamePacketListener> Type =>
         HasPos
             ? (HasRot ? GamePacketTypes.ServerboundMovePlayerPosRot : GamePacketTypes.ServerboundMovePlayerPos)
@@ -31,7 +31,7 @@ public sealed record ServerboundMovePlayerPacket(
 
     public void Handle(ServerGamePacketListener handler) => handler.HandleMovePlayer(this);
 
-    //PackFlags 原版 packFlags 位0 着地 位1 水平碰撞
+    //PackFlags vanilla packFlags, bit0 on-ground, bit1 horizontal collision
     private static byte PackFlags(bool onGround, bool horizontalCollision)
         => (byte)((onGround ? 1 : 0) | (horizontalCollision ? 2 : 0));
 

@@ -7,12 +7,12 @@ using T = NetCraft.DataFixer.Types;
 
 namespace NetCraft.DataFixer;
 
-//额外DFU工具类对应原版net.minecraft.util.datafix.ExtraDataFixUtils
-//提供BlockPos/BlockState/Cast/PatchSubType/ChainAllFilters/FixStringField等便捷操作
-//blockState不依赖NbtOps调用方传入template ops避免跨ops转换
+//extra DFU utility class maps to vanilla net.minecraft.util.datafix.ExtraDataFixUtils
+//provides convenience operations such as BlockPos/BlockState/Cast/PatchSubType/ChainAllFilters/FixStringField
+//blockState does not rely on NbtOps; the caller passes template ops to avoid cross-ops conversion
 public static class ExtraDataFixUtils
 {
-    //把含X/Y/Z字段的BlockPos修复为List形式
+    //fixes a BlockPos with X/Y/Z fields into a List form
     public static Dynamic<object> FixBlockPos(Dynamic<object> pos)
     {
         var x = pos.Get("X").AsNumber().Result();
@@ -22,7 +22,7 @@ public static class ExtraDataFixUtils
         return CreateBlockPos(pos, (int)x.Get(), (int)y.Get(), (int)z.Get());
     }
 
-    //把内联X/Y/Z字段移到newField的List形式
+    //moves the inline X/Y/Z fields into a List form under newField
     public static Dynamic<object> FixInlineBlockPos(Dynamic<object> input, string fieldX, string fieldY, string fieldZ, string newField)
     {
         var x = input.Get(fieldX).AsNumber().Result();
@@ -32,20 +32,20 @@ public static class ExtraDataFixUtils
         return input.Remove(fieldX).Remove(fieldY).Remove(fieldZ).Set(newField, CreateBlockPos(input, (int)x.Get(), (int)y.Get(), (int)z.Get()));
     }
 
-    //构造[x,y,z]列表对应原版createBlockPos
+    //builds the [x,y,z] list, maps to vanilla createBlockPos
     public static Dynamic<object> CreateBlockPos(Dynamic<object> dynamic, int x, int y, int z)
         => dynamic.CreateList(new[] { dynamic.CreateInt(x), dynamic.CreateInt(y), dynamic.CreateInt(z) });
 
-    //强转Typed到目标Type值与ops保持不变
+    //casts a Typed to the target Type, keeping the value and ops unchanged
     public static Typed<R> Cast<TOther, R>(T.Type<R> type, Typed<TOther> typed)
         => new(type, typed.Ops, (R)(object)typed.Value!);
 
-    //直接用值与ops构造Typed
+    //builds a Typed directly from the value and ops
     public static Typed<TA> Cast<TA>(T.Type<TA> type, object value, DynamicOps<object> ops)
         => new(type, ops, (TA)(object)value!);
 
-    //把type中所有匹配find的子类型替换为replace后返回新Type
-    //依赖RewriteResult+View+TypeRewriteRule.everywhere/ifSame+PointFreeRule.nop
+    //replaces all child types in type matching find with replace and returns the new Type
+    //relies on RewriteResult+View+TypeRewriteRule.everywhere/ifSame+PointFreeRule.nop
     public static T.Type<object> PatchSubType(T.Type<object> type, T.Type<object> find, T.Type<object> replace)
     {
         var rule = TypePatcher(find, replace);
@@ -53,7 +53,7 @@ public static class ExtraDataFixUtils
         return result.View().NewType();
     }
 
-    //类型Patcher规则占位实现抛NotSupportedException对应原版typePatcher
+    //type Patcher rule placeholder throwing NotSupportedException, maps to vanilla typePatcher
     private static TypeRewriteRule TypePatcher(T.Type<object> inputType, T.Type<object> outputType)
     {
         var view = View<object, object>.Create("Patcher", inputType, outputType, _ => _ => throw new NotSupportedException("Patcher not implemented"));
@@ -61,7 +61,7 @@ public static class ExtraDataFixUtils
         return TypeRewriteRule.Everywhere(TypeRewriteRule.IfSame(inputType, rewriteResult), PointFreeRule.NopRule.Instance, true, true);
     }
 
-    //串联多个Typed修复函数返回单个组合函数
+    //chains multiple Typed fix functions into a single combined function
     public static Func<Typed<object>, Typed<object>> ChainAllFilters(params Func<Typed<object>, Typed<object>>[] fixers)
         => typed =>
         {
@@ -69,8 +69,8 @@ public static class ExtraDataFixUtils
             return typed;
         };
 
-    //用template的ops构造BlockState的Dynamic对应原版blockState(id,properties)
-    //原版用NbtOps+CompoundTag这里用template避免跨ops转换
+    //builds the BlockState Dynamic using template's ops, maps to vanilla blockState(id,properties)
+    //vanilla uses NbtOps+CompoundTag; here template is used to avoid cross-ops conversion
     public static Dynamic<object> BlockState(Dynamic<object> template, string id, Dictionary<string, string> properties)
     {
         var blockState = template.EmptyMap().Set(FixConstants.StateHolderName, template.CreateString(id));
@@ -86,7 +86,7 @@ public static class ExtraDataFixUtils
     public static Dynamic<object> BlockState(Dynamic<object> template, string id)
         => BlockState(template, id, new Dictionary<string, string>());
 
-    //对Dynamic的fieldName字段应用fix函数返回新Dynamic
+    //applies the fix function to the fieldName field of the Dynamic and returns a new Dynamic
     public static Dynamic<object> FixStringField(Dynamic<object> dynamic, string fieldName, Func<string, string> fix)
         => dynamic.Update(fieldName, field =>
         {
@@ -94,7 +94,7 @@ public static class ExtraDataFixUtils
             return DataFixUtils.OrElse(mapped.Map(dynamic.CreateString).Result(), field);
         });
 
-    //染料色ID转名称对应原版dyeColorIdToName
+    //converts a dye color ID to a name, maps to vanilla dyeColorIdToName
     public static string DyeColorIdToName(int id) => id switch
     {
         1 => "orange",
@@ -115,7 +115,7 @@ public static class ExtraDataFixUtils
         _ => "white",
     };
 
-    //读取Dynamic到Typed并通过optic设置对应原版readAndSet
+    //reads a Dynamic into a Typed and sets through an optic, maps to vanilla readAndSet
     public static Typed<object> ReadAndSet<TA>(Typed<object> target, OpticFinder<TA> optic, Dynamic<object> value)
         => target.Set(optic, DataFixUtils.ReadTypedOrThrow(optic.Type(), value, true));
 }

@@ -17,7 +17,7 @@ using RegistryPlacedFeature = NetCraft.Registry.PlacedFeature;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Vegetation;
 
-//CaveSurfaceCodec 洞穴表面朝向编解码 对应原版 CaveSurface.CODEC 的 floor/ceiling 名
+//CaveSurfaceCodec cave surface orientation codec, maps to the floor/ceiling names of vanilla CaveSurface.CODEC
 internal sealed class CaveSurfaceCodec : ScalarCodec<CaveSurface>
 {
     public static readonly CaveSurfaceCodec Instance = new();
@@ -25,18 +25,18 @@ internal sealed class CaveSurfaceCodec : ScalarCodec<CaveSurface>
     public override DataResult<CaveSurface> Parse<U>(DynamicOps<U> ops, U input)
     {
         var text = ops.GetStringValue(input);
-        if (!text.Result().IsPresent) return DataResult<CaveSurface>.Error(() => "surface 必须是字符串");
+        if (!text.Result().IsPresent) return DataResult<CaveSurface>.Error(() => "surface must be a string");
         var surface = CaveSurfaceExtensions.FromSerializedName(text.GetOrThrow());
         return surface is { } value
             ? DataResult<CaveSurface>.Success(value)
-            : DataResult<CaveSurface>.Error(() => $"未知的 surface: {text.GetOrThrow()}");
+            : DataResult<CaveSurface>.Error(() => $"unknown surface: {text.GetOrThrow()}");
     }
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, CaveSurface value)
         => DataResult<U>.Success(ops.CreateString(value.GetSerializedName()));
 }
 
-//VegetationPatchConfiguration 植被斑块配置 对应原版 VegetationPatchConfiguration
+//VegetationPatchConfiguration vegetation patch configuration, maps to vanilla VegetationPatchConfiguration
 public sealed class VegetationPatchConfiguration : FeatureConfiguration
 {
     public static readonly Codec<VegetationPatchConfiguration> Codec =
@@ -99,8 +99,8 @@ public sealed class VegetationPatchConfiguration : FeatureConfiguration
         => PlacedFeatureHelpers.SubFeatures(VegetationFeature);
 }
 
-//VegetationPatchFeature 植被斑块特征 对应原版 VegetationPatchFeature
-//先按半径铺一层地表方块 再在每根成功铺到地面的柱子上按概率放植被
+//VegetationPatchFeature vegetation patch feature, maps to vanilla VegetationPatchFeature
+//First lays a layer of ground blocks within the radius, then places vegetation by chance on each column that reached the ground
 public class VegetationPatchFeature : Feature<VegetationPatchConfiguration>
 {
     private const string FeatureId = "vegetation_patch";
@@ -124,8 +124,8 @@ public class VegetationPatchFeature : Feature<VegetationPatchConfiguration>
         return surface.Count > 0;
     }
 
-    //PlaceGroundPatch 逐列定位地表并向下替换成地表方块 返回铺成功的柱顶 对应原版 placeGroundPatch
-    //原版用 HashSet 收集 这里改成插入序列表 迭代顺序才能确定
+    //PlaceGroundPatch locate the ground per column and replace downward with ground blocks, returning the successful column tops, maps to vanilla placeGroundPatch
+    //Vanilla collects into a HashSet; an insertion-ordered list is used here so the iteration order is deterministic
     protected virtual List<BlockPos> PlaceGroundPatch(WorldGenRegion level, VegetationPatchConfiguration config,
         RandomSource random, BlockPos origin, int xRadius, int zRadius)
     {
@@ -167,7 +167,7 @@ public class VegetationPatchFeature : Feature<VegetationPatchConfiguration>
         return surface;
     }
 
-    //DistributeVegetation 每根柱顶按概率放植被 对应原版 distributeVegetation
+    //DistributeVegetation place vegetation by chance on each column top, maps to vanilla distributeVegetation
     protected virtual void DistributeVegetation(FeaturePlaceContext context, WorldGenRegion level,
         VegetationPatchConfiguration config, RandomSource random, List<BlockPos> surface)
     {
@@ -179,13 +179,13 @@ public class VegetationPatchFeature : Feature<VegetationPatchConfiguration>
         }
     }
 
-    //PlaceVegetation 在柱顶朝外那一格放植被 对应原版 placeVegetation
+    //PlaceVegetation place vegetation one cell out from the column top, maps to vanilla placeVegetation
     protected virtual bool PlaceVegetation(WorldGenRegion level, VegetationPatchConfiguration config,
         ChunkGenerator generator, RandomSource random, BlockPos vegetationPos)
         => PlacedFeatureHelpers.Place(config.VegetationFeature, level, generator, random,
             vegetationPos.Offset(config.Surface.GetDirection().Opposite));
 
-    //PlaceGround 从柱顶向外逐格替换成地表方块 遇见不可替换的方块提前收手 对应原版 placeGround
+    //PlaceGround replace outward from the column top with ground blocks, stopping early at a non-replaceable block, maps to vanilla placeGround
     protected static bool PlaceGround(WorldGenRegion level, VegetationPatchConfiguration config,
         RandomSource random, ref BlockPos belowPos, int depth)
     {
@@ -204,13 +204,13 @@ public class VegetationPatchFeature : Feature<VegetationPatchConfiguration>
     }
 }
 
-//WaterloggedVegetationPatchFeature 含水植被斑块特征 对应原版 WaterloggedVegetationPatchFeature
-//铺完地面后把没有被侧面或下方露出的柱顶灌满水 放植被时再把方块标成含水
+//WaterloggedVegetationPatchFeature waterlogged vegetation patch feature, maps to vanilla WaterloggedVegetationPatchFeature
+//After laying the ground, fills column tops not exposed from the sides or below with water, and marks blocks waterlogged when placing vegetation
 public sealed class WaterloggedVegetationPatchFeature : VegetationPatchFeature
 {
     private const string FeatureId = "waterlogged_vegetation_patch";
 
-    //名字不能与基类的 Instance 重名 否则派生类会把它遮住
+    //The name must not collide with the base class Instance, otherwise the derived class would shadow it
     public static readonly WaterloggedVegetationPatchFeature WaterloggedInstance = Register(
         Identifier.WithDefaultNamespace(FeatureId),
         new WaterloggedVegetationPatchFeature(Identifier.WithDefaultNamespace(FeatureId)));
@@ -233,13 +233,13 @@ public sealed class WaterloggedVegetationPatchFeature : VegetationPatchFeature
         return waterSurface;
     }
 
-    //IsExposed 四水平向或下方有任一面没被整面遮住就算露出 对应原版 isExposed
+    //IsExposed exposed if any of the four horizontal sides or the bottom is not fully covered, maps to vanilla isExposed
     private static bool IsExposed(WorldGenRegion level, BlockPos pos)
         => IsExposedDirection(level, pos, Direction.North) || IsExposedDirection(level, pos, Direction.East)
             || IsExposedDirection(level, pos, Direction.South) || IsExposedDirection(level, pos, Direction.West)
             || IsExposedDirection(level, pos, Direction.Down);
 
-    //IsExposedDirection 该面朝向的邻格没有顶住本格就算露出 对应原版 isExposedDirection
+    //IsExposedDirection exposed when the neighbor in that direction does not support this cell, maps to vanilla isExposedDirection
     private static bool IsExposedDirection(WorldGenRegion level, BlockPos pos, Direction direction)
     {
         var neighbourPos = pos.Offset(direction);
@@ -249,7 +249,7 @@ public sealed class WaterloggedVegetationPatchFeature : VegetationPatchFeature
     protected override bool PlaceVegetation(WorldGenRegion level, VegetationPatchConfiguration config,
         ChunkGenerator generator, RandomSource random, BlockPos placementPos)
     {
-        //原版拿柱顶下一格去放植被 再回看柱顶自身是否需要标成含水
+        //Vanilla places vegetation at the cell below the column top, then revisits the top itself to mark it waterlogged
         if (!base.PlaceVegetation(level, config, generator, random, placementPos.Offset(Direction.Down)))
             return false;
         var placed = VegetationSupport.Get(level, placementPos);
@@ -260,8 +260,8 @@ public sealed class WaterloggedVegetationPatchFeature : VegetationPatchFeature
     }
 }
 
-//MultifaceGrowthConfiguration 多面生长配置 对应原版 MultifaceGrowthConfiguration
-//validDirections 按天花板 地面 墙面三个开关的声明序拼出来 洗牌顺序依赖它
+//MultifaceGrowthConfiguration multiface growth configuration, maps to vanilla MultifaceGrowthConfiguration
+//validDirections is assembled in the declaration order of the ceiling, floor and wall flags; the shuffle order depends on it
 public sealed class MultifaceGrowthConfiguration : FeatureConfiguration
 {
     public static readonly Codec<MultifaceGrowthConfiguration> Codec =
@@ -310,11 +310,11 @@ public sealed class MultifaceGrowthConfiguration : FeatureConfiguration
         if (canPlaceOnWall) _validDirections.AddRange(VegetationSupport.HorizontalPlane);
     }
 
-    //GetShuffledDirections 可放置方向洗牌副本 对应原版 getShuffledDirections
+    //GetShuffledDirections shuffled copy of the placeable directions, maps to vanilla getShuffledDirections
     public List<Direction> GetShuffledDirections(RandomSource random)
         => VegetationSupport.ShuffledCopy(_validDirections, random);
 
-    //GetShuffledDirectionsExcept 排除某方向后洗牌副本 对应原版 getShuffledDirectionsExcept
+    //GetShuffledDirectionsExcept shuffled copy excluding one direction, maps to vanilla getShuffledDirectionsExcept
     public List<Direction> GetShuffledDirectionsExcept(RandomSource random, Direction excludeDirection)
     {
         var filtered = new List<Direction>();
@@ -324,9 +324,9 @@ public sealed class MultifaceGrowthConfiguration : FeatureConfiguration
     }
 }
 
-//MultifaceGrowthFeature 多面生长特征 对应原版 MultifaceGrowthFeature
-//先在原点试放 不成再沿每个可放置方向逐格搜索空气或同类方块
-//原版放置后会调用方块自己的扩散器 本作没有该机制 只保留放置与扩散概率的随机消耗
+//MultifaceGrowthFeature multiface growth feature, maps to vanilla MultifaceGrowthFeature
+//Tries the origin first, then searches cell by cell along each placeable direction for air or the same block type
+//Vanilla invokes the block's own spreader after placing; there is no such mechanism here, so only the placement and the spread-probability random consumption are kept
 public sealed class MultifaceGrowthFeature : Feature<MultifaceGrowthConfiguration>
 {
     private const string FeatureId = "multiface_growth";
@@ -351,7 +351,7 @@ public sealed class MultifaceGrowthFeature : Feature<MultifaceGrowthConfiguratio
             var placementDirections = config.GetShuffledDirectionsExcept(random, searchDirection.Opposite);
             for (var i = 0; i < config.SearchRange; i++)
             {
-                //原版自原点沿搜索方向逐格推进 第 i 轮落在第 i+1 格
+                //Vanilla advances cell by cell from the origin along the search direction, landing on cell i+1 on round i
                 var pos = origin.Relative(searchDirection, i + 1);
                 var state = VegetationSupport.Get(level, pos);
                 if (!IsAirOrWater(state) && !VegetationSupport.IsState(state, config.PlaceBlock.Id.Path)) continue;
@@ -361,11 +361,11 @@ public sealed class MultifaceGrowthFeature : Feature<MultifaceGrowthConfiguratio
         return false;
     }
 
-    //IsAirOrWater 空气或水 对应原版 isAirOrWater
+    //IsAirOrWater air or water, maps to vanilla isAirOrWater
     private static bool IsAirOrWater(BlockState state)
         => state.Owner.IsAir || VegetationSupport.IsState(state, "water");
 
-    //PlaceGrowthIfPossible 逐方向找一个能依附的邻居并落子 对应原版 placeGrowthIfPossible
+    //PlaceGrowthIfPossible find one attachable neighbor per direction and place there, maps to vanilla placeGrowthIfPossible
     public static bool PlaceGrowthIfPossible(WorldGenRegion level, BlockPos pos, BlockState oldState,
         MultifaceGrowthConfiguration config, RandomSource random, List<Direction> placementDirections)
     {
@@ -376,14 +376,14 @@ public sealed class MultifaceGrowthFeature : Feature<MultifaceGrowthConfiguratio
             var newState = StateForPlacement(oldState, level, pos, placementDirection, config.PlaceBlock);
             if (newState is not { } toPlace) return false;
             VegetationSupport.Set(level, pos, toPlace);
-            //原版命中扩散概率时会驱动方块的扩散器 本作没有该机制 只保留概率本身的随机消耗
+            //Vanilla drives the block spreader when the spread roll hits; there is no such mechanism here, so only the random consumption of the roll is kept
             if (random.NextFloat() < config.ChanceOfSpreading) return true;
             return true;
         }
         return false;
     }
 
-    //StateForPlacement 按旧状态算出带朝向面的新状态 对应原版 MultifaceBlock.getStateForPlacement
+    //StateForPlacement derive the new state with the facing face from the old state, maps to vanilla MultifaceBlock.getStateForPlacement
     private static BlockState? StateForPlacement(BlockState oldState, WorldGenRegion level, BlockPos placePos,
         Direction placementDirection, RegBlock placeBlock)
     {
@@ -396,7 +396,7 @@ public sealed class MultifaceGrowthFeature : Feature<MultifaceGrowthConfiguratio
         return VegetationSupport.WithProperty(newState, VegetationSupport.FaceName(placementDirection), true);
     }
 
-    //IsValidStateForPlacement 该面还没长且邻居顶得住这一面 对应原版 isValidStateForPlacement
+    //IsValidStateForPlacement the face has not grown yet and the neighbor supports it, maps to vanilla isValidStateForPlacement
     private static bool IsValidStateForPlacement(WorldGenRegion level, BlockState oldState, BlockPos placementPos,
         Direction placementDirection, RegBlock placeBlock)
     {
@@ -414,7 +414,7 @@ public sealed class MultifaceGrowthFeature : Feature<MultifaceGrowthConfiguratio
     }
 }
 
-//RootSystemConfiguration 根系配置 对应原版 RootSystemConfiguration
+//RootSystemConfiguration root system configuration, maps to vanilla RootSystemConfiguration
 public sealed class RootSystemConfiguration : FeatureConfiguration
 {
     public static readonly Codec<RootSystemConfiguration> Codec =
@@ -502,8 +502,8 @@ public sealed class RootSystemConfiguration : FeatureConfiguration
         => PlacedFeatureHelpers.SubFeatures(TreeFeature);
 }
 
-//RootSystemFeature 根系特征 对应原版 RootSystemFeature
-//先沿水柱向上找能长树的位置 放好树后把从原点到树位之间换成扎根土 最后在下方播撒垂根
+//RootSystemFeature root system feature, maps to vanilla RootSystemFeature
+//Searches up the water column for a tree spot, places the tree, replaces the column from origin to tree with rooted dirt, then scatters hanging roots below
 public sealed class RootSystemFeature : Feature<RootSystemConfiguration>
 {
     private const string FeatureId = "root_system";
@@ -526,7 +526,7 @@ public sealed class RootSystemFeature : Feature<RootSystemConfiguration>
         return true;
     }
 
-    //PlaceDirtAndTree 自原点向上逐格找落树点 找到就放树并铺扎根土 对应原版 placeDirtAndTree
+    //PlaceDirtAndTree search upward from the origin for a tree spot; on success place the tree and lay rooted dirt, maps to vanilla placeDirtAndTree
     private static bool PlaceDirtAndTree(WorldGenRegion level, ChunkGenerator generator,
         RootSystemConfiguration config, RandomSource random, ref BlockPos workingPos, BlockPos origin)
     {
@@ -546,7 +546,7 @@ public sealed class RootSystemFeature : Feature<RootSystemConfiguration>
         return false;
     }
 
-    //SpaceForTree 上方足够高且四周同一水平面无高差 对应原版 spaceForTree
+    //SpaceForTree enough height above and no height difference around the same level, maps to vanilla spaceForTree
     private static bool SpaceForTree(WorldGenRegion level, RootSystemConfiguration config, BlockPos pos)
     {
         var columnUpPos = pos;
@@ -569,7 +569,7 @@ public sealed class RootSystemFeature : Feature<RootSystemConfiguration>
         return true;
     }
 
-    //IsAllowedTreeSpace 空气可以 水最多没过指定格数 对应原版 isAllowedTreeSpace
+    //IsAllowedTreeSpace air is fine; water may cover at most the given number of cells, maps to vanilla isAllowedTreeSpace
     private static bool IsAllowedTreeSpace(BlockState state, int blocksAboveOrigin, int allowedVerticalWaterHeight)
     {
         if (state.Owner.IsAir) return true;
@@ -577,7 +577,7 @@ public sealed class RootSystemFeature : Feature<RootSystemConfiguration>
         return blocksAboveGround <= allowedVerticalWaterHeight && VegetationSupport.IsState(state, "water");
     }
 
-    //PlaceDirt 把原点到树位之间的柱子换成扎根土 对应原版 placeDirt
+    //PlaceDirt replace the column between origin and tree spot with rooted dirt, maps to vanilla placeDirt
     private static void PlaceDirt(BlockPos origin, int targetHeight, WorldGenRegion level,
         RootSystemConfiguration config, RandomSource random)
     {
@@ -585,7 +585,7 @@ public sealed class RootSystemFeature : Feature<RootSystemConfiguration>
             PlaceRootedDirt(level, config, random, origin.X, origin.Z, new BlockPos(origin.X, y, origin.Z));
     }
 
-    //PlaceRootedDirt 在半径内随机找可替换位置换扎根土 对应原版 placeRootedDirt
+    //PlaceRootedDirt randomly find replaceable cells within the radius and turn them into rooted dirt, maps to vanilla placeRootedDirt
     private static void PlaceRootedDirt(WorldGenRegion level, RootSystemConfiguration config, RandomSource random,
         int originX, int originZ, BlockPos columnPos)
     {
@@ -601,8 +601,8 @@ public sealed class RootSystemFeature : Feature<RootSystemConfiguration>
         }
     }
 
-    //PlaceRoots 在原点周围随机播撒垂根 对应原版 placeRoots
-    //原版还判了垂根的 canSurvive 本作没有该方块的存活判定 只用上方顶面实心条件
+    //PlaceRoots randomly scatter hanging roots around the origin, maps to vanilla placeRoots
+    //Vanilla also checks the hanging root's canSurvive; there is no survival check for that block, so only the solid top face above is required
     private static void PlaceRoots(WorldGenRegion level, RootSystemConfiguration config, RandomSource random,
         BlockPos pos)
     {

@@ -5,8 +5,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//HeightmapPlacement 高度图放置对应原版 HeightmapPlacement
-//把位置抬到指定高度图的高度
+//HeightmapPlacement heightmap placement, maps to vanilla HeightmapPlacement
+//Raises the position to the height of the given heightmap
 public sealed class HeightmapPlacement : PlacementModifier
 {
     public static readonly Codec<HeightmapPlacement> Codec =
@@ -19,7 +19,7 @@ public sealed class HeightmapPlacement : PlacementModifier
 
     private HeightmapPlacement(Heightmap.Types heightmap) => Heightmap = heightmap;
 
-    //OnHeightmap 构造入口对应原版 onHeightmap
+    //OnHeightmap construction entry, maps to vanilla onHeightmap
     public static HeightmapPlacement OnHeightmap(Heightmap.Types heightmap) => new(heightmap);
 
     public override IEnumerable<BlockPos> GetPositions(PlacementContext context, RandomSource random, BlockPos origin)
@@ -33,7 +33,7 @@ public sealed class HeightmapPlacement : PlacementModifier
     public override PlacementModifierType Type => HeightmapPlacementType.Instance;
 }
 
-//HeightmapPlacementType 对应原版 PlacementModifierType.HEIGHTMAP
+//HeightmapPlacementType, maps to vanilla PlacementModifierType.HEIGHTMAP
 public sealed class HeightmapPlacementType : PlacementModifierType<HeightmapPlacement>
 {
     public static readonly HeightmapPlacementType Instance = Register(

@@ -2,10 +2,10 @@ using System.Text.Json;
 
 namespace NetCraft.Game.Server.JsonRpc.WebSocket;
 
-//JsonToWebSocketEncoder JSON 转管理服务 websocket 文本帧 对应原版 net.minecraft.server.jsonrpc.websocket.JsonToWebSocketEncoder
-//原版继承 netty MessageToMessageEncoder 这里直接给出 JSON 元素到文本的转换
+//JsonToWebSocketEncoder converts JSON to a service websocket text frame, maps to vanilla net.minecraft.server.jsonrpc.websocket.JsonToWebSocketEncoder
+//Vanilla extends netty MessageToMessageEncoder; this directly provides the JSON element to text conversion
 public static class JsonToWebSocketEncoder
 {
-    //Encode 把 JSON 元素序列化为 websocket 文本帧内容
+    //Encode serializes the JSON element into websocket text frame content
     public static string Encode(JsonElement value) => value.GetRawText();
 }

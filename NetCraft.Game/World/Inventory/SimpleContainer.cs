@@ -2,8 +2,8 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.World.Inventory;
 
-//SimpleContainer 固定大小简单容器对应原版 net.minecraft.world.SimpleContainer
-//用于合成格/结果槽等只需要槽位读写不需要额外逻辑的场景
+//SimpleContainer fixed-size simple container, maps to vanilla net.minecraft.world.SimpleContainer
+//Used for the crafting grid/result slot and similar cases that need only slot read/write without extra logic
 public sealed class SimpleContainer : Container
 {
     private readonly ItemStack[] _items;
@@ -62,6 +62,6 @@ public sealed class SimpleContainer : Container
 
     public void SetChanged() => Changed?.Invoke(this);
 
-    //Changed 内容变更事件 由菜单订阅
+    //Changed content change event, subscribed by the menu
     public event Action<Container>? Changed;
 }

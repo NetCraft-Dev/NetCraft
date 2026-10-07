@@ -9,8 +9,8 @@ using T = NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Templates;
 using NetCraft.DataFixer.Util;
 
-//RecursiveTypeFamily递归类型家族对应原版RecursiveTypeFamily
-//由模板构建按index返回RecursivePointType用于递归类型
+//RecursiveTypeFamily recursive type family maps to vanilla RecursiveTypeFamily
+//built from a template, returns RecursivePointType per index, used for recursive types
 public sealed class RecursiveTypeFamily : TypeFamily
 {
     private readonly string _name;
@@ -31,7 +31,7 @@ public sealed class RecursiveTypeFamily : TypeFamily
     public TypeTemplate Template() => _template;
     public int Size() => _size;
 
-    //buildMuType根据新类型查找或构造对应家族
+    //buildMuType finds or constructs the family for the new type
     public object BuildMuType<A>(T.Type<A> newType, RecursiveTypeFamily? newFamily)
     {
         if (newFamily == null)
@@ -64,14 +64,14 @@ public sealed class RecursiveTypeFamily : TypeFamily
         return newMuType;
     }
 
-    //fold按代数产生index到RewriteResult的函数
+    //fold produces a function from index to RewriteResult using an algebra
     public Func<int, RewriteResult<object, object>> Fold(Algebra algebra, RecursiveTypeFamily newFamily)
         => index =>
         {
             var result = algebra.Apply(index);
             var func = FoldUnchecked<object, object>(this, newFamily, algebra, index);
-            //对齐原版View.create(fold)只传function
-            //type/newType从func.type()推导为RecursivePointType而非result.view里的CheckType
+            //aligns with vanilla View.create(fold), passing only function
+            //type/newType are derived from func.type() as RecursivePointType rather than the CheckType in result.view
             var funcType = (NetCraft.DataFixer.Types.Func<object, object>)func.Type()!;
             return RewriteResult<object, object>.Create(
                 View<object, object>.Create(
@@ -81,7 +81,7 @@ public sealed class RecursiveTypeFamily : TypeFamily
                 result.RecData());
         };
 
-    //foldUnchecked按index取家族两端类型构造折叠PointFree
+    //foldUnchecked takes the family's two-sided types at the index to build the folded PointFree
     private static PointFree<Func<A, B>> FoldUnchecked<A, B>(
         RecursiveTypeFamily family, RecursiveTypeFamily newFamily, Algebra algebra, int index)
     {
@@ -90,7 +90,7 @@ public sealed class RecursiveTypeFamily : TypeFamily
         return Functions.Fold<A, B>(type, newType, algebra, index);
     }
 
-    //apply按索引返回RecursivePointType缓存构造
+    //apply returns the RecursivePointType at the given index, constructing and caching it
     public T.Type<object> Apply(int index)
     {
         if (index < 0) throw new IndexOutOfRangeException();
@@ -105,7 +105,7 @@ public sealed class RecursiveTypeFamily : TypeFamily
         return type;
     }
 
-    //findType在指定索引处查找子类型optic
+    //findType looks up the child type optic at the given index
     public Either<object, T.Type<object>.FieldNotFoundException> FindType<A, B>(
         int index, T.Type<A> aType, T.Type<B> bType, T.Type<object>.TypeMatcher<A, B> matcher, bool recurse)
     {
@@ -124,7 +124,7 @@ public sealed class RecursiveTypeFamily : TypeFamily
             if (recurse)
             {
                 var fo = new List<FamilyOptic<A, B>>();
-                //FamilyOptic是类非委托lambda需用TypeFamily.FamilyOptic工厂包装
+                //FamilyOptic is a class, not a delegate lambda, so it must be wrapped with the TypeFamily.FamilyOptic factory
                 var arg = TypeFamily.FamilyOptic<A, B>(i => fo[0].Apply(i));
                 fo.Add((FamilyOptic<A, B>)(object)_template.ApplyO(arg, aType, bType)!);
                 var parts = fo[0].Apply(index);
@@ -138,7 +138,7 @@ public sealed class RecursiveTypeFamily : TypeFamily
         });
     }
 
-    //mkSimpleOptic非递归情况下直接构造简单optic
+    //mkSimpleOptic builds a simple optic directly in the non-recursive case
     private Either<object, T.Type<object>.FieldNotFoundException> MkSimpleOptic<S, T2, A, B>(
         RecursivePoint.RecursivePointType<S> sType, RecursivePoint.RecursivePointType<T2> tType,
         T.Type<A> aType, T.Type<B> bType, T.Type<object>.TypeMatcher<A, B> matcher)
@@ -149,7 +149,7 @@ public sealed class RecursiveTypeFamily : TypeFamily
             .MapRight(fn => (T.Type<object>.FieldNotFoundException)(object)fn);
     }
 
-    //everywhere递归到处应用规则
+    //everywhere applies the rule recursively everywhere
     public Optional<RewriteResult<object, object>> Everywhere(
         int index, object rule, PointFreeRule optimizationRule)
     {
@@ -191,7 +191,7 @@ public sealed class RecursiveTypeFamily : TypeFamily
                 fold.RecData()));
     }
 
-    //cap2合并单index重写到views列表返回是否nop
+    //cap2 merges a single-index rewrite into the views list and returns whether it is nop
     private bool Cap2<A, B>(
         List<RewriteResult<object, object>> views,
         RecursivePoint.RecursivePointType<A> type,
@@ -199,8 +199,8 @@ public sealed class RecursiveTypeFamily : TypeFamily
         bool nop, RewriteResult<object, object> view,
         RecursivePoint.RecursivePointType<B> newType)
     {
-        //view实际可能是RewriteResult<Either<object,object>,object>等子类型
-        //严格泛型不变量下不能cast为RewriteResult<A,B>用Unsafe.As绕过运行时检查
+        //view may actually be a subtype such as RewriteResult<Either<object,object>,object>
+        //under strict generic invariance it cannot be cast to RewriteResult<A,B>; use Unsafe.As to bypass the runtime check
         var viewObj1 = (object)view;
         var viewAsAB = System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<A, B>>(ref viewObj1);
         var newView = ComposeRewrite<A, B, B>(
@@ -210,9 +210,9 @@ public sealed class RecursiveTypeFamily : TypeFamily
         if (rewrite.IsPresent && !rewrite.Get().View().IsNop())
         {
             nop = false;
-            //rewrite.Get()返回RewriteResult<object,object>实际可能是RewriteResult<B,B>
-            //ComposeRewrite返回RewriteResult<A,B>实际可能是RewriteResult<object,object>
-            //两处都用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+            //rewrite.Get() returns RewriteResult<object,object> but may actually be RewriteResult<B,B>
+            //ComposeRewrite returns RewriteResult<A,B> but may actually be RewriteResult<object,object>
+            //both places use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
             var rewriteObj = (object)rewrite.Get();
             var rewriteAsBB = System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<B, B>>(ref rewriteObj);
             var composedObj = (object)ComposeRewrite<A, B, B>(rewriteAsBB, newView);
@@ -225,15 +225,15 @@ public sealed class RecursiveTypeFamily : TypeFamily
         return nop;
     }
 
-    //composeRewrite合并两个RewriteResult复用View复合
+    //composeRewrite merges two RewriteResults, reusing View composition
     private static RewriteResult<C, B2> ComposeRewrite<C, A2, B2>(
         RewriteResult<A2, B2> first, RewriteResult<C, A2> second)
         => RewriteResult<C, B2>.Create(
             ComposeView<A2, C, B2>(first.View(), second.View()),
             first.RecData());
 
-    //composeView复合两个View处理nop短路
-    //PointFree/View强转都用Unsafe.As绕过C#严格泛型不变量对齐Java类型擦除
+    //composeView composes two Views, handling nop short-circuiting
+    //both PointFree/View casts use Unsafe.As to bypass C# strict generic invariance, aligning with Java type erasure
     private static View<C, B2> ComposeView<A2, C, B2>(View<A2, B2> first, View<C, A2> second)
     {
         if (first.IsNop())

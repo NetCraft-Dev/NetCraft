@@ -2,30 +2,30 @@ using System.Numerics;
 
 namespace NetCraft.Gpu;
 
-//EntityVertexBuilder 实体顶点缓冲构造器
-//ModelPart.compile 通过此接口写入 44 字节顶点 POSITION_COLOR_TEX_OVERLAY_LIGHT_NORMAL
-//11 float/顶点 position(3)+color(1)+uv(2)+overlay(1)+light(1)+normal(3)
-//color/overlay/light 存 packed int 的 float 位模式 shader 用 intBitsToFloat 解包
-//Indices 每 quad 6 索引 2 三角形 pipeline 拓扑 TriangleList
+//EntityVertexBuilder entity vertex buffer builder
+//ModelPart.compile writes 44-byte vertices through this interface: POSITION_COLOR_TEX_OVERLAY_LIGHT_NORMAL
+//11 floats/vertex position(3)+color(1)+uv(2)+overlay(1)+light(1)+normal(3)
+//color/overlay/light store a packed int's float bit pattern; the shader unpacks with intBitsToFloat
+//Indices 6 indices per quad, 2 triangles, pipeline topology TriangleList
 public sealed class EntityVertexBuilder
 {
-    //Vertices 顶点数据 11 float/顶点 连续存储供 MemoryMarshal.AsBytes 转 byte[] 上传 GPU
+    //Vertices vertex data 11 floats/vertex stored contiguously for MemoryMarshal.AsBytes to convert to byte[] for GPU upload
     public List<float> Vertices { get; } = new();
-    //Indices 索引数据 每 quad 6 索引 供 DrawIndexed 使用
+    //Indices index data 6 indices per quad, used by DrawIndexed
     public List<int> Indices { get; } = new();
 
-    //VertexCount 顶点数
+    //VertexCount vertex count
     public int VertexCount => Vertices.Count / 11;
 
-    //AddVertex 添加一个实体顶点返回顶点索引供调用方构建 Indices
-    //pos 已经过 PoseStack 变换的世界坐标 color/overlay/light 是 packed int
+    //AddVertex adds an entity vertex and returns the vertex index for the caller to build Indices
+    //pos is a world coordinate already transformed by PoseStack; color/overlay/light are packed ints
     public int AddVertex(Vector3 pos, int color, float u, float v, int overlay, int light, Vector3 normal)
     {
         var index = VertexCount;
         Vertices.Add(pos.X);
         Vertices.Add(pos.Y);
         Vertices.Add(pos.Z);
-        //color/overlay/light 用 BitConverter.Int32BitsToSingle 存位模式 shader 解包
+        //color/overlay/light use BitConverter.Int32BitsToSingle to store the bit pattern the shader unpacks
         Vertices.Add(BitConverter.Int32BitsToSingle(color));
         Vertices.Add(u);
         Vertices.Add(v);
@@ -37,8 +37,8 @@ public sealed class EntityVertexBuilder
         return index;
     }
 
-    //AddQuad 添加一个四边形 4 顶点 + 6 索引 2 三角形 CCW 从外侧看
-    //4 顶点顺序 p0-p1-p2-p3 对应 UV (u0,v0)-(u1,v0)-(u1,v1)-(u0,v1)
+    //AddQuad adds a quad 4 vertices + 6 indices 2 triangles CCW seen from outside
+    //The 4 vertices are ordered p0-p1-p2-p3 with UVs (u0,v0)-(u1,v0)-(u1,v1)-(u0,v1)
     public void AddQuad(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3,
         int color, float u0, float v0, float u1, float v1,
         int overlay, int light, Vector3 normal)
@@ -55,9 +55,9 @@ public sealed class EntityVertexBuilder
         Indices.Add(i3);
     }
 
-    //AddQuad 按已烘焙四边形写顶点与索引 保留逐顶点 UV
-    //方块的 BakedQuad 四个角 UV 不一定是轴对齐矩形 必须逐顶点写不能走 AddQuad 的两角形式
-    //pose/normalMatrix 把 quad 的模型空间顶点与法线变换到世界空间
+    //AddQuad writes vertices and indices from a baked quad, preserving per-vertex UVs
+    //A block's BakedQuad corner UVs are not necessarily an axis-aligned rectangle, so write per-vertex instead of the two-corner AddQuad form
+    //pose/normalMatrix transforms the quad's model-space vertices and normals into world space
     public void AddQuad(in BakedQuad quad, Matrix4x4 pose, Matrix4x4 normalMatrix,
         int color, int overlay, int light)
     {
@@ -74,6 +74,6 @@ public sealed class EntityVertexBuilder
         Indices.Add(i3);
     }
 
-    //Clear 清空顶点和索引供 frame reuse
+    //Clear empties vertices and indices for frame reuse
     public void Clear() { Vertices.Clear(); Indices.Clear(); }
 }

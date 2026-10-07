@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundUpdateMobEffectPacket 药水效果更新包对应原版 ClientboundUpdateMobEffectPacket
-//字段 EntityId(int) Effect(Holder<MobEffect>) EffectAmplifier(int) EffectDurationTicks(int) Flags(byte)
+//ClientboundUpdateMobEffectPacket mob effect update packet, maps to vanilla ClientboundUpdateMobEffectPacket
+//Fields: EntityId(int), Effect(Holder<MobEffect>), EffectAmplifier(int), EffectDurationTicks(int), Flags(byte)
 public sealed record ClientboundUpdateMobEffectPacket(int EntityId, Holder<NetCraft.Registry.MobEffect> Effect, int EffectAmplifier, int EffectDurationTicks, byte Flags) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<RegistryFriendlyByteBuf, ClientboundUpdateMobEffectPacket> StreamCodec { get; } = new UpdateMobEffectCodec();
@@ -10,7 +10,7 @@ public sealed record ClientboundUpdateMobEffectPacket(int EntityId, Holder<NetCr
 
     public void Handle(ClientGamePacketListener handler) => handler.HandleUpdateMobEffect(this);
 
-    //Create 按效果实例构造更新包 flags 位 ambient=1 visible=2 showIcon=4 blend=8
+    //Create builds an update packet from an effect instance; flags bits ambient=1 visible=2 showIcon=4 blend=8
     public static ClientboundUpdateMobEffectPacket Create(int entityId, NetCraft.Game.World.Effect.MobEffectInstance instance, bool blend)
     {
         byte flags = 0;
@@ -28,7 +28,7 @@ public sealed record ClientboundUpdateMobEffectPacket(int EntityId, Holder<NetCr
             var entityId = buf.ReadVarInt();
             var effectId = buf.ReadVarInt();
             var effect = BuiltInRegistries.MOB_EFFECT.Get(effectId)
-                ?? throw new InvalidOperationException($"未知药水效果 id {effectId}");
+                ?? throw new InvalidOperationException($"Unknown mob effect id {effectId}");
             var amplifier = buf.ReadVarInt();
             var duration = buf.ReadVarInt();
             var flags = buf.ReadByte();
@@ -39,7 +39,7 @@ public sealed record ClientboundUpdateMobEffectPacket(int EntityId, Holder<NetCr
         {
             buf.WriteVarInt(value.EntityId);
             var id = BuiltInRegistries.MOB_EFFECT.GetId(value.Effect.Value);
-            if (id < 0) throw new InvalidOperationException($"药水效果未注册: {value.Effect.Value}");
+            if (id < 0) throw new InvalidOperationException($"Mob effect not registered: {value.Effect.Value}");
             buf.WriteVarInt(id);
             buf.WriteVarInt(value.EffectAmplifier);
             buf.WriteVarInt(value.EffectDurationTicks);

@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items;
 
-//ItemInstance 物品实例的只读视图 对应原版 net.minecraft.world.item.ItemInstance
-//原版继承 TypedInstance<Item> 与 DataComponentGetter 这里把用到的成员直接列出来
+//ItemInstance read-only view of an item instance, maps to vanilla net.minecraft.world.item.ItemInstance
+//Vanilla extends TypedInstance<Item> and DataComponentGetter; here the members in use are listed directly
 public interface ItemInstance : DataComponentGetter
 {
     public const string FieldId = "id";
@@ -16,6 +16,6 @@ public interface ItemInstance : DataComponentGetter
 
     T? Get<T>(DataComponentType<T> type) where T : class;
 
-    //GetMaxStackSize 堆叠上限 缺省读 MAX_STACK_SIZE 组件
+    //GetMaxStackSize stack limit, reads the MAX_STACK_SIZE component by default
     int GetMaxStackSize() => Get(DataComponents.MAX_STACK_SIZE) is int size ? size : 1;
 }

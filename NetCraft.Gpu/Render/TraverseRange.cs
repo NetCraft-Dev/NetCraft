@@ -1,12 +1,12 @@
 namespace NetCraft.Gpu;
 
-//TraverseRange 遍历范围对标原版支持 blur 分段渲染
+//TraverseRange traversal range, maps to vanilla, supporting blur-segmented rendering
 public enum TraverseRange
 {
-    //All 遍历全部 stratum
+    //All traverses all strata
     All,
-    //BeforeBlur 遍历 blur 之前的 stratum
+    //BeforeBlur traverses the strata before blur
     BeforeBlur,
-    //AfterBlur 遍历 blur 之后的 stratum
+    //AfterBlur traverses the strata after blur
     AfterBlur
 }

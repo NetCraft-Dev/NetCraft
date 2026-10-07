@@ -3,9 +3,9 @@ using NetCraft.DataFixer.Schemas;
 
 namespace NetCraft.DataFixer.Fixes;
 
-//掉落几率格式修复对应原版DropChancesFormatFix
-//1.21.4把ArmorDropChances/HandDropChances/body_armor_drop_chance合并为DropChances map字段
-//默认几率0.085f不变的不写入map
+//drop chances format fix, maps to vanilla DropChancesFormatFix
+//1.21.4 merges ArmorDropChances/HandDropChances/body_armor_drop_chance into the DropChances map field
+//values left at the default 0.085f are not written into the map
 public class DropChancesFormatFix : DataFix
 {
     private const float DEFAULT_CHANCE = 0.085f;
@@ -34,7 +34,7 @@ public class DropChancesFormatFix : DataFix
                 return newRemainder;
             }));
 
-    //addSlotChances按slotNames与chances对齐写入非默认值到output map
+    //addSlotChances writes non-default values into the output map, aligned by slotNames and chances
     private static Dynamic<object> AddSlotChances(Dynamic<object> output, List<float> chances, string[] slotNames)
     {
         for (int i = 0; i < slotNames.Length && i < chances.Count; i++)
@@ -48,7 +48,7 @@ public class DropChancesFormatFix : DataFix
         return output;
     }
 
-    //parseDropChances从OptionalDynamic读列表每个元素转float默认0.085f
+    //parseDropChances reads a list from OptionalDynamic and converts each element to float, defaulting to 0.085f
     private static List<float> ParseDropChances(OptionalDynamic<object> value)
         => value.AsStream().Result().OrElse(Enumerable.Empty<Dynamic<object>>())
             .Select(d => d.AsFloat(DEFAULT_CHANCE)).ToList();

@@ -1,9 +1,9 @@
 namespace NetCraft.Gpu;
 
-//HeaderAndFooterLayout 三段式布局对标原版 HeaderAndFooterLayout implements Layout
-//header 顶部 footer 底部 content 居中含上边距约束不超出 footer 上沿
-//原版依赖 Screen 此处用构造传入 screenWidth/screenHeight 去业务依赖保持 Gpu 层纯净
-//addTitleHeader 依赖 Font/Component 省略业务层可自行 addToHeader(new StringWidget)
+//HeaderAndFooterLayout three-section layout, maps to vanilla HeaderAndFooterLayout implements Layout
+//header top, footer bottom, content centered with a top margin constrained not to cross the footer's top
+//Vanilla depends on Screen; here screenWidth/screenHeight come from the constructor to remove the domain dependency and keep the GPU layer clean
+//addTitleHeader depends on Font/Component and is omitted; the domain layer can addToHeader(new StringWidget) itself
 public sealed class HeaderAndFooterLayout : ILayout
 {
     public const int MagicPadding = 13;
@@ -30,12 +30,12 @@ public sealed class HeaderAndFooterLayout : ILayout
         _screenHeight = screenHeight;
         _headerHeight = headerHeight;
         _footerHeight = footerHeight;
-        //header/footer 子元素默认居中对齐
+        //header/footer children are centered by default
         _headerFrame.DefaultChildLayoutSetting().Align(0.5f, 0.5f);
         _footerFrame.DefaultChildLayoutSetting().Align(0.5f, 0.5f);
     }
 
-    //X/Y 空操作布局锚定屏幕原点不可整体移动
+    //X/Y are no-ops; the layout is anchored to the screen origin and cannot move as a whole
     public int X { get => 0; set { } }
     public int Y { get => 0; set { } }
     public int Width => _screenWidth;
@@ -46,7 +46,7 @@ public sealed class HeaderAndFooterLayout : ILayout
     public void SetHeaderHeight(int height) => _headerHeight = height;
     public void SetFooterHeight(int height) => _footerHeight = height;
 
-    //ContentHeight 屏幕高度减去 header/footer 剩余可用高度
+    //ContentHeight the screen height minus header/footer, the remaining usable height
     public int ContentHeight => _screenHeight - _headerHeight - _footerHeight;
 
     public void VisitChildren(Action<ILayoutElement> visitor)
@@ -63,7 +63,7 @@ public sealed class HeaderAndFooterLayout : ILayout
         _footerFrame.RemoveChildren();
     }
 
-    //ArrangeElements header 贴顶 footer 贴底 content 居中且不越过 footer 上沿
+    //ArrangeElements header to the top, footer to the bottom, content centered and not crossing the footer's top
     public void ArrangeElements()
     {
         int headerHeight = _headerHeight;
@@ -81,7 +81,7 @@ public sealed class HeaderAndFooterLayout : ILayout
 
         _contentsFrame.SetMinWidth(_screenWidth);
         _contentsFrame.ArrangeElements();
-        //content 首选 Y=header+上边距但不得越过 footer 上沿
+        //content prefers Y=header+top margin but must not cross the footer's top
         int preferredContentY = headerHeight + ContentMarginTop;
         int maxContentY = _screenHeight - footerHeight - _contentsFrame.Height;
         _contentsFrame.SetPosition(0, Math.Min(preferredContentY, maxContentY));

@@ -9,9 +9,9 @@ using UtilSyntaxException = NetCraft.Util.Parsing.Packrat.Commands.CommandSyntax
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//NbtTagArgument 任意 NBT 标签参数对应原版 net.minecraft.commands.arguments.NbtTagArgument
-//命令里写成 0 0.0 {} {foo=bar} 这类 SNBT 片段 与只认复合标签的 CompoundTagArgument 互补
-//注册在网络 id 22(nbt_tag) 客户端按同 id 用原版解析器切词
+//NbtTagArgument any NBT tag argument, maps to vanilla net.minecraft.commands.arguments.NbtTagArgument
+//Written in commands as SNBT fragments such as 0 0.0 {} {foo=bar}, complementary to CompoundTagArgument which only accepts compound tags
+//Registered at network id 22 (nbt_tag); the client tokenizes with the vanilla parser by the same id
 public sealed class NbtTagArgument : ArgumentType<Tag>
 {
     private static readonly IReadOnlyList<string> ExamplesList = new[] { "0", "0.0", "{}", "{foo=bar}" };
@@ -22,7 +22,7 @@ public sealed class NbtTagArgument : ArgumentType<Tag>
 
     public Tag Parse(StringReader reader)
     {
-        //SNBT 解析器有自己的游标 借它解析后再把位置写回命令的 reader
+        //The SNBT parser has its own cursor; parse with it and write the position back to the command reader
         var nbtReader = new CommandStringReader(reader.String) { Cursor = reader.Cursor };
         Tag tag;
         try
@@ -37,11 +37,11 @@ public sealed class NbtTagArgument : ArgumentType<Tag>
         return tag;
     }
 
-    //ErrorInvalidTag 标签语法错误 对应原版 ERROR_INVALID_TYPE
+    //ErrorInvalidTag tag syntax error, maps to vanilla ERROR_INVALID_TYPE
     private static readonly DynamicCommandExceptionType ErrorInvalidTag =
-        new(arg => new LiteralMessage($"NBT 标签不合法: {arg}"));
+        new(arg => new LiteralMessage($"invalid NBT tag: {arg}"));
 
-    //GetNbtTag 取解析出的标签
+    //GetNbtTag gets the parsed tag
     public static Tag GetNbtTag(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<Tag>(name);
 

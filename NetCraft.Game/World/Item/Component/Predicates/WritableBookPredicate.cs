@@ -6,13 +6,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items.Component.Predicates;
 
-//WritableBookPredicate 书与笔谓词 判定页集合是否满足集合谓词
-//对应原版 net.minecraft.core.component.predicates.WritableBookPredicate
+//WritableBookPredicate writable book predicate, checks whether the page set satisfies the collection predicate
+//Maps to vanilla net.minecraft.core.component.predicates.WritableBookPredicate
 public sealed record WritableBookPredicate(
     Optional<CollectionPredicate<Filterable<string>, WritableBookPredicate.PagePredicate>> Pages)
     : SingleComponentItemPredicate<WritableBookContent>
 {
-    //Codec 持久化编解码 只有 pages 一个字段 对应原版 CODEC
+    //Codec persistence codec, only a pages field, maps to vanilla CODEC
     public static readonly Codec<WritableBookPredicate> Codec = RecordCodecBuilder.Of1(
         CollectionPredicate<Filterable<string>, PagePredicate>.Codec(PagePredicate.Codec)
             .OptionalFieldOf("pages")
@@ -23,7 +23,7 @@ public sealed record WritableBookPredicate(
 
     public bool MatchesValue(WritableBookContent value) => !Pages.IsPresent || Pages.Get().Test(value.Pages);
 
-    //PagePredicate 单页匹配 按裸文本相等 对应原版 PagePredicate
+    //PagePredicate single page match by raw text equality, maps to vanilla PagePredicate
     public sealed record PagePredicate(string Contents) : IValuePredicate<Filterable<string>>
     {
         public static readonly Codec<PagePredicate> Codec = Codecs.String.ComapFlatMap(

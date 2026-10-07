@@ -6,15 +6,15 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Game.Server;
 
-//SpawnFinder 新世界出生点搜索 对应原版 MinecraftServer.setInitialSpawn 的候选区块扫描
-//从建议落点起按原版螺旋顺序逐区块找能站人的地表 命中即停
+//SpawnFinder new-world spawn search, maps to the candidate chunk scan of vanilla MinecraftServer.setInitialSpawn
+//From the suggested landing point it walks chunks in vanilla spiral order looking for a standable surface, stopping on the first hit
 public static class SpawnFinder
 {
-    //CandidateRadius 候选区块半径 对应原版 Mth.square(11) 的 ±5
+    //CandidateRadius candidate chunk radius, maps to ±5 of vanilla Mth.square(11)
     private const int CandidateRadius = 5;
 
-    //Find 找安全出生点 找不到返回 null 由调用方保留原值
-    //suggestion 是建议落点 原版由噪声采样给出 本作取当前出生点
+    //Find finds a safe spawn point; returns null when none, leaving the caller to keep the original value
+    //suggestion is the suggested landing point; vanilla gives it by noise sampling, this takes the current spawn
     public static BlockPos? Find(PersistentServerLevel level, BlockPos suggestion, int minY)
     {
         var centerX = suggestion.X >> 4;
@@ -28,7 +28,7 @@ public static class SpawnFinder
             if (Math.Abs(offsetX) <= CandidateRadius && Math.Abs(offsetZ) <= CandidateRadius
                 && FindInChunk(level, new ChunkPos(centerX + offsetX, centerZ + offsetZ), minY) is { } found)
                 return found;
-            //原版螺旋步进 到拐点换向 顺序参与选点结果不能改
+            //Vanilla spiral stepping turning at corners; the order participates in the selection result and must not change
             if (offsetX == offsetZ || (offsetX < 0 && offsetX == -offsetZ)
                 || (offsetX > 0 && offsetX == 1 - offsetZ))
                 (stepX, stepZ) = (-stepZ, stepX);
@@ -38,7 +38,7 @@ public static class SpawnFinder
         return null;
     }
 
-    //FindInChunk 逐列扫区块找第一个安全落点 对应原版 PlayerSpawnFinder.getSpawnPosInChunk
+    //FindInChunk scans the chunk column by column for the first safe landing point, maps to vanilla PlayerSpawnFinder.getSpawnPosInChunk
     private static BlockPos? FindInChunk(PersistentServerLevel level, ChunkPos pos, int minY)
     {
         if (level.GetChunkSync(pos) is not { } chunk) return null;
@@ -51,8 +51,8 @@ public static class SpawnFinder
         return null;
     }
 
-    //FindColumn 单列找能站的地表 对应原版 PlayerSpawnFinder.getLevelRespawnPos
-    //MOTION_BLOCKING 给出可站立面 WORLD_SURFACE 与 OCEAN_FLOOR 用来排除水面
+    //FindColumn finds a standable surface in one column, maps to vanilla PlayerSpawnFinder.getLevelRespawnPos
+    //MOTION_BLOCKING gives the standable surface; WORLD_SURFACE and OCEAN_FLOOR are used to exclude water
     private static BlockPos? FindColumn(PersistentServerLevel level, ChunkAccess chunk, int x, int z, int minY)
     {
         var localX = x & 15;
@@ -64,9 +64,9 @@ public static class SpawnFinder
         CollisionGetter collision = new LevelCollisionGetter(level, level.MinSectionY, level.SectionsCount);
         for (var y = topY + 1; y >= minY; y--)
         {
-            //直接读区块 出生点搜索跑在主循环之前 关卡缓存可能还没并入
+            //Read the chunk directly; the spawn search runs before the main loop and the level cache may not be merged yet
             if (chunk.GetSection(y >> 4)?.GetBlockState(localX, y & 15, localZ) is not { } state) continue;
-            //顶上压着流体说明这列是水面 直接放弃该列
+            //A fluid on top means this column is water and is given up directly
             if (!state.FluidState.IsEmpty) break;
             var pos = new BlockPos(x, y, z);
             if (Block.IsFaceFull(CollisionContext.Empty.GetCollisionShape(state, collision, pos), Direction.Up))

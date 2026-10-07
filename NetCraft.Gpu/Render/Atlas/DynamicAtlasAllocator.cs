@@ -1,9 +1,9 @@
 namespace NetCraft.Gpu;
 
-//DynamicAtlasAllocator<K> 固定网格槽位分配器对标原版 DynamicAtlasAllocator
-//图集纹理按 width×height 网格切分每个槽位 1 单位×1 单位（实际像素由调用方 slotTextureSize 决定）
-//用 BitSet 标记空闲槽位 nextSetBit O(1) 找空位分配
-//reclaimSpaceFor 释放非目标 key 槽位腾出空间 endFrame 释放 discardAfterFrame 槽位
+//DynamicAtlasAllocator<K> fixed-grid slot allocator, maps to vanilla DynamicAtlasAllocator
+//The atlas texture is split into a width×height grid, each slot 1×1 unit (actual pixels decided by the caller's slotTextureSize)
+//Uses a BitSet to mark free slots; nextSetBit O(1) finds a slot to allocate
+//reclaimSpaceFor frees non-target key slots to make room; endFrame frees discardAfterFrame slots
 public sealed class DynamicAtlasAllocator<K> where K : notnull
 {
     private readonly int _width;
@@ -23,8 +23,8 @@ public sealed class DynamicAtlasAllocator<K> where K : notnull
         _freeSlots.Set(0, size);
     }
 
-    //ReclaimSpaceFor 释放非目标 key 槽位腾出空间直到能容纳 keys
-    //keys 全部已在用返回 true 否则释放非 keys 槽位直到 needSpaceFor=0
+    //ReclaimSpaceFor frees non-target key slots to make room until keys fit
+    //Returns true if all keys are already in use; otherwise frees non-key slots until needSpaceFor=0
     public bool ReclaimSpaceFor(IReadOnlySet<K> keys)
     {
         var preexisting = 0;
@@ -42,14 +42,14 @@ public sealed class DynamicAtlasAllocator<K> where K : notnull
         return needSpaceFor == 0;
     }
 
-    //EndFrame 释放 discardAfterFrame 标记的槽位对标原版 endFrame
-    //动画物品每帧重画 discardAfterFrame=true 帧末释放避免占满图集
+    //EndFrame frees slots marked discardAfterFrame, maps to vanilla endFrame
+    //Animated items redraw every frame with discardAfterFrame=true and are freed at frame end to avoid filling the atlas
     public void EndFrame()
     {
         FreeSlotIf((_, slot) => slot.DiscardAfterFrame);
     }
 
-    //FreeSlotIf 按 predicate 释放槽位归还到 freeSlots
+    //FreeSlotIf frees slots matching the predicate and returns them to freeSlots
     private void FreeSlotIf(Func<K, Slot, bool> predicate)
     {
         var keysToRemove = new List<K>();
@@ -63,7 +63,7 @@ public sealed class DynamicAtlasAllocator<K> where K : notnull
         foreach (var key in keysToRemove) _usedSlotByKey.Remove(key);
     }
 
-    //HasSpaceForAll keys 与已用槽位并集是否不超过总槽位数
+    //HasSpaceForAll whether the union of keys and used slots fits within the total slot count
     public bool HasSpaceForAll(IReadOnlySet<K> keys)
     {
         var unionCount = _usedSlotByKey.Count;
@@ -72,9 +72,9 @@ public sealed class DynamicAtlasAllocator<K> where K : notnull
         return unionCount <= _slots.Count;
     }
 
-    //GetOrAllocate 按 key 查槽位命中返回并标记 READY 否则找空闲槽位分配
-    //discardAfterFrame 动画物品 true 帧末释放
-    //返回 null 表示图集满需调 ReclaimSpaceFor 腾空间
+    //GetOrAllocate looks up a slot by key, returns and marks READY on a hit, otherwise finds a free slot to allocate
+    //discardAfterFrame true for animated items, freed at frame end
+    //Returns null when the atlas is full and ReclaimSpaceFor must be called to make room
     public Slot? GetOrAllocate(K key, bool discardAfterFrame)
     {
         if (_usedSlotByKey.TryGetValue(key, out var usedSlot))
@@ -94,22 +94,22 @@ public sealed class DynamicAtlasAllocator<K> where K : notnull
         return freeSlot;
     }
 
-    //FreeSlotCount 剩余空闲槽位数测试用
+    //FreeSlotCount remaining free slot count, for tests
     public int FreeSlotCount => _slots.Count - _usedSlotByKey.Count;
 
-    //UsedSlotKeys 已用槽位 key 集合测试用
+    //UsedSlotKeys set of used slot keys, for tests
     public IReadOnlyCollection<K> UsedSlotKeys => _usedSlotByKey.Keys;
 
-    //Slot 槽位记录图集网格坐标和状态
+    //Slot slot record with atlas grid coordinates and state
     public sealed class Slot
     {
         public int X { get; }
         public int Y { get; }
-        //DiscardAfterFrame 帧末释放动画物品 true
+        //DiscardAfterFrame true for animated items freed at frame end
         public bool DiscardAfterFrame;
-        //Fresh 首次分配标记首次后改 false 后续分配走 STALE 路径
+        //Fresh marks the first allocation; set false afterward so later allocations take the STALE path
         public bool Fresh = true;
-        //ExternalState EMPTY 新槽位 STALE 有旧数据需清 READY 已就绪
+        //ExternalState EMPTY new slot STALE has old data to clear READY ready
         public SlotState ExternalState = SlotState.Empty;
 
         internal Slot(int x, int y)
@@ -121,14 +121,14 @@ public sealed class DynamicAtlasAllocator<K> where K : notnull
         public SlotState State => ExternalState;
     }
 
-    //SlotState 槽位状态机对标原版
+    //SlotState slot state machine, maps to vanilla
     public enum SlotState
     {
-        //Empty 新槽位首次分配 fresh=true 改 false 后首次
+        //Empty new slot first allocation, fresh set to false afterward
         Empty,
-        //Stale 非首次分配有旧数据需上传前清
+        //Stale non-first allocation with old data that must be cleared before upload
         Stale,
-        //Ready 已就绪有数据可直接 blit
+        //Ready ready with data, can blit directly
         Ready
     }
 }

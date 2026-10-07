@@ -4,19 +4,19 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Inventory;
 
-//HashedStack 哈希栈对应原版 net.minecraft.network.HashedStack
-//客户端点击包上报的栈摘要 服务端据此校验客户端预测 本作不校验只解码
-//编码对应原版 ByteBufCodecs.optional(ActualItem.STREAM_CODEC) 空栈只写一个 false
+//HashedStack hashed stack, maps to vanilla net.minecraft.network.HashedStack
+//Stack digest reported in the client click packet, the server would validate the client prediction with it, this project only decodes without validating
+//Encoding maps to vanilla ByteBufCodecs.optional(ActualItem.STREAM_CODEC), an empty stack writes a single false
 public abstract class HashedStack
 {
-    //Empty 空栈单例
+    //Empty empty stack singleton
     public static readonly HashedStack Empty = new EmptyStack();
 
-    //StreamCodec 网络编解码
+    //StreamCodec network codec
     public static readonly StreamCodec<RegistryFriendlyByteBuf, HashedStack> StreamCodec
         = new HashedStackCodec();
 
-    //ActualItem 非空栈摘要 item holder + 数量 + 组件哈希
+    //ActualItem non-empty stack digest: item holder + count + component hash
     public sealed class ActualItem : HashedStack
     {
         public ActualItem(Holder<Item> item, int count, HashedPatchMap components)
@@ -26,20 +26,20 @@ public abstract class HashedStack
             Components = components;
         }
 
-        //Item 物品 holder 对应原版 item
+        //Item item holder, maps to vanilla item
         public Holder<Item> Item { get; }
 
-        //Count 数量 对应原版 count
+        //Count count, maps to vanilla count
         public int Count { get; }
 
-        //Components 组件哈希 对应原版 components
+        //Components component hash, maps to vanilla components
         public HashedPatchMap Components { get; }
     }
 
     private sealed class EmptyStack : HashedStack { }
 }
 
-//HashedStackCodec 空栈写 false 非空写 true 加 item holder 加数量加组件哈希
+//HashedStackCodec writes false for an empty stack and true plus item holder, count and component hash otherwise
 internal sealed class HashedStackCodec : StreamCodec<RegistryFriendlyByteBuf, HashedStack>
 {
     public HashedStack Decode(RegistryFriendlyByteBuf buf)
@@ -66,14 +66,14 @@ internal sealed class HashedStackCodec : StreamCodec<RegistryFriendlyByteBuf, Ha
     }
 }
 
-//HashedPatchMap 组件补丁哈希对应原版 net.minecraft.network.HashedPatchMap
-//addedComponents 记录新增组件类型到值哈希 removedComponents 记录被移除的组件类型
+//HashedPatchMap component patch hash, maps to vanilla net.minecraft.network.HashedPatchMap
+//addedComponents maps added component types to their value hashes, removedComponents records the removed component types
 public sealed class HashedPatchMap
 {
-    //MaxComponents 单项数量上限对应原版 256
+    //MaxComponents per-entry count limit, matches vanilla's 256
     internal const int MaxComponents = 256;
 
-    //StreamCodec 网络编解码
+    //StreamCodec network codec
     public static readonly StreamCodec<RegistryFriendlyByteBuf, HashedPatchMap> StreamCodec
         = new HashedPatchMapCodec();
 
@@ -83,21 +83,21 @@ public sealed class HashedPatchMap
         RemovedComponents = removedComponents;
     }
 
-    //AddedComponents 新增组件类型到值哈希
+    //AddedComponents maps added component types to value hashes
     public IReadOnlyDictionary<object, int> AddedComponents { get; }
 
-    //RemovedComponents 被移除的组件类型
+    //RemovedComponents removed component types
     public IReadOnlySet<object> RemovedComponents { get; }
 }
 
-//HashedPatchMapCodec 先写新增项再写移除项 前缀都是 VarInt 数量
+//HashedPatchMapCodec writes added entries then removed entries, each prefixed by a VarInt count
 internal sealed class HashedPatchMapCodec : StreamCodec<RegistryFriendlyByteBuf, HashedPatchMap>
 {
     public HashedPatchMap Decode(RegistryFriendlyByteBuf buf)
     {
         int addedCount = buf.ReadVarInt();
         if (addedCount > HashedPatchMap.MaxComponents)
-            throw new InvalidOperationException($"组件哈希新增项超限: {addedCount}");
+            throw new InvalidOperationException($"component hash added entries out of range: {addedCount}");
         var added = new Dictionary<object, int>(Math.Min(addedCount, ByteBufCodecs.MaxInitialCollectionSize));
         for (int i = 0; i < addedCount; i++)
         {
@@ -107,7 +107,7 @@ internal sealed class HashedPatchMapCodec : StreamCodec<RegistryFriendlyByteBuf,
 
         int removedCount = buf.ReadVarInt();
         if (removedCount > HashedPatchMap.MaxComponents)
-            throw new InvalidOperationException($"组件哈希移除项超限: {removedCount}");
+            throw new InvalidOperationException($"component hash removed entries out of range: {removedCount}");
         var removed = new HashSet<object>();
         for (int i = 0; i < removedCount; i++)
             removed.Add(DataComponentTypeCodecs.Decode(buf));

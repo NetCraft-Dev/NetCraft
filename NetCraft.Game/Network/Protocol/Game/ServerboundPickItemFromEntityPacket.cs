@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundPickItemFromEntityPacket 中键选实体包对应原版 ServerboundPickItemFromEntityPacket
-//字段 Id(VarInt 实体id) IncludeData(boolean 创造模式是否附带实体数据)
+//ServerboundPickItemFromEntityPacket middle-click pick entity packet, maps to vanilla ServerboundPickItemFromEntityPacket
+//Fields: Id(VarInt entity id), IncludeData(boolean, whether to include entity data in creative mode)
 public sealed record ServerboundPickItemFromEntityPacket(int Id, bool IncludeData) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundPickItemFromEntityPacket> StreamCodec { get; } = new PickItemFromEntityCodec();

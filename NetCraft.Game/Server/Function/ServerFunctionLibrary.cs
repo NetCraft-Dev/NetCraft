@@ -7,9 +7,9 @@ using NetCraft.Resources;
 
 namespace NetCraft.Game.Server;
 
-//ServerFunctionLibrary 函数库对应原版 net.minecraft.server.ServerFunctionLibrary
-//从数据包 function/<namespace>/**.mcfunction 编译函数 tags/function/*.json 解析函数标签
-//编译上下文按 function-permission-level 造 与原版 reloadableServerResources 传权限集合一致
+//ServerFunctionLibrary function library, maps to vanilla net.minecraft.server.ServerFunctionLibrary
+//Compiles functions from datapack function/<namespace>/**.mcfunction and parses function tags from tags/function/*.json
+//The compilation context is built by function-permission-level, consistent with the permission set passed by vanilla reloadableServerResources
 public sealed class ServerFunctionLibrary : PreparableReloadListener
 {
     private static readonly string ElementsDir = "function";
@@ -27,26 +27,26 @@ public sealed class ServerFunctionLibrary : PreparableReloadListener
         _dispatcher = dispatcher;
     }
 
-    //GetFunction 按标识取函数
+    //GetFunction gets a function by identifier
     public CommandFunction<CommandSourceStack>? GetFunction(Identifier id)
     {
         lock (_gate) return _functions.GetValueOrDefault(id);
     }
 
-    //Functions 全量函数快照
+    //Functions a full function snapshot
     public IReadOnlyDictionary<Identifier, CommandFunction<CommandSourceStack>> Functions
     {
         get { lock (_gate) return new Dictionary<Identifier, CommandFunction<CommandSourceStack>>(_functions); }
     }
 
-    //GetTag 函数标签内容
+    //GetTag function tag content
     public IReadOnlyList<CommandFunction<CommandSourceStack>> GetTag(Identifier tag)
         => GetTags().GetValueOrDefault(tag) ?? [];
 
-    //Reload 实现资源监听 读函数与标签并替换内存表
+    //Reload implements the resource listener, reading functions and tags and replacing the in-memory tables
     public void Reload(ResourceManager resourceManager, ReloadContext context)
     {
-        //编译上下文权限取满等级 匿名空名与原版 createCompilationContext 一致
+        //The compilation context uses full permission; an anonymous empty name matches vanilla createCompilationContext
         var compilationContext = new CommandSourceStack(string.Empty, 0, TextWriter.Null);
         if (_functionCompilationPermissions is LevelBasedPermissionSet levelBased)
         {
@@ -79,16 +79,16 @@ public sealed class ServerFunctionLibrary : PreparableReloadListener
 
     private Dictionary<Identifier, IReadOnlyList<CommandFunction<CommandSourceStack>>> _tags = [];
 
-    //Tags 快照
+    //Tags a snapshot of tags
     public IReadOnlyDictionary<Identifier, IReadOnlyList<CommandFunction<CommandSourceStack>>> GetTags()
     {
         lock (_gate) return new Dictionary<Identifier, IReadOnlyList<CommandFunction<CommandSourceStack>>>(_tags);
     }
 
-    //AvailableTags 标签名集合
+    //AvailableTags the set of tag names
     public IEnumerable<Identifier> AvailableTags => GetTags().Keys;
 
-    //ListFunctionResources 枚举各命名空间下 function 目录的 .mcfunction
+    //ListFunctionResources enumerates the .mcfunction files in the function directory under each namespace
     private IEnumerable<Resource> ListFunctionResources(ResourceManager resourceManager)
     {
         foreach (var ns in resourceManager.GetNamespaces(PackType.ServerData))
@@ -103,7 +103,7 @@ public sealed class ServerFunctionLibrary : PreparableReloadListener
         }
     }
 
-    //FunctionIdOf 资源路径转函数标识 去掉 function/ 前缀与扩展名对应原版 FileToIdConverter
+    //FunctionIdOf converts a resource path to a function identifier, stripping the function/ prefix and extension, maps to vanilla FileToIdConverter
     private static Identifier? FunctionIdOf(Identifier location)
     {
         var path = location.Path;
@@ -112,7 +112,7 @@ public sealed class ServerFunctionLibrary : PreparableReloadListener
         return Identifier.TryParse(location.Namespace + Identifier.NamespaceSeparator + functionPath);
     }
 
-    //ReadLines 读函数文本行
+    //ReadLines reads the function's text lines
     private static List<string> ReadLines(Resource resource)
     {
         using var stream = resource.Open();
@@ -125,7 +125,7 @@ public sealed class ServerFunctionLibrary : PreparableReloadListener
         return lines;
     }
 
-    //LoadTags 解析函数标签 values 支持 #嵌套标签引用 对应原版 TagLoader 的图解析
+    //LoadTags parses function tag values, supporting # nested tag references, maps to vanilla TagLoader's graph resolution
     private Dictionary<Identifier, IReadOnlyList<CommandFunction<CommandSourceStack>>> LoadTags(
         ResourceManager resourceManager, Dictionary<Identifier, CommandFunction<CommandSourceStack>> functions)
     {
@@ -149,7 +149,7 @@ public sealed class ServerFunctionLibrary : PreparableReloadListener
                         if (value.ValueKind != JsonValueKind.String) continue;
                         var text = value.GetString();
                         if (string.IsNullOrEmpty(text)) continue;
-                        //标签引用 #ns:path 记成原始串后续展开
+                        //Tag reference #ns:path is recorded as the raw string and expanded later
                         if (text.StartsWith("#", StringComparison.Ordinal))
                         {
                             if (Identifier.TryParse(text[1..]) is { } referenceId) entries.Add(referenceId);
@@ -167,7 +167,7 @@ public sealed class ServerFunctionLibrary : PreparableReloadListener
                 }
             }
         }
-        //解析进列表 引用深度受限防环
+        //Parsed into a list; reference depth is bounded to prevent cycles
         var resolved = new Dictionary<Identifier, IReadOnlyList<CommandFunction<CommandSourceStack>>>();
         foreach (var (tagId, entries) in rawTags)
         {
@@ -206,7 +206,7 @@ public sealed class ServerFunctionLibrary : PreparableReloadListener
         if (depth == 0) resolved[tagId] = output;
     }
 
-    //TagIdOf 资源路径转标签标识
+    //TagIdOf converts a resource path to a tag identifier
     private static Identifier? TagIdOf(Identifier location)
     {
         var path = location.Path;

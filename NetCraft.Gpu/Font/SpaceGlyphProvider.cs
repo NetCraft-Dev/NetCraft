@@ -1,9 +1,9 @@
 namespace NetCraft.Gpu.Font;
 
-//SpaceGlyphProvider 对标原版 SpaceProvider
-//空格只有 advance 无位图 advances Map<int,float> 转 EmptyGlyph 字典
-//font/*.json 中 "space" 类型 provider 的 advances 字段定义各空格字符宽度
-//例如 U+0020 普通空格 advance=4.0 U+00A0 不间断空格 advance=4.0
+//SpaceGlyphProvider maps to vanilla SpaceProvider
+//Spaces have only advance, no bitmap; the advances Map<int,float> converts to an EmptyGlyph dictionary
+//The advances field of a "space" provider in font/*.json defines the width of each space character
+//e.g. U+0020 regular space advance=4.0, U+00A0 no-break space advance=4.0
 public sealed class SpaceGlyphProvider : IGlyphProvider
 {
     private readonly Dictionary<int, EmptyGlyph> _glyphs;

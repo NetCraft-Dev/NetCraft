@@ -3,21 +3,21 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//BlockPredicateType 方块谓词类型基类对应原版 BlockPredicateType<P>
-//原版类型带谓词泛型 NetCraft 泛型不能协变 拆成非泛型基类加泛型中间层
+//BlockPredicateType block predicate type base, maps to vanilla BlockPredicateType<P>
+//Vanilla parameterizes the type by its predicate; NetCraft generics are not covariant, so it is split into a non-generic base plus a generic middle layer
 public abstract class BlockPredicateType : NetCraft.Registry.BlockPredicateType
 {
     public Identifier Id { get; }
 
     protected BlockPredicateType(Identifier id) => Id = id;
 
-    //Decode 从 map 解出一个谓词实例 type 字段已由外层消费
+    //Decode decode a predicate instance from the map; the type field is already consumed by the caller
     public abstract DataResult<BlockPredicate> Decode<U>(DynamicOps<U> ops, MapLike<U> input);
 
-    //EncodeFields 把实例参数累积进 builder type 字段由外层补
+    //EncodeFields accumulate the instance fields into the builder; the type field is added by the caller
     public abstract void EncodeFields<U>(DynamicOps<U> ops, BlockPredicate value, RecordBuilder<U> builder);
 
-    //内置类型单例 与注册表元素一一对应
+    //Built-in type singletons, one per registry element
     public static readonly BlockPredicateType<MatchingBlocksPredicate> MatchingBlocks =
         new SimpleBlockPredicateType<MatchingBlocksPredicate>("matching_blocks", MatchingBlocksPredicate.Codec);
 
@@ -60,7 +60,7 @@ public abstract class BlockPredicateType : NetCraft.Registry.BlockPredicateType
     public static readonly BlockPredicateType<UnobstructedPredicate> Unobstructed =
         new SimpleBlockPredicateType<UnobstructedPredicate>("unobstructed", UnobstructedPredicate.Codec);
 
-    //RegisterAll 把全部内置类型注册进 BLOCK_PREDICATE_TYPE 注册表
+    //RegisterAll register all built-in types into the BLOCK_PREDICATE_TYPE registry
     public static void RegisterAll()
     {
         Register(MatchingBlocks);
@@ -84,7 +84,7 @@ public abstract class BlockPredicateType : NetCraft.Registry.BlockPredicateType
             BuiltInRegistries.BLOCK_PREDICATE_TYPE, type.Id, type);
 }
 
-//BlockPredicateType<P> 具体谓词类型的泛型中间层 子类只需给出一个 MapCodec<P>
+//BlockPredicateType<P> generic middle layer for a concrete predicate type; subclasses only supply one MapCodec<P>
 public abstract class BlockPredicateType<P> : BlockPredicateType where P : BlockPredicate
 {
     private readonly MapCodec<P> _codec;
@@ -100,7 +100,7 @@ public abstract class BlockPredicateType<P> : BlockPredicateType where P : Block
     }
 }
 
-//SimpleBlockPredicateType 只带 id 与 codec 的类型实例 覆盖全部内置谓词
+//SimpleBlockPredicateType type instance carrying only an id and a codec, covering all built-in predicates
 internal sealed class SimpleBlockPredicateType<P> : BlockPredicateType<P> where P : BlockPredicate
 {
     public SimpleBlockPredicateType(string id, MapCodec<P> codec)

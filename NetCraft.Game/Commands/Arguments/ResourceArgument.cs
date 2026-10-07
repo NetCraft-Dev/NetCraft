@@ -7,16 +7,16 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//ResourceArgument 注册表资源参数对应原版 ResourceArgument
-//持有目标注册表key解析标识符 合法性由命令执行时查注册表
+//ResourceArgument registry resource argument, maps to vanilla ResourceArgument
+//Holds the target registry key and parses the identifier; validity is checked against the registry at command execution
 public sealed class ResourceArgument : ArgumentType<Identifier>
 {
     private static readonly IReadOnlyList<string> ExamplesList = new[] { "foo", "foo:bar", "012" };
 
     public static readonly DynamicCommandExceptionType ErrorResourceNotFound =
-        new(id => new LiteralMessage($"未知资源 {id}"));
+        new(id => new LiteralMessage($"unknown resource {id}"));
 
-    //RegistryKey 目标注册表标识 如 minecraft:world_clock
+    //RegistryKey target registry identifier, such as minecraft:world_clock
     public Identifier RegistryKey { get; }
 
     public ResourceArgument(Identifier registryKey)
@@ -26,11 +26,11 @@ public sealed class ResourceArgument : ArgumentType<Identifier>
 
     public Identifier Parse(StringReader reader) => IdentifierArgument.ReadIdentifier(reader);
 
-    //GetResource 取解析出的资源标识
+    //GetResource gets the parsed resource identifier
     public static Identifier GetResource(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<Identifier>(name);
 
-    //GetClock 取 world_clock 注册表的 Holder 查不到按原版抛资源不存在
+    //GetClock fetches the Holder from the world_clock registry; throws resource-not-found like vanilla when not found
     public static Holder<WorldClock> GetClock(CommandContext<CommandSourceStack> context, string name)
     {
         var id = context.GetArgument<Identifier>(name);
@@ -38,7 +38,7 @@ public sealed class ResourceArgument : ArgumentType<Identifier>
             ?? throw ErrorResourceNotFound.Create(id);
     }
 
-    //GetTimeline 取 timeline 注册表的 Holder 查不到按原版抛资源不存在
+    //GetTimeline fetches the Holder from the timeline registry; throws resource-not-found like vanilla when not found
     public static Holder<Timeline> GetTimeline(CommandContext<CommandSourceStack> context, string name)
     {
         var id = context.GetArgument<Identifier>(name);
@@ -46,7 +46,7 @@ public sealed class ResourceArgument : ArgumentType<Identifier>
             ?? throw ErrorResourceNotFound.Create(id);
     }
 
-    //GetBiome 取 biome 注册表的 Holder 查不到按原版抛资源不存在
+    //GetBiome fetches the Holder from the biome registry; throws resource-not-found like vanilla when not found
     public static Holder<Biome> GetBiome(CommandContext<CommandSourceStack> context, string name)
     {
         var id = context.GetArgument<Identifier>(name);
@@ -54,7 +54,7 @@ public sealed class ResourceArgument : ArgumentType<Identifier>
             ?? throw ErrorResourceNotFound.Create(id);
     }
 
-    //GetMobEffect 取 mob_effect 注册表的 Holder 查不到按原版抛资源不存在
+    //GetMobEffect fetches the Holder from the mob_effect registry; throws resource-not-found like vanilla when not found
     public static Holder<NetCraft.Registry.MobEffect> GetMobEffect(CommandContext<CommandSourceStack> context, string name)
     {
         var id = context.GetArgument<Identifier>(name);

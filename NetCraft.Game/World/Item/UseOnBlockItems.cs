@@ -8,27 +8,27 @@ using NetCraft.Storage.Updates;
 
 namespace NetCraft.Game.World.Items;
 
-//IUseOnBlockItem 能对着方块使用的物品 对应原版 Item.useOn
-//方块自身行为没处理时才轮到它 打火石点火走这条 将来锄头翻地也走同一条
+//IUseOnBlockItem an item usable on a block, maps to vanilla Item.useOn
+//Only reached when the block's own behavior did not handle it; flint and steel lighting fires goes here and future hoe tilling will use the same path
 public interface IUseOnBlockItem
 {
-    //UseOn 返回是否已处理 处理掉就不再走方块物品的放置流程
+    //UseOn returns whether it was handled; when handled the block item placement path is skipped
     bool UseOn(PersistentServerLevel level, ServerPlayer player, ItemStack stack, BlockPos pos, Direction face);
 }
 
-//FlintAndSteelItem 打火石 对着方块面点火 对应原版 net.minecraft.world.item.FlintAndSteelItem
-//原版另有一支点燃篝火与蜡烛的分支 依赖 LIT 属性与方块自身行为 nc 暂无 这里只做放火
+//FlintAndSteelItem flint and steel lighting a fire on a block face, maps to vanilla net.minecraft.world.item.FlintAndSteelItem
+//Vanilla has a separate branch lighting campfires and candles that depends on the LIT property and block behavior; nc has none of that, so only fire placement is done here
 public sealed class FlintAndSteelItem(string name) : Item, IUseOnBlockItem
 {
     public override Identifier Id => Identifier.WithDefaultNamespace(name);
 
     public bool UseOn(PersistentServerLevel level, ServerPlayer player, ItemStack stack, BlockPos pos, Direction face)
     {
-        //火落在点击面外侧一格 对应原版 relative(clickedFace)
+        //The fire lands one block outside the clicked face, maps to vanilla relative(clickedFace)
         var target = pos.Offset(face);
         if (!Blocks.BaseFireBlock.CanBePlacedAt(level, target)) return false;
         level.SetBlock(target, Blocks.BaseFireBlock.GetState(level, target), BlockUpdateFlags.All);
-        //原版走 hurtAndBreak 扣耐久 nc 没有耐久系统 非创造按消耗一个处理
+        //Vanilla calls hurtAndBreak to damage the item; nc has no durability system, so a non-creative use consumes one
         if (player.GameType != GameType.Creative)
         {
             stack.SetCount(stack.GetCount() - 1);

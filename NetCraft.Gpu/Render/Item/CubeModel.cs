@@ -2,13 +2,13 @@ using System.Numerics;
 
 namespace NetCraft.Gpu;
 
-//CubeModel 程序化立方体模型对标原版 ModelPart.Cube.compile
-//生成 6 面 BakedQuad 供 ItemRenderer 渲染 PoC 不加载 JSON 模型用程序化几何
-//每面 4 顶点 + UV + 面法线(Directon) 顶点顺序逆时针正面朝外
+//CubeModel procedural cube model, maps to vanilla ModelPart.Cube.compile
+//Generates 6 face BakedQuads for ItemRenderer to render; the PoC uses procedural geometry instead of loading a JSON model
+//Each face has 4 vertices + UV + face normal (Direction); vertices are counter-clockwise with the front facing out
 public static class CubeModel
 {
-    //Create 生成边长 size 的立方体 BakedQuad 列表中心在原点
-    //UV 按 0..1 映射每面 PoC 不做纹理图集分块
+    //Create generates a BakedQuad list for a cube of side size centered at the origin
+    //UVs map to 0..1 per face; the PoC does no texture atlas chunking
     public static List<BakedQuad> Create(float size)
     {
         var s = size / 2f;

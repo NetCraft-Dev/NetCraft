@@ -2,9 +2,9 @@ using NetCraft.Codec;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//NoiseRouter 噪声路由表对应原版 net.minecraft.world.level.levelgen.NoiseRouter
-//持有地形/气候/洞穴/veins 等 15 个 DensityFunction 描述世界各维度密度
-//NoiseBasedChunkGenerator 通过此表查找具体密度函数用于生成决策
+//NoiseRouter noise router table, maps to vanilla net.minecraft.world.level.levelgen.NoiseRouter
+//Holds 15 DensityFunctions for terrain/climate/caves/veins that describe density across the dimension
+//NoiseBasedChunkGenerator looks up concrete density functions through this table for generation decisions
 public sealed class NoiseRouter
 {
     public DensityFunction Barrier { get; }
@@ -17,8 +17,8 @@ public sealed class NoiseRouter
     public DensityFunction Erosion { get; }
     public DensityFunction Depth { get; }
     public DensityFunction Ridges { get; }
-    //PreliminarySurfaceLevel 初步地表高度字段 原版 26.2 起取代旧的 initial_density_without_jaggedness
-    //地表规则靠它算 minSurfaceLevel 判断是否在初步地表之上
+    //PreliminarySurfaceLevel preliminary surface height field, replaced the old initial_density_without_jaggedness in vanilla 26.2
+    //Surface rules use it to compute minSurfaceLevel and decide whether a position is above the preliminary surface
     public DensityFunction PreliminarySurfaceLevel { get; }
     public DensityFunction FinalDensity { get; }
     public DensityFunction VeinToggle { get; }
@@ -59,8 +59,8 @@ public sealed class NoiseRouter
         VeinGap = veinGap;
     }
 
-    //Legacy14Args 兼容旧 14 参数构造函数对应旧简化版签名
-    //VeinGap 默认 Constant.Zero 不影响已有调用方新代码应用 15 参数构造
+    //Legacy14Args keeps the old 14-argument constructor, matching the old simplified signature
+    //VeinGap defaults to Constant.Zero and does not affect existing callers; new code should use the 15-argument constructor
     public NoiseRouter(
         DensityFunction barrier,
         DensityFunction fluidLevelFloodedness,
@@ -83,7 +83,7 @@ public sealed class NoiseRouter
     {
     }
 
-    //MapAll 对所有 15 个字段递归应用 visitor 替换节点对应原版 mapAll
+    //MapAll recursively applies the visitor to all 15 fields to replace nodes, maps to vanilla mapAll
     public NoiseRouter MapAll(Visitor visitor)
         => new(
             Barrier.MapAll(visitor),
@@ -102,7 +102,7 @@ public sealed class NoiseRouter
             VeinRidged.MapAll(visitor),
             VeinGap.MapAll(visitor));
 
-    //Empty 全部为 Constant.Zero 的空路由器对应原版 NoiseRouter.EMPTY
+    //Empty router with every field set to Constant.Zero, maps to vanilla NoiseRouter.EMPTY
     public static readonly NoiseRouter Empty = new(
         Constant.Zero, Constant.Zero, Constant.Zero, Constant.Zero,
         Constant.Zero, Constant.Zero, Constant.Zero, Constant.Zero,

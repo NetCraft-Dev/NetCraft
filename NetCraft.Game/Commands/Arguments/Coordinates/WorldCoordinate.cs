@@ -4,16 +4,16 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//WorldCoordinate 单轴坐标段对应原版 WorldCoordinate
-//~ 前缀相对当前值 空白表示偏移 0 绝对值可加 0.5 居中修正
+//WorldCoordinate single-axis coordinate segment, maps to vanilla WorldCoordinate
+//~ prefix means relative to the current value; blank means offset 0; absolute values may add 0.5 for center correction
 public sealed record WorldCoordinate(bool Relative, double Value)
 {
-    //Get 以基准值求绝对值 相对段做加法
+    //Get resolves the absolute value from a base value; relative segments add
     public double Get(double original) => Relative ? Value + original : Value;
 
     public bool IsRelative => Relative;
 
-    //ParseDouble 解析单个坐标段 遇 ^ 抛混合类型错 center 为 true 且无小数点的绝对值加 0.5 对齐方块中心
+    //ParseDouble parses a single coordinate segment; ^ throws a mixed-type error; when center is true and an absolute value has no decimal point, adds 0.5 to align to the block center
     public static WorldCoordinate ParseDouble(StringReader reader, bool center)
     {
         if (reader.CanRead() && reader.Peek() == '^')
@@ -29,7 +29,7 @@ public sealed record WorldCoordinate(bool Relative, double Value)
         return new WorldCoordinate(relative, value);
     }
 
-    //ParseInt 解析整数坐标段 相对段允许小数 绝对段只接受整数
+    //ParseInt parses an integer coordinate segment; relative segments allow decimals, absolute segments accept integers only
     public static WorldCoordinate ParseInt(StringReader reader)
     {
         if (reader.CanRead() && reader.Peek() == '^')
@@ -45,7 +45,7 @@ public sealed record WorldCoordinate(bool Relative, double Value)
         return new WorldCoordinate(relative, value);
     }
 
-    //IsRelativePrefix 消费可选的 ~ 前缀返回是否相对
+    //IsRelativePrefix consumes an optional ~ prefix and returns whether it is relative
     private static bool IsRelativePrefix(StringReader reader)
     {
         if (reader.Peek() != '~') return false;

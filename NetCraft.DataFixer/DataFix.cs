@@ -9,8 +9,8 @@ using NetCraft.Logging;
 using NetCraft.Util;
 using T = NetCraft.DataFixer.Types;
 
-//DataFix数据修复基类对应原版com.mojang.datafixers.DataFix
-//子类实现makeRule定义具体修复逻辑
+//DataFix data fix base class maps to vanilla com.mojang.datafixers.DataFix
+//subclasses implement makeRule to define the concrete fix logic
 public abstract class DataFix
 {
     private readonly Schema _outputSchema;
@@ -23,19 +23,19 @@ public abstract class DataFix
         _changesType = changesType;
     }
 
-    //fixTypeEverywhere按name与type构造全类型重写规则
+    //fixTypeEverywhere builds an all-types rewrite rule from name and type
     protected TypeRewriteRule FixTypeEverywhere<A>(string name, T.Type<A> type, Func<DynamicOps<object>, Func<A, A>> function)
         => FixTypeEverywhere(type, Unchecked<A, A>(name, type, type, function, new BitSet()));
 
-    //convertUnchecked按name与原类型新类型构造未检查转换规则
+    //convertUnchecked builds an unchecked conversion rule from name, old type, and new type
     protected TypeRewriteRule ConvertUnchecked<A, B>(string name, T.Type<A> type, T.Type<B> newType)
         => FixTypeEverywhere(type, Unchecked<A, B>(name, type, newType, _ => a => (B)(object)a!, new BitSet()));
 
-    //writeAndRead按name写后读转换类型
+    //writeAndRead converts the type by writing then reading by name
     protected TypeRewriteRule WriteAndRead(string name, T.Type<object> type, T.Type<object> newType)
         => WriteFixAndRead<object, object>(name, type, newType, d => d);
 
-    //writeFixAndRead按name写后修正再读转换类型
+    //writeFixAndRead converts the type by writing, fixing, then reading by name
     protected TypeRewriteRule WriteFixAndRead<A, B>(string name, T.Type<A> type, T.Type<B> newType, Func<Dynamic<object>, Dynamic<object>> fix)
     {
         T.Type<A>? patchedType = null;
@@ -59,19 +59,19 @@ public abstract class DataFix
         return rule;
     }
 
-    //fixTypeEverywhere按name与type与newType与function构造规则
+    //fixTypeEverywhere builds a rule from name, type, newType, and function
     protected TypeRewriteRule FixTypeEverywhere<A, B>(string name, T.Type<A> type, T.Type<B> newType, Func<DynamicOps<object>, Func<A, B>> function)
         => FixTypeEverywhere(type, Unchecked<A, B>(name, type, newType, function, new BitSet()));
 
-    //fixTypeEverywhereTyped按Typed函数构造规则
+    //fixTypeEverywhereTyped builds a rule from a Typed function
     protected TypeRewriteRule FixTypeEverywhereTyped<A>(string name, T.Type<A> type, Func<Typed<object>, Typed<object>> function)
         => FixTypeEverywhere(type, Checked<A, A>(name, type, type, function, new BitSet()));
 
-    //fixTypeEverywhereTyped按name与oldType与newType与Typed函数构造规则
+    //fixTypeEverywhereTyped builds a rule from name, oldType, newType, and a Typed function
     protected TypeRewriteRule FixTypeEverywhereTyped<A, B>(string name, T.Type<A> type, T.Type<B> newType, Func<Typed<object>, Typed<object>> function)
         => FixTypeEverywhere(type, Checked<A, B>(name, type, newType, function, new BitSet()));
 
-    //fixTypeEverywhere按type与view构造全类型规则
+    //fixTypeEverywhere builds an all-types rule from type and view
     protected TypeRewriteRule FixTypeEverywhere<A, B>(T.Type<A> type, RewriteResult<A, B> view)
         => TypeRewriteRule.CheckOnce(
             TypeRewriteRule.Everywhere(
@@ -79,11 +79,11 @@ public abstract class DataFix
                 DataFixerUpper.OPTIMIZATION_RULE, true, true),
             t => OnFail(t));
 
-    //unchecked包装View.create构造RewriteResult对应原版私有unchecked
+    //unchecked wraps View.create to build a RewriteResult, maps to vanilla's private unchecked
     private static RewriteResult<A, B> Unchecked<A, B>(string name, T.Type<A> type, T.Type<B> newType, Func<DynamicOps<object>, Func<A, B>> function, BitSet bitSet)
         => RewriteResult<A, B>.Create(View<A, B>.Create(name, type, newType, function), bitSet);
 
-    //checked按Typed函数构造View并校验结果类型对应原版checked
+    //checked builds a View from a Typed function and verifies the result type, maps to vanilla checked
     private static RewriteResult<A, B> Checked<A, B>(string name, T.Type<A> type, T.Type<B> newType, Func<Typed<object>, Typed<object>> function, BitSet bitSet)
         => RewriteResult<A, B>.Create(View<A, B>.Create(name, type, newType, ops => a =>
         {
@@ -95,26 +95,26 @@ public abstract class DataFix
             return (B)(object)result.GetValue()!;
         }), bitSet);
 
-    //onFail规则未匹配时回调
+    //onFail is invoked when the rule does not match
     protected virtual void OnFail(T.Type<object> type) { }
 
-    //getVersionKey返回输出Schema的版本key
+    //getVersionKey returns the version key of the output Schema
     public int GetVersionKey() => GetOutputSchema().GetVersionKey();
 
-    //getRule惰性构造规则
+    //getRule lazily builds the rule
     public TypeRewriteRule GetRule()
     {
         _rule ??= MakeRule();
         return _rule!;
     }
 
-    //makeRule子类实现具体规则构造
+    //makeRule is where subclasses build the concrete rule
     protected abstract TypeRewriteRule MakeRule();
 
-    //getInputSchema按changesType决定输入Schema
+    //getInputSchema decides the input Schema from changesType
     protected Schema GetInputSchema()
         => _changesType ? GetOutputSchema().GetParent()! : GetOutputSchema();
 
-    //getOutputSchema返回输出Schema
+    //getOutputSchema returns the output Schema
     protected Schema GetOutputSchema() => _outputSchema;
 }

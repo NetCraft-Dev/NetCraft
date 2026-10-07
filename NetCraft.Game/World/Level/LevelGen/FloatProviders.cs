@@ -5,31 +5,31 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//FloatProvider 浮点提供者体系对应原版 net.minecraft.util.valueproviders
-//FloatProviders.Codec 裸浮点或按 type 字段派发二选一
+//FloatProvider float provider system, maps to vanilla net.minecraft.util.valueproviders
+//FloatProviders.Codec is either a bare float or dispatch by the type field
 public abstract class FloatProvider
 {
-    //Sample 按随机源采样一个浮点对应原版 sample
+    //Sample draws a float from the random source, maps to vanilla sample
     public abstract float Sample(RandomSource random);
 
-    //Min 取值下界对应原版 min
+    //Min lower bound, maps to vanilla min
     public abstract float Min { get; }
 
-    //Max 取值上界对应原版 max
+    //Max upper bound, maps to vanilla max
     public abstract float Max { get; }
 }
 
-//ConstantFloat 常量浮点提供者对应原版 ConstantFloat
+//ConstantFloat constant float provider, maps to vanilla ConstantFloat
 public sealed class ConstantFloat : FloatProvider
 {
-    //Zero 常量零单例对应原版 ZERO
+    //Zero constant-zero singleton, maps to vanilla ZERO
     public static readonly ConstantFloat Zero = new(0f);
 
     public float Value { get; }
 
     public ConstantFloat(float value) => Value = value;
 
-    //Of 零值复用单例对应原版 of
+    //Of reuses the singleton for zero, maps to vanilla of
     public static ConstantFloat Of(float value) => value == 0f ? Zero : new ConstantFloat(value);
 
     public override float Sample(RandomSource random) => Value;
@@ -41,7 +41,7 @@ public sealed class ConstantFloat : FloatProvider
     public override string ToString() => Value.ToString();
 }
 
-//UniformFloat 均匀分布浮点提供者对应原版 UniformFloat
+//UniformFloat uniform distribution float provider, maps to vanilla UniformFloat
 public sealed class UniformFloat : FloatProvider
 {
     private readonly float _min;
@@ -53,7 +53,7 @@ public sealed class UniformFloat : FloatProvider
         _max = max;
     }
 
-    //Of 要求上界严格大于下界对应原版 of
+    //Of requires max to be strictly greater than min, maps to vanilla of
     public static UniformFloat Of(float min, float max)
         => max <= min ? throw new ArgumentException("Max must exceed min") : new UniformFloat(min, max);
 
@@ -66,7 +66,7 @@ public sealed class UniformFloat : FloatProvider
     public override string ToString() => $"[{_min}-{_max}]";
 }
 
-//TrapezoidFloat 梯形分布浮点提供者对应原版 TrapezoidFloat
+//TrapezoidFloat trapezoid distribution float provider, maps to vanilla TrapezoidFloat
 public sealed class TrapezoidFloat : FloatProvider
 {
     private readonly float _min;
@@ -84,7 +84,7 @@ public sealed class TrapezoidFloat : FloatProvider
 
     public static TrapezoidFloat Of(float min, float max, float plateau) => new(min, max, plateau);
 
-    //Sample 两次独立采样叠加对应原版 sample 调用顺序不能变
+    //Sample adds two independent draws, maps to vanilla sample; the call order must not change
     public override float Sample(RandomSource random)
     {
         var range = _max - _min;
@@ -100,15 +100,15 @@ public sealed class TrapezoidFloat : FloatProvider
     public override string ToString() => $"trapezoid({_plateau}) in [{_min}-{_max}]";
 }
 
-//FloatProviders 浮点提供者 codec 入口对应原版 FloatProviders
+//FloatProviders float provider codec entry point, maps to vanilla FloatProviders
 public static class FloatProviders
 {
-    //Codec 裸浮点或带 type 对象二选一对应原版 CODEC
+    //Codec either a bare float or an object with type, maps to vanilla CODEC
     public static readonly Codec<FloatProvider> Codec = new FloatProviderCodec();
 }
 
-//FloatProviderCodec 浮点提供者编解码
-//裸数字解为 ConstantFloat 对象按 type 字段派发
+//FloatProviderCodec float provider codec
+//A bare number decodes to ConstantFloat; an object dispatches by the type field
 internal sealed class FloatProviderCodec : ScalarCodec<FloatProvider>
 {
     public override DataResult<FloatProvider> Parse<U>(DynamicOps<U> ops, U input)
@@ -163,7 +163,7 @@ internal sealed class FloatProviderCodec : ScalarCodec<FloatProvider>
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, FloatProvider value)
     {
-        //常量编码成裸浮点保持与原版 either 的编码方向一致
+        //Constants encode as a bare float, keeping the same direction as vanilla either
         if (value is ConstantFloat constant)
             return DataResult<U>.Success(ops.CreateFloat(constant.Value));
         var builder = ops.MapBuilder();
@@ -186,7 +186,7 @@ internal sealed class FloatProviderCodec : ScalarCodec<FloatProvider>
         return builder.Build(ops.Empty());
     }
 
-    //ReadType 读 type 字符串字段缺失或非字符串返回空
+    //ReadType reads the type string field; missing or non-string returns empty
     private static Optional<string> ReadType<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var tag = input.Get("type");
@@ -195,7 +195,7 @@ internal sealed class FloatProviderCodec : ScalarCodec<FloatProvider>
         return text.Result().IsPresent ? Optional<string>.Of(text.GetOrThrow()) : Optional<string>.Empty();
     }
 
-    //ReadFloat 读浮点字段缺失或非数字返回 null
+    //ReadFloat reads a float field; missing or non-number returns null
     private static float? ReadFloat<U>(DynamicOps<U> ops, MapLike<U> input, string name)
     {
         var tag = input.Get(name);
@@ -204,7 +204,7 @@ internal sealed class FloatProviderCodec : ScalarCodec<FloatProvider>
         return value.Result().IsPresent ? (float)value.GetOrThrow() : null;
     }
 
-    //PathOf 带命名空间的 type 只取路径段
+    //PathOf takes only the path segment of a namespaced type
     private static string PathOf(string type)
     {
         var id = Identifier.TryParse(type);

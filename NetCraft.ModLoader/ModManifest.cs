@@ -3,214 +3,214 @@ using System.Text.Json.Serialization;
 
 namespace NetCraft.ModLoader;
 
-//ModEnvironment 模组适用的运行端
+//ModEnvironment: the environment side a mod applies to
 public enum ModEnvironment
 {
-    //Both 客户端与服务端都加载
+    //Both: loaded on both client and server
     Both,
-    //Client 仅客户端加载
+    //Client: loaded on the client only
     Client,
-    //Server 仅服务端加载
+    //Server: loaded on the server only
     Server,
 }
 
-//ModEnvironmentExtensions 运行端判定的公共逻辑
+//ModEnvironmentExtensions: shared logic for environment side matching
 internal static class ModEnvironmentExtensions
 {
-    //Matches 声明的运行端是否包含当前端
+    //Matches: whether the declared environment side includes the current side
     public static bool Matches(this ModEnvironment declared, ModEnvironment current)
         => declared == ModEnvironment.Both || declared == current;
 
-    //ParseEnvironment 解析运行端字段 无法识别时按 Both 兜底
+    //ParseEnvironment: parses the environment field, falling back to Both when unrecognized
     public static ModEnvironment ParseEnvironment(string value)
         => Enum.TryParse<ModEnvironment>(value, ignoreCase: true, out var parsed) ? parsed : ModEnvironment.Both;
 }
 
-//ModManifest 模组声明 对应 dll 内嵌资源 ncmod.json
-//放内嵌资源而不是特性 是为了让扫描阶段能用 MetadataReader 静态读出 不必加载程序集
+//ModManifest: the mod declaration, maps to the dll's embedded resource ncmod.json
+//Kept as an embedded resource rather than an attribute so the scan phase can read it statically with MetadataReader without loading the assembly
 public sealed class ModManifest
 {
-    //Id 模组标识 依赖关系与查询都用它
+    //Id: the mod identifier, used by dependency relationships and lookups
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 
-    //Version 模组版本
+    //Version: the mod version
     [JsonPropertyName("version")]
     public string Version { get; set; } = string.Empty;
 
-    //DisplayName 展示名 给人看的名字 没写时用 Id 顶
+    //DisplayName: the display name, the human-facing name, falls back to Id when absent
     [JsonPropertyName("name")]
     public string DisplayName { get; set; } = string.Empty;
 
-    //Description 一句话描述
+    //Description: a one-line description
     [JsonPropertyName("description")]
     public string Description { get; set; } = string.Empty;
 
-    //Authors 作者
+    //Authors
     [JsonPropertyName("authors")]
     public List<string> Authors { get; set; } = new();
 
-    //Contributors 贡献者
+    //Contributors
     [JsonPropertyName("contributors")]
     public List<string> Contributors { get; set; } = new();
 
-    //License 许可证标识
+    //License: the license identifier
     [JsonPropertyName("license")]
     public string License { get; set; } = string.Empty;
 
-    //Contact 联系方式 对应原版 fabric.mod.json 的 contact 段
+    //Contact: contact info, maps to the contact section of vanilla fabric.mod.json
     [JsonPropertyName("contact")]
     public ModContact Contact { get; set; } = new();
 
-    //Icon 图标的内嵌资源名 留空时按约定的 icon.png 找
+    //Icon: the icon's embedded resource name, empty means look for the conventional icon.png
     [JsonPropertyName("icon")]
     public string Icon { get; set; } = string.Empty;
 
-    //EnvironmentValue 运行端字段取 both/client/server
+    //EnvironmentValue: the environment field, takes both/client/server
     [JsonPropertyName("environment")]
     public string EnvironmentValue { get; set; } = "both";
 
-    //Entry 入口类全名 该类需要有 public Task Init()
+    //Entry: the entry class full name, the class needs a public Task Init()
     [JsonPropertyName("entry")]
     public string Entry { get; set; } = string.Empty;
 
-    //Depends 依赖的模组与要求的版本 键是模组 id 值是版本约束
-    //没列出来的依赖不限定版本 只要那个模组在就照常加载
-    //写进来的依赖版本不符时本模组被跳过 语法见 VersionConstraint
+    //Depends: depended mods and required versions, the key is the mod id and the value is the version constraint
+    //Dependencies not listed are not version-constrained and load as usual as long as the mod is present
+    //When a listed dependency version does not match, this mod is skipped; for syntax see VersionConstraint
     [JsonPropertyName("depends")]
     public Dictionary<string, string> Depends { get; set; } = new();
 
-    //Hooks 注入规则清单
+    //Hooks: the injection rule list
     [JsonPropertyName("hooks")]
     public List<ModHookRule> Hooks { get; set; } = new();
 
-    //Mixins 混入规则 把本模组某个类的字段与方法搬进目标类型
-    //与 hooks 各走各的路 只对加载期改写生效
+    //Mixins: mixin rules that move a class's fields and methods from this mod into a target type
+    //Follows its own path separate from hooks and only takes effect for load-time rewriting
     [JsonPropertyName("mixins")]
     public List<ModMixinRule> Mixins { get; set; } = new();
 
-    //EffectiveName 展示名 没写 name 时退回 Id
+    //EffectiveName: the display name, falls back to Id when name is absent
     [JsonIgnore]
     public string EffectiveName => DisplayName.Length > 0 ? DisplayName : Id;
 
-    //Environment 解析后的运行端 无法识别时按 Both 兜底
+    //Environment: the parsed environment side, falling back to Both when unrecognized
     [JsonIgnore]
     public ModEnvironment Environment
         => ModEnvironmentExtensions.ParseEnvironment(EnvironmentValue);
 }
 
-//ModMixinRule 一条混入规则 把来源类型的成员搬进目标类型
-//来源类型就在本模组程序集里 不必写程序集名
+//ModMixinRule: a mixin rule that moves members of the source type into the target type
+//The source type is in this mod's own assembly, so no assembly name is needed
 public sealed class ModMixinRule
 {
-    //Target 目标类型全名 成员搬到这里
+    //Target: the target type full name, members are moved here
     [JsonPropertyName("target")]
     public string Target { get; set; } = string.Empty;
 
-    //Source 来源类型全名 它的字段与方法会被搬走 搬完只剩空壳
+    //Source: the source type full name, its fields and methods are moved away leaving only an empty shell
     [JsonPropertyName("source")]
     public string Source { get; set; } = string.Empty;
 
-    //Interfaces 顺带让目标类型实现的接口全名
-    //不写程序集名 装配时按类型索引查 查不到就留空由引擎在当前模块里找
+    //Interfaces: full names of interfaces for the target type to implement as well
+    //No assembly name is written; looked up in the type index at assembly time, and if not found it is left empty for the engine to locate within the current module
     [JsonPropertyName("interfaces")]
     public List<string> Interfaces { get; set; } = new();
 }
 
-//ModContact 模组对外链接
+//ModContact: the mod's external links
 public sealed class ModContact
 {
-    //Homepage 主页
+    //Homepage
     [JsonPropertyName("homepage")]
     public string Homepage { get; set; } = string.Empty;
 
-    //Sources 源码仓库
+    //Sources: the source repository
     [JsonPropertyName("sources")]
     public string Sources { get; set; } = string.Empty;
 
-    //Issues 问题反馈
+    //Issues: the issue tracker
     [JsonPropertyName("issues")]
     public string Issues { get; set; } = string.Empty;
 }
 
-//ModHookRule 一条注入规则 字段一一对应 Lead.Hook 的 HookRule
+//ModHookRule: an injection rule whose fields map one to one to Lead.Hook's HookRule
 public sealed class ModHookRule
 {
-    //Target 目标类型全名 通常是内核里的类型
+    //Target: the target type full name, usually a type in the kernel
     [JsonPropertyName("target")]
     public string Target { get; set; } = string.Empty;
 
-    //Method 目标方法名
+    //Method: the target method name
     [JsonPropertyName("method")]
     public string Method { get; set; } = string.Empty;
 
-    //HookTypeName 注入类型名 对应 Lead.Hook 的 HookType 取 CallSite/MethodBody/NewObj 等
+    //HookTypeName: the injection type name, maps to Lead.Hook's HookType, taking CallSite/MethodBody/NewObj etc.
     [JsonPropertyName("type")]
     public string HookTypeName { get; set; } = "CallSite";
 
-    //PatchModeName 补丁模式名 对应 Lead.Hook 的 PatchMode 取 ILRewrite 或 RuntimeInject
-    //ILRewrite 在目标程序集加载前改字节 RuntimeInject 借 ReJIT 改已经加载的代码
-    //RuntimePatch 是退场中的入口 patch 新规则不要用
+    //PatchModeName: the patch mode name, maps to Lead.Hook's PatchMode, taking ILRewrite or RuntimeInject
+    //ILRewrite rewrites bytes before the target assembly loads; RuntimeInject uses ReJIT to rewrite already loaded code
+    //RuntimePatch is a retiring entry patch and should not be used by new rules
     [JsonPropertyName("patchMode")]
     public string PatchModeName { get; set; } = "ILRewrite";
 
-    //ReplaceType 替换方法所在的类全名
-    //该类不要引用内核类型 否则解析它时会把内核拉起来 注入就赶不上内核加载了
+    //ReplaceType: the full name of the class containing the replacement method
+    //The class must not reference kernel types, otherwise resolving it pulls up the kernel and injection misses the kernel load
     [JsonPropertyName("replaceType")]
     public string ReplaceType { get; set; } = string.Empty;
 
-    //ReplaceMethod 替换方法名
+    //ReplaceMethod: the replacement method name
     [JsonPropertyName("replaceMethod")]
     public string ReplaceMethod { get; set; } = string.Empty;
 
-    //Label 探针标签 仅 Probe 与 Mark 用
+    //Label: the probe label, used only by Probe and Mark
     [JsonPropertyName("label")]
     public string? Label { get; set; }
 
-    //Ordinal 同一锚点在该宿主方法里匹配到多处时只认第几处 0 基
-    //不写表示每一处都改 宿主里没有这么多处时这条规则不落地
+    //Ordinal: when the same anchor matches multiple places in the host method, which one to use, zero-based
+    //Absent means rewrite every occurrence; when the host has fewer occurrences this rule does not apply
     [JsonPropertyName("ordinal")]
     public int? Ordinal { get; set; }
 
-    //ArgumentIndex 改第几个实参 0 基 实例调用的 this 算第 0 个 只有 type=CallArg 用
+    //ArgumentIndex: which argument to rewrite, zero-based, this counts as argument 0 for instance calls, used only with type=CallArg
     [JsonPropertyName("argumentIndex")]
     public int? ArgumentIndex { get; set; }
 
-    //SliceFrom/SliceTo 方法内区间限定 写成"类型全名::方法名"
-    //把匹配收窄到宿主方法里第一次调用 SliceFrom 到第一次调用 SliceTo 之间 任一端可省
+    //SliceFrom/SliceTo: intra-method range constraint written as "FullTypeName::MethodName"
+    //Narrows matching to between the first call to SliceFrom and the first call to SliceTo in the host method, either end may be omitted
     [JsonPropertyName("sliceFrom")]
     public string? SliceFrom { get; set; }
 
     [JsonPropertyName("sliceTo")]
     public string? SliceTo { get; set; }
 
-    //InType/InMethod 宿主限定 只在这个方法体内匹配锚点 两个都可省
+    //InType/InMethod: host constraint, matching anchors only within this method body, both may be omitted
     [JsonPropertyName("inType")]
     public string? InType { get; set; }
 
     [JsonPropertyName("inMethod")]
     public string? InMethod { get; set; }
 
-    //PlacementName 锚点落位方式 取 Replace/Before/After 默认 Replace
-    //Before 与 After 保留原调用 在它前或后插一次回调 回调拿的是宿主方法的参数
+    //PlacementName: how the anchor is placed, takes Replace/Before/After, default Replace
+    //Before and After keep the original call and insert one callback before or after it; the callback receives the host method's arguments
     [JsonPropertyName("placement")]
     public string PlacementName { get; set; } = "Replace";
 
-    //LocalIndex 局部变量槽位 0 基 只有 type 为 LocalRead/LocalWrite 时用
+    //LocalIndex: the local variable slot, zero-based, used only when type is LocalRead/LocalWrite
     [JsonPropertyName("localIndex")]
     public int? LocalIndex { get; set; }
 
-    //ConstantValue 要匹配的常量 只有 type 为 Constant 时用
-    //JSON 里没有类型标记 按值域猜整数的宽度 要在 ldc.i8 上匹配 long 5 只能靠注解写 5L
+    //ConstantValue: the constant to match, used only when type is Constant
+    //JSON carries no type tag so the integer width is guessed from the value range; to match long 5 on ldc.i8 you must write 5L in the annotation
     [JsonPropertyName("constantValue")]
     public JsonElement? ConstantValue { get; set; }
 
-    //ScannedConstantValue 注解里写的常量 扫描阶段直接塞 CLR 值
-    //注解那条路不过 JSON 装箱类型就是属性上写的那个 与清单要分开存
+    //ScannedConstantValue: the constant written in the annotation, a CLR value is placed directly during the scan phase
+    //The annotation path bypasses JSON so the boxed type is the one written on the property; it is stored separately from the manifest
     [JsonIgnore]
     public object? ScannedConstantValue { get; set; }
 
-    //ConstantValueObject 引擎取用的常量值 注解优先 没有就把清单里的 JSON 折成 CLR 值
+    //ConstantValueObject: the constant value the engine uses; the annotation takes priority, otherwise the manifest JSON is collapsed into a CLR value
     [JsonIgnore]
     public object? ConstantValueObject => ScannedConstantValue ?? (ConstantValue switch
     {
@@ -224,13 +224,13 @@ public sealed class ModHookRule
         _ => null,
     });
 
-    //EnvironmentValue 该规则适用的运行端 取 both/client/server 默认 both
-    //同一份清单可以两端共用 但指向服务端类型的规则在客户端跑时目标程序集根本不在
-    //不按端过滤的话这类规则会以"目标不在任何内核程序集里"报错 属于预期情况而非故障
+    //EnvironmentValue: the environment side this rule applies to, takes both/client/server, default both
+    //The same manifest can be shared by both sides, but a rule targeting a server type runs on the client with the target assembly entirely absent
+    //Without filtering by side such rules error with "target is in no kernel assembly", which is expected rather than a fault
     [JsonPropertyName("environment")]
     public string EnvironmentValue { get; set; } = "both";
 
-    //Environment 解析后的运行端 无法识别时按 Both 兜底
+    //Environment: the parsed environment side, falling back to Both when unrecognized
     [JsonIgnore]
     public ModEnvironment Environment
         => ModEnvironmentExtensions.ParseEnvironment(EnvironmentValue);

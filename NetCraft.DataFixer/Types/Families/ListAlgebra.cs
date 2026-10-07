@@ -5,8 +5,8 @@ using System.Collections.Generic;
 using NetCraft.DataFixer;
 using NetCraft.DataFixer.Functions;
 
-//ListAlgebra列表代数对应原版ListAlgebra
-//把RewriteResult列表包装为Algebra按索引取值
+//ListAlgebra list algebra maps to vanilla ListAlgebra
+//wraps a list of RewriteResults as an Algebra indexed by position
 public sealed class ListAlgebra : Algebra
 {
     private readonly string _name;

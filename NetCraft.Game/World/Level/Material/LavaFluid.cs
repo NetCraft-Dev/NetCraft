@@ -7,9 +7,9 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.Material;
 
-//LavaFluid 岩浆 对应原版 net.minecraft.world.level.material.LavaFluid
-//落差 2 档 逆流只找 2 层 每 30 刻流一次 往下碰到水会把那格换成石头
-//原版还有快速岩浆维度属性 本作维度属性系统未接入 一律按普通岩浆
+//LavaFluid lava, maps to vanilla net.minecraft.world.level.material.LavaFluid
+//Drop-off 2, backward slope search only 2 layers, ticks every 30, flowing down into water turns that cell to stone
+//Vanilla also has the fast lava dimension property; the dimension property system is not wired up here so it is always normal lava
 public abstract class LavaFluid : FlowingFluid
 {
     public const int LightEmission = 15;
@@ -31,7 +31,7 @@ public abstract class LavaFluid : FlowingFluid
 
     public override bool IsRandomlyTicking => true;
 
-    //RandomTick 原版在这里让岩浆点燃四周可燃物 依赖火焰方块与可燃判定 这两个子系统未接 先留空
+    //RandomTick vanilla ignites nearby flammables here, relying on the fire block and flammability checks; both subsystems are missing so it is left empty
     public override void RandomTick(ServerLevel level, BlockPos pos, FluidState fluidState, RandomSource random) { }
 
     public override float GetHeight(FluidState state, ServerLevel level, BlockPos pos)
@@ -39,22 +39,22 @@ public abstract class LavaFluid : FlowingFluid
 
     public override Vec3 GetFlow(ServerLevel level, BlockPos pos, FluidState state) => Vec3.Zero;
 
-    //CanBeReplacedWith 液面够高且流过来的是水时让位 对应原版 canBeReplacedWith
+    //CanBeReplacedWith yields when the surface is high enough and water is flowing in, maps to vanilla canBeReplacedWith
     public override bool CanBeReplacedWith(FluidState state, ServerLevel level, BlockPos pos, Fluid other, Direction direction)
         => state.OwnHeight >= 0.44444445f && other.Id.Path is "water" or "flowing_water";
 
     public override BlockState CreateLegacyBlock(FluidState state)
         => Blocks.LAVA.DefaultBlockState.SetValue(BlockStateProperties.Level15, GetLegacyLevel(state));
 
-    //CanConvertToSource 原版由 lava_source_conversion 游戏规则控制 默认关闭 这里取默认值
+    //CanConvertToSource controlled by the lava_source_conversion game rule in vanilla, off by default; this takes the default value
     protected override bool CanConvertToSource(ServerLevel level) => false;
 
-    //SpreadTo 往下流时如果落点格是水 水会消失并凝结成石头 对应原版 LavaFluid.spreadTo
+    //SpreadTo when flowing down into water the water vanishes and congeals into stone, maps to vanilla LavaFluid.spreadTo
     protected override void SpreadTo(ServerLevel level, BlockPos pos, BlockState state, Direction direction, FluidState target)
     {
         if (direction == Direction.Down && level.GetFluidState(pos).IsWater)
         {
-            //落点格本身要是流体方块才凝结 原版判的是 instanceof LiquidBlock 本作按该格带流体状态判
+            //Only a fluid block congeals; vanilla checks instanceof LiquidBlock, here we check that the cell carries a fluid state
             if (!state.FluidState.IsEmpty) level.SetBlock(pos, Blocks.STONE.DefaultBlockState, 3);
             level.LevelEvent(1501, pos, 0);
             return;
@@ -62,7 +62,7 @@ public abstract class LavaFluid : FlowingFluid
         base.SpreadTo(level, pos, state, direction, target);
     }
 
-    //Source 岩浆源 对应原版 LavaFluid.Source
+    //Source lava source, maps to vanilla LavaFluid.Source
     public sealed class Source : LavaFluid
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("lava");
@@ -72,7 +72,7 @@ public abstract class LavaFluid : FlowingFluid
         public override int GetAmount(FluidState state) => 8;
     }
 
-    //Flowing 流动岩浆 对应原版 LavaFluid.Flowing
+    //Flowing flowing lava, maps to vanilla LavaFluid.Flowing
     public sealed class Flowing : LavaFluid
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("flowing_lava");

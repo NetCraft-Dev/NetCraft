@@ -3,13 +3,13 @@ namespace NetCraft.DataFixer;
 using NetCraft.DataFixer.Kinds;
 using NetCraft.DataFixer.Util;
 
-//乘积类型容器对应原版com.mojang.datafixers.Products
+//product type container maps to vanilla com.mojang.datafixers.Products
 public static class Products
 {
-    //一元乘积P1<F,T1>持有单个App容器参数名小写避免与类型参数T1同名
+    //unary product P1<F,T1> holds a single App container; the parameter name is lowercase to avoid clashing with the type parameter T1
     public sealed record P1<F, T1>(App<F, T1> t1) where F : K1
     {
-        //扩展为二元乘积
+        //extends to a binary product
         public P2<F, T1, T2> And<T2>(App<F, T2> t2) => new(t1, t2);
         public P3<F, T1, T2, T3> And<T2, T3>(P2<F, T2, T3> p) => new(t1, p.t1, p.t2);
         public P4<F, T1, T2, T3, T4> And<T2, T3, T4>(P3<F, T2, T3, T4> p) => new(t1, p.t1, p.t2, p.t3);
@@ -26,7 +26,7 @@ public static class Products
         public P15<F, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15> And<T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(P14<F, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15> p) => new(t1, p.t1, p.t2, p.t3, p.t4, p.t5, p.t6, p.t7, p.t8, p.t9, p.t10, p.t11, p.t12, p.t13, p.t14);
         public P16<F, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> And<T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(P15<F, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> p) => new(t1, p.t1, p.t2, p.t3, p.t4, p.t5, p.t6, p.t7, p.t8, p.t9, p.t10, p.t11, p.t12, p.t13, p.t14, p.t15);
 
-        //应用一元函数到容器值
+        //applies a unary function to the container value
         public App<F, R> Apply<TMu, R>(Applicative<F, TMu> instance, Func<T1, R> function) where TMu : IApplicativeMu
             => Apply<TMu, R>(instance, instance.Point(function));
         public App<F, R> Apply<TMu, R>(Applicative<F, TMu> instance, App<F, Func<T1, R>> function) where TMu : IApplicativeMu
@@ -129,6 +129,6 @@ public static class Products
             => instance.Ap16(instance.Point(function), t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16);
     }
 
-    //of工厂用IdF包装两值构造二元乘积
+    //of factory wraps two values with IdF to build a binary product
     public static P2<IdFs.Mu, T1, T2> Of<T1, T2>(T1 t1, T2 t2) => new(IdFs.Create(t1), IdFs.Create(t2));
 }

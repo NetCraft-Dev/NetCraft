@@ -3,13 +3,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items;
 
-//Items 内置物品常量对应原版 net.minecraft.world.item.Items
-//注册到 BuiltInRegistries.ITEM 注册表
-//按 VanillaItems.Order 原版注册顺序逐项填充 保证 ITEM 注册表 id 等于原版 id
-//客户端按本地 vanilla ITEM 表解析 ItemStack 序号 序号错位会显示成别的物品
+//Items built-in item constants, maps to vanilla net.minecraft.world.item.Items
+//Registered into the BuiltInRegistries.ITEM registry
+//Filled item by item in the vanilla registration order from VanillaItems.Order, so the ITEM registry ids equal the vanilla ids
+//The client resolves ItemStack indices from its local vanilla ITEM table, a shifted index shows the wrong item
 public static class Items
 {
-    //BasicItem 普通物品只有注册名
+    //BasicItem plain item with only a registry name
     private sealed class BasicItem : Item
     {
         private readonly string _name;
@@ -17,50 +17,50 @@ public static class Items
         public override Identifier Id => Identifier.WithDefaultNamespace(_name);
     }
 
-    //RemainderItem 用掉后留下另一件物品的物品 岩浆桶烧完剩空桶走它
+    //RemainderItem item that leaves another item behind when used; a lava bucket burning out into an empty bucket goes through it
     private sealed class RemainderItem(string name, Func<Item> remainder) : Item
     {
         public override Identifier Id => Identifier.WithDefaultNamespace(name);
         public override Item? CraftingRemainder => remainder();
     }
 
-    //AIR 空气物品 ITEM 注册表默认值 id 0
+    //AIR air item, the ITEM registry default with id 0
     public static readonly Item AIR = new BasicItem("air");
 
-    //STONE 石头方块物品 id 1 放置时落位石头方块
+    //STONE stone block item with id 1, places a stone block
     public static readonly Item STONE = new BlockItem("stone", Blocks.STONE);
 
-    //GRASS_BLOCK 草方块物品 id 54
+    //GRASS_BLOCK grass block item with id 54
     public static readonly Item GRASS_BLOCK = new BlockItem("grass_block", Blocks.GRASS_BLOCK);
 
-    //DIRT 泥土物品 id 55
+    //DIRT dirt item with id 55
     public static readonly Item DIRT = new BlockItem("dirt", Blocks.DIRT);
 
-    //REDSTONE_TORCH 红石火把物品 点到侧面时落墙火把那一个变体
+    //REDSTONE_TORCH redstone torch item, clicking a side places the wall torch variant
     public static readonly Item REDSTONE_TORCH = new BlockItem("redstone_torch", Blocks.REDSTONE_TORCH)
     {
         WallBlock = Blocks.REDSTONE_WALL_TORCH,
     };
 
-    //REPEATER 红石中继器物品
+    //REPEATER redstone repeater item
     public static readonly Item REPEATER = new BlockItem("repeater", Blocks.REPEATER);
 
-    //COMPARATOR 红石比较器物品
+    //COMPARATOR redstone comparator item
     public static readonly Item COMPARATOR = new BlockItem("comparator", Blocks.COMPARATOR);
 
-    //REDSTONE 红石粉物品 原版红石线方块就是用它注册的 放置后落成红石线
+    //REDSTONE redstone dust item, vanilla registers the redstone wire block with it, placing it drops redstone wire
     public static readonly Item REDSTONE = new BlockItem("redstone", Blocks.REDSTONE_WIRE);
 
-    //OBSERVER 观察者物品
+    //OBSERVER observer item
     public static readonly Item OBSERVER = new BlockItem("observer", Blocks.OBSERVER);
 
-    //BUCKET 空桶
+    //BUCKET empty bucket
     public static readonly Item BUCKET = new BasicItem("bucket");
 
-    //LAVA_BUCKET 岩浆桶 当燃料烧掉后留下空桶
+    //LAVA_BUCKET lava bucket, leaves an empty bucket when burned as fuel
     public static readonly Item LAVA_BUCKET = new RemainderItem("lava_bucket", () => BUCKET);
 
-    //投射物类物品 发射器按 ProjectileItem 造实体射出去 玩家投掷将来也走同一条路
+    //Projectile items: the dispenser spawns and shoots them via ProjectileItem, player throwing will use the same path
     public static readonly Item ARROW = new ArrowItem("arrow");
 
     public static readonly Item SNOWBALL = new SnowballItem("snowball");
@@ -71,11 +71,11 @@ public static class Items
 
     public static readonly Item FIRE_CHARGE = new FireChargeItem("fire_charge");
 
-    //FLINT_AND_STEEL 打火石 对着方块使用在点击面外侧放火 行为在 IUseOnBlockItem
+    //FLINT_AND_STEEL flint and steel, using it on a block lights a fire outside the clicked face, behavior lives in IUseOnBlockItem
     public static readonly Item FLINT_AND_STEEL = new FlintAndSteelItem("flint_and_steel");
 
-    //Implemented 已接入具体行为的物品 未列出的按原版注册名建占位物品
-    //必须声明在具体物品字段之后 静态字段按文本顺序初始化
+    //Implemented items with actual behavior wired up, everything not listed becomes a placeholder from the vanilla registry name
+    //Must be declared after the concrete item fields, static fields initialize in textual order
     private static readonly Dictionary<string, Item> Implemented = new(StringComparer.Ordinal)
     {
         ["air"] = AIR,
@@ -97,34 +97,34 @@ public static class Items
         ["flint_and_steel"] = FLINT_AND_STEEL,
     };
 
-    //ByBlock 方块到对应物品的反查 对应原版 Item.BY_BLOCK
-    //破坏方块取默认掉落时按它找 注册方块物品时填充
+    //ByBlock reverse lookup from block to item, maps to vanilla Item.BY_BLOCK
+    //Used to find the default drop when a block is broken, populated when block items are registered
     private static readonly Dictionary<Block, Item> ByBlock = new();
 
-    //ItemForBlock 取方块的对应物品 没有对应物品返回 null
+    //ItemForBlock returns the item for a block, null when there is none
     public static Item? ItemForBlock(Block block) => ByBlock.GetValueOrDefault(block);
 
-    //Bootstrap 按原版注册顺序填充 ITEM 注册表
-    //由 GameBootstrap 在 BootStrap 冻结注册表之前调用
-    //id 必须与客户端本地 vanilla ITEM 表逐项对齐 否则 ItemStack 序号错位显示成别的物品
+    //Bootstrap populates the ITEM registry in vanilla registration order
+    //Called by GameBootstrap before BootStrap freezes the registries
+    //Ids must align one-to-one with the client's local vanilla ITEM table, otherwise ItemStack indices shift and show the wrong item
     public static void Bootstrap()
     {
         foreach (var name in VanillaItems.Order)
             Register(Implemented.TryGetValue(name, out var item) ? item : CreateDefault(name));
     }
 
-    //CreateDefault 未接具体行为的物品: 有同名已注册方块的建成方块物品 其余建普通占位物品
-    //方块物品是放置的前提 服务端要按 PlacedBlock 落位 客户端按本地表解析同一个物品 id
+    //CreateDefault for items without wired behavior: build a block item when a registered block with the same name exists, otherwise a plain placeholder
+    //Block items are a prerequisite for placement, the server places PlacedBlock and the client resolves the same item id from its local table
     private static Item CreateDefault(string name)
     {
         var id = Identifier.WithDefaultNamespace(name);
-        //BLOCK 是 DefaultedRegistry 未知 id 取值兜底成 air 必须先判存在
+        //BLOCK is a DefaultedRegistry, unknown ids fall back to air, so existence must be checked first
         if (!BuiltInRegistries.BLOCK.ContainsKey(id)) return new BasicItem(name);
         var block = BuiltInRegistries.BLOCK.GetValue(id);
         return block is null ? new BasicItem(name) : new BlockItem(name, block);
     }
 
-    //Register 注册物品到 ITEM 注册表 方块物品顺带建立方块反查
+    //Register registers an item into the ITEM registry, block items also populate the block reverse lookup
     private static void Register(Item item)
     {
         Registry<Item>.Register(BuiltInRegistries.ITEM, item.Id, item);

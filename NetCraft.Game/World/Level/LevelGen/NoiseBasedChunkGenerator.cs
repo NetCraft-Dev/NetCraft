@@ -19,26 +19,26 @@ using GameBeardifier = NetCraft.Game.World.Level.LevelGen.Structure.Beardifier;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//NoiseBasedChunkGenerator 基于噪声的区块生成器对应原版 net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator
-//继承 ChunkGenerator 持有 NoiseGeneratorSettings 与 PerlinNoise 基础噪声
-//P0 接入 RandomState + NoiseChunk + Aquifer 通过 GetInterpolatedState 驱动方块决策
-//内核不硬编码方块 DefaultBlock/DefaultFluid 由 Game 层通过 NoiseGeneratorSettings 注入
+//NoiseBasedChunkGenerator is the noise-based chunk generator, maps to vanilla net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator
+//Extends ChunkGenerator and holds NoiseGeneratorSettings plus the base PerlinNoise
+//P0 wires up RandomState + NoiseChunk + Aquifer and drives block decisions through GetInterpolatedState
+//The kernel hardcodes no blocks; DefaultBlock/DefaultFluid are injected by the Game layer via NoiseGeneratorSettings
 public class NoiseBasedChunkGenerator : ChunkGenerator
 {
     public NoiseGeneratorSettings Settings { get; }
 
-    //RandomState 按世界种子创建一次后整局复用 对齐原版 RandomState 的世界级单例语义
-    //密度树 mapAll 与 NormalNoise 实例化开销大,逐区块重建既慢又会让相邻区块噪声不连续
-    //volatile: 双检锁的另一半,没有它别的线程可能看到非 null 但尚未构造完的对象
+    //RandomState is created once per world seed and reused for the whole session, matching vanilla's world-level singleton semantics
+    //The density tree mapAll and NormalNoise are expensive to instantiate; rebuilding per chunk is slow and would make neighboring chunks' noise discontinuous
+    //volatile: the other half of the double-checked lock; without it another thread could see a non-null object that is not fully constructed
     private volatile RandomState? _cachedRandomState;
     private readonly object _randomStateLock = new();
 
-    //NoiseChunk 按区块挂一份 噪声阶段建好地表阶段直接复用 对应原版 protoChunk.getOrCreateNoiseChunk
-    //用弱表避免区块卸载后 NoiseChunk 跟着泄漏
+    //One NoiseChunk per chunk; built during the noise stage and reused directly by the surface stage, maps to vanilla protoChunk.getOrCreateNoiseChunk
+    //A weak table avoids leaking NoiseChunk after the chunk unloads
     private readonly ConditionalWeakTable<ChunkAccess, NoiseChunk> _noiseChunks = new();
 
-    //SamplerHeightNoise 用于地形基础高度采样的 NormalNoise 占位
-    //真实接入时由 RandomState 派生此处简化为可空字段
+    //SamplerHeightNoise is the NormalNoise placeholder for terrain base height sampling
+    //The real wiring derives it from RandomState; here it is simplified to a nullable field
     public NormalNoise? HeightNoise { get; private set; }
 
     public NoiseBasedChunkGenerator(BiomeSource biomeSource, NoiseGeneratorSettings settings)
@@ -47,37 +47,37 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         Settings = settings;
     }
 
-    //WithSamplerIfNeeded 构造前检查 BiomeSource 是否为未注入采样器的实现
-    //多噪声源用 Settings.NoiseRouter 建 NoiseRouterSampler 末地源注入 erosion 槽的密度函数
-    //ParameterList 为 null 时不注入因为 GetBiome 仍走 Biome.Plains 占位路径
+    //WithSamplerIfNeeded checks before construction whether BiomeSource is an implementation without an injected sampler
+    //Multi-noise sources build a NoiseRouterSampler from Settings.NoiseRouter; the End source injects the density function from the erosion slot
+    //Not injected when ParameterList is null because GetBiome still takes the Biome.Plains placeholder path
     private static BiomeSource WithSamplerIfNeeded(BiomeSource biomeSource, NoiseGeneratorSettings settings)
     {
         if (biomeSource is MultiNoiseBiomeSource { Sampler: null, ParameterList: not null } multi)
             return new MultiNoiseBiomeSource(multi.ParameterList!, new Climate.NoiseRouterSampler(settings.NoiseRouter));
-        //末地的 erosion 槽读的是 end_islands 与主世界语义不同 直接取噪声设置里的那个槽
+        //The End's erosion slot reads end_islands and differs from the overworld semantics; take the slot straight from the noise settings
         if (biomeSource is TheEndBiomeSource { ErosionNoise: null } theEnd)
             return theEnd.WithErosion(settings.NoiseRouter.Erosion);
         return biomeSource;
     }
 
-    //InitHeightNoise 派生 NormalNoise 实例用于地形高度采样
-    //firstOctave/amplitudes 对齐原版默认配置简化版用 -3 与 [1,1,1,1,1,1,1] 占位
+    //InitHeightNoise derives the NormalNoise instance used for terrain base height sampling
+    //firstOctave/amplitudes align with the vanilla default config; the simplified version uses -3 and [1,1,1,1,1,1,1] as placeholders
     public void InitHeightNoise(RandomSource random)
     {
         Log.Debug($"InitHeightNoise entry random={random}");
         HeightNoise = new NormalNoise(random, -3, 1, 1, 1, 1, 1, 1, 1);
-        //Log.Debug("InitHeightNoise 出口");
+        //Log.Debug("InitHeightNoise exit");
     }
 
-    //GetGenDepth 返回 settings 推导的最大生成深度对应原版 getGenDepth
-    //用 Settings.NoiseSettings.Height 对齐原版 settings.height
+    //GetGenDepth returns the max build depth derived from settings, maps to vanilla getGenDepth
+    //Uses Settings.NoiseSettings.Height to align with vanilla settings.height
     public override int GetGenDepth() => Settings.NoiseSettings.Height;
 
-    //GetMinY 返回噪声设置的最低位对应原版 getMinY
+    //GetMinY returns the lowest Y from the noise settings, maps to vanilla getMinY
     public override int GetMinY() => Settings.NoiseSettings.MinY;
 
-    //GetBaseHeight 采样指定坐标的基础高度对应原版 getBaseHeight
-    //type 参数为 HeightmapTypes 占位用 int简化版调 HeightNoise 采样
+    //GetBaseHeight samples the base height at the given coordinates, maps to vanilla getBaseHeight
+    //type is an int placeholder for HeightmapTypes; the simplified version samples HeightNoise
     public override int GetBaseHeight(int x, int z, int type, LevelHeightAccessor level, RandomSource random)
     {
         Log.Debug($"GetBaseHeight entry x={x} z={z} type={type} level={level} random={random}");
@@ -89,8 +89,8 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         return result;
     }
 
-    //GetBaseColumn 采样指定坐标的基础列方块状态对应原版 getBaseColumn
-    //简化返回 object[] 长度为 SectionsCount*16 内容全 null 待 BlockState 接入
+    //GetBaseColumn samples the base column block states at the given coordinates, maps to vanilla getBaseColumn
+    //Simplified to return an object[] of length SectionsCount*16 with all null entries, pending BlockState wiring
     public override object[] GetBaseColumn(int x, int z, LevelHeightAccessor level, RandomSource random)
     {
         Log.Debug($"GetBaseColumn entry x={x} z={z} level={level} random={random}");
@@ -106,10 +106,10 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         return result;
     }
 
-    //CreateFluidPicker 构造全局流体选择器对应原版 NoiseBasedChunkGenerator.createFluidPicker
-    //lavaStatus 深岩浆 y<-54 返回 lava seaStatus 海平面流体 y<seaLevel 返回水
-    //emptyStatus 占位 AIR 防御性兜底原版用 DimensionType.MIN_Y*2 此处用 int.MinValue/2 更极端
-    //FluidPicker 是 Game 层注入方块的边界点 Blocks.LAVA/AIR 由 Game 层提供
+    //CreateFluidPicker builds the global fluid picker, maps to vanilla NoiseBasedChunkGenerator.createFluidPicker
+    //lavaStatus: deep lava for y<-54; seaStatus: sea-level fluid for y<seaLevel returns water
+    //emptyStatus: AIR placeholder as a defensive fallback; vanilla uses DimensionType.MIN_Y*2, here int.MinValue/2 is more extreme
+    //FluidPicker is the injection point for Game layer blocks; Blocks.LAVA/AIR are provided by the Game layer
     public static Aquifer.FluidPicker CreateFluidPicker(NoiseGeneratorSettings settings)
     {
         var lavaStatus = new FluidStatus(-54, Blocks.LAVA.DefaultBlockState);
@@ -119,19 +119,19 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         return new GlobalFluidPicker(lavaStatus, seaStatus, emptyStatus, seaLevel);
     }
 
-    //FillFromNoise 从噪声填方块到区块对应原版 fillFromNoise
-    //逐 cell 流式推进: 角点只采样一次 格内方块由插值节点给出密度
-    //密度>0 时 Aquifer 返回 null 用 Settings.DefaultBlock 兜底即石头
-    //密度<=0 时 Aquifer 返回流体状态海平面以下水更深处岩浆否则空气
+    //FillFromNoise fills blocks into the chunk from noise, maps to vanilla fillFromNoise
+    //Streams cell by cell: corners are sampled once, in-cell blocks get their density from interpolated nodes
+    //When density>0 the Aquifer returns null and Settings.DefaultBlock (stone) is the fallback
+    //When density<=0 the Aquifer returns a fluid status: water below sea level, lava deeper, otherwise air
     public override void FillFromNoise(object blender, object structures, ChunkAccess chunk, RandomSource random)
     {
         if (chunk is not ProtoChunk proto) return;
 
-        //首次调用触发 Game 层 Bootstrap 注册方块与噪声参数后续调用幂等返回
+        //The first call triggers Game layer Bootstrap to register blocks and noise params; later calls return idempotently
         GameBootstrap.Bootstrap();
 
         var randomState = GetOrCreateRandomState();
-        //结构在 STRUCTURE_START 阶段已装配好 噪声阶段据此把结构范围内的地形顶平
+        //Structures are already assembled in the STRUCTURE_START stage; the noise stage uses them to flatten terrain within structure bounds
         var beardifier = structures is GameStructureFeatureManager manager
             ? GameBeardifier.ForStructuresInChunk(manager, chunk.Pos)
             : GameBeardifier.Empty;
@@ -180,9 +180,9 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         noiseChunk.StopInterpolation();
     }
 
-    //GetOrCreateRandomState 按世界种子创建并缓存 RandomState 对应原版世界级单例
-    //种子取 WorldSeed 而不是调用方传进来的随机源: 传进来的是每区块派生的局部随机源
-    //谁先抢到初始化谁就定下整局地形 同一个世界种子每跑一次地表高度都会不一样
+    //GetOrCreateRandomState creates and caches RandomState by world seed, maps to vanilla's world-level singleton
+    //The seed uses WorldSeed, not the caller-supplied random source: that one is a per-chunk derived local source
+    //Whoever wins the init race fixes the whole session's terrain; the same world seed would otherwise yield different surface heights on each run
     private RandomState GetOrCreateRandomState()
     {
         var cached = _cachedRandomState;
@@ -192,15 +192,15 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
             if (_cachedRandomState is null)
             {
                 _cachedRandomState = RandomState.Create(Settings, BuiltInRegistries.NOISE, WorldSeed);
-                //高度噪声同样按世界种子派生 并发下按传入随机源建会随线程调度漂
+                //Height noise is likewise derived from the world seed; building it from the passed-in random source would drift with thread scheduling under concurrency
                 InitHeightNoise(RandomSource.Create(WorldSeed));
             }
             return _cachedRandomState;
         }
     }
 
-    //FindSpawnPosition 按噪声设置的 spawn_target 做气候径向搜索对应原版 Climate.Sampler.findSpawnPosition
-    //数据包没给 spawn_target 时返回 null 由调用方退回默认落点
+    //FindSpawnPosition does a radial climate search using the noise settings' spawn_target, maps to vanilla Climate.Sampler.findSpawnPosition
+    //Returns null when the datapack provides no spawn_target; the caller falls back to the default spawn
     public BlockPos? FindSpawnPosition()
     {
         if (Settings.SpawnTarget.Count == 0) return null;
@@ -209,7 +209,7 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         return result;
     }
 
-    //GetOrCreateNoiseChunk 取该区块的 NoiseChunk 没有就建一个对应原版 getOrCreateNoiseChunk
+    //GetOrCreateNoiseChunk returns the chunk's NoiseChunk, creating one if absent, maps to vanilla getOrCreateNoiseChunk
     private NoiseChunk GetOrCreateNoiseChunk(ChunkAccess chunk, RandomState randomState, DensityFunction beardifier)
     {
         if (_noiseChunks.TryGetValue(chunk, out var existing)) return existing;
@@ -218,8 +218,8 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         return created;
     }
 
-    //BuildSurface 应用表面规则到区块对应原版 buildSurface
-    //规则树取 settings 的 surface_rule 基岩层与地表材质都由它决定 没有规则时直接跳过
+    //BuildSurface applies surface rules to the chunk, maps to vanilla buildSurface
+    //The rule tree comes from settings' surface_rule; it decides both bedrock and surface material, skipped entirely when absent
     public override void BuildSurface(object region, object structures, ChunkAccess chunk, RandomSource random)
     {
         Log.Debug($"BuildSurface entry chunk={chunk.Pos} random={random}");
@@ -231,18 +231,18 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
             return;
         }
         var randomState = GetOrCreateRandomState();
-        //噪声阶段已按结构建好 NoiseChunk 这里通常直接命中缓存 回退时用恒零标记
+        //The noise stage already built a NoiseChunk from structures, so this usually hits the cache; a zero marker is used on the fallback path
         var noiseChunk = GetOrCreateNoiseChunk(chunk, randomState, BeardifierMarker.Instance);
-        //地表阶段的群系查询走 BiomeManager: 命中本区块调色板就是一次查表 出界才回退完整采样
-        //直接传 GetBiome 会让每一格都做一次六维气候采样 区块生成慢到连接超时
+        //Surface-stage biome lookups go through BiomeManager: a palette hit in this chunk is a single table lookup, only out-of-bounds falls back to full sampling
+        //Passing GetBiome directly would run a 6D climate sample per block and slow chunk generation to the point of connection timeouts
         var biomeManager = new BiomeManager(chunk, GetBiome, randomState.Seed);
         randomState.SurfaceSystem.BuildSurface(chunk, noiseChunk, ruleSource, biomeManager.GetBiome,
             chunk.MinSectionY * 16, GetGenDepth(), Settings.UseLegacyRandomSource);
-        //Log.Debug("BuildSurface 出口");
+        //Log.Debug("BuildSurface exit");
     }
 
-    //ApplyCarvers 在地表之后装饰之前雕刻洞穴对应原版 applyCarvers
-    //遍历中心区块周围 17x17 个区块只为取各位置的生物群系配置 雕刻目标与掩码始终是中心区块
+    //ApplyCarvers carves caves after surface and before decoration, maps to vanilla applyCarvers
+    //Iterates the 17x17 chunks around the center chunk only to read each position's biome config; the carve target and mask are always the center chunk
     public override void ApplyCarvers(long seed, ChunkAccess chunk, RandomSource random)
     {
         if (chunk is not ProtoChunk proto) return;
@@ -276,7 +276,7 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         }
     }
 
-    //SetLargeFeatureSeed 按区块坐标重播随机源对应原版 WorldgenRandom.setLargeFeatureSeed
+    //SetLargeFeatureSeed reseeds the random source by chunk coordinates, maps to vanilla WorldgenRandom.setLargeFeatureSeed
     private static void SetLargeFeatureSeed(RandomSource random, long seed, int chunkX, int chunkZ)
     {
         random.SetSeed(seed);
@@ -285,9 +285,9 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         random.SetSeed(chunkX * xScale ^ chunkZ * zScale ^ seed);
     }
 
-    //ApplyBiomeDecoration 应用生物群系装饰对应原版 applyBiomeDecoration
-    //按 11 个装饰步骤推进 每步内先落结构再放特征 结构先落地特征才能长在它上面
-    //只处理 3x3 内实际出现且属于本源可能群系的那些特征
+    //ApplyBiomeDecoration applies biome decoration, maps to vanilla applyBiomeDecoration
+    //Advances through the 11 decoration steps; each step places structures first then features, since features need structures in place to grow on
+    //Only handles features that actually appear within the 3x3 area and belong to this source's possible biomes
     public override void ApplyBiomeDecoration(WorldGenRegion region, ChunkAccess chunk,
         GameStructureFeatureManager structures)
     {
@@ -297,8 +297,8 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         var random = new XoroshiroRandomSource(RandomSupport.GenerateUniqueSeed());
         var decorationSeed = WorldgenRandom.SetDecorationSeed(random, region.Seed, origin.X, origin.Z);
 
-        //3x3 内所有 section 的群系调色板整体枚举再按本源可能群系过滤
-        //邻块可能是别的地形源本区块不该替它装饰
+        //Enumerate the biome palettes of every section in the 3x3 and filter by this source's possible biomes
+        //A neighbor may belong to another terrain source; this chunk must not decorate on its behalf
         var biomes = new HashSet<Biome>(ReferenceEqualityComparer.Instance);
         for (var offsetX = -1; offsetX <= 1; offsetX++)
         for (var offsetZ = -1; offsetZ <= 1; offsetZ++)
@@ -318,7 +318,7 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         var generationSteps = Math.Max(GameGenerationStep.Count, featureStepCount);
         for (var stepIndex = 0; stepIndex < generationSteps; stepIndex++)
         {
-            //结构喂 setFeatureSeed 的是步内顺序号 特征喂的是步内全局索引 两者语义不同
+            //For structures setFeatureSeed is fed the in-step ordinal, for features the in-step global index; the two differ semantically
             var index = 0;
             if (structures.ShouldGenerateStructures
                 && structuresByStep.TryGetValue(stepIndex, out var stepStructures))
@@ -334,7 +334,7 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
 
             if (stepIndex >= featureStepCount) continue;
             var stepData = featureList[stepIndex];
-            //先收齐本步要放的全局索引再去重排序 顺序必须与排序器的拓扑序一致
+            //Collect the global indices to place this step, then dedupe and sort; the order must match the sorter's topological order
             var candidates = new SortedSet<int>();
             foreach (var biome in biomes)
             {
@@ -356,8 +356,8 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         }
     }
 
-    //GroupStructuresByStep 按装饰步骤归类已装载的结构注册名 对应原版 structuresByStep
-    //注册表冻结后内容不变 每次装饰重建一次与逐区块重新分组的原版行为一致
+    //GroupStructuresByStep groups loaded structure registry names by decoration step, maps to vanilla structuresByStep
+    //The registry is immutable after freezing, so rebuilding each decoration matches vanilla's per-chunk regrouping behavior
     private static Dictionary<int, List<Identifier>> GroupStructuresByStep()
     {
         var result = new Dictionary<int, List<Identifier>>();
@@ -371,8 +371,8 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         return result;
     }
 
-    //GetBaseHeight 旧版简化签名兼容测试与简单调用
-    //内部委托抽象 GetBaseHeight(int,int,int,LevelHeightAccessor,RandomSource) 用 type=0 与占位 accessor
+    //GetBaseHeight is the legacy simplified signature kept for tests and simple callers
+    //The internal delegation uses GetBaseHeight(int,int,int,LevelHeightAccessor,RandomSource) with type=0 and a placeholder accessor
     public int GetBaseHeight(int x, int z)
     {
         Log.Debug($"GetBaseHeight entry x={x} z={z}");
@@ -387,12 +387,12 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         return result;
     }
 
-    //GetBiome 委托 BiomeSource 查询生物群系
+    //GetBiome delegates to BiomeSource for biome lookup
     public Biome GetBiome(int x, int y, int z)
         => BiomeSource.GetBiome(x, y, z);
 
-    //GlobalFluidPicker 全局流体选择器内部实现对应原版 createFluidPicker 的 lambda
-    //y < min(-54, seaLevel) 返回 lavaStatus 否则返回 seaStatus
+    //GlobalFluidPicker is the inner implementation of the global fluid picker, maps to the lambda in vanilla createFluidPicker
+    //y < min(-54, seaLevel) returns lavaStatus, otherwise seaStatus
     private sealed class GlobalFluidPicker : Aquifer.FluidPicker
     {
         private readonly FluidStatus _lavaStatus;

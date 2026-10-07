@@ -2,8 +2,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Game.World.Scores;
 
-//DisplaySlot 计分板显示槽 对应原版 net.minecraft.world.scores.DisplaySlot
-//前三个是通用槽 其后十四个按队伍颜色各占一个
+//DisplaySlot scoreboard display slot, maps to vanilla net.minecraft.world.scores.DisplaySlot
+//The first three are the generic slots, followed by fourteen, one per team color
 public enum DisplaySlot
 {
     LIST = 0,
@@ -27,10 +27,10 @@ public enum DisplaySlot
     TEAM_WHITE = 18
 }
 
-//DisplaySlotExtensions 显示槽的序列化名与按名按 id 反查
+//DisplaySlotExtensions serialized names for display slots and reverse lookup by name and by id
 public static class DisplaySlotExtensions
 {
-    //GetName 序列化名 对应原版 getSerializedName
+    //GetName serialized name, maps to vanilla getSerializedName
     public static string GetName(this DisplaySlot slot) => slot switch
     {
         DisplaySlot.LIST => "list",
@@ -54,14 +54,14 @@ public static class DisplaySlotExtensions
         _ => "team_white"
     };
 
-    //GetId 网络与存档用的数字 id 对应原版 id
+    //GetId numeric id used on the network and in saves, maps to vanilla id
     public static int GetId(this DisplaySlot slot) => (int)slot;
 
-    //ById 按 id 反查 越界给 LIST 对应原版 BY_ID
+    //ById reverse lookup by id, out of range gives LIST, maps to vanilla BY_ID
     public static DisplaySlot ById(int id)
         => id >= 0 && id < 19 ? (DisplaySlot)id : DisplaySlot.LIST;
 
-    //ByName 按序列化名反查 找不到给 null 对应原版 byName
+    //ByName reverse lookup by serialized name, null when not found, maps to vanilla byName
     public static DisplaySlot? ByName(string name)
     {
         foreach (var slot in Enum.GetValues<DisplaySlot>())
@@ -69,10 +69,10 @@ public static class DisplaySlotExtensions
         return null;
     }
 
-    //Codec 持久化编解码 按序列化名 对应原版 CODEC
+    //Codec persistence codec, keyed by serialized name, maps to vanilla CODEC
     public static readonly Codec<DisplaySlot> Codec = Codecs.String.ComapFlatMap(
         name => ByName(name) is { } slot
             ? DataResult<DisplaySlot>.Success(slot)
-            : DataResult<DisplaySlot>.Error(() => $"未知显示槽 {name}"),
+            : DataResult<DisplaySlot>.Error(() => $"unknown display slot {name}"),
         slot => slot.GetName());
 }

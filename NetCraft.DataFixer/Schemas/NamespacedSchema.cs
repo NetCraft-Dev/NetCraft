@@ -5,29 +5,29 @@ using NetCraft.Codec;
 using NetCraft.DataFixer.Types.Templates;
 using T = NetCraft.DataFixer.Types;
 
-//命名空间Schema对应原版net.minecraft.util.datafix.schemas.NamespacedSchema
-//继承Schema重写GetChoiceType用EnsureNamespaced包装choiceName规范化命名空间
-//EnsureNamespaced原版用Identifier.tryParse规范化此处占位直接返回input待MC集成层完整移植时补
+//Namespaced Schema maps to vanilla net.minecraft.util.datafix.schemas.NamespacedSchema
+//inherits Schema and overrides GetChoiceType, wrapping choiceName with EnsureNamespaced to normalize the namespace
+//vanilla EnsureNamespaced normalizes with Identifier.tryParse; here it is a placeholder returning input, to be completed when the MC integration layer is fully ported
 public class NamespacedSchema : Schema
 {
-    //NAMESPACED_STRING_CODEC命名空间字符串codec读时调EnsureNamespaced规范化
+    //NAMESPACED_STRING_CODEC namespaced string codec; calls EnsureNamespaced to normalize on read
     public static readonly Codec<string> NamespacedStringCodec = new NamespacedStringCodecImpl();
 
     private static readonly T.Type<string> NamespacedStringType = new Const.PrimitiveType<string>(NamespacedStringCodec);
 
     public NamespacedSchema(int versionKey, Schema? parent) : base(versionKey, parent) { }
 
-    //ensureNamespaced规范化命名空间字符串占位直接返回input待Identifier就绪后补tryParse逻辑
+    //ensureNamespaced normalizes a namespaced string; a placeholder returning input, to be completed with tryParse logic once Identifier is ready
     public static string EnsureNamespaced(string input) => input;
 
-    //namespacedString取得命名空间字符串Type
+    //namespacedString takes the namespaced string Type
     public static T.Type<string> NamespacedString() => NamespacedStringType;
 
-    //getChoiceType重写用EnsureNamespaced包装choiceName对齐原版
+    //getChoiceType override wraps choiceName with EnsureNamespaced, aligning with vanilla
     public override T.Type<object> GetChoiceType(DSL.ITypeReference type, string choiceName)
         => base.GetChoiceType(type, EnsureNamespaced(choiceName));
 
-    //NamespacedStringCodecImpl内部ScalarCodec实现Parse调GetStringValue后Map EnsureNamespaced
+    //NamespacedStringCodecImpl internal ScalarCodec; Parse calls GetStringValue then Maps EnsureNamespaced
     private sealed class NamespacedStringCodecImpl : ScalarCodec<string>
     {
         public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, string value)

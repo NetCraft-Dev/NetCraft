@@ -8,8 +8,8 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//Vec3Argument 三维坐标参数对应原版 Vec3Argument
-//^ 前缀走本地坐标 否则世界坐标 centerCorrect 控制方块中心修正
+//Vec3Argument 3D coordinate argument, maps to vanilla Vec3Argument
+//A ^ prefix goes through local coordinates, otherwise world coordinates; centerCorrect controls block center correction
 public sealed class Vec3Argument(bool centerCorrect) : ArgumentType<Coordinates>
 {
     public static readonly SimpleCommandExceptionType ErrorNotComplete =
@@ -28,11 +28,11 @@ public sealed class Vec3Argument(bool centerCorrect) : ArgumentType<Coordinates>
         return WorldCoordinates.ParseDouble(reader, centerCorrect);
     }
 
-    //GetCoordinates 取解析结果
+    //GetCoordinates gets the parse result
     public static Coordinates GetCoordinates(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<Coordinates>(name);
 
-    //GetVec3 按执行者位置求绝对坐标
+    //GetVec3 resolves the absolute coordinate from the executor's position
     public static Vec3 GetVec3(CommandContext<CommandSourceStack> context, string name)
         => GetCoordinates(context, name).GetPosition((ServerCommandSource)context.GetSource());
 

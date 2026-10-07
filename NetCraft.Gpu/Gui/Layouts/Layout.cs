@@ -1,15 +1,15 @@
 namespace NetCraft.Gpu;
 
-//ILayout 布局容器接口对标原版 Layout extends LayoutElement
-//管理子元素 VisitChildren/RemoveChildren/ArrangeElements
-//ArrangeElements 默认递归子 Layout 先排子再排自己子类 override 加自身布局逻辑
+//ILayout layout container interface, maps to vanilla Layout extends LayoutElement
+//Manages children via VisitChildren/RemoveChildren/ArrangeElements
+//ArrangeElements recursively arranges child Layouts by default, children before itself; subclasses override to add their logic
 public interface ILayout : ILayoutElement
 {
     void VisitChildren(Action<ILayoutElement> visitor);
 
     void RemoveChildren();
 
-    //ArrangeElements 默认递归子 Layout 子类 override 计算具体位置后调 base
+    //ArrangeElements recursively arranges child Layouts by default; subclasses override, compute positions and call base
     void ArrangeElements()
     {
         VisitChildren(child =>

@@ -3,7 +3,7 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Trees;
 
-//FeatureSizeType 特征尺寸类型基类 对应原版 FeatureSizeType<P>
+//FeatureSizeType feature size type base, maps to vanilla FeatureSizeType<P>
 public abstract class FeatureSizeType : NetCraft.Registry.FeatureSizeType<object>
 {
     public Identifier Id { get; }
@@ -15,7 +15,7 @@ public abstract class FeatureSizeType : NetCraft.Registry.FeatureSizeType<object
     public abstract void EncodeFields<U>(DynamicOps<U> ops, FeatureSize value, RecordBuilder<U> builder);
 }
 
-//FeatureSizeType<P> 具体尺寸类型的泛型中间层
+//FeatureSizeType<P> generic middle layer for a concrete size type
 public abstract class FeatureSizeType<P> : FeatureSizeType where P : FeatureSize
 {
     private readonly MapCodec<P> _codec;
@@ -37,7 +37,7 @@ internal sealed class SimpleFeatureSizeType<P> : FeatureSizeType<P> where P : Fe
         : base(Identifier.WithDefaultNamespace(id), codec) { }
 }
 
-//FeatureSizeTypes 内置尺寸类型登记 对应原版 FeatureSizeType 的静态字段
+//FeatureSizeTypes built-in size type registration, maps to the static fields of vanilla FeatureSizeType
 public static class FeatureSizeTypes
 {
     public static readonly FeatureSizeType<TwoLayersFeatureSize> TwoLayers =
@@ -55,13 +55,13 @@ public static class FeatureSizeTypes
     }
 }
 
-//FeatureSize 特征尺寸基类 对应原版 FeatureSize
-//树干可穿行范围按高度分层给定 尺寸越大越容易被上方方块截断
+//FeatureSize feature size base, maps to vanilla FeatureSize
+//The trunk pass-through range is given per height layer; larger sizes are more easily clipped by blocks above
 public abstract class FeatureSize
 {
     public static readonly Codec<FeatureSize> Codec = new FeatureSizeDispatchCodec();
 
-    //最小允许截断高度 未给时为空 对应原版 minClippedHeight
+    //Minimum allowed clipping height, absent when not given, maps to vanilla minClippedHeight
     public int? MinClippedHeight { get; }
 
     protected FeatureSize(int? minClippedHeight) => MinClippedHeight = minClippedHeight;
@@ -70,12 +70,12 @@ public abstract class FeatureSize
 
     public abstract int GetSizeAtHeight(int treeHeight, int yo);
 
-    //ToOptionalInt 可空整数转 Optional 供 min_clipped_height 字段回写
+    //ToOptionalInt convert a nullable int to Optional for writing back the min_clipped_height field
     protected static Optional<int> ToOptionalInt(int? value)
         => value is { } present ? Optional<int>.Of(present) : Optional<int>.Empty();
 }
 
-//FeatureSizeDispatchCodec 按 type 字段查 FEATURE_SIZE_TYPE 再委派给该类型
+//FeatureSizeDispatchCodec look up FEATURE_SIZE_TYPE by the type field then delegate to that type
 internal sealed class FeatureSizeDispatchCodec : ScalarCodec<FeatureSize>
 {
     public override DataResult<FeatureSize> Parse<U>(DynamicOps<U> ops, U input)
@@ -84,15 +84,15 @@ internal sealed class FeatureSizeDispatchCodec : ScalarCodec<FeatureSize>
     private static DataResult<FeatureSize> DecodeSize<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var typeTag = input.Get("type");
-        if (!typeTag.IsPresent) return DataResult<FeatureSize>.Error(() => "特征尺寸缺 type 字段");
+        if (!typeTag.IsPresent) return DataResult<FeatureSize>.Error(() => "feature size is missing the type field");
         var typeText = ops.GetStringValue(typeTag.Get());
         if (!typeText.Result().IsPresent)
-            return DataResult<FeatureSize>.Error(() => "特征尺寸的 type 必须是字符串");
+            return DataResult<FeatureSize>.Error(() => "feature size type must be a string");
         var typeId = Identifier.TryParse(typeText.GetOrThrow());
         if (typeId is null)
-            return DataResult<FeatureSize>.Error(() => $"非法的尺寸类型: {typeText.GetOrThrow()}");
+            return DataResult<FeatureSize>.Error(() => $"invalid size type: {typeText.GetOrThrow()}");
         if (BuiltInRegistries.FEATURE_SIZE_TYPE.GetValue(typeId.Value) is not FeatureSizeType type)
-            return DataResult<FeatureSize>.Error(() => $"未知的特征尺寸类型: {typeId}");
+            return DataResult<FeatureSize>.Error(() => $"unknown feature size type: {typeId}");
         return type.Decode(ops, input);
     }
 
@@ -105,7 +105,7 @@ internal sealed class FeatureSizeDispatchCodec : ScalarCodec<FeatureSize>
     }
 }
 
-//TwoLayersFeatureSize 两层尺寸 对应原版 TwoLayersFeatureSize
+//TwoLayersFeatureSize two-layer size, maps to vanilla TwoLayersFeatureSize
 public sealed class TwoLayersFeatureSize : FeatureSize
 {
     public static readonly MapCodec<TwoLayersFeatureSize> Codec =
@@ -135,7 +135,7 @@ public sealed class TwoLayersFeatureSize : FeatureSize
     public override int GetSizeAtHeight(int treeHeight, int yo) => yo < Limit ? LowerSize : UpperSize;
 }
 
-//ThreeLayersFeatureSize 三层尺寸 对应原版 ThreeLayersFeatureSize
+//ThreeLayersFeatureSize three-layer size, maps to vanilla ThreeLayersFeatureSize
 public sealed class ThreeLayersFeatureSize : FeatureSize
 {
     public static readonly MapCodec<ThreeLayersFeatureSize> Codec =

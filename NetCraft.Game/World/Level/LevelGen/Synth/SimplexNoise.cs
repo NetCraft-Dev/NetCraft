@@ -4,13 +4,13 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Synth;
 
-//SimplexNoise 单纯形噪声对应原版 net.minecraft.world.level.levelgen.synth.SimplexNoise
-//Stefan Gustavson 版本3D 单纯形算法int[512] 排列数组
-//GRADIENT 表与 ImprovedNoise 共享用 ImprovedNoise.GRADIENT
+//SimplexNoise simplex noise, maps to vanilla net.minecraft.world.level.levelgen.synth.SimplexNoise
+//Stefan Gustavson's version, 3D simplex algorithm with an int[512] permutation array
+//The GRADIENT table is shared with ImprovedNoise via ImprovedNoise.GRADIENT
 public sealed class SimplexNoise
 {
     private const double Sqrt3 = 1.7320508075688772;
-    //F2/G2 二维单纯形形变常数对应原版 SimplexNoise.F2/G2
+    //F2/G2 2D simplex skewing constants, maps to vanilla SimplexNoise.F2/G2
     private const double F2 = 0.5 * (Sqrt3 - 1.0);
     private const double G2 = (3.0 - Sqrt3) / 6.0;
 
@@ -38,7 +38,7 @@ public sealed class SimplexNoise
             _p[i] = perm[i & 255];
     }
 
-    //3D Simplex 噪声主入口
+    //Main 3D simplex noise entry point
     public double GetValue(double xin, double yin, double zin)
     {
         var skew = (xin + yin + zin) / 3.0;
@@ -89,8 +89,8 @@ public sealed class SimplexNoise
         return 32.0 * (n0 + n1 + n2 + n3);
     }
 
-    //GetValue 二维单纯形噪声对应原版 SimplexNoise.getValue(xin, yin)
-    //EndIslandDensityFunction 用于末地岛屿形状采样
+    //GetValue 2D simplex noise, maps to vanilla SimplexNoise.getValue(xin, yin)
+    //EndIslandDensityFunction uses it to sample end island shapes
     public double GetValue(double xin, double yin)
     {
         var s = (xin + yin) * F2;
@@ -117,11 +117,11 @@ public sealed class SimplexNoise
         return 70.0 * (n0 + n1 + n2);
     }
 
-    //P 排列数组索引对应原版 SimplexNoise.p(int)
+    //P permutation array indexing, maps to vanilla SimplexNoise.p(int)
     private int P(int x) => _p[x & 255];
 
-    //CornerContribution 角点贡献对应原版 getCornerNoise3D
-    //base 为贡献衰减阈值2D 用 0.5 3D 用 0.6
+    //CornerContribution corner contribution, maps to vanilla getCornerNoise3D
+    //base is the contribution falloff threshold: 0.5 for 2D, 0.6 for 3D
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static double CornerContribution(double x, double y, double z, int gradIndex, double baseValue)
     {
@@ -129,7 +129,7 @@ public sealed class SimplexNoise
         if (t < 0) return 0;
         t *= t;
         var gi = (gradIndex & 15) * 3;
-        //跨类取 ImprovedNoise.GRADIENT 次次都要过类初始化检查与静态基址获取 一次取好引用
+        //Reading ImprovedNoise.GRADIENT across classes costs a class-init check and static base fetch each time, so grab the reference once
         var gradient = ImprovedNoise.GRADIENT;
         return t * t * (gradient[gi] * x + gradient[gi + 1] * y + gradient[gi + 2] * z);
     }

@@ -2,21 +2,21 @@ using System.Numerics;
 
 namespace NetCraft.Gpu;
 
-//Lighting 方向光照对标原版 com.mojang.blaze3d.platform.Lighting
-//预计算 5 个 Entry 的双光方向 vertex shader 用 dot(normal,lightDir) 算 diffuse
-//DIFFUSE_LIGHT_0/1 是主光方向 flatPose/item3DPose 是各 Entry 的变换矩阵
-//PoC 简化每 Entry 独立 UBO 不做原版切片对齐 GPU 部分需真 Vulkan 后端
+//Lighting directional lighting, maps to vanilla com.mojang.blaze3d.platform.Lighting
+//Precomputes the dual light directions for 5 Entries; the vertex shader computes diffuse with dot(normal,lightDir)
+//DIFFUSE_LIGHT_0/1 are the main light directions; flatPose/item3DPose are the per-Entry transform matrices
+//The PoC simplifies to a separate UBO per Entry without the vanilla slice alignment; the GPU part needs a real Vulkan backend
 public sealed class Lighting : IDisposable
 {
-    //DiffuseLight0 主光方向对标原版 DIFFUSE_LIGHT_0
+    //DiffuseLight0 main light direction, maps to vanilla DIFFUSE_LIGHT_0
     public static readonly Vector3 DiffuseLight0 = Vector3.Normalize(new Vector3(0.2f, 1.0f, -0.7f));
-    //DiffuseLight1 副光方向对标原版 DIFFUSE_LIGHT_1
+    //DiffuseLight1 secondary light direction, maps to vanilla DIFFUSE_LIGHT_1
     public static readonly Vector3 DiffuseLight1 = Vector3.Normalize(new Vector3(-0.2f, 1.0f, 0.7f));
 
-    //Entry 光照预设对标原版 Lighting.Entry
+    //Entry lighting preset, maps to vanilla Lighting.Entry
     public enum Entry { Level, ItemsFlat, Items3D, EntityInUi, PlayerSkin }
 
-    //光方向数据两个 vec4 对标原版 UBO 内容 xyz 是光方向 w 未用 pad 到 32 bytes 匹配 std140
+    //Light direction data as two vec4, maps to the vanilla UBO contents; xyz is the light direction and w is unused, padded to 32 bytes to match std140
     public readonly record struct LightUniform(Vector4 Light0, Vector4 Light1);
 
     private readonly Dictionary<Entry, LightUniform> _lights = new();
@@ -30,16 +30,16 @@ public sealed class Lighting : IDisposable
     {
         _device = device;
         PrecomputeLights();
-        //仅 Vulkan 等真后端创建 UBO Mock/Empty 后端无 CreateBuffer 跳过
+        //Only real backends like Vulkan create the UBO; the Mock/Empty backends have no CreateBuffer and are skipped
         if (device?.SupportsGpuRendering == true)
             CreateUbos();
     }
 
-    //PrecomputeLights 预计算各 Entry 光方向
-    //对标原版构造时的 flatPose/item3DPose 矩阵变换 DIFFUSE_LIGHT_0/1
+    //PrecomputeLights precomputes the light directions for each Entry
+    //maps to the vanilla constructor transforming DIFFUSE_LIGHT_0/1 with the flatPose/item3DPose matrices
     private void PrecomputeLights()
     {
-        //Level 用原始光方向
+        //Level uses the raw light direction
         _lights[Entry.Level] = new LightUniform(new Vector4(DiffuseLight0, 0f), new Vector4(DiffuseLight1, 0f));
         //ItemsFlat flatPose = rotationY(-0.3926991) * rotationX(2.3561945)
         var flatPose = Matrix4x4.CreateRotationY(-0.3926991f) * Matrix4x4.CreateRotationX(2.3561945f);
@@ -53,16 +53,16 @@ public sealed class Lighting : IDisposable
         _lights[Entry.Items3D] = new LightUniform(
             new Vector4(Vector3.Normalize(Vector3.TransformNormal(DiffuseLight0, item3DPose)), 0f),
             new Vector4(Vector3.Normalize(Vector3.TransformNormal(DiffuseLight1, item3DPose)), 0f));
-        //EntityInUi 用 INVENTORY_DIFFUSE_LIGHT
+        //EntityInUi uses INVENTORY_DIFFUSE_LIGHT
         _lights[Entry.EntityInUi] = new LightUniform(
             new Vector4(Vector3.Normalize(new Vector3(0.2f, -1.0f, 1.0f)), 0f),
             new Vector4(Vector3.Normalize(new Vector3(-0.2f, -1.0f, 0.0f)), 0f));
-        //PlayerSkin 用 playerSkinPose=identity 变换 INVENTORY_DIFFUSE_LIGHT
+        //PlayerSkin transforms INVENTORY_DIFFUSE_LIGHT with playerSkinPose=identity
         _lights[Entry.PlayerSkin] = _lights[Entry.EntityInUi];
     }
 
-    //CreateUbos 创建各 Entry 的 UBO + DescriptorSet
-    //PoC 简化每 Entry 独立 UBO 不做原版切片对齐
+    //CreateUbos creates the UBO + DescriptorSet for each Entry
+    //The PoC simplifies to a separate UBO per Entry without the vanilla slice alignment
     private void CreateUbos()
     {
         _ubos = new();
@@ -86,14 +86,14 @@ public sealed class Lighting : IDisposable
         }
     }
 
-    //GetLightDirections 返回指定 Entry 的光方向供 CPU 端光照计算/测试
+    //GetLightDirections returns the light directions of an Entry for CPU-side lighting computation/tests
     public LightUniform GetLightDirections(Entry entry) => _lights[entry];
 
-    //SetupFor 设置当前光照 Entry 渲染时绑定对应 UBO
+    //SetupFor sets the current lighting Entry, binding its UBO on render
     public void SetupFor(Entry entry) => _current = entry;
 
-    //CurrentDescriptorSet 当前 Entry 的 DescriptorSet 供 render pass 绑定
-    //无 GPU 后端时返回 null
+    //CurrentDescriptorSet the current Entry's DescriptorSet for the render pass to bind
+    //Returns null without a GPU backend
     public GpuDescriptorSet? CurrentDescriptorSet => _sets?.TryGetValue(_current, out var s) == true ? s : null;
     public GpuDescriptorLayout? Layout => _layout;
     public Entry Current => _current;

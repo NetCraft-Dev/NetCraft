@@ -7,16 +7,16 @@ using NetCraft.DataFixer.Functions;
 using NetCraft.DataFixer.Schemas;
 using NetCraft.DataFixer.Types;
 
-//DataFixerUpper核心修复器对应原版DataFixerUpper
-//管理Schema列表与DataFix列表按版本组合规则
+//DataFixerUpper core fixer, maps to vanilla DataFixerUpper
+//manages the Schema list and DataFix list, combining rules by version
 public sealed class DataFixerUpper : DataFixer
 {
-    //ERRORS_ARE_FATAL是否将错误视为致命
+    //ERRORS_ARE_FATAL whether errors are treated as fatal
     public static bool ERRORS_ARE_FATAL;
 
-    //OPTIMIZATION_RULE全局函数优化规则
-    //原版用CataFuseSame/CataFuseDifferent/LensComp/SortProj/SortInj/AppNest组合规则
-    //C#这些高级PointFree规则未移植先用Nop占位阶段C接通MC集成层时实现
+    //OPTIMIZATION_RULE global function optimization rule
+    //vanilla combines CataFuseSame/CataFuseDifferent/LensComp/SortProj/SortInj/AppNest rules
+    //these advanced PointFree rules are not ported in C# yet, so Nop is a placeholder until stage C wires up the MC integration layer
     public static readonly PointFreeRule OPTIMIZATION_RULE = PointFreeRule.Nop();
 
     private readonly SortedDictionary<int, Schema> _schemas;
@@ -31,8 +31,8 @@ public sealed class DataFixerUpper : DataFixer
         _fixerVersions = fixerVersions;
     }
 
-    //update按type与版本范围对input执行更新对应原版DataFixerUpper.update
-    //version<newVersion时按type读取input经规则重写后用新类型编码回T
+    //update applies updates to input by type and version range, maps to vanilla DataFixerUpper.update
+    //when version<newVersion, reads input by type, rewrites it via the rule, then re-encodes into T with the new type
     public Dynamic<T> Update<T>(DSL.ITypeReference type, Dynamic<T> input, int version, int newVersion)
     {
         if (version < newVersion)
@@ -47,15 +47,15 @@ public sealed class DataFixerUpper : DataFixer
         return input;
     }
 
-    //getSchema按key取得同版本最低Schema
+    //getSchema gets the lowest Schema of the same version by key
     public Schema GetSchema(int key)
         => _schemas[DataFixerBuilder.GetLowestSchemaSameVersion(_schemas, key)];
 
-    //getType按引用与版本取得类型委托Schema.GetTypeRaw
+    //getType gets the type by reference and version, delegating to Schema.GetTypeRaw
     public Type<object> GetType(DSL.ITypeReference type, int version)
         => GetSchema(DataFixUtils.MakeKey(version)).GetTypeRaw(type);
 
-    //getRule按版本范围组合所有相关DataFix规则用long key缓存
+    //getRule combines all relevant DataFix rules over a version range, cached by a long key
     public TypeRewriteRule GetRule(int version, int newVersion)
     {
         if (version >= newVersion) return TypeRewriteRule.Nop();
@@ -80,7 +80,7 @@ public sealed class DataFixerUpper : DataFixer
         return combined;
     }
 
-    //getLowestFixSameVersion返回不超过versionKey同版本最大fixer版本
+    //getLowestFixSameVersion returns the largest fixer version of the same version not exceeding versionKey
     private int GetLowestFixSameVersion(int versionKey)
     {
         int first = FirstFixerVersion();
@@ -100,6 +100,6 @@ public sealed class DataFixerUpper : DataFixer
         return 0;
     }
 
-    //fixerVersions返回已注册修复版本集合
+    //fixerVersions returns the set of registered fixer versions
     public SortedSet<int> FixerVersions() => _fixerVersions;
 }

@@ -2,11 +2,11 @@ using NetCraft.Codec;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//JigsawJunction 拼图接缝 对应原版 net.minecraft.world.level.levelgen.structure.pools.JigsawJunction
-//记录一个拼图连接点的来源坐标 相对高度差与目标投影 生成拼图时参与地形适配
+//JigsawJunction jigsaw junction, maps to vanilla net.minecraft.world.level.levelgen.structure.pools.JigsawJunction
+//Records the source position, relative height delta and dest projection of one jigsaw connection point; participates in terrain adaptation during jigsaw generation
 public sealed class JigsawJunction
 {
-    //Codec 接缝编解码 对应原版 serialize / deserialize 的字段布局
+    //Codec junction codec, matches the vanilla serialize / deserialize field layout
     public static readonly Codec<JigsawJunction> Codec = new JigsawJunctionCodec();
 
     public JigsawJunction(int sourceX, int sourceGroundY, int sourceZ, int deltaY,
@@ -29,7 +29,7 @@ public sealed class JigsawJunction
 
     public StructureTemplatePool.Projection DestProjection { get; }
 
-    //Equals 原版比较里不含来源地面高度 这里对齐
+    //Equals vanilla comparison omits source ground Y; aligned here
     public override bool Equals(object? obj)
         => obj is JigsawJunction other
             && SourceX == other.SourceX
@@ -43,7 +43,7 @@ public sealed class JigsawJunction
         => $"JigsawJunction{{sourceX={SourceX}, sourceGroundY={SourceGroundY}, sourceZ={SourceZ}, deltaY={DeltaY}, destProjection={DestProjection}}}";
 }
 
-//JigsawJunctionCodec 接缝的字段编解码 四个整数加一个投影名
+//JigsawJunctionCodec field codec for a junction: four ints plus a projection name
 internal sealed class JigsawJunctionCodec : ScalarCodec<JigsawJunction>
 {
     public override DataResult<JigsawJunction> Parse<U>(DynamicOps<U> ops, U input)
@@ -62,7 +62,7 @@ internal sealed class JigsawJunctionCodec : ScalarCodec<JigsawJunction>
 
     private static DataResult<JigsawJunction> DecodeJunction<U>(DynamicOps<U> ops, MapLike<U> input)
     {
-        //四个整数缺省按 0 对应原版 asInt(0) 的宽松读法
+        //Missing ints default to 0, matching the vanilla lenient asInt(0) read
         return ReadInt(ops, input, "source_x").FlatMap(sourceX =>
             ReadInt(ops, input, "source_ground_y").FlatMap(sourceGroundY =>
                 ReadInt(ops, input, "source_z").FlatMap(sourceZ =>
@@ -80,12 +80,12 @@ internal sealed class JigsawJunctionCodec : ScalarCodec<JigsawJunction>
     private static DataResult<StructureTemplatePool.Projection> ReadProjection<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var tag = input.Get("dest_proj");
-        if (!tag.IsPresent) return DataResult<StructureTemplatePool.Projection>.Error(() => "接缝缺少 dest_proj");
+        if (!tag.IsPresent) return DataResult<StructureTemplatePool.Projection>.Error(() => "junction is missing dest_proj");
         var text = ops.GetStringValue(tag.Get());
-        if (!text.Result().IsPresent) return DataResult<StructureTemplatePool.Projection>.Error(() => "dest_proj 必须是字符串");
+        if (!text.Result().IsPresent) return DataResult<StructureTemplatePool.Projection>.Error(() => "dest_proj must be a string");
         var parsed = PoolProjections.TryParse(text.GetOrThrow());
         return parsed is null
-            ? DataResult<StructureTemplatePool.Projection>.Error(() => $"未知的 dest_proj: {text.GetOrThrow()}")
+            ? DataResult<StructureTemplatePool.Projection>.Error(() => $"unknown dest_proj: {text.GetOrThrow()}")
             : DataResult<StructureTemplatePool.Projection>.Success(parsed.Value);
     }
 }

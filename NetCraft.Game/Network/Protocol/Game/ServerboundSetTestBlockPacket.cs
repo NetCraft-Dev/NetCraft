@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundSetTestBlockPacket 数据包对应原版 ServerboundSetTestBlockPacket
-//字段 Position(BlockPos) Mode(TestBlockMode) Message(String)
+//ServerboundSetTestBlockPacket set test block packet, maps to vanilla ServerboundSetTestBlockPacket
+//Fields: Position(BlockPos), Mode(TestBlockMode), Message(String)
 public sealed record ServerboundSetTestBlockPacket(object Position, object Mode, string Message) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundSetTestBlockPacket> StreamCodec { get; } = new SetTestBlockCodec();
@@ -13,9 +13,9 @@ public sealed record ServerboundSetTestBlockPacket(object Position, object Mode,
     private sealed class SetTestBlockCodec : StreamCodec<FriendlyByteBuf, ServerboundSetTestBlockPacket>
     {
         public ServerboundSetTestBlockPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ServerboundSetTestBlockPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

@@ -14,39 +14,39 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Vegetation;
 
-//VegetationSupport 地表植被特征共用的方块查表 标签判定 属性搬运与平面方向表
-//按注册名取方块与状态 免得每个特征各自重复一遍查表与空值兜底
+//VegetationSupport shared block lookup, tag checks, property copying and plane direction table for surface vegetation features
+//Fetch blocks and states by registry name so every feature does not repeat the lookup and null fallback
 internal static class VegetationSupport
 {
-    //HorizontalPlane 水平方向表 顺序照原版 Direction.Plane.HORIZONTAL 的声明序
-    //倒地树取随机朝向 bonus_chest 与 multiface 逐向遍历都吃这个顺序 顺序错了同种子结果就偏
+    //HorizontalPlane horizontal direction table, ordered by the declaration order of vanilla Direction.Plane.HORIZONTAL
+    //Fallen tree random facing, bonus_chest and multiface per-direction traversal all depend on this order; a wrong order shifts results for the same seed
     public static readonly Direction[] HorizontalPlane =
     {
         Direction.North, Direction.East, Direction.South, Direction.West,
     };
 
-    //LeavesTag 树叶标签 对应原版 BlockTags.LEAVES
+    //LeavesTag leaf tag, maps to vanilla BlockTags.LEAVES
     public static readonly TagKey<RegBlock> LeavesTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("leaves"));
 
-    //ReplaceableByTreesTag 可被树木覆盖的方块 对应原版 BlockTags.REPLACEABLE_BY_TREES
+    //ReplaceableByTreesTag blocks replaceable by trees, maps to vanilla BlockTags.REPLACEABLE_BY_TREES
     public static readonly TagKey<RegBlock> ReplaceableByTreesTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("replaceable_by_trees"));
 
-    //ReplaceableByMushroomsTag 可被蘑菇覆盖的方块 对应原版 BlockTags.REPLACEABLE_BY_MUSHROOMS
+    //ReplaceableByMushroomsTag blocks replaceable by mushrooms, maps to vanilla BlockTags.REPLACEABLE_BY_MUSHROOMS
     public static readonly TagKey<RegBlock> ReplaceableByMushroomsTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("replaceable_by_mushrooms"));
 
-    //SupportsBambooTag 竹子可种植于其上的方块 对应原版 BlockTags.SUPPORTS_BAMBOO
+    //SupportsBambooTag blocks bamboo can be planted on, maps to vanilla BlockTags.SUPPORTS_BAMBOO
     public static readonly TagKey<RegBlock> SupportsBambooTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("supports_bamboo"));
 
-    //BeneathBambooPodzolReplaceableTag 竹子下方可换成灰化土的方块 对应原版 BlockTags.BENEATH_BAMBOO_PODZOL_REPLACEABLE
+    //BeneathBambooPodzolReplaceableTag blocks replaceable with podzol below bamboo, maps to vanilla BlockTags.BENEATH_BAMBOO_PODZOL_REPLACEABLE
     public static readonly TagKey<RegBlock> BeneathBambooPodzolReplaceableTag =
         TagKey<RegBlock>.Create(Registries.BLOCK,
             Identifier.WithDefaultNamespace("beneath_bamboo_podzol_replaceable"));
 
-    //BlockOf 按注册名取方块 未注册退回空气
+    //BlockOf fetch a block by registry name; falls back to air when unregistered
     public static RegBlock BlockOf(string path)
     {
         var id = Identifier.WithDefaultNamespace(path);
@@ -55,38 +55,38 @@ internal static class VegetationSupport
             : Blocks.AIR;
     }
 
-    //StateOf 按注册名取默认状态
+    //StateOf default state by registry name
     public static BlockState StateOf(string path) => BlockOf(path).DefaultBlockState;
 
-    //IsState 该状态是否由指定注册名的方块构成
+    //IsState whether the state is made of the block with the given registry name
     public static bool IsState(BlockState state, string path) => state.Owner.Id.Path == path;
 
-    //IsAir 该位置是否为空
+    //IsAir whether the position is air
     public static bool IsAir(WorldGenRegion level, BlockPos pos)
         => level.GetBlockState(pos.X, pos.Y, pos.Z).Owner.IsAir;
 
-    //Get 读世界里的方块状态
+    //Get read the block state from the world
     public static BlockState Get(WorldGenRegion level, BlockPos pos) => level.GetBlockState(pos.X, pos.Y, pos.Z);
 
-    //Set 写方块状态
+    //Set write the block state
     public static void Set(WorldGenRegion level, BlockPos pos, BlockState state)
         => level.SetBlockState(pos.X, pos.Y, pos.Z, state);
 
-    //InTag 状态是否属于某方块标签 标签未绑定按不属于处理
+    //InTag whether the state belongs to a block tag; treat an unbound tag as no match
     public static bool InTag(BlockState state, TagKey<RegBlock> tag) => ProcessorBlockHelper.InTag(state, tag);
 
-    //IsInSet 状态是否属于方块集合 标签走标签判定 直接集合按成员判定
+    //IsInSet whether the state belongs to a block set; tags use tag matching, direct sets use membership
     public static bool IsInSet(BlockState state, HolderSet<RegBlock> set)
     {
         if (state.Id == 0 || !set.IsBound) return false;
         return set.UnwrapKey() is { } tag ? InTag(state, tag) : ProcessorBlockHelper.InSet(state, set);
     }
 
-    //HasProperty 该状态是否有这个属性名
+    //HasProperty whether the state has this property name
     public static bool HasProperty(BlockState state, string propertyName)
         => state.GetProperties().Any(property => property.Name == propertyName);
 
-    //WithProperty 按属性名与取值名改状态 属性或取值对不上时原样返回
+    //WithProperty change the state by property name and value name; return it unchanged when either does not match
     public static BlockState WithProperty(BlockState state, string propertyName, string valueName)
     {
         foreach (var property in state.GetProperties())
@@ -98,15 +98,15 @@ internal static class VegetationSupport
         return state;
     }
 
-    //WithProperty 布尔属性重载
+    //WithProperty boolean property overload
     public static BlockState WithProperty(BlockState state, string propertyName, bool value)
         => WithProperty(state, propertyName, value ? "true" : "false");
 
-    //WithProperty 整型属性重载
+    //WithProperty integer property overload
     public static BlockState WithProperty(BlockState state, string propertyName, int value)
         => WithProperty(state, propertyName, value.ToString());
 
-    //AxisName 方向所在轴的名字 供按轴属性重设朝向
+    //AxisName the name of the direction's axis, used to reset facing by axis property
     public static string AxisName(Direction direction) => direction.AxisValue switch
     {
         Direction.Axis.X => "x",
@@ -114,7 +114,7 @@ internal static class VegetationSupport
         _ => "z",
     };
 
-    //FaceName 方向对应的六向属性名
+    //FaceName the six-direction property name for a direction
     public static string FaceName(Direction direction) => direction.Id3D switch
     {
         Direction.DownId => "down",
@@ -125,7 +125,7 @@ internal static class VegetationSupport
         _ => "east",
     };
 
-    //From2DDataValue 按水平序号取方向 对应原版 Direction.from2DDataValue 的 south west north east 序
+    //From2DDataValue fetch a direction by horizontal index, in the south west north east order of vanilla Direction.from2DDataValue
     public static Direction From2DDataValue(int index)
     {
         var i = ((index % 4) + 4) % 4;
@@ -138,23 +138,23 @@ internal static class VegetationSupport
         };
     }
 
-    //IsFaceSturdy 该状态某面能否作为依附面 对应原版 isFaceSturdy 的整面判定
+    //IsFaceSturdy whether a face of the state can support attachment, matching the full-face check of vanilla isFaceSturdy
     public static bool IsFaceSturdy(BlockState state, Direction direction)
         => state.Owner is BlockBehaviour behaviour
             && behaviour.IsFaceSturdy(EmptyBlockGetter.Instance, BlockPos.Zero, state, direction, SupportType.Full);
 
-    //IsOverSolidGround 下方是否为整面实心
+    //IsOverSolidGround whether the cell below is a full solid block
     public static bool IsOverSolidGround(WorldGenRegion level, BlockPos pos)
         => IsFaceSturdy(Get(level, pos.Offset(Direction.Down)), Direction.Up);
 
-    //ValidTreePos 该位置能否长树 对应原版 TreeFeature.validTreePos
+    //ValidTreePos whether a tree can grow at this position, maps to vanilla TreeFeature.validTreePos
     public static bool ValidTreePos(WorldGenRegion level, BlockPos pos)
     {
         var state = Get(level, pos);
         return state.Owner.IsAir || InTag(state, ReplaceableByTreesTag);
     }
 
-    //Shuffle 原地洗牌 从后往前逐个与前方随机位置交换 对应原版 Util.shuffle
+    //Shuffle in-place shuffle: from the end, swap each with a random earlier position, maps to vanilla Util.shuffle
     public static void Shuffle<T>(IList<T> list, RandomSource random)
     {
         for (var i = list.Count; i > 1; i--)
@@ -164,7 +164,7 @@ internal static class VegetationSupport
         }
     }
 
-    //ShuffledCopy 洗牌后的副本 对应原版 Util.shuffledCopy
+    //ShuffledCopy shuffled copy, maps to vanilla Util.shuffledCopy
     public static List<T> ShuffledCopy<T>(IReadOnlyList<T> source, RandomSource random)
     {
         var list = new List<T>(source);
@@ -172,18 +172,18 @@ internal static class VegetationSupport
         return list;
     }
 
-    //MinY 最低可放置 Y 对应原版 getMinY
+    //MinY lowest placeable Y, maps to vanilla getMinY
     public static int MinY(this WorldGenRegion level) => level.MinSectionY * 16;
 
-    //MaxY 最高可放置 Y 的开区间上界 对应原版 getMaxY
+    //MaxY exclusive upper bound of the highest placeable Y, maps to vanilla getMaxY
     public static int MaxY(this WorldGenRegion level) => (level.MaxSectionY + 1) * 16;
 
-    //SeaLevel 生成器海平面 对应原版 chunkGenerator.getSeaLevel 噪声生成器才带海平面
+    //SeaLevel generator sea level, maps to vanilla chunkGenerator.getSeaLevel; only noise generators have a sea level
     public static int SeaLevel(ChunkGenerator generator)
         => generator is NoiseBasedChunkGenerator noise ? noise.Settings.SeaLevel : 63;
 }
 
-//IgnoredJsonValue 被解析但丢弃的 JSON 值 装饰器一类本阶段不实现的字段用它占位
+//IgnoredJsonValue JSON value parsed then discarded; used as a placeholder for fields like decorators that are not implemented at this stage
 public sealed class IgnoredJsonValue
 {
     public static readonly IgnoredJsonValue Instance = new();
@@ -191,7 +191,7 @@ public sealed class IgnoredJsonValue
     private IgnoredJsonValue() { }
 }
 
-//IgnoredListCodec 列表形态的忽略编解码 只校验它是数组 内容一律丢弃
+//IgnoredListCodec list-form ignored codec; only validates it is an array and discards the contents
 internal sealed class IgnoredListCodec : ScalarCodec<IReadOnlyList<IgnoredJsonValue>>
 {
     public static readonly IgnoredListCodec Instance = new();
@@ -204,8 +204,8 @@ internal sealed class IgnoredListCodec : ScalarCodec<IReadOnlyList<IgnoredJsonVa
         => DataResult<U>.Success(ops.CreateList(Array.Empty<U>()));
 }
 
-//FallenTreeConfiguration 倒地树配置 对应原版 FallenTreeConfiguration
-//stump_decorators 与 log_decorators 是树装饰器 本阶段没有装饰器系统 只解析字段不执行
+//FallenTreeConfiguration fallen tree configuration, maps to vanilla FallenTreeConfiguration
+//stump_decorators and log_decorators are tree decorators; there is no decorator system at this stage, so the fields are parsed but not executed
 public sealed class FallenTreeConfiguration : FeatureConfiguration
 {
     public static readonly Codec<FallenTreeConfiguration> Codec =
@@ -237,8 +237,8 @@ public sealed class FallenTreeConfiguration : FeatureConfiguration
     }
 }
 
-//FallenTreeFeature 倒地树特征 对应原版 FallenTreeFeature
-//先立一截树桩再沿水平随机方向倒一段原木 原木长度超出可放置位置时整段放弃
+//FallenTreeFeature fallen tree feature, maps to vanilla FallenTreeFeature
+//Raises a stump then lays a log along a random horizontal direction; the whole log is abandoned when it cannot fit
 public sealed class FallenTreeFeature : Feature<FallenTreeConfiguration>
 {
     private const string FeatureId = "fallen_tree";
@@ -255,7 +255,7 @@ public sealed class FallenTreeFeature : Feature<FallenTreeConfiguration>
         return true;
     }
 
-    //PlaceFallenTree 立桩取向后倒原木 对应原版 placeFallenTree 的调用顺序
+    //PlaceFallenTree raise the stump, pick the facing and lay the log, matching the call order of vanilla placeFallenTree
     private static void PlaceFallenTree(FallenTreeConfiguration config, WorldGenRegion level,
         RandomSource random, BlockPos origin)
     {
@@ -268,7 +268,7 @@ public sealed class FallenTreeFeature : Feature<FallenTreeConfiguration>
             PlaceFallenLog(config, level, random, logLength, ref logStartPos, direction);
     }
 
-    //SetGroundHeightForFallenLogStartPos 起点上抬一格再向下找可放置的落脚面 对应原版同名方法
+    //SetGroundHeightForFallenLogStartPos lift the start one cell then search down for a placeable footing, maps to the vanilla method of the same name
     private static void SetGroundHeightForFallenLogStartPos(WorldGenRegion level, ref BlockPos logStartPos)
     {
         logStartPos = logStartPos.Offset(Direction.Up);
@@ -276,11 +276,11 @@ public sealed class FallenTreeFeature : Feature<FallenTreeConfiguration>
             logStartPos = logStartPos.Offset(Direction.Down);
     }
 
-    //MayPlaceOn 位置可长树且下方实心 对应原版 mayPlaceOn
+    //MayPlaceOn the position allows trees and the cell below is solid, maps to vanilla mayPlaceOn
     private static bool MayPlaceOn(WorldGenRegion level, BlockPos pos)
         => VegetationSupport.ValidTreePos(level, pos) && VegetationSupport.IsOverSolidGround(level, pos);
 
-    //CanPlaceEntireFallenLog 整段原木都必须放得下 中途离地超过两格就放弃 对应原版同名方法
+    //CanPlaceEntireFallenLog the whole log must fit; abandon when it floats more than two blocks, maps to the vanilla method of the same name
     private static bool CanPlaceEntireFallenLog(WorldGenRegion level, int logLength, ref BlockPos logStartPos,
         Direction direction)
     {
@@ -300,7 +300,7 @@ public sealed class FallenTreeFeature : Feature<FallenTreeConfiguration>
         return true;
     }
 
-    //PlaceFallenLog 逐格放倒木 侧向原木按方向轴重设 对应原版 placeFallenLog
+    //PlaceFallenLog lay the fallen log cell by cell, resetting sideways logs by axis, maps to vanilla placeFallenLog
     private static void PlaceFallenLog(FallenTreeConfiguration config, WorldGenRegion level,
         RandomSource random, int logLength, ref BlockPos logStartPos, Direction direction)
     {
@@ -311,8 +311,8 @@ public sealed class FallenTreeFeature : Feature<FallenTreeConfiguration>
         }
     }
 
-    //PlaceLogBlock 放一截原木 侧向时把轴向属性改成水平方向 对应原版 placeLogBlock
-    //原版还会标记上方待后处理 本作没有该机制
+    //PlaceLogBlock place one log block; for sideways logs set the axis property to horizontal, maps to vanilla placeLogBlock
+    //Vanilla also marks the cell above for post-processing; there is no such mechanism here
     private static BlockPos PlaceLogBlock(FallenTreeConfiguration config, WorldGenRegion level,
         RandomSource random, BlockPos blockPos, Direction? sidewaysDirection)
     {
@@ -324,8 +324,8 @@ public sealed class FallenTreeFeature : Feature<FallenTreeConfiguration>
     }
 }
 
-//VinesFeature 藤蔓特征 对应原版 VinesFeature
-//只在空气格上朝一个可依附的邻居挂藤蔓 自上而下优先级按原版 Direction.values 顺序
+//VinesFeature vines feature, maps to vanilla VinesFeature
+//Hangs vines only on air cells toward an attachable neighbor; the top-to-bottom priority follows the vanilla Direction.values order
 public sealed class VinesFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "vines";
@@ -353,7 +353,7 @@ public sealed class VinesFeature : Feature<NoneFeatureConfiguration>
         return false;
     }
 
-    //CanAttachTo 邻格朝向本格的那一面是否整面实心 对应原版 MultifaceBlock.canAttachTo
+    //CanAttachTo whether the neighbor's face toward this cell is fully solid, maps to vanilla MultifaceBlock.canAttachTo
     private static bool CanAttachTo(WorldGenRegion level, BlockPos neighbourPos, Direction direction)
     {
         var state = VegetationSupport.Get(level, neighbourPos);
@@ -366,8 +366,8 @@ public sealed class VinesFeature : Feature<NoneFeatureConfiguration>
     }
 }
 
-//BambooFeature 竹丛特征 对应原版 BambooFeature
-//先掷概率把一圈地表换成灰化土 再立一根五到十六节的竹子并按高度补叶
+//BambooFeature bamboo feature, maps to vanilla BambooFeature
+//Rolls a chance to turn the surrounding ground into podzol, then raises a five to sixteen segment bamboo and adds leaves by height
 public sealed class BambooFeature : Feature<ProbabilityFeatureConfiguration>
 {
     private const string FeatureId = "bamboo";
@@ -378,21 +378,21 @@ public sealed class BambooFeature : Feature<ProbabilityFeatureConfiguration>
     private BambooFeature()
         : base(Identifier.WithDefaultNamespace(FeatureId), ProbabilityFeatureConfiguration.Codec) { }
 
-    //BambooTrunk 竹身 age=1 leaves=none stage=0 对应原版 BAMBOO_TRUNK
+    //BambooTrunk bamboo body with age=1, leaves=none and stage=0, maps to vanilla BAMBOO_TRUNK
     private static BlockState BambooTrunk => VegetationSupport.WithProperty(
         VegetationSupport.WithProperty(
             VegetationSupport.WithProperty(VegetationSupport.StateOf("bamboo"), "age", 1), "leaves", "none"),
         "stage", 0);
 
-    //BambooFinalLarge 顶端那节叶子最大且 stage=1 对应原版 BAMBOO_FINAL_LARGE
+    //BambooFinalLarge the top segment with the largest leaves and stage=1, maps to vanilla BAMBOO_FINAL_LARGE
     private static BlockState BambooFinalLarge
         => VegetationSupport.WithProperty(VegetationSupport.WithProperty(BambooTrunk, "leaves", "large"), "stage", 1);
 
-    //BambooTopLarge 上一节大叶 对应原版 BAMBOO_TOP_LARGE
+    //BambooTopLarge the segment above with large leaves, maps to vanilla BAMBOO_TOP_LARGE
     private static BlockState BambooTopLarge
         => VegetationSupport.WithProperty(BambooTrunk, "leaves", "large");
 
-    //BambooTopSmall 再上一节小叶 对应原版 BAMBOO_TOP_SMALL
+    //BambooTopSmall the segment above that with small leaves, maps to vanilla BAMBOO_TOP_SMALL
     private static BlockState BambooTopSmall
         => VegetationSupport.WithProperty(BambooTrunk, "leaves", "small");
 
@@ -445,13 +445,13 @@ public sealed class BambooFeature : Feature<ProbabilityFeatureConfiguration>
         return placed > 0;
     }
 
-    //CanBambooSurvive 下方必须是可种竹子的方块 对应原版 BambooStalkBlock.canSurvive
+    //CanBambooSurvive the cell below must support bamboo, maps to vanilla BambooStalkBlock.canSurvive
     private static bool CanBambooSurvive(WorldGenRegion level, BlockPos pos)
         => VegetationSupport.InTag(VegetationSupport.Get(level, pos.Offset(Direction.Down)),
             VegetationSupport.SupportsBambooTag);
 }
 
-//HugeMushroomFeatureConfiguration 巨型蘑菇配置 对应原版 HugeMushroomFeatureConfiguration
+//HugeMushroomFeatureConfiguration huge mushroom configuration, maps to vanilla HugeMushroomFeatureConfiguration
 public sealed class HugeMushroomFeatureConfiguration : FeatureConfiguration
 {
     public static readonly Codec<HugeMushroomFeatureConfiguration> Codec =
@@ -483,20 +483,20 @@ public sealed class HugeMushroomFeatureConfiguration : FeatureConfiguration
     }
 }
 
-//AbstractHugeMushroomFeature 巨型蘑菇抽象基类 对应原版 AbstractHugeMushroomFeature
-//高度四到六格 十二分之一概率翻倍 先铺伞盖再立柄
+//AbstractHugeMushroomFeature huge mushroom abstract base, maps to vanilla AbstractHugeMushroomFeature
+//Height four to six, doubled with one-in-twelve chance; lays the cap first then raises the stem
 public abstract class AbstractHugeMushroomFeature : Feature<HugeMushroomFeatureConfiguration>
 {
-    //MinMushroomHeight 最矮的蘑菇高度
+    //MinMushroomHeight minimum mushroom height
     public const int MinMushroomHeight = 4;
 
     protected AbstractHugeMushroomFeature(Identifier id, Codec<HugeMushroomFeatureConfiguration> codec)
         : base(id, codec) { }
 
-    //GetTreeRadiusForHeight 某一层的伞盖半径 对应原版 getTreeRadiusForHeight
+    //GetTreeRadiusForHeight cap radius at a given layer, maps to vanilla getTreeRadiusForHeight
     protected abstract int GetTreeRadiusForHeight(int trunkHeight, int treeHeight, int leafRadius, int yo);
 
-    //MakeCap 铺伞盖 对应原版 makeCap
+    //MakeCap lay the cap, maps to vanilla makeCap
     protected abstract void MakeCap(WorldGenRegion level, RandomSource random, BlockPos origin, int treeHeight,
         HugeMushroomFeatureConfiguration config);
 
@@ -512,7 +512,7 @@ public abstract class AbstractHugeMushroomFeature : Feature<HugeMushroomFeatureC
         return true;
     }
 
-    //GetTreeHeight 蘑菇高度 对应原版 getTreeHeight 两次取随机不能合并
+    //GetTreeHeight mushroom height, maps to vanilla getTreeHeight; the two random draws must not be merged
     protected static int GetTreeHeight(RandomSource random)
     {
         var treeHeight = random.NextInt(3) + 4;
@@ -520,7 +520,7 @@ public abstract class AbstractHugeMushroomFeature : Feature<HugeMushroomFeatureC
         return treeHeight;
     }
 
-    //PlaceTrunk 立柄 整柄用同一份柄方块状态 对应原版 placeTrunk
+    //PlaceTrunk raise the stem using the same stem block state throughout, maps to vanilla placeTrunk
     protected void PlaceTrunk(WorldGenRegion level, RandomSource random, BlockPos origin,
         HugeMushroomFeatureConfiguration config, int treeHeight)
     {
@@ -531,7 +531,7 @@ public abstract class AbstractHugeMushroomFeature : Feature<HugeMushroomFeatureC
         }
     }
 
-    //PlaceMushroomBlock 只在空气或可被蘑菇覆盖的位置落子 对应原版 placeMushroomBlock
+    //PlaceMushroomBlock place only on air or cells replaceable by mushrooms, maps to vanilla placeMushroomBlock
     protected static void PlaceMushroomBlock(WorldGenRegion level, BlockPos blockPos, BlockState newState)
     {
         var currentState = VegetationSupport.Get(level, blockPos);
@@ -540,7 +540,7 @@ public abstract class AbstractHugeMushroomFeature : Feature<HugeMushroomFeatureC
         VegetationSupport.Set(level, blockPos, newState);
     }
 
-    //IsValidPosition 原点上下都要够高且底座可种 伞盖范围内不能有非空气非树叶 对应原版 isValidPosition
+    //IsValidPosition requires enough height above and below the origin, a plantable base and no non-air non-leaf blocks within the cap area, maps to vanilla isValidPosition
     protected bool IsValidPosition(WorldGenRegion level, BlockPos origin, int treeHeight,
         HugeMushroomFeatureConfiguration config)
     {
@@ -564,8 +564,8 @@ public abstract class AbstractHugeMushroomFeature : Feature<HugeMushroomFeatureC
     }
 }
 
-//HugeRedMushroomFeature 巨型红蘑菇 对应原版 HugeRedMushroomFeature
-//伞盖自下而上三层 边缘格按是否到角决定朝向属性
+//HugeRedMushroomFeature huge red mushroom, maps to vanilla HugeRedMushroomFeature
+//The cap is three layers from bottom to top; edge cells get their facing property based on whether they reach a corner
 public sealed class HugeRedMushroomFeature : AbstractHugeMushroomFeature
 {
     private const string FeatureId = "huge_red_mushroom";
@@ -610,8 +610,8 @@ public sealed class HugeRedMushroomFeature : AbstractHugeMushroomFeature
         => (yo < treeHeight && yo >= treeHeight - 3) || yo == treeHeight ? leafRadius : 0;
 }
 
-//HugeBrownMushroomFeature 巨型棕蘑菇 对应原版 HugeBrownMushroomFeature
-//伞盖只有一层 四角不留块 四向属性表示该边是否继续延伸
+//HugeBrownMushroomFeature huge brown mushroom, maps to vanilla HugeBrownMushroomFeature
+//The cap is a single layer with no corner blocks; the four direction properties indicate whether that side continues
 public sealed class HugeBrownMushroomFeature : AbstractHugeMushroomFeature
 {
     private const string FeatureId = "huge_brown_mushroom";
@@ -655,8 +655,8 @@ public sealed class HugeBrownMushroomFeature : AbstractHugeMushroomFeature
         => yo <= 3 ? 0 : leafRadius;
 }
 
-//ProbabilityFeatureConfiguration 概率配置 对应原版 ProbabilityFeatureConfiguration
-//只带一个概率字段 海草与竹子共用
+//ProbabilityFeatureConfiguration probability configuration, maps to vanilla ProbabilityFeatureConfiguration
+//Carries only a probability field, shared by seagrass and bamboo
 public sealed class ProbabilityFeatureConfiguration : FeatureConfiguration
 {
     public static readonly Codec<ProbabilityFeatureConfiguration> Codec =

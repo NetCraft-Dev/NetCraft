@@ -19,15 +19,15 @@ using NetCraft.Util.Profiling;
 
 namespace NetCraft.Game.Commands;
 
-//CommandManager 命令管理器对应原版 net.minecraft.commands.Commands
-//持命令分发器 注册内置命令 提供命令树下发与玩家命令执行入口
+//CommandManager command manager, maps to vanilla net.minecraft.commands.Commands
+//Holds the dispatcher, registers built-in commands, provides command tree dispatch and the player command execution entry
 public sealed class CommandManager
 {
     private readonly CommandDispatcher<CommandSourceStack> _dispatcher = new();
     private readonly MinecraftServer _server;
 
-    //debugCommands 显式指定是否注册 /debug 传 null 时取 server.properties 的 nc-debug-commands
-    //带这个参数是为了测试能在没有 server.properties 的场景下打开 debug 树
+    //debugCommands explicitly specifies whether to register /debug; null takes nc-debug-commands from server.properties
+    //This parameter exists so tests can enable the debug tree without server.properties
     public CommandManager(MinecraftServer server, bool? debugCommands = null)
     {
         _server = server;
@@ -61,7 +61,7 @@ public sealed class CommandManager
         RegisterVersion();
         RegisterSwing();
         RegisterStopwatch();
-        //server 为 null 只出现在测试里直接取命令树的构造方式 这时按打开处理 生产一律看 server.properties
+        //server null only happens in tests using the command tree construction directly; treated as on, production always reads server.properties
         RegisterDebug(debugCommands ?? server?.Settings?.NcDebugCommands ?? true);
         RegisterTransfer();
         RegisterDifficulty();
@@ -90,12 +90,12 @@ public sealed class CommandManager
 
     public CommandDispatcher<CommandSourceStack> Dispatcher => _dispatcher;
 
-    //SendCommands 把命令树下发给玩家 进入世界时调用
-    //只下放该玩家有权执行的节点 对应原版 Commands.fillUsableCommands
+    //SendCommands sends the command tree to a player, called when entering the world
+    //Only dispatches nodes the player has permission to run, maps to vanilla Commands.fillUsableCommands
     public void SendCommands(ServerPlayer player)
         => player.Connection.Send(new ClientboundCommandsPacket(BuildUsableTree(player)));
 
-    //BuildUsableTree 按玩家当前权限裁剪命令树
+    //BuildUsableTree trims the command tree by the player's current permissions
     private RootCommandNode<CommandSourceStack> BuildUsableTree(ServerPlayer player)
     {
         var source = new ServerCommandSource(player, _server);
@@ -104,7 +104,7 @@ public sealed class CommandManager
         return root;
     }
 
-    //CopyUsable 深度优先复制可用节点 复制节点清空权限谓词 无权访问的 redirect 一并摘掉
+    //CopyUsable depth-first copies usable nodes; copied nodes have their permission predicate cleared and inaccessible redirects removed
     private static void CopyUsable(CommandNode<CommandSourceStack> node, CommandNode<CommandSourceStack> target, CommandSourceStack source)
     {
         foreach (var child in node.GetChildren())
@@ -120,7 +120,7 @@ public sealed class CommandManager
         }
     }
 
-    //Execute 执行玩家命令 解析失败与语法错误按原版回执给执行者
+    //Execute runs a player command; parse failures and syntax errors are reported to the executor like vanilla
     public int Execute(ServerPlayer player, string command)
     {
         var source = new ServerCommandSource(player, _server);
@@ -135,8 +135,8 @@ public sealed class CommandManager
         }
     }
 
-    //Execute 执行任意来源的命令 供控制台一类没有执行玩家的场合
-    //玩家来源走上面那个重载 这里对应原版 performPrefixedCommand 的通用形态
+    //Execute runs a command from any source, for cases with no executing player such as the console
+    //Player sources go through the overload above; this maps to the general form of vanilla performPrefixedCommand
     public int Execute(CommandSourceStack source, string command)
     {
         try
@@ -150,11 +150,11 @@ public sealed class CommandManager
         }
     }
 
-    //_currentExecutionContext 线程内正在跑的执行上下文 对应原版 CURRENT_EXECUTION_CONTEXT
+    //_currentExecutionContext the execution context running on this thread, maps to vanilla CURRENT_EXECUTION_CONTEXT
     private static readonly ThreadLocal<ExecutionContext<CommandSourceStack>?> _currentExecutionContext = new();
 
-    //ExecuteInContext 在执行上下文里排命令并消费队列对应原版 Commands.executeCommandInContext
-    //函数执行嵌套命令时复用线程上已有的上下文 队列只由最外层消费
+    //ExecuteInContext queues commands in the execution context and drains the queue, maps to vanilla Commands.executeCommandInContext
+    //When a function runs a nested command it reuses the thread's existing context; the queue is drained only by the outermost layer
     public void ExecuteInContext(CommandSourceStack source, Action<ExecutionContext<CommandSourceStack>> configure)
     {
         var current = _currentExecutionContext.Value;
@@ -163,10 +163,10 @@ public sealed class CommandManager
             configure(current);
             return;
         }
-        //链长与分叉上限取游戏规则 对应原版 MAX_COMMAND_SEQUENCE_LENGTH 与 MAX_COMMAND_FORKS
+        //The chain length and fork limits come from gamerules, maps to vanilla MAX_COMMAND_SEQUENCE_LENGTH and MAX_COMMAND_FORKS
         var chainLimit = Math.Max(1, _server.GameRules.GetInt(NetCraft.Game.World.Level.GameRules.MaxCommandSequenceLength));
         var forkLimit = Math.Max(1, _server.GameRules.GetInt(NetCraft.Game.World.Level.GameRules.MaxCommandForks));
-        //System.Threading 也有个非泛型 ExecutionContext 全限定免歧义
+        //System.Threading also has a non-generic ExecutionContext; fully qualified to avoid ambiguity
         using var context = new NetCraft.Commands.Execution.ExecutionContext<CommandSourceStack>(chainLimit, forkLimit, Profiler.Get());
         _currentExecutionContext.Value = context;
         try
@@ -180,13 +180,13 @@ public sealed class CommandManager
         }
     }
 
-    //GetCompletions 按玩家权限算补全候选 对应原版 CommandDispatcher.getCompletionSuggestions
-    //客户端按 tab 时发补全请求 这里算完回建议包 实体/物品这类候选只能服务端给
+    //GetCompletions computes completion candidates by player permission, maps to vanilla CommandDispatcher.getCompletionSuggestions
+    //The client sends a completion request on tab; this computes and replies with a suggestion packet; candidates like entities/items can only come from the server
     public Suggestions GetCompletions(ServerPlayer player, string command)
         => GetCompletions(new ServerCommandSource(player, _server), command, command.Length);
 
-    //GetCompletions 按任意命令源算补全候选 服务端控制台终端走这条
-    //只解析到光标处 光标后面的内容不参与 与原版客户端补全的做法一致
+    //GetCompletions computes completion candidates for any command source; the server console terminal goes through this
+    //Only parses up to the cursor; content after the cursor does not participate, consistent with vanilla client completion
     public Suggestions GetCompletions(CommandSourceStack source, string command, int cursor)
     {
         var head = cursor >= command.Length ? command : command[..cursor];
@@ -194,11 +194,11 @@ public sealed class CommandManager
         return _dispatcher.GetCompletionSuggestions(parse, cursor).GetAwaiter().GetResult();
     }
 
-    //RequirePlayer 取玩家命令源 本作暂无控制台/命令方块来源
+    //RequirePlayer gets the player command source; this project has no console/command block source yet
     private static ServerCommandSource? RequirePlayer(CommandContext<CommandSourceStack> context)
         => context.GetSource() as ServerCommandSource;
 
-    //RegisterGameMode 注册 /gamemode <gamemode> [targets] 对应原版 gamemode 命令树
+    //RegisterGameMode registers /gamemode <gamemode> [targets], maps to the vanilla gamemode command tree
     private void RegisterGameMode()
     {
         _dispatcher.Register(LiteralArgumentBuilder<CommandSourceStack>.Literal("gamemode")
@@ -209,8 +209,8 @@ public sealed class CommandManager
                     .Executes(context => SetGameMode(context, EntityArgument.GetPlayers(context, "targets"))))));
     }
 
-    //SetGameMode 切换目标玩家游戏模式并回执 对应原版 setGameMode
-    //执行者自己只回执给自己 其他目标额外收到一条私人提示
+    //SetGameMode switches the target player's game mode and reports, maps to vanilla setGameMode
+    //The executor gets only its own report; other targets also receive a private notice
     private static int SetGameMode(CommandContext<CommandSourceStack> context, IReadOnlyList<ServerPlayer> targets)
     {
         var source = RequirePlayer(context);
@@ -219,245 +219,245 @@ public sealed class CommandManager
         var changed = 0;
         foreach (var target in targets)
         {
-            //模式未变不发包不回执 与原版 setGameMode 返回 false 一致
+            //No packet or report when the mode is unchanged, consistent with vanilla setGameMode returning false
             if (target.GameType == gameType) continue;
             source.Server.PlayerList.ChangeGameMode(target, gameType);
             changed++;
             if (ReferenceEquals(target, source.Player))
             {
-                source.SendSuccess($"已将您的游戏模式设置为 {gameType.Name}");
+                source.SendSuccess($"set your game mode to {gameType.Name}");
             }
             else
             {
-                source.SendSuccess($"已将 {target.Profile.Name} 的游戏模式设置为 {gameType.Name}");
+                source.SendSuccess($"set {target.Profile.Name}'s game mode to {gameType.Name}");
                 target.Connection.Send(new ClientboundSystemChatPacket(
-                    Component.Literal($"您的游戏模式已被设置为 {gameType.Name}"), false));
+                    Component.Literal($"your game mode has been set to {gameType.Name}"), false));
             }
         }
         if (changed == 0)
         {
-            source.SendFailure("目标已处于该游戏模式");
+            source.SendFailure("the target is already in that game mode");
             return 0;
         }
         return changed;
     }
 
-    //RegisterHelp 注册原版 help 命令树
+    //RegisterHelp registers the vanilla help command tree
     private void RegisterHelp()
         => HelpCommand.Register(_dispatcher);
 
-    //RegisterTeleport 注册原版 teleport/tp 命令树
+    //RegisterTeleport registers the vanilla teleport/tp command tree
     private void RegisterTeleport()
         => TeleportCommand.Register(_dispatcher);
 
-    //RegisterTime 注册原版 time 命令树
+    //RegisterTime registers the vanilla time command tree
     private void RegisterTime()
         => TimeCommand.Register(_dispatcher);
 
-    //RegisterDebug 注册 debug 命令树 排查世界方块数据用 默认禁用 需 server.properties 的 nc-debug-commands 打开
+    //RegisterDebug registers the debug command tree for inspecting world block data; disabled by default, enable with nc-debug-commands in server.properties
     private void RegisterDebug(bool enabled)
     {
         if (!enabled) return;
         DebugCommand.Register(_dispatcher);
     }
 
-    //RegisterStop 注册 /stop 停止服务端 主循环退出前会全量刷盘
+    //RegisterStop registers /stop to stop the server; it flushes everything before the main loop exits
     private void RegisterStop()
         => _dispatcher.Register(LiteralArgumentBuilder<CommandSourceStack>.Literal("stop")
             .Requires(s => s.HasPermission(4))
             .Executes(StopServer));
 
-    //RegisterOp 注册 /op /deop 管理员名单读写
+    //RegisterOp registers /op /deop for reading and writing the operator list
     private void RegisterOp()
         => OpCommand.Register(_dispatcher);
 
-    //RegisterKick 注册 /kick 踢出命令
+    //RegisterKick registers the /kick command
     private void RegisterKick()
         => KickCommand.Register(_dispatcher);
 
-    //RegisterBan 注册 /ban /ban-ip /pardon /pardon-ip /banlist 封禁命令
+    //RegisterBan registers /ban /ban-ip /pardon /pardon-ip /banlist
     private void RegisterBan()
         => BanCommand.Register(_dispatcher);
 
-    //RegisterListPlayers 注册 /list 在线玩家列表
+    //RegisterListPlayers registers /list for the online player list
     private void RegisterListPlayers()
         => ListPlayersCommand.Register(_dispatcher);
 
-    //RegisterEmote 注册 /me 动作广播
+    //RegisterEmote registers /me action broadcast
     private void RegisterEmote()
         => EmoteCommand.Register(_dispatcher);
 
-    //RegisterMsg 注册 /msg /tell /w 私聊
+    //RegisterMsg registers /msg /tell /w private message
     private void RegisterMsg()
         => MsgCommand.Register(_dispatcher);
 
-    //RegisterSeed 注册 /seed 世界种子
+    //RegisterSeed registers /seed world seed
     private void RegisterSeed()
         => SeedCommand.Register(_dispatcher);
 
-    //RegisterVersion 注册 /version 服务端版本
+    //RegisterVersion registers /version server version
     private void RegisterVersion()
         => VersionCommand.Register(_dispatcher);
 
-    //RegisterSwing 注册 /swing 挥手动画
+    //RegisterSwing registers /swing swing animation
     private void RegisterSwing()
         => SwingCommand.Register(_dispatcher);
 
-    //RegisterStopwatch 注册 /stopwatch 调试计时器
+    //RegisterStopwatch registers /stopwatch debug timer
     private void RegisterStopwatch()
         => StopwatchCommand.Register(_dispatcher);
 
-    //RegisterTransfer 注册 /transfer 转交到其他服务器
+    //RegisterTransfer registers /transfer hand-off to another server
     private void RegisterTransfer()
         => TransferCommand.Register(_dispatcher);
 
-    //RegisterDifficulty 注册 /difficulty 难度
+    //RegisterDifficulty registers /difficulty
     private void RegisterDifficulty()
         => DifficultyCommand.Register(_dispatcher);
 
-    //RegisterDefaultGameMode 注册 /defaultgamemode 默认游戏模式
+    //RegisterDefaultGameMode registers /defaultgamemode
     private void RegisterDefaultGameMode()
         => DefaultGameModeCommand.Register(_dispatcher);
 
-    //RegisterSave 注册 /save-all /save-off /save-on 刷盘控制
+    //RegisterSave registers /save-all /save-off /save-on flush control
     private void RegisterSave()
         => SaveCommand.Register(_dispatcher);
 
-    //RegisterDamage 注册 /damage 造成伤害
+    //RegisterDamage registers /damage to deal damage
     private void RegisterDamage()
         => DamageCommand.Register(_dispatcher);
 
-    //RegisterParticle 注册 /particle 发送粒子
+    //RegisterParticle registers /particle to emit particles
     private void RegisterParticle()
         => ParticleCommand.Register(_dispatcher);
 
-    //RegisterPlaySound 注册 /playsound 播放音效
+    //RegisterPlaySound registers /playsound to play a sound
     private void RegisterPlaySound()
         => PlaySoundCommand.Register(_dispatcher);
 
-    //RegisterStopSound 注册 /stopsound 停止音效
+    //RegisterStopSound registers /stopsound to stop sounds
     private void RegisterStopSound()
         => StopSoundCommand.Register(_dispatcher);
 
-    //RegisterTick 注册 /tick 刻速率与冻结控制
+    //RegisterTick registers /tick tick rate and freeze control
     private void RegisterTick()
         => TickCommand.Register(_dispatcher);
 
-    //RegisterPerf 注册 /perf 性能记录
+    //RegisterPerf registers /perf performance recording
     private void RegisterPerf()
         => PerfCommand.Register(_dispatcher);
 
-    //RegisterSetWorldSpawn 注册 /setworldspawn 世界出生点
+    //RegisterSetWorldSpawn registers /setworldspawn
     private void RegisterSetWorldSpawn()
         => SetWorldSpawnCommand.Register(_dispatcher);
 
-    //RegisterRotate 注册 /rotate 朝向控制
+    //RegisterRotate registers /rotate facing control
     private void RegisterRotate()
         => RotateCommand.Register(_dispatcher);
 
-    //RegisterWhiteList 注册 /whitelist 白名单
+    //RegisterWhiteList registers /whitelist
     private void RegisterWhiteList()
         => WhiteListCommand.Register(_dispatcher);
 
-    //RegisterClone 注册 /clone 区域复制
+    //RegisterClone registers /clone region copy
     private void RegisterClone()
         => CloneCommand.Register(_dispatcher);
 
-    //RegisterSpawnPoint 注册 /spawnpoint 个人重生点
+    //RegisterSpawnPoint registers /spawnpoint personal respawn point
     private void RegisterSpawnPoint()
         => SpawnPointCommand.Register(_dispatcher);
 
-    //RegisterSetIdleTimeout 注册 /setidletimeout 挂机踢出时长
+    //RegisterSetIdleTimeout registers /setidletimeout idle kick timeout
     private void RegisterSetIdleTimeout()
         => SetIdleTimeoutCommand.Register(_dispatcher);
 
-    //RegisterFillBiome 注册 /fillbiome 区域群系替换
+    //RegisterFillBiome registers /fillbiome region biome replacement
     private void RegisterFillBiome()
         => FillBiomeCommand.Register(_dispatcher);
 
-    //RegisterExperience 注册 /experience 玩家经验值与等级
+    //RegisterExperience registers /experience player xp and level
     private void RegisterExperience()
         => ExperienceCommand.Register(_dispatcher);
 
-    //RegisterAttribute 注册 /attribute 实体属性读写
+    //RegisterAttribute registers /attribute entity attribute read/write
     private void RegisterAttribute()
         => AttributeCommand.Register(_dispatcher);
 
-    //RegisterTag 注册 /tag 实体标签
+    //RegisterTag registers /tag entity tags
     private void RegisterTag()
         => TagCommand.Register(_dispatcher);
 
-    //RegisterRecipe 注册 /recipe 玩家配方
+    //RegisterRecipe registers /recipe player recipes
     private void RegisterRecipe()
         => RecipeCommand.Register(_dispatcher);
 
-    //RegisterSpectate 注册原版 spectate 命令树
+    //RegisterSpectate registers the vanilla spectate command tree
     private void RegisterSpectate()
         => SpectateCommand.Register(_dispatcher);
 
-    //RegisterEffect 注册原版 effect 命令树
+    //RegisterEffect registers the vanilla effect command tree
     private void RegisterEffect()
         => EffectCommand.Register(_dispatcher);
 
-    //StopServer 触发服务端关闭 回执先于 Stop 发出因 Stop 会断开玩家连接
+    //StopServer triggers server shutdown; the report is sent before Stop because Stop disconnects players
     private static int StopServer(CommandContext<CommandSourceStack> context)
     {
         var source = RequirePlayer(context);
         if (source is null) return 0;
-        source.SendSuccess("正在停止服务器");
+        source.SendSuccess("stopping the server");
         source.Server.Stop();
         return 1;
     }
 
-    //RegisterClear 注册原版 clear 命令树
+    //RegisterClear registers the vanilla clear command tree
     private void RegisterClear()
         => ClearCommand.Register(_dispatcher);
 
-    //RegisterKill 注册原版 kill 命令树
+    //RegisterKill registers the vanilla kill command tree
     private void RegisterKill()
         => KillCommand.Register(_dispatcher);
 
-    //RegisterSetBlock 注册原版 setblock 命令树
+    //RegisterSetBlock registers the vanilla setblock command tree
     private void RegisterSetBlock()
         => SetBlockCommand.Register(_dispatcher);
 
-    //RegisterFill 注册原版 fill 命令树
+    //RegisterFill registers the vanilla fill command tree
     private void RegisterFill()
         => FillCommand.Register(_dispatcher);
 
-    //RegisterGameRule 注册原版 gamerule 命令树
+    //RegisterGameRule registers the vanilla gamerule command tree
     private void RegisterGameRule()
         => GameRuleCommand.Register(_dispatcher);
 
-    //RegisterWorldBorder 注册原版 worldborder 命令树
+    //RegisterWorldBorder registers the vanilla worldborder command tree
     private void RegisterWorldBorder()
         => WorldBorderCommand.Register(_dispatcher);
 
-    //RegisterWeather 注册原版 weather 命令树
+    //RegisterWeather registers the vanilla weather command tree
     private void RegisterWeather()
         => WeatherCommand.Register(_dispatcher);
 
-    //RegisterForceLoad 注册原版 forceload 命令树
+    //RegisterForceLoad registers the vanilla forceload command tree
     private void RegisterForceLoad()
         => ForceLoadCommand.Register(_dispatcher);
 
-    //RegisterSpreadPlayers 注册原版 spreadplayers 命令树
+    //RegisterSpreadPlayers registers the vanilla spreadplayers command tree
     private void RegisterSpreadPlayers()
         => SpreadPlayersCommand.Register(_dispatcher);
 
-    //RegisterSay 注册原版 say 命令树
+    //RegisterSay registers the vanilla say command tree
     private void RegisterSay()
         => SayCommand.Register(_dispatcher);
 
-    //RegisterTellraw 注册原版 tellraw 命令树
+    //RegisterTellraw registers the vanilla tellraw command tree
     private void RegisterTellraw()
         => TellrawCommand.Register(_dispatcher);
 
-    //RegisterTitle 注册原版 title 命令树
+    //RegisterTitle registers the vanilla title command tree
     private void RegisterTitle()
         => TitleCommand.Register(_dispatcher);
 
-    //RegisterGive 注册 /give <targets> <item> [count] 对应原版 give 命令树
+    //RegisterGive registers /give <targets> <item> [count], maps to the vanilla give command tree
     private void RegisterGive()
     {
         _dispatcher.Register(LiteralArgumentBuilder<CommandSourceStack>.Literal("give")
@@ -469,16 +469,16 @@ public sealed class CommandManager
                         .Executes(context => Give(context, IntegerArgumentType.GetInteger(context, "count")))))));
     }
 
-    //RegisterItem 注册原版 item 命令树 按槽位名读写物品
+    //RegisterItem registers the vanilla item command tree, reading/writing items by slot name
     private void RegisterItem()
         => ItemCommand.Register(_dispatcher);
 
-    //RegisterData 注册原版 data 命令树 读写方块实体/实体/命令存储的 NBT
+    //RegisterData registers the vanilla data command tree, reading/writing NBT of block entities/entities/command storage
     private void RegisterData()
         => DataCommand.Register(_dispatcher);
 
-    //Give 走内核给予入口给予物品 对应原版 give 命令的 inventory.add 加 drop 组合
-    //放得下的进背包 放不下的由内核弹在玩家脚下 实际放入数量由内核返回
+    //Give uses the core give entry, maps to the vanilla give command's inventory.add plus drop combination
+    //What fits goes into the inventory; what does not is dropped at the player's feet by the core; the actual placed count is returned by the core
     private static int Give(CommandContext<CommandSourceStack> context, int count)
     {
         var source = RequirePlayer(context);
@@ -493,18 +493,18 @@ public sealed class CommandManager
             var placed = player.GiveItem(stack);
             if (placed == 0)
             {
-                source.SendFailure($"玩家 {player.Profile.Name} 的背包已满");
+                source.SendFailure($"player {player.Profile.Name}'s inventory is full");
                 continue;
             }
             if (ReferenceEquals(player, source.Player))
             {
-                source.SendSuccess($"已给予 {placed} 个 {name}");
+                source.SendSuccess($"gave {placed} x {name}");
             }
             else
             {
-                source.SendSuccess($"已给予 {player.Profile.Name} {placed} 个 {name}");
+                source.SendSuccess($"gave {player.Profile.Name} {placed} x {name}");
                 player.Connection.Send(new ClientboundSystemChatPacket(
-                    Component.Literal($"已获得 {placed} 个 {name}"), false));
+                    Component.Literal($"received {placed} x {name}"), false));
             }
             given++;
         }

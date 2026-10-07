@@ -4,9 +4,9 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//StructureManager 结构管理器适配器对应原版 net.minecraft.world.level.StructureManager
-//阶段 E 升级为 StructureFeatureManager 的薄包装对外暴露 StructureManager API
-//内部委托 StructureFeatureManager 实现真实结构查询逻辑
+//StructureManager structure manager adapter, maps to vanilla net.minecraft.world.level.StructureManager
+//Phase E upgraded it to a thin wrapper over StructureFeatureManager exposing the StructureManager API
+//Internally delegates to StructureFeatureManager for the real structure query logic
 public sealed class StructureManager
 {
     private readonly StructureFeatureManager _featureManager;
@@ -16,7 +16,7 @@ public sealed class StructureManager
         _featureManager = featureManager;
     }
 
-    //Default 默认空 StructureManager 用于无结构场景
+    //Default default empty StructureManager for scenarios without structures
     public static StructureManager Default => new(new StructureFeatureManager());
 
     public bool HasStructureReferences(ChunkPos pos)

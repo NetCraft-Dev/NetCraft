@@ -5,30 +5,30 @@ using NetCraft.DataFixer.Kinds;
 using NetCraft.DataFixer.Optics.Profunctors;
 using NetCraft.DataFixer.Util;
 
-//Affine容器存放Mu标记避免泛型嵌套
+//Affine container holding the Mu marker, avoiding generic nesting
 public static class Affines
 {
-    //二元HKT标记A/B为焦点/新值类型
+    //binary HKT marker; A/B are the focus/new value types
     public sealed class Mu<A, B> : K2 { }
 
-    //还原类型应用为Affine<S,T,A,B>
+    //recover the type application as Affine<S,T,A,B>
     public static Affine<S, T, A, B> Unbox<S, T, A, B>(App2<Mu<A, B>, S, T> box)
         => (Affine<S, T, A, B>)(object)box!;
 }
 
-//Affine仿射光学对应原版com.mojang.datafixers.optics.Affine
-//preview尝试取焦点set替换焦点基于AffineP=Cartesian+Cocartesian
+//Affine affine optic maps to vanilla com.mojang.datafixers.optics.Affine
+//preview tries to take the focus and set replaces it; based on AffineP=Cartesian+Cocartesian
 public interface Affine<S, T, A, B> : App2<Affines.Mu<A, B>, S, T>, Optic<IAffinePMu, S, T, A, B>
 {
-    //preview尝试取焦点成功返回Right<A>失败返回Left<T>
+    //preview tries to take the focus: Right<A> on success, Left<T> on failure
     Either<T, A> Preview(S s);
-    //set用B替换焦点得T保留S其他部分
+    //set replaces the focus with B to get T, preserving the rest of S
     T Set(B b, S s);
 
-    //eval用Cartesian.first扩展Pair再rmap用set替换再用Cocartesian.left加分支
-    //最后dimap用preview分解和Either.unwrap合并完成S<->T
-    //Dimap类型参数显式指定避免C#lambda推断失败
-    //left的C=T使h可调Either<T,T>.Unwrap合并左右
+    //eval uses Cartesian.first to extend into a Pair, rmaps with set to replace, then Cocartesian.left to add a branch
+    //finally dimap decomposes with preview and merges with Either.unwrap, completing S<->T
+    //Dimap type parameters are explicit to avoid C# lambda inference failure
+    //left's C=T lets h call Either<T,T>.Unwrap to merge left and right
     Func<App2<P, A, B>, App2<P, S, T>> Optic<IAffinePMu, S, T, A, B>.Eval<P>(App<IAffinePMu, P> proof)
     {
         var cartesian = Cartesian<P, IAffinePMu>.Unbox(proof);
@@ -49,7 +49,7 @@ public interface Affine<S, T, A, B> : App2<Affines.Mu<A, B>, S, T>, Optic<IAffin
     }
 }
 
-//Affine具体实现持有preview/set委托
+//Affine concrete implementation holding preview/set delegates
 internal sealed class AffineImpl<S, T, A, B> : Affine<S, T, A, B>
 {
     private readonly Func<S, Either<T, A>> _preview;
@@ -63,10 +63,10 @@ internal sealed class AffineImpl<S, T, A, B> : Affine<S, T, A, B>
     public T Set(B b, S s) => _set(b, s);
 }
 
-//Affine作为AffineP实例A2/B2固定后dimap/first/second/left/right组合preview/set
+//Affine as an AffineP instance; with A2/B2 fixed, dimap/first/second/left/right compose preview/set
 public sealed class AffineInstance<A2, B2> : AffineP<Affines.Mu<A2, B2>, IAffinePMu>
 {
-    //dimap用g前处理输入h后处理输出组合原Affine
+    //dimap preprocesses the input with g and postprocesses the output with h, composing the original Affine
     public Func<App2<Affines.Mu<A2, B2>, A, B>, App2<Affines.Mu<A2, B2>, C, D>> Dimap<A, B, C, D>(Func<C, A> g, Func<B, D> h)
     {
         return affineBox => Optics.Affine<C, D, A2, B2>(
@@ -75,7 +75,7 @@ public sealed class AffineInstance<A2, B2> : AffineP<Affines.Mu<A2, B2>, IAffine
         );
     }
 
-    //first把Affine扩展到Pair第一分量保留第二分量
+    //first extends Affine to the first component of Pair, preserving the second
     public App2<Affines.Mu<A2, B2>, Pair<A, C>, Pair<B, C>> First<A, B, C>(App2<Affines.Mu<A2, B2>, A, B> input)
     {
         var affine = Affines.Unbox<A, B, A2, B2>(input);
@@ -85,7 +85,7 @@ public sealed class AffineInstance<A2, B2> : AffineP<Affines.Mu<A2, B2>, IAffine
         );
     }
 
-    //left把Affine扩展到Either左分支保留右分支
+    //left extends Affine to the either left branch, preserving the right
     public App2<Affines.Mu<A2, B2>, Either<A, C>, Either<B, C>> Left<A, B, C>(App2<Affines.Mu<A2, B2>, A, B> input)
     {
         var affine = Affines.Unbox<A, B, A2, B2>(input);

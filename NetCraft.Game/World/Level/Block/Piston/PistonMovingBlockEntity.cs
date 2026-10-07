@@ -8,26 +8,26 @@ using NetCraft.Registry.Enums;
 using NetCraft.Registry.State;
 using NetCraft.Storage;
 using NetCraft.Storage.Updates;
-//方向与轴同时存在于 Primitives 与 Registry.Enums 这里一律取方块用的那套
+//Direction and Axis exist in both Primitives and Registry.Enums; the one used for blocks is always taken here
 using Axis = NetCraft.Primitives.Direction.Axis;
 using Direction = NetCraft.Primitives.Direction;
 
 namespace NetCraft.Game.World.Level.Block.Piston;
 
-//PistonMovingBlockEntity 推动过程中顶替被推方块的那个方块实体 对应原版同名类
-//它记住被推方块的原状态与运动参数 每刻推进半格 两刻推完 期间把挡路的实体一起挤走
+//PistonMovingBlockEntity the block entity standing in for a pushed block during a move, maps to the vanilla class of the same name
+//It remembers the pushed block's original state and motion parameters, advances half a block per tick and finishes in two, pushing blocking entities out of the way
 public sealed class PistonMovingBlockEntity : BlockEntity
 {
-    //PushOffset 挤压补偿量 让实体刚好落在方格外侧 对应原版 PUSH_OFFSET
+    //PushOffset push compensation so entities land exactly outside the block, maps to vanilla PUSH_OFFSET
     private const double PushOffset = 0.01;
 
-    //TickMovement 每刻推进的进度 对应原版 tick 里写死的 +0.5f
-    //原版那个 TICK_MOVEMENT(0.51) 常量定义了却没有被任何地方引用 不能拿它当推进量
+    //TickMovement progress per tick, maps to the hardcoded +0.5f in the vanilla tick
+    //The vanilla TICK_MOVEMENT(0.51) constant is defined but referenced nowhere, so it cannot be used as the advance amount
     public const double TickMovement = 0.5;
 
     private static readonly BlockState DefaultMovedState = Blocks.AIR.DefaultBlockState;
 
-    //Noclip 正在被本活塞推着走的方向 这期间推人那形状不参与碰撞 对应原版 NOCLIP
+    //Noclip the direction this piston is currently pushing along; the pushing shape does not take part in collisions during it, maps to vanilla NOCLIP
     private static readonly ThreadLocal<Direction?> Noclip = new();
 
     private BlockState _movedState = DefaultMovedState;
@@ -49,31 +49,31 @@ public sealed class PistonMovingBlockEntity : BlockEntity
         _isSourcePiston = isSourcePiston;
     }
 
-    //IsExtending 本实体是在伸出还是收回
+    //IsExtending whether this entity is extending or retracting
     public bool IsExtending => _extending;
 
-    //MoveDirection 活塞自身的朝向
+    //MoveDirection the piston's own facing
     public Direction MoveDirection => _direction;
 
-    //IsSourcePiston 是否由活塞底座自己伸出的那截 收回时它换成活塞头形状
+    //IsSourcePiston whether this is the segment extended by the piston base itself, which becomes the piston head shape on retract
     public bool IsSourcePiston => _isSourcePiston;
 
-    //MovedState 被推方块的原状态
+    //MovedState original state of the pushed block
     public BlockState MovedState => _movedState;
 
-    //LastTicked 上次推进的刻 活塞判收回事件用
+    //LastTicked the tick of the last advance, used by the piston for the retract event
     public long LastTicked => _lastTicked;
 
-    //MovementDirection 方块实际被推走的方向 收回时与活塞朝向相反
+    //MovementDirection the direction the block is actually pushed, opposite the piston facing on retract
     public Direction MovementDirection => _extending ? _direction : _direction.Opposite;
 
-    //PushDirection 与 MovementDirection 同义 对应原版 getPushDirection
+    //PushDirection same as MovementDirection, maps to vanilla getPushDirection
     public Direction PushDirection => MovementDirection;
 
-    //GetProgress 进度插值 对应原版 getProgress
+    //GetProgress progress interpolation, maps to vanilla getProgress
     public float GetProgress(float partial) => partial >= 1.0f ? _progress : _progressO + (_progress - _progressO) * partial;
 
-    //Tick 推进动画 对应原版 tick 的静态方法
+    //Tick advances the animation, maps to the static vanilla tick
     public override void Tick()
     {
         if (Level is not { } level) return;
@@ -81,16 +81,16 @@ public sealed class PistonMovingBlockEntity : BlockEntity
         _progressO = _progress;
         if (_progressO >= 1.0f)
         {
-            //推完了 把移动方块换回被推方块的真身
-            //先确认这一格还是移动活塞 再摘方块实体
-            //原版是反过来的 它能这么写是因为方块实体挂在区块对象上 区块在内存就读得到方块
-            //本作方块实体挂在按关卡全局持有的集合里 读方块在区块缺失时给 null
-            //顺序不改的话那种情况下会先摘掉实体再直接返回 那格移动活塞就再也没人管
-            //表现就是重开后永久卡死的移动活塞 底座那格同时落定的话看着就是无头活塞
+            //The push finished, replace the moving block with the real pushed block
+            //First confirm this cell is still a moving piston, then detach the block entity
+            //Vanilla does it the other way around; it can because block entities hang off the chunk object, so as long as the chunk is in memory the block can be read
+            //Here block entities hang off a collection held globally per level and reading a block gives null when the chunk is missing
+            //Without changing the order, in that case the entity would be detached first and then it returns, leaving the moving piston unattended
+            //This shows up as a permanently stuck moving piston after a reload; with the base also settled it looks like a headless piston
             if (level.GetBlockState(Pos) is not { } current)
             {
-                //区块不在内存 这时推进与摘实体都无从谈起 留着等区块回来再走完
-                //真出现这条说明方块实体集合里有区块已经不在内存的残留 记下来便于定位
+                //The chunk is not in memory, so both advancing and detaching are out of the question; it is left until the chunk returns
+                //Reaching this means the block entity collection holds a leftover whose chunk is no longer in memory; it is logged to help diagnose
                 Log.Warning($"Chunk holding a moving piston is not loaded, skipping this tick {Pos}");
                 return;
             }
@@ -119,14 +119,14 @@ public sealed class PistonMovingBlockEntity : BlockEntity
         _progress = newProgress >= 1.0f ? 1.0f : newProgress;
     }
 
-    //FinalTick 立刻把没走完的动画落地 对应原版 finalTick
-    //收回时先把上一截收尾再摆新方块 不落地就会留下一格假方块
+    //FinalTick settles an unfinished animation immediately, maps to vanilla finalTick
+    //On retract the previous segment is settled before placing the new block; without settling a phantom block is left behind
     public void FinalTick()
     {
         if (Level is not { } level) return;
         if (_progressO >= 1.0f) return;
-        //与 Tick 的收尾同一条规矩: 先确认方块还是移动活塞再动方块实体
-        //读不到方块时直接返回 不能把实体摘掉留一格没人管的移动活塞
+        //Same rule as the cleanup in Tick: confirm the block is still a moving piston before touching the block entity
+        //Returns directly when the block cannot be read, and must not detach the entity leaving an unattended moving piston
         if (level.GetBlockState(Pos)?.Owner.Id.Path != "moving_piston") return;
         _progressO = _progress = 1.0f;
         level.RemoveBlockEntity(Pos);
@@ -137,11 +137,11 @@ public sealed class PistonMovingBlockEntity : BlockEntity
         level.NeighborChanged(Pos, finalState.Owner);
     }
 
-    //OnRemoved 方块实体被移出世界时先把动画落地 对应原版 preRemoveSideEffects
+    //OnRemoved settles the animation before the block entity leaves the world, maps to vanilla preRemoveSideEffects
     public override void OnRemoved() => FinalTick();
 
-    //GetCollisionShape 移动中方块的碰撞形状 对应原版同名方法
-    //活塞头那截在推进期间让开 免得被自己推的实体卡住
+    //GetCollisionShape collision shape of a moving block, maps to the vanilla method of the same name
+    //The piston head segment gets out of the way during the push so it does not jam on the very entity it pushes
     public VoxelShape GetCollisionShape(BlockGetter level, BlockPos pos)
     {
         var pistonHeadShape = !_extending && _isSourcePiston && IsPistonBase(_movedState)
@@ -180,7 +180,7 @@ public sealed class PistonMovingBlockEntity : BlockEntity
         _isSourcePiston = tag.GetBooleanOr("source", false);
     }
 
-    //CollisionRelatedBlockState 参与碰撞计算的状态 收回时用活塞头代替底座 对应原版 getCollisionRelatedBlockState
+    //CollisionRelatedBlockState the state taking part in collision, using the piston head instead of the base on retract, maps to vanilla getCollisionRelatedBlockState
     private BlockState CollisionRelatedBlockState
         => !_extending && _isSourcePiston && IsPistonBase(_movedState)
             ? Blocks.PISTON_HEAD.DefaultBlockState
@@ -191,14 +191,14 @@ public sealed class PistonMovingBlockEntity : BlockEntity
                     _movedState.GetValue(BlockStateProperties.FacingProperty))
             : _movedState;
 
-    //IsPistonBase 是否是活塞底座 活塞头那截要靠它区分
+    //IsPistonBase whether it is the piston base, the piston head segment is distinguished by it
     private static bool IsPistonBase(BlockState state)
         => state.Owner.Id.Path is "piston" or "sticky_piston";
 
-    //ExtendedProgress 进度换算成位移比例 伸出时从 -1 走到 0 收回时从 0 走到 1
+    //ExtendedProgress converts progress into a displacement ratio, from -1 to 0 when extending and 0 to 1 when retracting
     private float ExtendedProgress(float progress) => _extending ? progress - 1.0f : 1.0f - progress;
 
-    //MoveCollidedEntities 把推到的实体挤出去 对应原版同名方法
+    //MoveCollidedEntities pushes collided entities out, maps to the vanilla method of the same name
     private static void MoveCollidedEntities(ServerLevel level, BlockPos pos, float newProgress,
         PistonMovingBlockEntity self)
     {
@@ -215,7 +215,7 @@ public sealed class PistonMovingBlockEntity : BlockEntity
         var entities = level.EntitiesInBox(queryBox).ToList();
         if (entities.Count == 0) return;
         var shapeAabbs = shape.ToAabbs();
-        //粘液块不推而是把实体甩出去 集合里没有玩家 原版对玩家的豁免在这里用不上
+        //Slime blocks fling entities rather than push them; there are no players in the set, so the vanilla player exemption does not apply here
         var causeBounce = self._movedState.Owner.Id.Path == "slime_block";
         foreach (var entity in entities)
         {
@@ -249,7 +249,7 @@ public sealed class PistonMovingBlockEntity : BlockEntity
         }
     }
 
-    //MoveStuckEntities 蜂蜜块侧壁粘着的实体跟着走 对应原版 moveStuckEntities
+    //MoveStuckEntities entities stuck to a honey block's side are carried along, maps to vanilla moveStuckEntities
     private static void MoveStuckEntities(ServerLevel level, BlockPos pos, float newProgress,
         PistonMovingBlockEntity self)
     {
@@ -264,13 +264,13 @@ public sealed class PistonMovingBlockEntity : BlockEntity
             MoveEntityByPiston(movement, entity, deltaProgress, movement);
     }
 
-    //MatchesStickyCriteria 站得住又落在方块范围内才被蜂蜜块带走 对应原版 matchesStickyCritera
+    //MatchesStickyCriteria carried by a honey block only when grounded and within the block range, maps to vanilla matchesStickyCritera
     private static bool MatchesStickyCriteria(AABB box, NetCraft.Registry.Entity entity)
         => entity.OnGround
             && entity.Pos.X >= box.Min.X && entity.Pos.X <= box.Max.X
             && entity.Pos.Z >= box.Min.Z && entity.Pos.Z <= box.Max.Z;
 
-    //MoveEntityByPiston 沿 movement 把实体推走 delta 格 对应原版 moveEntityByPiston
+    //MoveEntityByPiston pushes the entity delta blocks along movement, maps to vanilla moveEntityByPiston
     private static void MoveEntityByPiston(Direction pistonDirection, NetCraft.Registry.Entity entity,
         double delta, Direction movement)
     {
@@ -279,7 +279,7 @@ public sealed class PistonMovingBlockEntity : BlockEntity
         Noclip.Value = null;
     }
 
-    //GetMovement 实体要挪出指定盒外还差多少 对应原版 getMovement
+    //GetMovement how much the entity must move to get out of the given box, maps to vanilla getMovement
     private static double GetMovement(AABB boxToBeOutsideOf, Direction movement, AABB box)
     {
         if (movement == Direction.East) return boxToBeOutsideOf.Max.X - box.Min.X;
@@ -290,7 +290,7 @@ public sealed class PistonMovingBlockEntity : BlockEntity
         return boxToBeOutsideOf.Max.Y - box.Min.Y;
     }
 
-    //MoveByPositionAndProgress 方块盒按当前进度平移到世界坐标 对应原版 moveByPositionAndProgress
+    //MoveByPositionAndProgress translates the block box into world coordinates by the current progress, maps to vanilla moveByPositionAndProgress
     private static AABB MoveByPositionAndProgress(BlockPos pos, AABB box, PistonMovingBlockEntity entity)
     {
         var current = entity.ExtendedProgress(entity._progress);
@@ -300,7 +300,7 @@ public sealed class PistonMovingBlockEntity : BlockEntity
             pos.Z + current * entity._direction.StepZ));
     }
 
-    //FixEntityWithinPistonBase 收回时把夹在底座里的实体顶回底座外 对应原版 fixEntityWithinPistonBase
+    //FixEntityWithinPistonBase pushes entities trapped inside the base back out on retract, maps to vanilla fixEntityWithinPistonBase
     private static void FixEntityWithinPistonBase(BlockPos pos, NetCraft.Registry.Entity entity,
         Direction direction, double deltaProgress)
     {
@@ -316,14 +316,14 @@ public sealed class PistonMovingBlockEntity : BlockEntity
         MoveEntityByPiston(direction, entity, delta, opposite);
     }
 
-    //Intersect 两盒的交集 空集时宽高为负 与原版 AABB.intersect 一致
+    //Intersect intersection of two boxes, negative size when empty, same as vanilla AABB.intersect
     private static AABB Intersect(AABB first, AABB second)
         => new(
             Math.Max(first.Min.X, second.Min.X), Math.Max(first.Min.Y, second.Min.Y),
             Math.Max(first.Min.Z, second.Min.Z), Math.Min(first.Max.X, second.Max.X),
             Math.Min(first.Max.Y, second.Max.Y), Math.Min(first.Max.Z, second.Max.Z));
 
-    //UpdateFromNeighbourShapes 六向走一遍 updateShape 让搬过去的状态重新适应邻居 对应原版 Block.updateFromNeighbourShapes
+    //UpdateFromNeighbourShapes runs updateShape across six directions so the moved state adapts to its new neighbors, maps to vanilla Block.updateFromNeighbourShapes
     private static BlockState UpdateFromNeighbourShapes(BlockState state, ServerLevel level, BlockPos pos)
     {
         var result = state;
@@ -337,7 +337,7 @@ public sealed class PistonMovingBlockEntity : BlockEntity
         return result;
     }
 
-    //LevelView 碰撞查询视图 关卡不是持久化服务端关卡时拿不到区段范围
+    //LevelView collision query view; the section range is unavailable when the level is not a persistent server level
     private static BlockGetter? LevelView(ServerLevel level)
         => level is PersistentServerLevel persistent
             ? new LevelCollisionGetter(persistent, persistent.MinSectionY, persistent.SectionsCount)

@@ -7,69 +7,69 @@ using NetCraft.Util;
 
 namespace NetCraft.Game.World.Inventory;
 
-//AbstractContainerMenu 容器菜单对应原版 net.minecraft.world.inventory.AbstractContainerMenu
-//持有槽位列表与状态号 负责处理上行点击并把结果同步给客户端
-//最小实现覆盖拾取/快速移动/交换/丢弃/创造复制/双击收集 拖拽与容器数据槽暂缺
+//AbstractContainerMenu container menu, maps to vanilla net.minecraft.world.inventory.AbstractContainerMenu
+//Holds the slot list and state id, handles inbound clicks and syncs the result to the client
+//Minimal implementation covers pickup/quick move/swap/throw/creative clone/double-click collect; drag and container data slots not yet done
 public abstract class AbstractContainerMenu
 {
-    //SlotClickedOutside 点击菜单外 用于丢出光标物品
+    //SlotClickedOutside click outside the menu, used to throw the carried item
     public const int SlotClickedOutside = -999;
 
-    //CarriedSlotIndex 光标物品的伪槽位号 对应原版同步光标时用的 -1
+    //CarriedSlotIndex pseudo slot index for the carried item, maps to the -1 vanilla uses when syncing the cursor
     public const int CarriedSlotIndex = -1;
 
     private readonly List<Slot> _slots = new();
     private readonly List<ItemStack> _remoteSlots = new();
-    //_dataSlots 数值型数据槽 熔炼进度与切石机选中项这类非物品状态走它同步
-    //一个 ContainerData 可以有多个值(熔炉四格进度) 所以按 (容器,下标) 记而不是整只容器
+    //_dataSlots numeric data slots, syncs non-item state such as smelting progress and the stonecutter selection
+    //A ContainerData can hold several values (the furnace's four progress values), so entries are keyed by (container, index) rather than the whole container
     private readonly List<DataSlotRef> _dataSlots = new();
-    //_remoteDataSlots 客户端已知的数据槽值 比对出变化才发包
+    //_remoteDataSlots data slot values the client already knows, packets are sent only when they differ
     private readonly List<int> _remoteDataSlots = new();
 
-    //DataSlotRef 数据槽引用 指向某个 ContainerData 的某个下标
+    //DataSlotRef data slot reference, points at one index of a ContainerData
     private readonly record struct DataSlotRef(ContainerData Data, int Index);
     private int _stateId;
 
     protected AbstractContainerMenu(int containerId) : this(null, containerId) { }
 
-    //Kind 菜单类型 下发 open_screen 靠它告诉客户端开哪种界面 玩家背包菜单没有对应界面为 null
+    //Kind menu type, sent with open_screen to tell the client which screen to open; the player inventory menu has no screen and is null
     protected AbstractContainerMenu(MenuType? kind, int containerId)
     {
         Kind = kind;
         ContainerId = containerId;
     }
 
-    //ContainerId 菜单 id 客户端按它找到对应菜单
+    //ContainerId menu id, the client uses it to find the matching menu
     public int ContainerId { get; }
 
-    //Kind 菜单类型 对应原版 AbstractContainerMenu.getType 背包菜单为 null
+    //Kind menu type, maps to vanilla AbstractContainerMenu.getType; null for the inventory menu
     public MenuType? Kind { get; }
 
-    //Slots 槽位列表 顺序即客户端看到的槽位号
+    //Slots slot list, the order is the slot index the client sees
     public IReadOnlyList<Slot> Slots => _slots;
 
-    //StateId 状态号 每次同步自增 客户端据此丢弃过期包
+    //StateId state id, incremented on every sync so the client can drop stale packets
     public int StateId => _stateId;
 
-    //Carried 服务端权威的光标物品
+    //Carried server-authoritative carried item
     public ItemStack Carried { get; private set; } = ItemStack.Empty;
 
-    //RemoteCarried 客户端当前认为的光标物品
+    //RemoteCarried the carried item the client currently believes it has
     public ItemStack RemoteCarried { get; private set; } = ItemStack.Empty;
 
-    //OwnerInventory 菜单所属玩家的物品栏 交换/丢出/收集需要 无玩家的菜单为 null
+    //OwnerInventory inventory of the menu's owner, needed for swap/throw/collect; null when the menu has no player
     protected PlayerInventory? OwnerInventory { get; init; }
 
-    //Synchronizer 变更下发通道 未注入时只改本地状态
+    //Synchronizer channel for pushing changes, when not injected only local state is updated
     public ContainerSynchronizer? Synchronizer { get; set; }
 
-    //QuickMoveStack 快速移动 把指定槽物品搬到菜单定义的目标区间 返回搬运前的栈
+    //QuickMoveStack quick move, moves the item in the given slot into the target range defined by the menu, returns the stack before the move
     public abstract ItemStack QuickMoveStack(ServerPlayer player, int slotIndex);
 
-    //StillValid 菜单对玩家是否仍然有效
+    //StillValid whether the menu is still valid for the player
     public abstract bool StillValid(ServerPlayer player);
 
-    //AddSlot 登记槽位并分配菜单内下标
+    //AddSlot registers a slot and assigns its index within the menu
     protected Slot AddSlot(Slot slot)
     {
         slot.Index = _slots.Count;
@@ -78,21 +78,21 @@ public abstract class AbstractContainerMenu
         return slot;
     }
 
-    //GetSlot 取菜单槽位
+    //GetSlot returns a menu slot
     public Slot GetSlot(int index) => _slots[index];
 
-    //AddDataSlots 登记一只数据容器的全部值 对应原版 addDataSlots
+    //AddDataSlots registers all values of a data container, maps to vanilla addDataSlots
     protected void AddDataSlots(ContainerData data)
     {
         for (var i = 0; i < data.Count; i++)
         {
             _dataSlots.Add(new DataSlotRef(data, i));
-            //初值当作客户端已经知道 避免刚打开菜单就先发一轮冗余数据
+            //Treat the initial values as already known by the client, avoids a redundant round right after the menu opens
             _remoteDataSlots.Add(data.Get(i));
         }
     }
 
-    //AddDataSlot 登记数值型数据槽 返回它首个值的槽位下标
+    //AddDataSlot registers a numeric data slot, returns the index of its first value
     protected int AddDataSlot(ContainerData data)
     {
         var index = _dataSlots.Count;
@@ -100,28 +100,28 @@ public abstract class AbstractContainerMenu
         return index;
     }
 
-    //GetDataValue 读数据槽当前值
+    //GetDataValue reads the current value of a data slot
     public int GetDataValue(int index)
     {
         var slot = _dataSlots[index];
         return slot.Data.Get(slot.Index);
     }
 
-    //SetDataValue 写数据槽当前值 客户端同步过来的值走这里
+    //SetDataValue writes the current value of a data slot, values synced from the client go through here
     public void SetDataValue(int index, int value)
     {
         var slot = _dataSlots[index];
         slot.Data.Set(slot.Index, value);
     }
 
-    //ClickMenuButton 客户端按钮点击 切石机选配方这类非槽位交互走它 返回是否被处理
-    //对应原版 AbstractContainerMenu.clickMenuButton
+    //ClickMenuButton client button click, used for non-slot interactions such as picking a stonecutter recipe, returns whether it was handled
+    //Maps to vanilla AbstractContainerMenu.clickMenuButton
     public virtual bool ClickMenuButton(ServerPlayer player, int buttonId) => false;
 
-    //IsValidSlotIndex 下标是否落在槽位范围内
+    //IsValidSlotIndex whether the index falls within the slot range
     public bool IsValidSlotIndex(int index) => (uint)index < _slots.Count;
 
-    //FindSlot 按容器与容器内下标找菜单槽位 找不到返回 null
+    //FindSlot finds a menu slot by container and container index, returns null when not found
     protected Slot? FindSlot(Container container, int containerSlotIndex)
     {
         foreach (var slot in _slots)
@@ -130,16 +130,16 @@ public abstract class AbstractContainerMenu
         return null;
     }
 
-    //SetCarried 设置服务端光标物品
+    //SetCarried sets the server-side carried item
     public void SetCarried(ItemStack stack) => Carried = stack ?? ItemStack.Empty;
 
-    //SetRemoteCarried 记录客户端上报的光标物品
+    //SetRemoteCarried records the carried item reported by the client
     public void SetRemoteCarried(ItemStack stack) => RemoteCarried = stack ?? ItemStack.Empty;
 
-    //IncrementStateId 状态号自增
+    //IncrementStateId increments the state id
     public void IncrementStateId() => _stateId++;
 
-    //InitializeContents 客户端侧初始化内容 对应原版 initializeContents
+    //InitializeContents initializes contents on the client, maps to vanilla initializeContents
     public void InitializeContents(int stateId, IReadOnlyList<ItemStack> items, ItemStack carried)
     {
         for (var i = 0; i < _slots.Count && i < items.Count; i++)
@@ -148,9 +148,9 @@ public abstract class AbstractContainerMenu
         _stateId = stateId;
     }
 
-    //SendAllDataToRemote 全量下发当前内容(玩家进世界时的初始同步)
-    //remote 侧必须存副本而不是引用: 玩家背包加物品走的是就地 SetCount 复用同一个栈对象
-    //存引用会让脏槽比较恒等 表现为"物品捡到了但客户端数量不更新"
+    //SendAllDataToRemote sends the full current contents (initial sync when the player joins the world)
+    //The remote side must store copies, not references: adding to the player inventory reuses the same stack via an in-place SetCount
+    //Storing references makes dirty-slot comparison always equal, showing up as "the item was picked up but the client count never updates"
     public void SendAllDataToRemote()
     {
         for (var i = 0; i < _slots.Count; i++) _remoteSlots[i] = _slots[i].GetItem().Copy();
@@ -158,8 +158,8 @@ public abstract class AbstractContainerMenu
         Synchronizer?.SendContentUpdate(this, _remoteSlots, Carried);
     }
 
-    //BroadcastChanges 只同步发生变化的槽与光标 点击后与每 tick 调用
-    //remote 侧存副本 与 SendAllDataToRemote 同理 否则就地改数量的槽比较恒等不会下发
+    //BroadcastChanges syncs only slots and the cursor that changed, called after a click and every tick
+    //The remote side keeps copies, same reason as SendAllDataToRemote, otherwise slots mutated in place compare equal and are never sent
     public void BroadcastChanges()
     {
         for (var i = 0; i < _slots.Count; i++)
@@ -174,7 +174,7 @@ public abstract class AbstractContainerMenu
             RemoteCarried = Carried.Copy();
             Synchronizer?.SendSlotChange(this, CarriedSlotIndex, Carried);
         }
-        //数据槽同样只在变化时下发 对应原版 broadcastChanges 里的 dataSlots 那一轮
+        //Data slots are also sent only when changed, matches the dataSlots pass in vanilla broadcastChanges
         for (var i = 0; i < _dataSlots.Count; i++)
         {
             var value = GetDataValue(i);
@@ -185,12 +185,12 @@ public abstract class AbstractContainerMenu
         IncrementStateId();
     }
 
-    //Clicked 处理上行点击 对应原版 AbstractContainerMenu.clicked
+    //Clicked handles an inbound click, maps to vanilla AbstractContainerMenu.clicked
     public void Clicked(int slotIndex, int buttonNum, ContainerInput input, ServerPlayer player)
     {
         if (!IsValidSlotIndex(slotIndex) && slotIndex != SlotClickedOutside)
         {
-            //槽号越界多半是客户端与服务端槽位布局不一致 静默丢弃会让界面里按 Q 看起来毫无反应
+            //An out-of-range slot usually means the client and server slot layouts differ; dropping it silently makes pressing Q in the UI look like it does nothing
             Log.Info($"[Container] Slot index out of range, dropped slot={slotIndex} menu slots={_slots.Count} input={input}");
             return;
         }
@@ -222,7 +222,7 @@ public abstract class AbstractContainerMenu
         BroadcastChanges();
     }
 
-    //HandlePickup 左键拾取/放下 右键取一半/放一个 点菜单外丢出
+    //HandlePickup left click picks up/places, right click takes half/places one, clicking outside the menu throws
     private void HandlePickup(Slot? slot, int buttonNum)
     {
         if (buttonNum != 0 && buttonNum != 1) return;
@@ -245,14 +245,14 @@ public abstract class AbstractContainerMenu
         }
         if (Carried.IsEmpty())
         {
-            //空手拿起 右键只拿一半
+            //Picking up with an empty hand, right click takes only half
             var takeCount = rightClick ? (slotStack.GetCount() + 1) / 2 : slotStack.GetCount();
             SetCarried(slot.Remove(takeCount));
             slot.SetChanged();
             return;
         }
         if (!slot.MayPlace(Carried)) return;
-        //同种判定统一走 ItemStack 一处实现
+        //Same-item checks all go through the single ItemStack implementation
         if (Carried.IsSameItemAndComponentsAs(slotStack))
         {
             var max = slot.GetMaxStackSize();
@@ -262,13 +262,13 @@ public abstract class AbstractContainerMenu
             SetCarried(Keep(Carried, Carried.GetCount() - moveCount));
             return;
         }
-        //不同物品 左键交换(右键不同物品不动作 对应原版)
+        //Different items, left click swaps (right click on different items does nothing, matches vanilla)
         if (rightClick) return;
         slot.Set(Carried);
         SetCarried(slotStack);
     }
 
-    //HandleSwap 数字键或 F 与快捷栏/副手槽交换 目标槽是点击槽本身时不动作
+    //HandleSwap number keys or F swap with the hotbar/offhand slot, does nothing when the target slot is the clicked slot itself
     private void HandleSwap(Slot? slot, int buttonNum)
     {
         if (slot is null || OwnerInventory is null) return;
@@ -280,7 +280,7 @@ public abstract class AbstractContainerMenu
         target.Set(temp);
     }
 
-    //HandleClone 创造模式中键复制 光标为空则取整叠 光标有物品则补满
+    //HandleClone creative middle-click clone, takes a full stack when the cursor is empty and tops it up when it holds an item
     private void HandleClone(Slot? slot, ServerPlayer player)
     {
         if (slot is null || player.GameType != GameType.Creative) return;
@@ -294,14 +294,14 @@ public abstract class AbstractContainerMenu
         SetCarried(Carried.CopyWithCount(Carried.GetItem().GetDefaultMaxStackSize()));
     }
 
-    //HandleThrow 丢弃 左键丢一个右键丢整叠 对应原版 AbstractContainerMenu 的 THROW 分支
-    //光标上有物品时不处理 原版这条分支要求 getCarried().isEmpty()
-    //槽位取出的物品走玩家丢弃路径落成掉落物 只从槽位移除不掉物的话容器界面里按 Q 等于白按
+    //HandleThrow throw, left click throws one and right click throws the whole stack, maps to the THROW branch of vanilla AbstractContainerMenu
+    //Does nothing when the cursor holds an item, the vanilla branch requires getCarried().isEmpty()
+    //Items taken from a slot go through the player drop path and become item entities; removing from the slot without dropping makes pressing Q in a container UI pointless
     private void HandleThrow(Slot? slot, int buttonNum, ServerPlayer player)
     {
         if (slot is null || !slot.HasItem() || !Carried.IsEmpty())
         {
-            //门槛不满足时打日志 客户端按 Q 服务端却没动作时能直接看出卡在哪一条
+            //Log when the guard fails, so it is obvious which condition blocked it when the client presses Q but the server does nothing
             Log.Info($"[Container] Throw skipped slot={(slot is null ? "none" : slot.Index.ToString())} has item={slot?.HasItem()} carried not empty={!Carried.IsEmpty()}");
             return;
         }
@@ -312,7 +312,7 @@ public abstract class AbstractContainerMenu
         Log.Info($"[Container] Dropped slot={slot.Index} count={dropped.GetCount()} entity={(entity is null ? "not spawned" : entity.EntityId.ToString())}");
     }
 
-    //HandlePickupAll 双击收集 把物品栏内与点击槽同种物品并入该槽
+    //HandlePickupAll double-click collect, merges same-item stacks from the inventory into the clicked slot
     private void HandlePickupAll(Slot? slot)
     {
         if (slot is null || OwnerInventory is null) return;
@@ -325,7 +325,7 @@ public abstract class AbstractContainerMenu
             if (current.GetCount() >= max) break;
             var source = FindSlot(OwnerInventory, i);
             if (source is null || ReferenceEquals(source, slot) || !source.HasItem()) continue;
-            //同种判定统一走 ItemStack 一处实现 别再各自写一份只比物品的版本
+            //Same-item checks all go through the single ItemStack implementation, do not write another item-only version
             if (!current.IsSameItemAndComponentsAs(source.GetItem())) continue;
             var moveCount = Math.Min(max - current.GetCount(), source.GetItem().GetCount());
             slot.Set(current.CopyWithCount(current.GetCount() + moveCount));
@@ -334,8 +334,8 @@ public abstract class AbstractContainerMenu
         }
     }
 
-    //MoveItemStackTo 在槽位区间内合并或放置指定栈 返回是否发生搬运
-    //先与同类槽合并再找空槽 与原版顺序一致 reverse 表示从区间尾部往前找
+    //MoveItemStackTo merges or places the given stack within a slot range, returns whether a move happened
+    //Merges into matching slots first, then finds an empty one, same order as vanilla; reverse scans from the end of the range
     protected bool MoveItemStackTo(ItemStack stack, int startIndex, int endIndex, bool reverse)
     {
         var changed = false;
@@ -345,7 +345,7 @@ public abstract class AbstractContainerMenu
         {
             var slot = _slots[index];
             var slotStack = slot.GetItem();
-            //同种判定用内核的 isSameItemSameComponents 只比物品会把不同组件的堆错误合并
+            //Same-item checks use the core isSameItemSameComponents, comparing only the item would merge stacks with different components
             if (!slotStack.IsEmpty() && stack.IsSameItemAndComponentsAs(slotStack))
             {
                 var max = slot.GetMaxStackSize();
@@ -390,13 +390,13 @@ public abstract class AbstractContainerMenu
         return changed;
     }
 
-    //Keep 从栈中保留 remain 个 返回新栈或空栈
+    //Keep keeps remain items from the stack, returns a new stack or an empty one
     private static ItemStack Keep(ItemStack stack, int remain)
         => remain <= 0 ? ItemStack.Empty : stack.CopyWithCount(remain);
 
-    //SameStack 栈内容是否完全一致 用于脏槽判定
-    //同种判定走内核的同物品同组件比较 这里只额外比数量
-    //引用短路只会命中空栈单例(ItemStack.Copy 对空栈返回 Empty) 非空栈两边一定是不同对象
+    //SameStack whether the stack contents are identical, used for dirty-slot comparison
+    //Same-item checks use the core same-item same-components comparison, here only the count is compared in addition
+    //The reference short-circuit only hits the empty-stack singleton (ItemStack.Copy returns Empty for empty stacks); non-empty stacks are always distinct objects
     private static bool SameStack(ItemStack a, ItemStack b)
     {
         if (ReferenceEquals(a, b)) return true;
@@ -404,15 +404,15 @@ public abstract class AbstractContainerMenu
         return a.GetCount() == b.GetCount() && a.IsSameItemAndComponentsAs(b);
     }
 
-    //MaxContainerStackSize 容器侧堆叠上限 与原版 Container.getMaxStackSize 的默认值一致
+    //MaxContainerStackSize container-side stack limit, matches the default of vanilla Container.getMaxStackSize
     private const int MaxContainerStackSize = 64;
 
-    //GetRedstoneSignalFromBlockEntity 方块实体的比较器信号 不是容器返回 0 对应原版同名方法
+    //GetRedstoneSignalFromBlockEntity comparator signal of a block entity, returns 0 when it is not a container, maps to the vanilla method of the same name
     public static int GetRedstoneSignalFromBlockEntity(object? blockEntity)
         => blockEntity is Container container ? GetRedstoneSignalFromContainer(container) : 0;
 
-    //GetRedstoneSignalFromContainer 按容器填充度算比较器输出 对应原版同名方法
-    //全空返回 0 满格返回 15 中间按每格物品占该格堆叠上限的比例取平均
+    //GetRedstoneSignalFromContainer computes the comparator output from container fullness, maps to the vanilla method of the same name
+    //Empty returns 0 and full returns 15, in between it averages the fill ratio of each slot
     public static int GetRedstoneSignalFromContainer(Container? container)
     {
         if (container is null || container.Size <= 0) return 0;

@@ -1,13 +1,13 @@
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Trees;
 
-//TreeBootstrap 树木体系注册入口
-//触碰全部类型单例与 tree 特征单例 触发静态注册把注册表填满
-//注册表要先于数据加载填好 否则 worldgen 里 tree 相关 JSON 的 type 字段整批解不出来
+//TreeBootstrap tree system registration entry
+//Touching all type singletons and the tree feature singleton triggers static registration and fills the registries
+//The registries must be populated before data loading, otherwise the type fields of tree-related worldgen JSON cannot be decoded at all
 public static class TreeBootstrap
 {
     public static void RegisterAll()
     {
-        //树干放置器类型
+        //Trunk placer types
         _ = TrunkPlacerTypes.Straight;
         _ = TrunkPlacerTypes.Forking;
         _ = TrunkPlacerTypes.Giant;
@@ -18,7 +18,7 @@ public static class TreeBootstrap
         _ = TrunkPlacerTypes.UpwardsBranching;
         _ = TrunkPlacerTypes.Cherry;
 
-        //树叶放置器类型
+        //Foliage placer types
         _ = FoliagePlacerTypes.Blob;
         _ = FoliagePlacerTypes.Spruce;
         _ = FoliagePlacerTypes.Pine;
@@ -31,14 +31,14 @@ public static class TreeBootstrap
         _ = FoliagePlacerTypes.RandomSpread;
         _ = FoliagePlacerTypes.Cherry;
 
-        //树根放置器类型
+        //Root placer types
         _ = RootPlacerTypes.Mangrove;
 
-        //特征尺寸类型
+        //Feature size types
         _ = FeatureSizeTypes.TwoLayers;
         _ = FeatureSizeTypes.ThreeLayers;
 
-        //树木装饰器类型
+        //Tree decorator types
         _ = TreeDecoratorTypes.TrunkVine;
         _ = TreeDecoratorTypes.LeaveVine;
         _ = TreeDecoratorTypes.Cocoa;
@@ -49,7 +49,7 @@ public static class TreeBootstrap
         _ = TreeDecoratorTypes.PaleMoss;
         _ = TreeDecoratorTypes.CreakingHeart;
 
-        //树特征本身
+        //The tree feature itself
         _ = TreeFeature.Instance;
     }
 }

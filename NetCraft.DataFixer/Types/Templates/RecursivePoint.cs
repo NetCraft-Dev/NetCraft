@@ -11,30 +11,30 @@ using NetCraft.DataFixer.Types.Families;
 using NetCraft.DataFixer.Util;
 using NetCraft.Util;
 
-//RecursivePoint递归点模板对应原版com.mojang.datafixers.types.templates.RecursivePoint
-//按index引用家族中的递归类型
+//RecursivePoint recursive point template maps to vanilla com.mojang.datafixers.types.templates.RecursivePoint
+//references the recursive type at an index in the family
 public sealed record RecursivePoint(int Index) : TypeTemplate
 {
     public int Size() => Index + 1;
 
-    //apply缓存family.Apply(Index)作为所有index的返回
+    //apply caches family.Apply(Index) as the return for all indexes
     public TypeFamily Apply(TypeFamily family)
     {
         var result = family.Apply(Index);
         return new RecursivePointFamily(result);
     }
 
-    //applyO固定返回家族Index位置的optic
+    //applyO always returns the optic at the family's Index
     public FamilyOptic<object, object> ApplyO<A, B>(FamilyOptic<A, B> input, T.Type<A> aType, T.Type<B> bType)
         => TypeFamily.FamilyOptic<object, object>(i => (TypedOptic<object, object, object, object>)(object)input.Apply(Index));
 
-    //findFieldOrType递归点不可查找字段
+    //findFieldOrType: a recursive point cannot look up fields
     public Either<TypeTemplate, T.Type<object>.FieldNotFoundException> FindFieldOrType<A, B>(
         int index, string? name, T.Type<A> type, T.Type<B> resultType)
         => Either<TypeTemplate, T.Type<object>.FieldNotFoundException>
             .Right(new T.Type<object>.FieldNotFoundException("Recursion point"));
 
-    //hmap用Index位置元素的重写结果调用cap
+    //hmap calls cap with the rewrite result of the element at Index
     public Func<int, RewriteResult<object, object>> Hmap(TypeFamily family, Func<int, RewriteResult<object, object>> function)
         => i =>
         {
@@ -42,7 +42,7 @@ public sealed record RecursivePoint(int Index) : TypeTemplate
             return Cap(family, result);
         };
 
-    //Cap校验sourceType类型与结果view类型匹配后克隆BitSet并设置index
+    //Cap verifies that sourceType matches the result view type, then clones the BitSet and sets the index
     public RewriteResult<S, T2> Cap<S, T2>(TypeFamily family, RewriteResult<S, T2> result)
     {
         var sourceType = family.Apply(Index);
@@ -55,7 +55,7 @@ public sealed record RecursivePoint(int Index) : TypeTemplate
             throw new ArgumentException("Type error: hmap function input type");
         }
         var recData = result.RecData();
-        //原版用BitSet.clone后set index这里支持BitSet或回退原值
+        //vanilla clones the BitSet then sets the index; here we support BitSet or fall back to the original value
         var bitSet = recData as BitSet;
         if (bitSet != null)
         {
@@ -68,7 +68,7 @@ public sealed record RecursivePoint(int Index) : TypeTemplate
 
     public override string ToString() => "Id[" + Index + "]";
 
-    //RecursivePointFamily固定返回result忽略index
+    //RecursivePointFamily always returns result, ignoring the index
     private sealed class RecursivePointFamily : TypeFamily
     {
         private readonly T.Type<object> _result;
@@ -76,7 +76,7 @@ public sealed record RecursivePoint(int Index) : TypeTemplate
         public T.Type<object> Apply(int index) => _result;
     }
 
-    //RecursivePointType递归点类型延迟展开家族中对应index的类型
+    //RecursivePointType recursive point type; lazily unfolds the type at the corresponding index in the family
     public sealed class RecursivePointType<A> : T.Type<A>
     {
         private readonly RecursiveTypeFamily _family;
@@ -94,18 +94,18 @@ public sealed record RecursivePoint(int Index) : TypeTemplate
         public RecursiveTypeFamily Family() => _family;
         public int Index() => _index;
 
-        //unfold惰性展开家族中对应类型
+        //unfold lazily unfolds the corresponding type in the family
         public T.Type<A> Unfold()
         {
             if (_type == null) _type = _delegate();
             return _type;
         }
 
-        //buildCodec惰性委托给unfold的codec
+        //buildCodec lazily delegates to the unfolded type's codec
         protected override Codec<A> BuildCodec()
             => new RecursivePointCodec(this);
 
-        //RecursivePointCodec递归点codec惰性委托unfold.codec
+        //RecursivePointCodec recursive point codec; lazily delegates to unfold.codec
         private sealed class RecursivePointCodec : ScalarCodec<A>
         {
             private readonly RecursivePointType<A> _type;
@@ -113,9 +113,9 @@ public sealed record RecursivePoint(int Index) : TypeTemplate
 
             public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, A value)
             {
-                //unfold可能返回Unsafe.As包装的非Type<A>实例（如SumType<object,object>当A=object）
-                //直接调Codec返回的codec运行时类型不匹配接口分派失败抛EntryPointNotFoundException
-                //用AsObjectType包装后Codec返回CodecAdapter真正实现Codec<A>
+                //unfold may return a non-Type<A> instance wrapped by Unsafe.As (e.g. SumType<object,object> when A=object)
+                //calling Codec directly returns a codec whose runtime type does not match, so interface dispatch fails with EntryPointNotFoundException
+                //wrap with AsObjectType so Codec returns a CodecAdapter that truly implements Codec<A>
                 var unfolded = _type.Unfold();
                 var wrapped = TypeObjectConverterFactory.AsObjectType(unfolded);
                 var codec = wrapped.Codec();
@@ -132,24 +132,24 @@ public sealed record RecursivePoint(int Index) : TypeTemplate
             }
         }
 
-        //all直接委托给unfold.all
+        //all delegates directly to unfold.all
         public override RewriteResult<A, object> All(object rule, bool recurse, bool checkIndex)
             => Unfold().All(rule, recurse, checkIndex);
 
-        //one直接委托给unfold.one
+        //one delegates directly to unfold.one
         public override Optional<RewriteResult<A, object>> One(object rule)
             => Unfold().One(rule);
 
-        //findFieldTypeOpt委托给unfold的查找
+        //findFieldTypeOpt delegates the lookup to unfold
         public override Optional<T.Type<object>> FindFieldTypeOpt(string name)
             => Unfold().FindFieldTypeOpt(name);
 
-        //findCheckedType委托给unfold查找check包装的TaggedChoiceType
-        //对应原版RecursivePointType.findCheckedType
+        //findCheckedType delegates to unfold's lookup of the check-wrapped TaggedChoiceType
+        //maps to vanilla RecursivePointType.findCheckedType
         public override Optional<T.Type<object>> FindCheckedType(int index)
             => Unfold().FindCheckedType(index);
 
-        //everywhere递归时委托家族everywhere否则nop
+        //everywhere delegates to the family's everywhere when recursing, otherwise nop
         public override Optional<RewriteResult<A, object>> Everywhere(object rule, object optimizationRule, bool recurse, bool checkIndex)
         {
             if (recurse)
@@ -178,9 +178,9 @@ public sealed record RecursivePoint(int Index) : TypeTemplate
         public override int GetHashCode()
             => unchecked((_family?.GetHashCode() ?? 0) * 31 + _index);
 
-        //in构造折叠到自身的View
+        //in builds a View that folds into itself
         public View<A, A> In() => View<A, A>.Create(Functions.In(this), this, this);
-        //out构造展开到unfold的View
+        //out builds a View that expands to unfold
         public View<A, A> Out() => View<A, A>.Create(Functions.Out(this), this, this);
     }
 }

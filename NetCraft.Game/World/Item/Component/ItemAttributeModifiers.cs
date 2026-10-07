@@ -4,23 +4,23 @@ using NetCraft.Network;
 using NetCraft.Network.Chat;
 using NetCraft.Registry;
 using NetCraft.Registry.EntityAttribute;
-//别名避开与所在命名空间末段 Component 撞名
+//Alias avoids clashing with Component, the last segment of the enclosing namespace
 using ChatComponent = NetCraft.Network.Chat.Component;
 
 namespace NetCraft.Game.World.Items.Component;
 
-//ItemAttributeModifiers 物品属性修饰条目列表 对应原版 net.minecraft.world.item.component.ItemAttributeModifiers
+//ItemAttributeModifiers list of item attribute modifier entries, maps to vanilla net.minecraft.world.item.component.ItemAttributeModifiers
 public sealed class ItemAttributeModifiers : IEquatable<ItemAttributeModifiers>
 {
-    //Empty 空列表 对应原版 EMPTY
+    //Empty empty list, maps to vanilla EMPTY
     public static readonly ItemAttributeModifiers Empty = new(Array.Empty<Entry>());
 
-    //Codec 持久化编解码 条目列表 对应原版 CODEC
+    //Codec persistence codec, a list of entries, maps to vanilla CODEC
     public static readonly Codec<ItemAttributeModifiers> Codec = Entry.Codec.ListOf().ComapFlatMap(
         list => DataResult<ItemAttributeModifiers>.Success(new ItemAttributeModifiers(list)),
         modifiers => modifiers.Modifiers);
 
-    //StreamCodec 网络编解码 条目列表进出 对应原版 STREAM_CODEC
+    //StreamCodec network codec, the entry list goes in and out, maps to vanilla STREAM_CODEC
     public static readonly StreamCodec<RegistryFriendlyByteBuf, ItemAttributeModifiers> StreamCodec =
         new ItemAttributeModifiersStreamCodec();
 
@@ -36,14 +36,14 @@ public sealed class ItemAttributeModifiers : IEquatable<ItemAttributeModifiers>
 
     public override string ToString() => $"ItemAttributeModifiers[{Modifiers.Count} entries]";
 
-    //Entry 属性修饰条目 属性引用加修饰符加生效槽位加显示方式
+    //Entry attribute modifier entry: attribute reference plus modifier plus active slots plus display
     public sealed record Entry(
         Holder<NetCraft.Registry.EntityAttribute.Attribute> Attribute,
         AttributeModifier Modifier,
         EquipmentSlotGroup Slot,
         Display DisplayData)
     {
-        //Codec 持久化编解码 字段名 type 与 slot 与 display 对应原版 CODEC
+        //Codec persistence codec, field names type, slot and display, maps to vanilla CODEC
         public static readonly Codec<Entry> Codec = RecordCodecBuilder.Of4(
             HolderSetCodecs.AttributeRef.FieldOf("type").ForGetter((Entry entry) => entry.Attribute),
             AttributeModifier.Codec.ForGetter((Entry entry) => entry.Modifier),
@@ -53,31 +53,31 @@ public sealed class ItemAttributeModifiers : IEquatable<ItemAttributeModifiers>
                 .ForGetter((Entry entry) => entry.DisplayData),
             (attribute, modifier, slot, display) => new Entry(attribute, modifier, slot, display));
 
-        //StreamCodec 网络编解码 对应原版 STREAM_CODEC
+        //StreamCodec network codec, maps to vanilla STREAM_CODEC
         public static readonly StreamCodec<RegistryFriendlyByteBuf, Entry> StreamCodec = new EntryStreamCodec();
     }
 }
 
-//Display 属性修饰的显示方式 对应原版 ItemAttributeModifiers.Display
-//默认按数值生成提示 隐藏不显示 覆盖则用给定文本
+//Display how an attribute modifier is shown, maps to vanilla ItemAttributeModifiers.Display
+//Default builds a tooltip from the value, hidden shows nothing, override uses the given text
 public abstract class Display
 {
-    //DefaultValue 默认显示 对应原版 Default
+    //DefaultValue default display, maps to vanilla Default
     public static readonly Display DefaultValue = new DefaultDisplay();
 
-    //HiddenValue 隐藏显示 对应原版 Hidden
+    //HiddenValue hidden display, maps to vanilla Hidden
     public static readonly Display HiddenValue = new HiddenDisplay();
 
-    //Codec 按 type 字段分派 对应原版 Display.CODEC
+    //Codec dispatches on the type field, maps to vanilla Display.CODEC
     public static readonly Codec<Display> Codec = new DisplayCodec();
 
-    //StreamCodec 按 type id 分派 对应原版 Display.STREAM_CODEC
+    //StreamCodec dispatches on the type id, maps to vanilla Display.STREAM_CODEC
     public static readonly StreamCodec<RegistryFriendlyByteBuf, Display> StreamCodec = new DisplayStreamCodec();
 
-    //TypeName 分派用的序列化名
+    //TypeName serialized name used for dispatch
     public abstract string TypeName { get; }
 
-    //OverrideText 覆盖文本显示 对应原版 OverrideText
+    //OverrideText override text display, maps to vanilla OverrideText
     public static Display OverrideText(ChatComponent component) => new OverrideTextDisplay(component);
 
     internal sealed class DefaultDisplay : Display
@@ -98,14 +98,14 @@ public abstract class Display
     }
 }
 
-//DisplayCodec 按 type 字段分派显示方式 对应原版 Display.CODEC
+//DisplayCodec dispatches the display on the type field, maps to vanilla Display.CODEC
 internal sealed class DisplayCodec : ScalarCodec<Display>
 {
     public override DataResult<Display> Parse<U>(DynamicOps<U> ops, U input)
         => ops.GetMap(input).FlatMap(map =>
         {
             var typeValue = map.Get("type");
-            if (!typeValue.IsPresent) return DataResult<Display>.Error(() => "display 缺少 type 字段");
+            if (!typeValue.IsPresent) return DataResult<Display>.Error(() => "display is missing the type field");
             return Codecs.String.Parse(ops, typeValue.Get()).FlatMap(name => name switch
             {
                 "override" => ParseOverrideText(ops, map),
@@ -117,7 +117,7 @@ internal sealed class DisplayCodec : ScalarCodec<Display>
     private static DataResult<Display> ParseOverrideText<U>(DynamicOps<U> ops, MapLike<U> map)
     {
         var value = map.Get("value");
-        if (!value.IsPresent) return DataResult<Display>.Error(() => "display 覆盖文本缺少 value 字段");
+        if (!value.IsPresent) return DataResult<Display>.Error(() => "display override text is missing the value field");
         return ComponentSerialization.Codec.Parse(ops, value.Get()).Map(Display.OverrideText);
     }
 
@@ -131,7 +131,7 @@ internal sealed class DisplayCodec : ScalarCodec<Display>
     }
 }
 
-//DisplayStreamCodec 按 type id 分派 对应原版 Display.STREAM_CODEC
+//DisplayStreamCodec dispatches on the type id, maps to vanilla Display.STREAM_CODEC
 internal sealed class DisplayStreamCodec : StreamCodec<RegistryFriendlyByteBuf, Display>
 {
     public Display Decode(RegistryFriendlyByteBuf buf)
@@ -163,8 +163,8 @@ internal sealed class DisplayStreamCodec : StreamCodec<RegistryFriendlyByteBuf, 
     }
 }
 
-//AttributeModifierStreamCodec id 加数值加运算 对应原版 AttributeModifier.STREAM_CODEC
-//AttributeModifier 属注册表层 该层不引用 Network 故流编解码落在这里
+//AttributeModifierStreamCodec id plus amount plus operation, maps to vanilla AttributeModifier.STREAM_CODEC
+//AttributeModifier is a registry-layer type; that layer does not reference Network so the stream codec lives here
 internal sealed class AttributeModifierStreamCodec : StreamCodec<RegistryFriendlyByteBuf, AttributeModifier>
 {
     public static readonly AttributeModifierStreamCodec Instance = new();
@@ -180,7 +180,7 @@ internal sealed class AttributeModifierStreamCodec : StreamCodec<RegistryFriendl
     }
 }
 
-//EntryStreamCodec 属性引用加修饰符加槽位加显示方式 对应原版 STREAM_CODEC
+//EntryStreamCodec attribute reference plus modifier plus slots plus display, maps to vanilla STREAM_CODEC
 internal sealed class EntryStreamCodec : StreamCodec<RegistryFriendlyByteBuf, ItemAttributeModifiers.Entry>
 {
     private static readonly StreamCodec<RegistryFriendlyByteBuf, Holder<NetCraft.Registry.EntityAttribute.Attribute>> AttributeCodec =
@@ -202,7 +202,7 @@ internal sealed class EntryStreamCodec : StreamCodec<RegistryFriendlyByteBuf, It
     }
 }
 
-//ItemAttributeModifiersStreamCodec 条目列表进出 对应原版 STREAM_CODEC
+//ItemAttributeModifiersStreamCodec the entry list goes in and out, maps to vanilla STREAM_CODEC
 internal sealed class ItemAttributeModifiersStreamCodec : StreamCodec<RegistryFriendlyByteBuf, ItemAttributeModifiers>
 {
     public ItemAttributeModifiers Decode(RegistryFriendlyByteBuf buf)

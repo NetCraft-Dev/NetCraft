@@ -3,15 +3,15 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//NoiseRouterCodec 15 字段 NoiseRouter 编解码对应原版 NoiseRouter.CODEC
-//手写 decode 逐字段读取 encode 逐字段写入不依赖 RecordCodecBuilder 扩展
-//所有字段通过 DensityFunctionCodec dispatch codec 编解码
+//NoiseRouterCodec 15-field NoiseRouter codec, maps to vanilla NoiseRouter.CODEC
+//Hand-written decode reads field by field and encode writes field by field, without the RecordCodecBuilder extension
+//Every field is encoded through the DensityFunctionCodec dispatch codec
 public sealed class NoiseRouterCodec : AbstractMapCodec<NoiseRouter>
 {
     public static readonly NoiseRouterCodec Instance = new();
 
-    //FieldNames 15 字段名对应原版 NoiseRouter 字段命名
-    //preliminary_surface_level 对应类内 PreliminarySurfaceLevel 原版 26.2 起的字段名
+    //FieldNames the 15 field names, matching vanilla NoiseRouter field naming
+    //preliminary_surface_level matches the in-class PreliminarySurfaceLevel, the vanilla field name since 26.2
     private static readonly string[] FieldNames =
     {
         "final_density",
@@ -91,7 +91,7 @@ public sealed class NoiseRouterCodec : AbstractMapCodec<NoiseRouter>
         return builder;
     }
 
-    //DecodeDensity 读取单个 DensityFunction 字段
+    //DecodeDensity reads a single DensityFunction field
     private static Optional<DensityFunction> DecodeDensity<U>(DynamicOps<U> ops, MapLike<U> input, string name)
     {
         var value = input.Get(name);
@@ -99,7 +99,7 @@ public sealed class NoiseRouterCodec : AbstractMapCodec<NoiseRouter>
         return DensityFunctionCodec.Instance.Parse(ops, value.Get()).Result();
     }
 
-    //EncodeDensity 写入单个 DensityFunction 字段
+    //EncodeDensity writes a single DensityFunction field
     private static void EncodeDensity<U>(DynamicOps<U> ops, RecordBuilder<U> builder, string name, DensityFunction value)
         => builder.Add(name, DensityFunctionCodec.Instance.EncodeStart(ops, value).GetOrThrow());
 }

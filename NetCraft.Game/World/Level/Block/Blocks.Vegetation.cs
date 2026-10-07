@@ -8,9 +8,9 @@ using DoubleBlockHalf = NetCraft.Registry.Enums.DoubleBlockHalf;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//V-8 植被类方块按原版逐个移植形状 生长与放置行为留后续批次
-//属性一律取内嵌方块表注入的那份 这里不重复声明 抄漏一个状态数就错
-//命名空间段名 Block 与 Registry.Block 类型同名 形状助手要写完全限定名
+//V-8 vegetation blocks ported one by one from vanilla with their shapes; growth and placement behavior are left to a later batch
+//Properties always come from the injected embedded block table and are not repeated here; missing one shifts the state count
+//The namespace segment named Block clashes with the Registry.Block type, so shape helpers must be fully qualified
 public static partial class Blocks
 {
     public static readonly TallGrassBlock SHORT_GRASS = new("short_grass");
@@ -35,7 +35,7 @@ public static partial class Blocks
     public static readonly HangingMossBlock PALE_HANGING_MOSS = new("pale_hanging_moss");
     public static readonly SweetBerryBushBlock SWEET_BERRY_BUSH = new("sweet_berry_bush");
 
-    //RegisterVegetation 植被类方块登记进真实方块表 键取注册名
+    //RegisterVegetation registers vegetation blocks into the real block table with the registry name as the key
     private static void RegisterVegetation(Dictionary<string, BlockBehaviour> real)
     {
         BlockBehaviour[] blocks =
@@ -48,8 +48,8 @@ public static partial class Blocks
         foreach (var block in blocks) real[block.Id.Path] = block;
     }
 
-    //NamedBlock 只带注册名的方块基类 同一种形状对应多个注册名时靠它区分
-    //植被与装饰类大量如此 十六色地毯与各色珊瑚都是同一个类的不同注册名
+    //NamedBlock block base class carrying only a registry name, used to distinguish multiple registry names sharing a shape
+    //This is common for vegetation and decoration; sixteen carpet colors and the coral colors are all different registry names of the same class
     public abstract class NamedBlock : BlockBehaviour
     {
         private readonly string _name;
@@ -59,30 +59,30 @@ public static partial class Blocks
         public override Identifier Id => Identifier.WithDefaultNamespace(_name);
     }
 
-    //VegetationBlock 植被与作物的共同基类 对应原版 VegetationBlock
-    //默认要求下方那格属于 supports_vegetation 支撑没了就自删
-    //干枯类换 supports_dry_vegetation 作物换 supports_crops 其余按各自的 supports_* 覆写 SupportTag
-    //26.2 把"能种在什么上面"从代码分支挪到了标签 这里跟着走同一套
+    //VegetationBlock common base class for vegetation and crops, maps to vanilla VegetationBlock
+    //By default the cell below must belong to supports_vegetation and it removes itself without support
+    //Dry types switch to supports_dry_vegetation and crops to supports_crops; the rest override SupportTag with their own supports_*
+    //26.2 moved "what it can be planted on" from code branches to tags, and this follows the same scheme
     public abstract class VegetationBlock : NamedBlock
     {
         protected VegetationBlock(string name) : base(name) { }
 
-        //SupportTag 下方那格要属于哪条标签 默认是普通植被那条
+        //SupportTag which tag the cell below must belong to, the plain vegetation one by default
         protected virtual NetCraft.Registry.TagKey<NetCraft.Registry.Block> SupportTag
             => BlockTags.SupportsVegetation;
 
-        //MayPlaceOn 下方那格能不能托住本方块 对应原版 mayPlaceOn
+        //MayPlaceOn whether the cell below can support this block, maps to vanilla mayPlaceOn
         protected virtual bool MayPlaceOn(ServerLevel level, BlockPos belowPos, BlockState belowState)
             => belowState.Owner is BlockBehaviour behaviour && behaviour.IsInTag(SupportTag);
 
-        //CanSurvive 只看下方一格 对应原版 canSurvive
+        //CanSurvive only checks the cell below, maps to vanilla canSurvive
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             var below = pos.Offset(Direction.Down);
             return level.GetBlockState(below) is { } belowState && MayPlaceOn(level, below, belowState);
         }
 
-        //UpdateShape 支撑没了就自删 对应原版 updateShape
+        //UpdateShape removes itself when support is gone, maps to vanilla updateShape
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
         {
@@ -91,7 +91,7 @@ public static partial class Blocks
         }
     }
 
-    //TallGrassBlock 矮草与蕨 原版同一个类挂两个注册名
+    //TallGrassBlock short grass and fern, the same vanilla class with two registry names
     public sealed class TallGrassBlock : VegetationBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(12.0, 0.0, 13.0);
@@ -102,7 +102,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //DryVegetationBlock 枯灌木 落脚面换干枯那条标签
+    //DryVegetationBlock dead bush, the support face switches to the dry tag
     public sealed class DryVegetationBlock : VegetationBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(12.0, 0.0, 13.0);
@@ -116,7 +116,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //BushBlock 灌木 原版这一族植物的形状基类 本作按注册名扁平使用
+    //BushBlock bush, the shape base class of this vanilla plant family, used flat by registry name here
     public sealed class BushBlock : VegetationBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 0.0, 13.0);
@@ -127,7 +127,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //ShortDryGrassBlock 矮枯草 同枯灌木走干枯标签
+    //ShortDryGrassBlock short dry grass, uses the dry tag like the dead bush
     public sealed class ShortDryGrassBlock : VegetationBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(12.0, 0.0, 10.0);
@@ -141,7 +141,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //TallDryGrassBlock 高枯草 同枯灌木走干枯标签
+    //TallDryGrassBlock tall dry grass, uses the dry tag like the dead bush
     public sealed class TallDryGrassBlock : VegetationBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(14.0, 0.0, 16.0);
@@ -155,14 +155,14 @@ public static partial class Blocks
             => Shape;
     }
 
-    //SeagrassBlock 海草 落脚面要够坚固且不是岩浆块
+    //SeagrassBlock seagrass, the support face must be sturdy and not a magma block
     public sealed class SeagrassBlock : VegetationBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(12.0, 0.0, 12.0);
 
         public SeagrassBlock(string name) : base(name) { }
 
-        //MayPlaceOn 下方那格朝上的面要够坚固 岩浆块托不住 对应原版 mayPlaceOn
+        //MayPlaceOn the upward face of the cell below must be sturdy and a magma block cannot support it, maps to vanilla mayPlaceOn
         protected override bool MayPlaceOn(ServerLevel level, BlockPos belowPos, BlockState belowState)
             => belowState.Owner is BlockBehaviour behaviour
                 && behaviour.IsFaceSturdy(level, belowPos, belowState, Direction.Up)
@@ -172,7 +172,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //TallSeagrassBlock 高海草 双格 下半还要泡在满水里
+    //TallSeagrassBlock tall seagrass, two cells with the lower half submerged in full water
     public sealed class TallSeagrassBlock : VegetationBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(12.0, 0.0, 16.0);
@@ -184,7 +184,7 @@ public static partial class Blocks
                 && behaviour.IsFaceSturdy(level, belowPos, belowState, Direction.Up)
                 && !behaviour.IsInTag(BlockTags.CannotSupportSeagrass);
 
-        //CanSurvive 上半只认自己的下半 下半看落脚面且所在格得是满水 对应原版 canSurvive
+        //CanSurvive the upper half only accepts its own lower half and the lower half checks the support face and requires full water, maps to vanilla canSurvive
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             if (state.GetValue(BlockStateProperties.DoubleBlockHalfProperty) == DoubleBlockHalf.upper)
@@ -202,7 +202,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //SugarCaneBlock 甘蔗 下方是同类就能叠 否则要落在沙土上且四邻傍着水或霜冰
+    //SugarCaneBlock sugar cane, stacks on the same type below, otherwise it must be on sand and have water or frosted ice beside it
     public sealed class SugarCaneBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(12.0, 0.0, 16.0);
@@ -211,8 +211,8 @@ public static partial class Blocks
 
         public SugarCaneBlock(string name) : base(name) { }
 
-        //CanSurvive 下方同类直接过 落在地里时下方四邻要有水或霜冰 对应原版 canSurvive
-        //水那条走原版的 supports_sugar_cane_adjacently 流体标签 内容就是水 这里按水判
+        //CanSurvive passes directly on the same type below; on soil the four neighbors below must have water or frosted ice, maps to vanilla canSurvive
+        //The water side uses the vanilla supports_sugar_cane_adjacently fluid tag whose content is water, so it is checked as water here
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             var belowPos = pos.Offset(Direction.Down);
@@ -235,15 +235,15 @@ public static partial class Blocks
             => Shape;
     }
 
-    //LilyPadBlock 睡莲 薄片且浮在水面高度上
+    //LilyPadBlock lily pad, a thin sheet floating at the water surface height
     public sealed class LilyPadBlock : VegetationBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(14.0, 0.0, 1.5);
 
         public LilyPadBlock(string name) : base(name) { }
 
-        //MayPlaceOn 下方是水或 supports_lily_pad 且自己那格不能有流体 对应原版 mayPlaceOn
-        //原版流体那条走 supports_lily_pad 标签 内容就是水
+        //MayPlaceOn the cell below is water or supports_lily_pad and its own cell must have no fluid, maps to vanilla mayPlaceOn
+        //The vanilla fluid side uses the supports_lily_pad tag whose content is water
         protected override bool MayPlaceOn(ServerLevel level, BlockPos belowPos, BlockState belowState)
         {
             var supported = belowState.FluidState.IsWater
@@ -257,7 +257,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //NetherSproutsBlock 下界苗 落脚面走它自己那条标签
+    //NetherSproutsBlock nether sprouts, the support face uses its own tag
     public sealed class NetherSproutsBlock : VegetationBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(12.0, 0.0, 3.0);
@@ -271,14 +271,14 @@ public static partial class Blocks
             => Shape;
     }
 
-    //SporeBlossomBlock 孢子花 挂在方块下表面 形状贴着格子顶端
+    //SporeBlossomBlock spore blossom, hangs from the underside of a block with the shape against the top of the cell
     public sealed class SporeBlossomBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(12.0, 13.0, 16.0);
 
         public SporeBlossomBlock(string name) : base(name) { }
 
-        //CanSurvive 上方那格朝下的面按中心判定要顶得住 且自己那格不能泡在水里 对应原版 canSurvive
+        //CanSurvive the downward face of the cell above must hold by its center check and its own cell must not be submerged, maps to vanilla canSurvive
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             var abovePos = pos.Offset(Direction.Up);
@@ -290,7 +290,7 @@ public static partial class Blocks
             return level.GetBlockState(pos)?.FluidState.IsWater != true;
         }
 
-        //UpdateShape 上方那格变了就重判 撑不住直接变空气 对应原版 updateShape
+        //UpdateShape re-evaluates when the cell above changes and becomes air when it cannot hold, maps to vanilla updateShape
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
         {
@@ -303,7 +303,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //AzaleaBlock 杜鹃与盛开的杜鹃 上宽下窄两段拼起来 落脚面走杜鹃那条标签
+    //AzaleaBlock azalea and flowering azalea, a wide top and narrow bottom joined together, the support face uses the azalea tag
     public sealed class AzaleaBlock : VegetationBlock
     {
         private static readonly VoxelShape Shape = Shapes.Or(
@@ -319,14 +319,14 @@ public static partial class Blocks
             => Shape;
     }
 
-    //SmallDripleafBlock 小型垂滴叶 双格
+    //SmallDripleafBlock small dripleaf, two cells
     public sealed class SmallDripleafBlock : VegetationBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(12.0, 0.0, 13.0);
 
         public SmallDripleafBlock(string name) : base(name) { }
 
-        //MayPlaceOn 下方是 supports_small_dripleaf 就过 否则自己上方那格是水源时按普通植被的落脚面判 对应原版 mayPlaceOn
+        //MayPlaceOn passes when the cell below is supports_small_dripleaf, otherwise when the cell above is a water source it uses the plain vegetation support face, maps to vanilla mayPlaceOn
         protected override bool MayPlaceOn(ServerLevel level, BlockPos belowPos, BlockState belowState)
         {
             if (belowState.Owner is BlockBehaviour behaviour
@@ -335,7 +335,7 @@ public static partial class Blocks
             return base.MayPlaceOn(level, belowPos, belowState);
         }
 
-        //CanSurvive 上半只认自己的下半 下半看落脚面 对应原版 canSurvive
+        //CanSurvive the upper half only accepts its own lower half and the lower half checks the support face, maps to vanilla canSurvive
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             if (state.GetValue(BlockStateProperties.DoubleBlockHalfProperty) == DoubleBlockHalf.upper)
@@ -352,14 +352,14 @@ public static partial class Blocks
             => Shape;
     }
 
-    //HangingRootsBlock 垂根 上方那格朝下的面要够坚固
+    //HangingRootsBlock hanging roots, the downward face of the cell above must be sturdy enough
     public sealed class HangingRootsBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(12.0, 10.0, 16.0);
 
         public HangingRootsBlock(string name) : base(name) { }
 
-        //CanSurvive 上方那格朝下的面要够坚固 对应原版 canSurvive
+        //CanSurvive the downward face of the cell above must be sturdy enough, maps to vanilla canSurvive
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             var abovePos = pos.Offset(Direction.Up);
@@ -368,7 +368,7 @@ public static partial class Blocks
                 && behaviour.IsFaceSturdy(level, abovePos, aboveState, Direction.Down);
         }
 
-        //UpdateShape 上方那格变了就重判 撑不住直接变空气 对应原版 updateShape
+        //UpdateShape re-evaluates when the cell above changes and becomes air when it cannot hold, maps to vanilla updateShape
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
         {
@@ -381,14 +381,14 @@ public static partial class Blocks
             => Shape;
     }
 
-    //CaveVinesBlock 洞穴藤蔓与藤蔓身 原版两段共用同一形状 从上往下垂
+    //CaveVinesBlock cave vines and vine body, both vanilla parts share one shape hanging downward
     public sealed class CaveVinesBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(14.0, 0.0, 16.0);
 
         public CaveVinesBlock(string name) : base(name) { }
 
-        //CanSurvive 上方是同族藤蔓的任意一截 或者上方那格朝下的面够坚固 对应原版 GrowingPlantBlock.canSurvive
+        //CanSurvive the cell above is any segment of the same vine family or its downward face is sturdy enough, maps to vanilla GrowingPlantBlock.canSurvive
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             var abovePos = pos.Offset(Direction.Up);
@@ -398,8 +398,8 @@ public static partial class Blocks
                 && behaviour.IsFaceSturdy(level, abovePos, aboveState, Direction.Down);
         }
 
-        //UpdateShape 上方那格变了就重判 撑不住直接变空气 对应原版 GrowingPlantBlock.updateShape
-        //原版只排一刻调度刻再删 这里与植被族一致改成即刻自删
+        //UpdateShape re-evaluates when the cell above changes and becomes air when it cannot hold, maps to vanilla GrowingPlantBlock.updateShape
+        //Vanilla schedules a tick before removing; here it removes itself immediately to stay consistent with the vegetation family
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
         {
@@ -412,14 +412,14 @@ public static partial class Blocks
             => Shape;
     }
 
-    //KelpBlock 海带 自下往上长
+    //KelpBlock kelp, grows from bottom to top
     public sealed class KelpBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 0.0, 9.0);
 
         public KelpBlock(string name) : base(name) { }
 
-        //CanSurvive 下方是同族海带 或者下方那格朝上的面够坚固 挡海带的方块一票否决 对应原版 canSurvive
+        //CanSurvive the cell below is the same kelp family or its upward face is sturdy enough; a block that blocks kelp vetoes it, maps to vanilla canSurvive
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             var belowPos = pos.Offset(Direction.Down);
@@ -434,7 +434,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //HangingMossBlock 垂丝苔藓 末端段比中段底部高两像素
+    //HangingMossBlock hanging moss, the tip segment sits two pixels above the bottom of the middle segment
     public sealed class HangingMossBlock : NamedBlock
     {
         private static readonly VoxelShape ShapeBase = NetCraft.Registry.Block.Column(14.0, 0.0, 16.0);
@@ -446,7 +446,7 @@ public static partial class Blocks
             => state.GetValue(BlockStateProperties.Tip) ? ShapeTip : ShapeBase;
     }
 
-    //SweetBerryBushBlock 甜浆果丛 幼苗细 长大后高一圈 成熟时是整块
+    //SweetBerryBushBlock sweet berry bush, thin as a seedling, one ring taller when grown and a full block when ripe
     public sealed class SweetBerryBushBlock : VegetationBlock
     {
         private static readonly VoxelShape ShapeSapling = NetCraft.Registry.Block.Column(10.0, 0.0, 8.0);

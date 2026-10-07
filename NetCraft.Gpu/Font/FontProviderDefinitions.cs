@@ -1,7 +1,7 @@
 namespace NetCraft.Gpu.Font;
 
-//Shift TTF 字形渲染偏移对标原版 TrueTypeGlyphProviderDefinition.Shift
-//x 横向偏移 y 纵向偏移（向上为正）原版用 record 这里用 readonly struct
+//Shift TTF glyph render offset, maps to vanilla TrueTypeGlyphProviderDefinition.Shift
+//x is horizontal offset, y is vertical offset (positive upwards); vanilla uses a record, here a readonly struct
 public readonly struct Shift
 {
     public readonly float X;
@@ -10,9 +10,9 @@ public readonly struct Shift
     public Shift(float x, float y) { X = x; Y = y; }
 }
 
-//TtfDefinition 对标原版 TrueTypeGlyphProviderDefinition
-//font/*.json 中 ttf 类型 provider 的定义含 file/size/oversample/shift/skip 字段
-//默认值对齐原版 size=11.0f oversample=1.0f shift=NONE skip=""
+//TtfDefinition maps to vanilla TrueTypeGlyphProviderDefinition
+//Definition of a ttf provider in font/*.json with file/size/oversample/shift/skip fields
+//Defaults match vanilla: size=11.0f oversample=1.0f shift=NONE skip=""
 public sealed class TtfDefinition : IGlyphProviderDefinition
 {
     public string File { get; }
@@ -34,7 +34,7 @@ public sealed class TtfDefinition : IGlyphProviderDefinition
     public bool IsReference => false;
     public IGlyphProviderDefinition.ILoader? AsLoader => new TtfLoader(this);
 
-    //TtfLoader 实现 ILoader.Load 从 IFontResourceAccessor 打开 TTF 流读字节构造 TtfGlyphProvider
+    //TtfLoader implements ILoader.Load, opening the TTF stream via IFontResourceAccessor and reading bytes to build a TtfGlyphProvider
     private sealed class TtfLoader : IGlyphProviderDefinition.ILoader
     {
         private readonly TtfDefinition _def;
@@ -55,9 +55,9 @@ public sealed class TtfDefinition : IGlyphProviderDefinition
     }
 }
 
-//SpaceDefinition 对标原版 SpaceProvider.Definition
-//font/*.json 中 space 类型 provider 的定义含 advances 字段
-//advances 是 codepoint→advance 映射 JSON 中键是字符值是 float
+//SpaceDefinition maps to vanilla SpaceProvider.Definition
+//Definition of a space provider in font/*.json with the advances field
+//advances is a codepoint→advance map; in JSON the keys are characters and the values are floats
 public sealed class SpaceDefinition : IGlyphProviderDefinition
 {
     public IReadOnlyDictionary<int, float> Advances { get; }
@@ -77,9 +77,9 @@ public sealed class SpaceDefinition : IGlyphProviderDefinition
     }
 }
 
-//ReferenceDefinition 对标原版 ProviderReferenceDefinition
-//font/*.json 中 reference 类型 provider 的定义含 id 字段引用其他 font json
-//递归加载由 FontProviderDefinitionLoader 处理 Definition 本身不 Load
+//ReferenceDefinition maps to vanilla ProviderReferenceDefinition
+//Definition of a reference provider in font/*.json with an id field referencing another font json
+//Recursive loading is handled by FontProviderDefinitionLoader; the Definition itself does not Load
 public sealed class ReferenceDefinition : IGlyphProviderDefinition
 {
     public string Id { get; }
@@ -91,9 +91,9 @@ public sealed class ReferenceDefinition : IGlyphProviderDefinition
     public IGlyphProviderDefinition.Reference? AsReference => new IGlyphProviderDefinition.Reference(Id);
 }
 
-//BitmapDefinition 对标原版 BitmapProvider.Definition
-//font/*.json 中 bitmap 类型 provider 含 file/height/ascent/chars 字段
-//chars 是 codepoint 二维网格字符串数组每行 16 字符每个字符对应纹理一格
+//BitmapDefinition maps to vanilla BitmapProvider.Definition
+//A bitmap provider in font/*.json has file/height/ascent/chars fields
+//chars is a 2D grid of codepoint strings with 16 characters per row, each mapping to one texture cell
 public sealed class BitmapDefinition : IGlyphProviderDefinition
 {
     public string File { get; }
@@ -113,8 +113,8 @@ public sealed class BitmapDefinition : IGlyphProviderDefinition
     public bool IsReference => false;
     public IGlyphProviderDefinition.ILoader? AsLoader => new BitmapLoader(this);
 
-    //BitmapLoader 从 assets 读 PNG 字节构造 BitmapGlyphProvider
-    //chars 字符串数组用 EnumerateRunes 转 codepoint 二维数组对标原版 CODEPOINT_GRID_CODEC
+    //BitmapLoader reads PNG bytes from assets to build a BitmapGlyphProvider
+    //The chars string array is converted to a 2D codepoint array with EnumerateRunes, maps to vanilla CODEPOINT_GRID_CODEC
     private sealed class BitmapLoader : IGlyphProviderDefinition.ILoader
     {
         private readonly BitmapDefinition _def;
@@ -122,8 +122,8 @@ public sealed class BitmapDefinition : IGlyphProviderDefinition
 
         public IGlyphProvider? Load(IFontResourceAccessor resources)
         {
-            //对标原版 BitmapProvider.load 用 file.withPrefix("textures/")
-            //把 minecraft:font/xxx.png 转为 minecraft:textures/font/xxx.png 资源路径
+            //maps to vanilla BitmapProvider.load using file.withPrefix("textures/")
+            //Converts minecraft:font/xxx.png to the resource path minecraft:textures/font/xxx.png
             var textureId = WithTexturePrefix(_def.File);
             var stream = resources.OpenResource(textureId);
             if (stream == null) return null;
@@ -144,8 +144,8 @@ public sealed class BitmapDefinition : IGlyphProviderDefinition
             }
         }
 
-        //WithTexturePrefix 把 minecraft:font/xxx.png 转为 minecraft:textures/font/xxx.png
-        //对标原版 Identifier.withPrefix("textures/")
+        //WithTexturePrefix converts minecraft:font/xxx.png to minecraft:textures/font/xxx.png
+        //maps to vanilla Identifier.withPrefix("textures/")
         private static string WithTexturePrefix(string file)
         {
             int colon = file.IndexOf(':');
@@ -165,8 +165,8 @@ public sealed class BitmapDefinition : IGlyphProviderDefinition
     }
 }
 
-//UnihexDefinition 对标原版 UnihexProvider.Definition
-//font/*.json 中 unihex 类型 provider 含 hex_file 字段引用 .hex 文件（zip 打包）
+//UnihexDefinition maps to vanilla UnihexProvider.Definition
+//A unihex provider in font/*.json has a hex_file field referencing a .hex file (zip-packed)
 public sealed class UnihexDefinition : IGlyphProviderDefinition
 {
     public string HexFile { get; }
@@ -177,7 +177,7 @@ public sealed class UnihexDefinition : IGlyphProviderDefinition
     public bool IsReference => false;
     public IGlyphProviderDefinition.ILoader? AsLoader => new UnihexLoader(this);
 
-    //UnihexLoader 从 assets 读 hex zip 流交给 UnihexGlyphProvider.LoadFromStream
+    //UnihexLoader reads the hex zip stream from assets and hands it to UnihexGlyphProvider.LoadFromStream
     private sealed class UnihexLoader : IGlyphProviderDefinition.ILoader
     {
         private readonly UnihexDefinition _def;

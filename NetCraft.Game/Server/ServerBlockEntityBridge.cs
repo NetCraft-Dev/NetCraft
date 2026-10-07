@@ -6,13 +6,13 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Server;
 
-//ServerBlockEntityBridge 方块实体桥的 Game 层实现
-//把方块实体集合与方块实体类型注册表接给 Storage 层的区块存储
+//ServerBlockEntityBridge the Game-layer implementation of the block entity bridge
+//Connects the block entity collection and block entity type registry to the Storage layer's chunk storage
 public sealed class ServerBlockEntityBridge(ServerLevel level, BlockEntityManager blockEntities)
     : IBlockEntityBridge
 {
-    //Collect 采集该区块的方块实体完整 NBT
-    //SaveWithFullMetadata 带 id 与坐标 读档时靠它反查类型并落回原位
+    //Collect collects the full NBT of the chunk's block entities
+    //SaveWithFullMetadata carries the id and position, used on load to resolve the type and restore position
     public List<CompoundTag> Collect(ChunkPos pos)
     {
         var tags = new List<CompoundTag>();
@@ -21,8 +21,8 @@ public sealed class ServerBlockEntityBridge(ServerLevel level, BlockEntityManage
         return tags;
     }
 
-    //Restore 按 id 反查类型还原方块实体 未知 id 跳过并记警告
-    //原版对未知方块实体同样是丢弃 报错会让整张存档读不进来
+    //Restore resolves the type by id and restores the block entity; an unknown id is skipped with a warning
+    //Vanilla likewise discards unknown block entities; erroring would make the whole save unreadable
     public void Restore(ChunkPos pos, List<CompoundTag> tags)
     {
         foreach (var tag in tags)
@@ -37,7 +37,7 @@ public sealed class ServerBlockEntityBridge(ServerLevel level, BlockEntityManage
         }
     }
 
-    //Unload 区块卸载时清掉该区块的方块实体
+    //Unload clears the chunk's block entities when the chunk unloads
     public void Unload(ChunkPos pos)
     {
         var removed = blockEntities.RemoveInChunk(pos);

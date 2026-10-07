@@ -3,8 +3,8 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.World.Scores;
 
-//TeamColor 队伍颜色 对应原版 net.minecraft.world.scores.TeamColor
-//十六种颜色各带数字 id 文本颜色与对应的显示槽
+//TeamColor team color, maps to vanilla net.minecraft.world.scores.TeamColor
+//Sixteen colors, each with a numeric id, text color and matching display slot
 public enum TeamColor
 {
     BLACK = 0,
@@ -25,16 +25,16 @@ public enum TeamColor
     WHITE = 15
 }
 
-//TeamColorExtensions 队伍颜色的序列化名 文本颜色 显示槽与反查
+//TeamColorExtensions team color serialized names, text colors, display slots and reverse lookup
 public static class TeamColorExtensions
 {
-    //GetId 数字 id 对应原版 id
+    //GetId numeric id, maps to vanilla id
     public static int GetId(this TeamColor color) => (int)color;
 
-    //GetSerializedName 序列化名 对应原版 getSerializedName
+    //GetSerializedName serialized name, maps to vanilla getSerializedName
     public static string GetSerializedName(this TeamColor color) => color.ToString().ToLowerInvariant();
 
-    //GetTextColor 对应的文本颜色 对应原版 textColor
+    //GetTextColor matching text color, maps to vanilla textColor
     public static TextColor GetTextColor(this TeamColor color) => color switch
     {
         TeamColor.BLACK => TextColor.Black,
@@ -55,14 +55,14 @@ public static class TeamColorExtensions
         _ => TextColor.White
     };
 
-    //GetDisplaySlot 对应的显示槽 十六色紧跟在三个通用槽之后 对应原版 displaySlot
+    //GetDisplaySlot matching display slot, the sixteen colors follow the three generic slots, maps to vanilla displaySlot
     public static DisplaySlot GetDisplaySlot(this TeamColor color) => (DisplaySlot)((int)color + 3);
 
-    //ById 按 id 反查 越界给 BLACK 对应原版 BY_ID
+    //ById reverse lookup by id, out of range gives BLACK, maps to vanilla BY_ID
     public static TeamColor ById(int id)
         => id >= 0 && id < 16 ? (TeamColor)id : TeamColor.BLACK;
 
-    //ByName 按序列化名反查 找不到给 null 对应原版 byName
+    //ByName reverse lookup by serialized name, null when not found, maps to vanilla byName
     public static TeamColor? ByName(string name)
     {
         foreach (var color in Enum.GetValues<TeamColor>())
@@ -70,10 +70,10 @@ public static class TeamColorExtensions
         return null;
     }
 
-    //Codec 持久化编解码 按序列化名 对应原版 CODEC
+    //Codec persistence codec, keyed by serialized name, maps to vanilla CODEC
     public static readonly Codec<TeamColor> Codec = Codecs.String.ComapFlatMap(
         name => ByName(name) is { } color
             ? DataResult<TeamColor>.Success(color)
-            : DataResult<TeamColor>.Error(() => $"未知队伍颜色 {name}"),
+            : DataResult<TeamColor>.Error(() => $"unknown team color {name}"),
         color => color.GetSerializedName());
 }

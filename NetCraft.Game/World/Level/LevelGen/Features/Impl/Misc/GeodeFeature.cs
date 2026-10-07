@@ -10,7 +10,7 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Misc;
 
-//GeodeBlockSettings 紫水晶洞各层用的方块提供者 对应原版 GeodeBlockSettings
+//GeodeBlockSettings block providers for each geode layer, maps to vanilla GeodeBlockSettings
 public sealed class GeodeBlockSettings
 {
     public static readonly Codec<GeodeBlockSettings> Codec =
@@ -61,8 +61,8 @@ public sealed class GeodeBlockSettings
     }
 }
 
-//GeodeLayerSettings 紫水晶洞各层半径参数 对应原版 GeodeLayerSettings
-//JSON 里 layers 常写成空对象 四个值全走默认
+//GeodeLayerSettings radius parameters for each geode layer, maps to vanilla GeodeLayerSettings
+//layers is often an empty object in JSON, leaving all four values at their defaults
 public sealed class GeodeLayerSettings
 {
     public static readonly Codec<GeodeLayerSettings> Codec =
@@ -92,7 +92,7 @@ public sealed class GeodeLayerSettings
     }
 }
 
-//GeodeCrackSettings 紫水晶洞裂缝参数 对应原版 GeodeCrackSettings
+//GeodeCrackSettings geode crack parameters, maps to vanilla GeodeCrackSettings
 public sealed class GeodeCrackSettings
 {
     public static readonly Codec<GeodeCrackSettings> Codec =
@@ -118,7 +118,7 @@ public sealed class GeodeCrackSettings
     }
 }
 
-//GeodeConfiguration 紫水晶洞配置 对应原版 GeodeConfiguration
+//GeodeConfiguration geode configuration, maps to vanilla GeodeConfiguration
 public sealed class GeodeConfiguration : FeatureConfiguration
 {
     public static readonly Codec<GeodeConfiguration> Codec =
@@ -192,9 +192,9 @@ public sealed class GeodeConfiguration : FeatureConfiguration
     }
 }
 
-//GeodeFeature 紫水晶洞特征 对应原版 GeodeFeature
-//先按外壁距离撒分布点 再在包围盒内逐格算点集的反距离平方和决定填充层
-//噪声偏移与随机消耗顺序全部照原版 顺序错了同种子长出的洞就不同
+//GeodeFeature geode feature, maps to vanilla GeodeFeature
+//First scatters distribution points by outer wall distance, then per cell in the bounding box computes the inverse squared distance to the point set to decide the fill layer
+//Noise offsets and random consumption order follow vanilla exactly; a wrong order yields different geodes for the same seed
 public sealed class GeodeFeature : Feature<GeodeConfiguration>
 {
     private const string FeatureId = "geode";
@@ -293,7 +293,7 @@ public sealed class GeodeFeature : Feature<GeodeConfiguration>
             if (distSumShell < outerCrust) continue;
             if (shouldGenerateCrack && distSumCrack >= crackSize && distSumShell < innerAir)
             {
-                //裂缝里掏空气 原版此处对相邻流体安排一次刻 本作世界生成阶段没有刻队列 略过
+                //Carves air in cracks; vanilla schedules a tick for adjacent fluids here, but there is no tick queue during world generation, so skip it
                 SafeSetBlock(level, pointInside, VegetationSupport.StateOf("air"), cannotReplace);
             }
             else if (distSumShell >= innerAir)
@@ -353,7 +353,7 @@ public sealed class GeodeFeature : Feature<GeodeConfiguration>
         return true;
     }
 
-    //SafeSetBlock 目标格不在禁改集合里才写入 对应原版 safeSetBlock
+    //SafeSetBlock write only when the target cell is not in the cannot-replace set, maps to vanilla safeSetBlock
     private static void SafeSetBlock(WorldGenRegion level, BlockPos pos, BlockState state,
         HolderSet<RegBlock> cannotReplace)
     {
@@ -361,15 +361,15 @@ public sealed class GeodeFeature : Feature<GeodeConfiguration>
         level.SetBlockState(pos.X, pos.Y, pos.Z, state);
     }
 
-    //CanClusterGrowAtState 该状态能让晶芽长起来 对应原版 BuddingAmethystBlock.canClusterGrowAtState
+    //CanClusterGrowAtState whether the state lets a bud grow, maps to vanilla BuddingAmethystBlock.canClusterGrowAtState
     private static bool CanClusterGrowAtState(BlockState state)
         => state.Owner.IsAir || state.Owner == VegetationSupport.BlockOf("water");
 
-    //IsWaterSource 该状态是不是水源 本作流体状态只保留有无 水方块在世界生成里恒为源
+    //IsWaterSource whether the state is a water source; NetCraft fluid states only track presence, and water blocks are always sources during world generation
     private static bool IsWaterSource(BlockState state) => state.Owner == VegetationSupport.BlockOf("water");
 
-    //BetweenClosed 闭区间长方体的遍历顺序 对应原版 BlockPos.betweenClosed
-    //z 最外层 y 居中 x 最内 遍历顺序决定随机消耗顺序不能改
+    //BetweenClosed iteration order over a closed bounding box, maps to vanilla BlockPos.betweenClosed
+    //z outermost, y in the middle, x innermost; the order sets the random consumption order and must not change
     private static IEnumerable<BlockPos> BetweenClosed(int minX, int minY, int minZ, int maxX, int maxY, int maxZ)
     {
         for (var z = minZ; z <= maxZ; z++)

@@ -11,8 +11,8 @@ using T = NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Families;
 using NetCraft.DataFixer.Util;
 
-//TaggedChoice带标签选择模板对应原版TaggedChoice
-//按key分派到不同子类型用于实体/方块实体类型选择
+//TaggedChoice tagged choice template maps to vanilla TaggedChoice
+//dispatches by key to different child types, used for entity/block entity type selection
 public sealed class TaggedChoice<K> : TypeTemplate
 {
     private readonly string _name;
@@ -33,21 +33,21 @@ public sealed class TaggedChoice<K> : TypeTemplate
     public T.Type<K> KeyType() => _keyType;
     public Dictionary<K, TypeTemplate> Templates() => _templates;
 
-    //apply返回按index取模板的TypeFamily带缓存
+    //apply returns a TypeFamily that takes a template by index, with caching
     public TypeFamily Apply(TypeFamily family)
         => new TaggedChoiceFamily<K>(this, family);
 
-    //applyO原版不支持抛UnsupportedOperationException这里返回空FamilyOptic
+    //applyO is unsupported in vanilla and throws UnsupportedOperationException; returns an empty FamilyOptic here
     public FamilyOptic<A, B> ApplyO<A, B>(FamilyOptic<A, B> input, T.Type<A> aType, T.Type<B> bType)
         => throw new NotSupportedException("TaggedChoice.applyO not supported");
 
-    //findFieldOrType原版未实现返回FieldNotFoundException
+    //findFieldOrType is unimplemented in vanilla and returns FieldNotFoundException
     public Either<TypeTemplate, T.Type<object>.FieldNotFoundException> FindFieldOrType<A, B>(
         int index, string? name, T.Type<A> type, T.Type<B> resultType)
         => Either<TypeTemplate, T.Type<object>.FieldNotFoundException>
             .Right(new T.Type<object>.FieldNotFoundException("Not implemented"));
 
-    //hmap按index对每个模板应用hmap后用elementResult逐个compose
+    //hmap applies hmap to each template by index, then composes each elementResult
     public Func<int, RewriteResult<object, object>> Hmap(TypeFamily family, Func<int, RewriteResult<object, object>> function)
         => index =>
         {
@@ -58,8 +58,8 @@ public sealed class TaggedChoice<K> : TypeTemplate
                 var elementResult = entry.Value.Hmap(family, function)(index);
                 var currentType = (TaggedChoiceType<K>)(object)result.View().NewType()!;
                 var elementRewrite = TaggedChoiceType<K>.ElementResult(entry.Key, currentType, elementResult);
-                //elementRewrite和result是RewriteResult<Pair<K,object>,object>严格不变量下强转RewriteResult<object,object>失败
-                //用Unsafe.As绕过运行时类型检查对齐Java类型擦除
+                //elementRewrite and result are RewriteResult<Pair<K,object>,object>; casting to RewriteResult<object,object> fails under strict invariance
+                //use Unsafe.As to bypass the runtime type check and align with Java type erasure
                 var elementRewriteObj = (object)elementRewrite;
                 var elementRewriteCasted = System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<object, object>>(ref elementRewriteObj);
                 var resultObj = (object)result;
@@ -85,7 +85,7 @@ public sealed class TaggedChoice<K> : TypeTemplate
     public override string ToString()
         => "TaggedChoice[" + _name + ", " + string.Join(", ", _templates.Select(kv => kv.Key + " -> " + kv.Value)) + "]";
 
-    //TaggedChoiceFamily按family+index缓存构造TaggedChoiceType
+    //TaggedChoiceFamily constructs and caches TaggedChoiceType by family+index
     private sealed class TaggedChoiceFamily<KK> : TypeFamily
     {
         private readonly TaggedChoice<KK> _template;
@@ -108,8 +108,8 @@ public sealed class TaggedChoice<K> : TypeTemplate
                 {
                     types[entry.Key] = entry.Value.Apply(_family).Apply(index);
                 }
-                //TaggedChoiceType<K>继承T.Type<Pair<K,object>>强转T.Type<object>会失败
-                //用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+                //TaggedChoiceType<K> inherits T.Type<Pair<K,object>>; casting to T.Type<object> fails
+                //use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
                 var taggedChoiceType = DSL.TaggedChoiceType(_template.Name(), _template.KeyType(), types);
                 var taggedObj = (object)taggedChoiceType;
                 var result = System.Runtime.CompilerServices.Unsafe.As<object, T.Type<object>>(ref taggedObj);
@@ -119,7 +119,7 @@ public sealed class TaggedChoice<K> : TypeTemplate
         }
     }
 
-    //TaggedChoiceType带标签选择的具体类型按key分派值
+    //TaggedChoiceType tagged choice concrete type; dispatches values by key
     public sealed class TaggedChoiceType<K2> : T.Type<NetCraft.DataFixer.Util.Pair<K2, object>>
     {
         private readonly string _name;
@@ -140,7 +140,7 @@ public sealed class TaggedChoice<K> : TypeTemplate
         public Dictionary<K2, T.Type<object>> Types() => _types;
         public bool HasType(K2 key) => _types.ContainsKey(key);
 
-        //all对每个子类型应用规则非nop的结果合并到新TaggedChoiceType
+        //all applies the rule to each child type; non-nop results are merged into a new TaggedChoiceType
         public override RewriteResult<NetCraft.DataFixer.Util.Pair<K2, object>, object> All(object rule, bool recurse, bool checkIndex)
         {
             var results = new Dictionary<K2, RewriteResult<object, object>>();
@@ -166,7 +166,7 @@ public sealed class TaggedChoice<K> : TypeTemplate
             {
                 newTypes[entry.Key] = entry.Value.View().NewType()!;
             }
-            //多结果用TaggedChoiceRewriteFunc构造新View
+            //builds a new View from multiple results via TaggedChoiceRewriteFunc
             var newType = (T.Type<NetCraft.DataFixer.Util.Pair<K2, object>>)(object)DSL.TaggedChoiceType(_name, _keyType, newTypes)!;
             var view = View<NetCraft.DataFixer.Util.Pair<K2, object>, NetCraft.DataFixer.Util.Pair<K2, object>>.Create(
                 Functions.Fun("TaggedChoiceTypeRewriteResult " + results.Count,
@@ -180,32 +180,32 @@ public sealed class TaggedChoice<K> : TypeTemplate
             return RewriteResult<NetCraft.DataFixer.Util.Pair<K2, object>, object>.Create((View<NetCraft.DataFixer.Util.Pair<K2, object>, object>)(object)view, new NetCraft.Util.BitSet());
         }
 
-        //CapRuleApply对input应用对应结果view的function
+        //CapRuleApply applies the corresponding result view's function to input
         private static NetCraft.DataFixer.Util.Pair<K2, object> CapRuleApply<A, B>(DynamicOps<object> ops, NetCraft.DataFixer.Util.Pair<K2, object> input, RewriteResult<A, B> result)
         {
             var function = result.View().Function!.EvalCached();
             return NetCraft.DataFixer.Util.Pair<K2, object>.Of(input.First, function(ops)((A)input.Second)!);
         }
 
-        //elementResult按key把子类型重写结果用TypedOptic.tagged投射到TaggedChoice层
-        //type强转为TaggedChoice<K3>.TaggedChoiceType<K3>对齐TypedOptics.Tagged签名
+        //elementResult projects the child type rewrite result into the TaggedChoice layer by key via TypedOptic.tagged
+        //type is cast to TaggedChoice<K3>.TaggedChoiceType<K3> to match the TypedOptics.Tagged signature
         public static RewriteResult<NetCraft.DataFixer.Util.Pair<K3, object>, object> ElementResult<K3, FT, FR>(
             K3 key, TaggedChoiceType<K3> type, RewriteResult<FT, FR> result)
         {
-            //result强转RewriteResult<object,object>在FR非object时失败用Unsafe.As绕过
+            //casting result to RewriteResult<object,object> fails when FR is not object; use Unsafe.As to bypass
             var resultObj = (object)result;
             var resultCasted = System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<object, object>>(ref resultObj);
             var opticViewResult = T.Type<NetCraft.DataFixer.Util.Pair<K3, object>>.OpticView(type,
                 resultCasted,
                 (TypedOptic<NetCraft.DataFixer.Util.Pair<K3, object>, NetCraft.DataFixer.Util.Pair<K3, object>, object, object>)(object)
                 TypedOptics.Tagged<K3, FT, FR>((TaggedChoice<K3>.TaggedChoiceType<K3>)(object)type!, key, result.View().Type()!, result.View().NewType()!)!);
-            //OpticView返回RewriteResult<Pair<K3,object>,Pair<K3,object>>强转RewriteResult<Pair<K3,object>,object>失败
-            //用Unsafe.As绕过运行时类型检查对齐Java类型擦除
+            //OpticView returns RewriteResult<Pair<K3,object>,Pair<K3,object>>; casting to RewriteResult<Pair<K3,object>,object> fails
+            //use Unsafe.As to bypass the runtime type check and align with Java type erasure
             var opticViewObj = (object)opticViewResult;
             return System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<NetCraft.DataFixer.Util.Pair<K3, object>, object>>(ref opticViewObj);
         }
 
-        //one对子类型逐个应用规则首个命中即返回
+        //one applies the rule to each child type and returns on the first match
         public override Optional<RewriteResult<NetCraft.DataFixer.Util.Pair<K2, object>, object>> One(object rule)
         {
             foreach (var entry in _types)
@@ -240,11 +240,11 @@ public sealed class TaggedChoice<K> : TypeTemplate
             return (TypeTemplate)(object)DSL.TaggedChoice(_name, _keyType, templates);
         }
 
-        //buildCodec用keyType.codec按partialDispatch分派到子类型codec
+        //buildCodec uses keyType.codec to dispatch to the child type codec via partialDispatch
         protected override Codec<NetCraft.DataFixer.Util.Pair<K2, object>> BuildCodec()
             => new TaggedChoiceCodec(this);
 
-        //TaggedChoiceCodec按key分派到对应子类型codec
+        //TaggedChoiceCodec dispatches by key to the corresponding child type codec
         private sealed class TaggedChoiceCodec : ScalarCodec<NetCraft.DataFixer.Util.Pair<K2, object>>
         {
             private readonly TaggedChoiceType<K2> _type;
@@ -256,8 +256,8 @@ public sealed class TaggedChoice<K> : TypeTemplate
                 {
                     return DataResult<U>.Error(() => "Unsupported key: " + value.First);
                 }
-                //先编码value得到entity map再把keyEncoded作为_type._name字段值添加
-                //对齐原版partialDispatch把key字段合并到value map的语义
+                //encode the value first to get an entity map, then add keyEncoded as the _type._name field value
+                //aligns with vanilla partialDispatch semantics, merging the key field into the value map
                 var valueEncoded = ((Codec<object>)(object)elementType.Codec()!).EncodeStart(ops, value.Second).GetOrThrow();
                 var keyEncoded = _type._keyType.Codec().EncodeStart(ops, value.First).GetOrThrow();
                 return ops.MergeToMap(valueEncoded, ops.CreateString(_type._name), keyEncoded);
@@ -266,7 +266,7 @@ public sealed class TaggedChoice<K> : TypeTemplate
             public override DataResult<NetCraft.DataFixer.Util.Pair<K2, object>> Parse<U>(DynamicOps<U> ops, U input)
             {
                 var map = ops.GetMap(input).GetOrThrow();
-                //取key字段值
+                //takes the key field value
                 var keyOpt = map.Get(_type._name);
                 if (!keyOpt.IsPresent)
                 {
@@ -315,7 +315,7 @@ public sealed class TaggedChoice<K> : TypeTemplate
             return Optional<NetCraft.DataFixer.Util.Pair<K2, object>>.Empty();
         }
 
-        //point按指定key与value构造Typed若key不存在返回空
+        //point builds a Typed from the given key and value; returns empty when the key is absent
         public Optional<Typed<NetCraft.DataFixer.Util.Pair<K2, object>>> Point<T>(DynamicOps<T> ops, K2 key, object value)
         {
             if (!_types.ContainsKey(key)) return Optional<Typed<NetCraft.DataFixer.Util.Pair<K2, object>>>.Empty();

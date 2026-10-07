@@ -2,15 +2,15 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.World.Entity;
 
-//IEquipmentHolder 持装备槽的实体 对应原版 LivingEntity.getItemBySlot 那一层能力
-//本作没有 LivingEntity 由 Mob 与 Player 各自实现
+//IEquipmentHolder entity holding equipment slots, maps to the capability of vanilla LivingEntity.getItemBySlot
+//There is no LivingEntity here, Mob and Player implement it separately
 public interface IEquipmentHolder
 {
-    //GetItemBySlot 取指定槽位的物品 空槽给空堆
+    //GetItemBySlot returns the item in the given slot, empty slots give an empty stack
     ItemStack GetItemBySlot(EquipmentSlot slot);
 }
 
-//EntityEquipment 装备槽容器 八个槽位按 EquipmentSlot 的 id 索引
+//EntityEquipment equipment slot container, the eight slots are indexed by EquipmentSlot id
 public sealed class EntityEquipment
 {
     private readonly ItemStack[] _slots = new ItemStack[8];
@@ -20,9 +20,9 @@ public sealed class EntityEquipment
         for (var i = 0; i < _slots.Length; i++) _slots[i] = ItemStack.Empty;
     }
 
-    //Get 取槽位物品 空槽给空堆
+    //Get returns the slot item, empty slots give an empty stack
     public ItemStack Get(EquipmentSlot slot) => _slots[(int)slot];
 
-    //Set 写入槽位
+    //Set writes the slot
     public void Set(EquipmentSlot slot, ItemStack stack) => _slots[(int)slot] = stack;
 }

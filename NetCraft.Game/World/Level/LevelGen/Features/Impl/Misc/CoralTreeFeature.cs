@@ -8,25 +8,25 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Misc;
 
-//CoralFeature 珊瑚特征基类 对应原版 CoralFeature
-//先从珊瑚块标签随机取一种材质 再交给子类摆造型 每个珊瑚方块落位时按概率加装饰
+//CoralFeature coral feature base, maps to vanilla CoralFeature
+//First picks a material at random from the coral block tag, then hands off to the subclass for the shape; each coral block may add decoration by chance
 public abstract class CoralFeature : Feature<NoneFeatureConfiguration>
 {
-    //CoralBlocksTag 珊瑚块标签 造型材质由它取 对应原版 BlockTags.CORAL_BLOCKS
+    //CoralBlocksTag the coral block tag supplying shape material, maps to vanilla BlockTags.CORAL_BLOCKS
     private static readonly TagKey<RegBlock> CoralBlocksTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("coral_blocks"));
 
-    //CoralsTag 珊瑚标签 放在珊瑚上方的那些 对应原版 BlockTags.CORALS
+    //CoralsTag the coral tag for the pieces placed above, maps to vanilla BlockTags.CORALS
     private static readonly TagKey<RegBlock> CoralsTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("corals"));
 
-    //WallCoralsTag 墙珊瑚标签 贴在水里侧面的珊瑚扇 对应原版 BlockTags.WALL_CORALS
+    //WallCoralsTag the wall coral tag for fans attached to underwater sides, maps to vanilla BlockTags.WALL_CORALS
     private static readonly TagKey<RegBlock> WallCoralsTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("wall_corals"));
 
     protected CoralFeature(Identifier id, Codec<NoneFeatureConfiguration> codec) : base(id, codec) { }
 
-    //PlaceFeature 子类各自的珊瑚造型 对应原版 placeFeature
+    //PlaceFeature each subclass's coral shape, maps to vanilla placeFeature
     protected abstract bool PlaceFeature(WorldGenRegion level, RandomSource random, BlockPos origin, BlockState state);
 
     protected override bool Place(NoneFeatureConfiguration config, FeaturePlaceContext context)
@@ -37,7 +37,7 @@ public abstract class CoralFeature : Feature<NoneFeatureConfiguration>
         return PlaceFeature(context.Level, random, context.Origin, coral.DefaultBlockState);
     }
 
-    //PlaceCoralBlock 水中放一节珊瑚 按概率在顶上加珊瑚或海泡菜 侧向水里再挂珊瑚扇 对应原版 placeCoralBlock
+    //PlaceCoralBlock place one coral segment in water; by chance add coral or sea pickle on top, and attach wall fans to adjacent water, maps to vanilla placeCoralBlock
     protected static bool PlaceCoralBlock(WorldGenRegion level, RandomSource random, BlockPos pos, BlockState state)
     {
         var above = pos.Offset(Direction.Up);
@@ -71,8 +71,8 @@ public abstract class CoralFeature : Feature<NoneFeatureConfiguration>
         return true;
     }
 
-    //RandomElementOf 标签里随机取一个方块 对应原版 Registry.getRandomElementOf
-    //标签未绑定或不含方块时按原版不消耗随机数直接返回空
+    //RandomElementOf pick a random block from a tag, maps to vanilla Registry.getRandomElementOf
+    //When the tag is unbound or empty, return null without consuming random, same as vanilla
     protected static RegBlock? RandomElementOf(TagKey<RegBlock> tag, RandomSource random)
     {
         var set = BuiltInRegistries.BLOCK.Get(tag);
@@ -81,8 +81,8 @@ public abstract class CoralFeature : Feature<NoneFeatureConfiguration>
     }
 }
 
-//CoralTreeFeature 珊瑚树特征 对应原版 CoralTreeFeature
-//竖着长一到三节树干 再在高处向两到四个方向展分枝
+//CoralTreeFeature coral tree feature, maps to vanilla CoralTreeFeature
+//Grows one to three trunk segments upward, then branches out in two to four directions at the top
 public sealed class CoralTreeFeature : CoralFeature
 {
     private const string FeatureId = "coral_tree";
@@ -115,7 +115,7 @@ public sealed class CoralTreeFeature : CoralFeature
             {
                 segmentLength++;
                 pos = pos.Offset(Direction.Up);
-                //分枝起步就往外挪一格 之后每走两格按概率再外挪 对应原版的分段长度控制
+                //The branch steps out one block at the start, then may step out again every two blocks by chance, matching vanilla's segment length control
                 if (j == 0 || (segmentLength >= 2 && random.NextFloat() < 0.25f))
                 {
                     pos = pos.Offset(branchDirection);
@@ -127,8 +127,8 @@ public sealed class CoralTreeFeature : CoralFeature
     }
 }
 
-//CoralClawFeature 珊瑚爪特征 对应原版 CoralClawFeature
-//先定一根爪子的朝向 再从三个同向或邻向里洗牌取两到三个 每枝先横伸再折回朝爪子方向爬
+//CoralClawFeature coral claw feature, maps to vanilla CoralClawFeature
+//Picks one claw direction, then shuffles and picks two or three from the same or adjacent directions; each branch reaches sideways then turns back to climb toward the claw direction
 public sealed class CoralClawFeature : CoralFeature
 {
     private const string FeatureId = "coral_claw";
@@ -181,8 +181,8 @@ public sealed class CoralClawFeature : CoralFeature
     }
 }
 
-//CoralMushroomFeature 珊瑚蘑菇特征 对应原版 CoralMushroomFeature
-//在三到六格的长宽高里遍历 只给恰好两个坐标落在内部的壳层采样 先按概率掏空再落珊瑚
+//CoralMushroomFeature coral mushroom feature, maps to vanilla CoralMushroomFeature
+//Iterates a 3..6 block box; only samples the shell where exactly two coordinates are interior, first carving by chance then placing coral
 public sealed class CoralMushroomFeature : CoralFeature
 {
     private const string FeatureId = "coral_mushroom";
@@ -215,7 +215,7 @@ public sealed class CoralMushroomFeature : CoralFeature
         return true;
     }
 
-    //IsFullShape 该点是否落在蘑菇壳层 条件串照原版的四个判定不带任何化简
+    //IsFullShape whether the point lies on the mushroom shell; the condition chain matches vanilla's four checks with no simplification
     private static bool IsFullShape(int width, int height, int length, int x, int y, int z)
         => (x != 0 && x != width || y != 0 && y != height)
             && (z != 0 && z != length || y != 0 && y != height)

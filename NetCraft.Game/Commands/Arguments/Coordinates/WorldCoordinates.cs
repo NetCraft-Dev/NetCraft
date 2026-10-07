@@ -5,8 +5,8 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//WorldCoordinates 世界坐标三段式对应原版 WorldCoordinates
-//x/y/z 各段独立相对标志 空格分隔 缺段抛未完成错
+//WorldCoordinates three-segment world coordinates, maps to vanilla WorldCoordinates
+//x/y/z each have an independent relative flag, separated by spaces; a missing segment throws an incomplete error
 public sealed record WorldCoordinates(WorldCoordinate X, WorldCoordinate Y, WorldCoordinate Z) : Coordinates
 {
     public Vec3 GetPosition(ServerCommandSource source)
@@ -15,7 +15,7 @@ public sealed record WorldCoordinates(WorldCoordinate X, WorldCoordinate Y, Worl
         return new Vec3(X.Get(pos.X), Y.Get(pos.Y), Z.Get(pos.Z));
     }
 
-    //GetRotation 对齐原版 Vec2(x=pitch,y=yaw) x 段作用 pitch y 段作用 yaw
+    //GetRotation aligned with vanilla Vec2(x=pitch,y=yaw); the x segment drives pitch and the y segment drives yaw
     public (float Yaw, float Pitch) GetRotation(ServerCommandSource source)
         => ((float)Y.Get(source.PlayerOrThrow.Yaw), (float)X.Get(source.PlayerOrThrow.Pitch));
 
@@ -23,7 +23,7 @@ public sealed record WorldCoordinates(WorldCoordinate X, WorldCoordinate Y, Worl
     public bool IsYRelative => Y.IsRelative;
     public bool IsZRelative => Z.IsRelative;
 
-    //ParseDouble 解析三段世界坐标 x/z 段应用居中修正 y 段不修正
+    //ParseDouble parses the three world coordinate segments; x/z apply center correction, y does not
     public static WorldCoordinates ParseDouble(StringReader reader, bool centerCorrect)
     {
         var start = reader.Cursor;
@@ -45,7 +45,7 @@ public sealed record WorldCoordinates(WorldCoordinate X, WorldCoordinate Y, Worl
         return new WorldCoordinates(x, y, z);
     }
 
-    //Absolute 构造绝对坐标
+    //Absolute builds absolute coordinates
     public static WorldCoordinates Absolute(double x, double y, double z)
         => new(new WorldCoordinate(false, x), new WorldCoordinate(false, y), new WorldCoordinate(false, z));
 }

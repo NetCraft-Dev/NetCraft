@@ -4,7 +4,7 @@ using NetCraft.Commands.Builder;
 using NetCraft.Commands.Context;
 using NetCraft.Game.Commands.Arguments;
 using NetCraft.Registry;
-//属性相关类型自带命名空间 这里只取需要的几个名字
+//Attribute-related types carry their own namespace; only the few names needed are taken here
 using AttributeInstance = NetCraft.Registry.EntityAttribute.AttributeInstance;
 using AttributeMap = NetCraft.Registry.EntityAttribute.AttributeMap;
 using AttributeDef = NetCraft.Registry.EntityAttribute.Attribute;
@@ -13,9 +13,9 @@ using AttributeOperation = NetCraft.Registry.EntityAttribute.AttributeOperation;
 
 namespace NetCraft.Game.Commands;
 
-//AttributeCommand attribute 命令对应原版 net.minecraft.server.commands.AttributeCommand
-//attribute <target> <attribute> 后接 get / base / modifier 三条分支
-//base 含 set/get/reset modifier 含 add/remove/value get 全量对齐原版
+//AttributeCommand attribute command, maps to vanilla net.minecraft.server.commands.AttributeCommand
+//attribute <target> <attribute> followed by the three branches get / base / modifier
+//base includes set/get/reset; modifier includes add/remove/value; get covers everything, aligned with vanilla
 public static class AttributeCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -60,178 +60,178 @@ public static class AttributeCommand
                                         .Executes(context => GetModifierValue(context, DoubleArgumentType.GetDouble(context, "scale")))))))))));
     }
 
-    //GetValue 回读属性最终值 对应原版 getAttributeValue
+    //GetValue reads back the final attribute value, maps to vanilla getAttributeValue
     private static int GetValue(CommandContext<CommandSourceStack> context, double scale)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var target = EntityArgument.GetSingleTarget(context, "target");
         if (Resolve(context) is not { } attribute)
         {
-            source.SendFailure($"未知属性 {ResourceArgument.GetResource(context, "attribute")}");
+            source.SendFailure($"unknown attribute {ResourceArgument.GetResource(context, "attribute")}");
             return 0;
         }
         var map = MapOf(target);
         if (!map.HasAttribute(attribute))
         {
-            source.SendFailure($"{target.Name} 没有属性 {Describe(attribute)}");
+            source.SendFailure($"{target.Name} has no attribute {Describe(attribute)}");
             return 0;
         }
         var value = map.GetValue(attribute);
-        source.SendSuccess($"{Describe(attribute)} 在 {target.Name} 上的值为 {value}");
+        source.SendSuccess($"{Describe(attribute)} on {target.Name} is {value}");
         return (int)(value * scale);
     }
 
-    //GetBase 回读属性基值 对应原版 getAttributeBase
+    //GetBase reads back the attribute base value, maps to vanilla getAttributeBase
     private static int GetBase(CommandContext<CommandSourceStack> context, double scale)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var target = EntityArgument.GetSingleTarget(context, "target");
         if (Resolve(context) is not { } attribute)
         {
-            source.SendFailure($"未知属性 {ResourceArgument.GetResource(context, "attribute")}");
+            source.SendFailure($"unknown attribute {ResourceArgument.GetResource(context, "attribute")}");
             return 0;
         }
         var map = MapOf(target);
         if (!map.HasAttribute(attribute))
         {
-            source.SendFailure($"{target.Name} 没有属性 {Describe(attribute)}");
+            source.SendFailure($"{target.Name} has no attribute {Describe(attribute)}");
             return 0;
         }
         var value = map.GetBaseValue(attribute);
-        source.SendSuccess($"{Describe(attribute)} 在 {target.Name} 上的基值为 {value}");
+        source.SendSuccess($"{Describe(attribute)} base on {target.Name} is {value}");
         return (int)(value * scale);
     }
 
-    //ResetBase 把属性基值恢复为该类型默认值 对应原版 resetAttributeBase
+    //ResetBase restores the attribute base to the type default, maps to vanilla resetAttributeBase
     private static int ResetBase(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var target = EntityArgument.GetSingleTarget(context, "target");
         if (Resolve(context) is not { } attribute)
         {
-            source.SendFailure($"未知属性 {ResourceArgument.GetResource(context, "attribute")}");
+            source.SendFailure($"unknown attribute {ResourceArgument.GetResource(context, "attribute")}");
             return 0;
         }
         var map = MapOf(target);
         if (!map.ResetBaseValue(attribute))
         {
-            source.SendFailure($"{target.Name} 没有属性 {Describe(attribute)}");
+            source.SendFailure($"{target.Name} has no attribute {Describe(attribute)}");
             return 0;
         }
         var value = map.GetBaseValue(attribute);
-        source.SendSuccess($"{Describe(attribute)} 在 {target.Name} 上的基值已重置为 {value}");
+        source.SendSuccess($"{Describe(attribute)} base on {target.Name} reset to {value}");
         return 1;
     }
 
-    //SetBase 改写属性基值 对应原版 setAttributeBase
+    //SetBase overwrites the attribute base value, maps to vanilla setAttributeBase
     private static int SetBase(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var target = EntityArgument.GetSingleTarget(context, "target");
         if (Resolve(context) is not { } attribute)
         {
-            source.SendFailure($"未知属性 {ResourceArgument.GetResource(context, "attribute")}");
+            source.SendFailure($"unknown attribute {ResourceArgument.GetResource(context, "attribute")}");
             return 0;
         }
         if (!TryInstance(target, attribute, out var instance))
         {
-            source.SendFailure($"{target.Name} 没有属性 {Describe(attribute)}");
+            source.SendFailure($"{target.Name} has no attribute {Describe(attribute)}");
             return 0;
         }
         var value = DoubleArgumentType.GetDouble(context, "value");
         instance.SetBaseValue(value);
-        source.SendSuccess($"{Describe(attribute)} 在 {target.Name} 上的基值已设为 {value}");
+        source.SendSuccess($"{Describe(attribute)} base on {target.Name} set to {value}");
         return 1;
     }
 
-    //AddModifier 挂一条修饰符 对应原版 addModifier
+    //AddModifier attaches a modifier, maps to vanilla addModifier
     private static int AddModifier(CommandContext<CommandSourceStack> context, AttributeOperation operation)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var target = EntityArgument.GetSingleTarget(context, "target");
         if (Resolve(context) is not { } attribute)
         {
-            source.SendFailure($"未知属性 {ResourceArgument.GetResource(context, "attribute")}");
+            source.SendFailure($"unknown attribute {ResourceArgument.GetResource(context, "attribute")}");
             return 0;
         }
         if (!TryInstance(target, attribute, out var instance))
         {
-            source.SendFailure($"{target.Name} 没有属性 {Describe(attribute)}");
+            source.SendFailure($"{target.Name} has no attribute {Describe(attribute)}");
             return 0;
         }
         var id = IdentifierArgument.GetId(context, "id");
         var value = DoubleArgumentType.GetDouble(context, "value");
         if (instance.HasModifier(id))
         {
-            source.SendFailure($"{Describe(attribute)} 上已存在修饰符 {id}");
+            source.SendFailure($"modifier {id} already exists on {Describe(attribute)}");
             return 0;
         }
         instance.AddTransientModifier(new AttributeModifier(id, value, operation));
-        source.SendSuccess($"已为 {target.Name} 的 {Describe(attribute)} 添加修饰符 {id}");
+        source.SendSuccess($"added modifier {id} to {Describe(attribute)} of {target.Name}");
         return 1;
     }
 
-    //RemoveModifier 按 id 摘掉修饰符 对应原版 removeModifier
+    //RemoveModifier removes a modifier by id, maps to vanilla removeModifier
     private static int RemoveModifier(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var target = EntityArgument.GetSingleTarget(context, "target");
         if (Resolve(context) is not { } attribute)
         {
-            source.SendFailure($"未知属性 {ResourceArgument.GetResource(context, "attribute")}");
+            source.SendFailure($"unknown attribute {ResourceArgument.GetResource(context, "attribute")}");
             return 0;
         }
         if (!TryInstance(target, attribute, out var instance))
         {
-            source.SendFailure($"{target.Name} 没有属性 {Describe(attribute)}");
+            source.SendFailure($"{target.Name} has no attribute {Describe(attribute)}");
             return 0;
         }
         var id = IdentifierArgument.GetId(context, "id");
         if (!instance.RemoveModifier(id))
         {
-            source.SendFailure($"{Describe(attribute)} 上没有修饰符 {id}");
+            source.SendFailure($"no modifier {id} on {Describe(attribute)}");
             return 0;
         }
-        source.SendSuccess($"已移除 {target.Name} 的 {Describe(attribute)} 上的修饰符 {id}");
+        source.SendSuccess($"removed modifier {id} from {Describe(attribute)} of {target.Name}");
         return 1;
     }
 
-    //GetModifierValue 回读单条修饰符的数值 对应原版 getModifierValue
-    //原版取的就是修饰符自身的 amount 不随运算方式换算
+    //GetModifierValue reads back a single modifier's value, maps to vanilla getModifierValue
+    //Vanilla reads the modifier's own amount without converting by operation
     private static int GetModifierValue(CommandContext<CommandSourceStack> context, double scale)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var target = EntityArgument.GetSingleTarget(context, "target");
         if (Resolve(context) is not { } attribute)
         {
-            source.SendFailure($"未知属性 {ResourceArgument.GetResource(context, "attribute")}");
+            source.SendFailure($"unknown attribute {ResourceArgument.GetResource(context, "attribute")}");
             return 0;
         }
         if (!TryInstance(target, attribute, out var instance))
         {
-            source.SendFailure($"{target.Name} 没有属性 {Describe(attribute)}");
+            source.SendFailure($"{target.Name} has no attribute {Describe(attribute)}");
             return 0;
         }
         var id = IdentifierArgument.GetId(context, "id");
         if (instance.GetModifier(id) is not { } modifier)
         {
-            source.SendFailure($"{Describe(attribute)} 上没有修饰符 {id}");
+            source.SendFailure($"no modifier {id} on {Describe(attribute)}");
             return 0;
         }
         var value = modifier.Amount;
-        source.SendSuccess($"{Describe(attribute)} 在 {target.Name} 上的修饰符 {id} 的值为 {value}");
+        source.SendSuccess($"modifier {id} on {Describe(attribute)} of {target.Name} is {value}");
         return (int)(value * scale);
     }
 
-    //Resolve 解析属性参数 未注册返回 null
+    //Resolve parses the attribute argument; returns null when unregistered
     private static AttributeDef? Resolve(CommandContext<CommandSourceStack> context)
         => BuiltInRegistries.ATTRIBUTE.GetValue(ResourceArgument.GetResource(context, "attribute"));
 
-    //MapOf 取目标实体的属性表 玩家与关卡实体各自持有
+    //MapOf gets the target entity's attribute map; players and level entities each hold one
     private static AttributeMap MapOf(CommandTarget target)
         => target.Player?.Attributes ?? target.WorldEntity!.Attributes;
 
-    //TryInstance 取属性实例 该实体没有此属性返回 false
+    //TryInstance gets the attribute instance; returns false when the entity lacks this attribute
     private static bool TryInstance(CommandTarget target, AttributeDef attribute, out AttributeInstance instance)
     {
         instance = MapOf(target).GetInstance(attribute)!;

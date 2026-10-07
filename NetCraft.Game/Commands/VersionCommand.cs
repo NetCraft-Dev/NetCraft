@@ -4,8 +4,8 @@ using NetCraft.Commands.Context;
 
 namespace NetCraft.Game.Commands;
 
-//VersionCommand version 命令对应原版 net.minecraft.server.commands.VersionCommand
-//回执服务端程序集版本号
+//VersionCommand version command, maps to vanilla net.minecraft.server.commands.VersionCommand
+//Reports the server assembly version
 public static class VersionCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -14,8 +14,8 @@ public static class VersionCommand
             .Executes(context =>
             {
                 var source = (ServerCommandSource)context.GetSource();
-                var version = typeof(VersionCommand).Assembly.GetName().Version?.ToString() ?? "未知";
-                source.SendSuccess($"此服务器运行 NetCraft {version}");
+                var version = typeof(VersionCommand).Assembly.GetName().Version?.ToString() ?? "unknown";
+                source.SendSuccess($"this server is running NetCraft {version}");
                 return 1;
             }));
     }

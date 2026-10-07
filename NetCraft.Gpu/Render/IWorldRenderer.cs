@@ -3,28 +3,28 @@ using NetCraft.Gpu.Pipeline;
 
 namespace NetCraft.Gpu;
 
-//IWorldRenderer 世界渲染抽象接口
-//LevelRenderer 在 NetCraft.Game 实现此接口避免 VulkanGuiApp 反向引用 NetCraft.Game 循环依赖
-//VulkanGuiApp 持 IWorldRenderer 在 OnRecordCommandBuffer 调 Prepare/Upload/Draw
-//ViewProj 属性供 VulkanGuiApp 上传 ViewProj UBO 到 shader
+//IWorldRenderer world rendering abstraction interface
+//LevelRenderer implements this in NetCraft.Game, avoiding a circular dependency where VulkanGuiApp references NetCraft.Game
+//VulkanGuiApp holds an IWorldRenderer and calls Prepare/Upload/Draw in OnRecordCommandBuffer
+//The ViewProj property lets VulkanGuiApp upload the ViewProj UBO to the shader
 public interface IWorldRenderer
 {
-    //Prepare 构建 mesh 数据到内部 StagedVertexBuffer 每帧重建 W8 改异步缓存
+    //Prepare builds mesh data into the internal StagedVertexBuffer, rebuilt every frame; W8 changes it to async caching
     void Prepare();
 
-    //Upload 上传顶点/索引到 GPU 跨帧复用 buffer
+    //Upload uploads vertices/indices to the GPU, reusing buffers across frames
     void Upload(GpuDevice device);
 
-    //ViewProj 当前帧 view*proj 矩阵 VulkanGuiApp 读此属性上传 set 0 UBO
+    //ViewProj the current frame's view*proj matrix; VulkanGuiApp reads this to upload set 0 UBO
     Matrix4x4 ViewProj { get; }
 
-    //性能指标供 GameScreen F3 显示世界渲染统计
+    //Perf metrics for GameScreen F3 to display world render stats
     int SectionCount { get; }
     int VisibleSectionCount { get; }
     int TotalVertexCount { get; }
     int DrawCallCount { get; }
 
-    //Draw 按 Solid→Cutout→Translucent 顺序渲染 pipelineResolver 编译 pipeline descBinder 绑定 descriptor set
+    //Draw renders in Solid→Cutout→Translucent order; pipelineResolver compiles the pipeline and descBinder binds the descriptor set
     void Draw(IRenderPass pass,
         Func<RenderPipeline, CompiledRenderPipeline> pipelineResolver,
         Action<IRenderPass> descBinder);

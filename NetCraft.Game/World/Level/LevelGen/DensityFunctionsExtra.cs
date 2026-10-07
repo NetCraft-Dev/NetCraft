@@ -5,13 +5,13 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//DensityFunctionsExtra 密度函数扩展集对应原版 DensityFunctions 剩余嵌套类
+//DensityFunctionsExtra extended density function set, maps to the remaining nested classes of vanilla DensityFunctions
 //Spline/MarkerNode/RangeChoice/IntervalSelect/EndIslands/BlendAlpha/BlendOffset/Beardifier/FindTopSurface
-//这些类在 NoiseRouterData 构建密度树时被广泛引用必须与原版行为对齐
+//These classes are widely referenced when NoiseRouterData builds density trees and must match vanilla behaviour
 public static class DensityFunctionsExtra
 {
-    //MarkerType 缓存标记类型对应原版 DensityFunctions.Marker.Type
-    //标识密度函数在区块生成时的缓存策略Interpolated 结果跨格子插值其余控制缓存粒度
+    //MarkerType cache marker type, maps to vanilla DensityFunctions.Marker.Type
+    //Identifies a density function's caching strategy during chunk generation; Interpolated results are interpolated across cells, the rest control cache granularity
     public enum MarkerType
     {
         Interpolated,
@@ -22,42 +22,42 @@ public static class DensityFunctionsExtra
         BlendDensity
     }
 
-    //RangeChoice 范围选择工厂对应原版 DensityFunctions.rangeChoice
+    //RangeChoice range choice factory, maps to vanilla DensityFunctions.rangeChoice
     public static RangeChoice RangeChoice(DensityFunction input, double minInclusive, double maxExclusive,
         DensityFunction whenInRange, DensityFunction whenOutOfRange)
         => new(input, minInclusive, maxExclusive, whenInRange, whenOutOfRange);
 
-    //IntervalSelect 多段选择工厂对应原版 DensityFunctions.intervalSelect
+    //IntervalSelect multi-segment select factory, maps to vanilla DensityFunctions.intervalSelect
     public static IntervalSelect IntervalSelect(DensityFunction input, double[] thresholds, DensityFunction[] functions)
         => new(input, thresholds, functions);
 
-    //Interpolated 插值标记工厂对应原版 DensityFunctions.interpolated
+    //Interpolated interpolation marker factory, maps to vanilla DensityFunctions.interpolated
     public static MarkerNode Interpolated(DensityFunction function) => new(MarkerType.Interpolated, function);
 
-    //FlatCache 平面缓存标记工厂对应原版 DensityFunctions.flatCache
+    //FlatCache flat cache marker factory, maps to vanilla DensityFunctions.flatCache
     public static MarkerNode FlatCache(DensityFunction function) => new(MarkerType.FlatCache, function);
 
-    //Cache2D 二维缓存标记工厂对应原版 DensityFunctions.cache2d
+    //Cache2D 2D cache marker factory, maps to vanilla DensityFunctions.cache2d
     public static MarkerNode Cache2D(DensityFunction function) => new(MarkerType.Cache2D, function);
 
-    //CacheOnce 单次缓存标记工厂对应原版 DensityFunctions.cacheOnce
+    //CacheOnce single-shot cache marker factory, maps to vanilla DensityFunctions.cacheOnce
     public static MarkerNode CacheOnce(DensityFunction function) => new(MarkerType.CacheOnce, function);
 
-    //CacheAllInCell 全格缓存标记工厂对应原版 DensityFunctions.cacheAllInCell
+    //CacheAllInCell whole-cell cache marker factory, maps to vanilla DensityFunctions.cacheAllInCell
     public static MarkerNode CacheAllInCell(DensityFunction function) => new(MarkerType.CacheAllInCell, function);
 
-    //BlendDensity 混合密度标记工厂对应原版 DensityFunctions.blendDensity
+    //BlendDensity blend density marker factory, maps to vanilla DensityFunctions.blendDensity
     public static MarkerNode BlendDensity(DensityFunction function) => new(MarkerType.BlendDensity, function);
 
-    //EndIslands 末地岛屿密度工厂对应原版 DensityFunctions.endIslands
+    //EndIslands End island density factory, maps to vanilla DensityFunctions.endIslands
     public static EndIslandDensityFunction EndIslands(long seed) => new(seed);
 
-    //Spline 样条密度工厂对应原版 DensityFunctions.spline
+    //Spline spline density factory, maps to vanilla DensityFunctions.spline
     public static SplineFunction Spline(CubicSpline spline) => new(spline);
 }
 
-//MarkerNode 缓存标记节点对应原版 DensityFunctions.Marker
-//包装 type 与 wrapped 子函数compute 委托 wrappedBlendDensity 的 min/max 返回无穷
+//MarkerNode cache marker node, maps to vanilla DensityFunctions.Marker
+//Wraps a type and a wrapped child function; compute delegates to wrapped, and BlendDensity returns infinite min/max
 public sealed class MarkerNode : DensityFunction
 {
     public DensityFunctionsExtra.MarkerType Type { get; }
@@ -83,9 +83,9 @@ public sealed class MarkerNode : DensityFunction
         ? double.PositiveInfinity : Wrapped.MaxValue;
 }
 
-//SplineFunction 样条密度函数对应原版 DensityFunctions.Spline
-//包装 CubicSpline 为 DensityFunctioncompute 委托 spline.Sample
-//简化设计直接持有 CubicSpline 不引入 Coordinate/Point 中间层因 CubicSpline 已直接接受 FunctionContext
+//SplineFunction spline density function, maps to vanilla DensityFunctions.Spline
+//Wraps a CubicSpline as a DensityFunction; compute delegates to spline.Sample
+//Simplified design holds the CubicSpline directly without Coordinate/Point intermediate layers, since CubicSpline already accepts a FunctionContext
 public sealed class SplineFunction : DensityFunction
 {
     private readonly CubicSpline _spline;
@@ -102,13 +102,13 @@ public sealed class SplineFunction : DensityFunction
     public double MinValue => _spline.MinValue;
     public double MaxValue => _spline.MaxValue;
 
-    //mapChildren 委托 spline.mapCoordinates 把内部 DensityFunction 坐标替换为 visitor.apply 结果
+    //mapChildren delegates to spline.mapCoordinates, replacing inner DensityFunction coordinates with the visitor.apply result
     public DensityFunction MapChildren(Visitor visitor)
         => new SplineFunction(_spline.MapCoordinates(visitor.Apply));
 }
 
-//RangeChoice 范围选择密度函数对应原版 DensityFunctions.RangeChoice
-//input 值落在 [minInclusive, maxExclusive) 时返回 whenInRange 否则返回 whenOutOfRange
+//RangeChoice range choice density function, maps to vanilla DensityFunctions.RangeChoice
+//Returns whenInRange when the input falls in [minInclusive, maxExclusive) and whenOutOfRange otherwise
 public sealed class RangeChoice : DensityFunction
 {
     public DensityFunction Input { get; }
@@ -155,8 +155,8 @@ public sealed class RangeChoice : DensityFunction
     public double MaxValue => Math.Max(WhenInRange.MaxValue, WhenOutOfRange.MaxValue);
 }
 
-//IntervalSelect 多段阈值选择密度函数对应原版 DensityFunctions.IntervalSelect
-//input 值按 thresholds 升序分段选择对应 functionsthresholds 数量须为 functions 数量减一
+//IntervalSelect multi-segment threshold select density function, maps to vanilla DensityFunctions.IntervalSelect
+//The input selects a function by ascending thresholds; the threshold count must be one less than the function count
 public sealed class IntervalSelect : DensityFunction
 {
     public DensityFunction Input { get; }
@@ -203,14 +203,14 @@ public sealed class IntervalSelect : DensityFunction
     public double MaxValue => Functions.Select(f => f.MaxValue).Max();
 }
 
-//EndIslandDensityFunction 末地岛屿密度函数对应原版 DensityFunctions.EndIslandDensityFunction
-//用 SimplexNoise 生成末地主岛与外围岛屿密度值compute 返回 (heightValue - 8) / 128
+//EndIslandDensityFunction End island density function, maps to vanilla DensityFunctions.EndIslandDensityFunction
+//Uses SimplexNoise to generate the main island and outlying island density; compute returns (heightValue - 8) / 128
 public sealed class EndIslandDensityFunction : SimpleFunction
 {
     private const float IslandThreshold = -0.9f;
 
-    //IslandChunkDistanceSqr 末地岛屿生成最小距离平方对应原版 NoiseRouterData.ISLAND_CHUNK_DISTANCE_SQR
-    //步骤5 创建 NoiseRouterData 时改为引用共享常量此处暂用本地副本保持步骤3 自洽
+    //IslandChunkDistanceSqr minimum squared distance for End island generation, maps to vanilla NoiseRouterData.ISLAND_CHUNK_DISTANCE_SQR
+    //Step 5 will reference the shared constant when NoiseRouterData is created; this local copy keeps step 3 self-contained
     private const long IslandChunkDistanceSqr = 4096L;
 
     private readonly SimplexNoise _islandNoise;
@@ -222,8 +222,8 @@ public sealed class EndIslandDensityFunction : SimpleFunction
         _islandNoise = new SimplexNoise(islandRandom);
     }
 
-    //GetHeightValue 末地高度值对应原版 getHeightValue
-    //以 sectionX/Z 八倍距离为基准衰减扫描周围 25x25 区块寻找岛屿叠加最大高度
+    //GetHeightValue End height value, maps to vanilla getHeightValue
+    //Starts from eight times the sectionX/Z distance and scans a 25x25 of surrounding chunks for the maximum island height to overlay
     private static float GetHeightValue(SimplexNoise islandNoise, int sectionX, int sectionZ)
     {
         var chunkX = sectionX / 2;
@@ -259,8 +259,8 @@ public sealed class EndIslandDensityFunction : SimpleFunction
     public double MaxValue => 0.5625;
 }
 
-//BlendAlpha 混合透明度密度函数对应原版 DensityFunctions.BlendAlpha
-//固定返回 1.0 用于生物群系过渡权重
+//BlendAlpha blend alpha density function, maps to vanilla DensityFunctions.BlendAlpha
+//Always returns 1.0, used as the biome transition weight
 public sealed class BlendAlpha : SimpleFunction
 {
     public static readonly BlendAlpha Instance = new();
@@ -270,8 +270,8 @@ public sealed class BlendAlpha : SimpleFunction
     public double MaxValue => 1.0;
 }
 
-//BlendOffset 混合偏移密度函数对应原版 DensityFunctions.BlendOffset
-//固定返回 0.0 用于生物群系过渡高度补偿
+//BlendOffset blend offset density function, maps to vanilla DensityFunctions.BlendOffset
+//Always returns 0.0, used as the biome transition height compensation
 public sealed class BlendOffset : SimpleFunction
 {
     public static readonly BlendOffset Instance = new();
@@ -281,8 +281,8 @@ public sealed class BlendOffset : SimpleFunction
     public double MaxValue => 0.0;
 }
 
-//BeardifierMarker 胡须化标记对应原版 DensityFunctions.BeardifierMarker
-//占位密度函数实际胡须化由结构系统注入此处固定返回 0.0
+//BeardifierMarker beardifier marker, maps to vanilla DensityFunctions.BeardifierMarker
+//Placeholder density function; the real beardifier is injected by the structure system, so this always returns 0.0
 public sealed class BeardifierMarker : SimpleFunction
 {
     public static readonly BeardifierMarker Instance = new();
@@ -292,8 +292,8 @@ public sealed class BeardifierMarker : SimpleFunction
     public double MaxValue => 0.0;
 }
 
-//FindTopSurface 查找顶部表面密度函数对应原版 DensityFunctions.FindTopSurface
-//从 upperBound 向下按 cellHeight 步长找首个 density > 0 的 Y 作为表面高度
+//FindTopSurface find-top-surface density function, maps to vanilla DensityFunctions.FindTopSurface
+//Walks down from upperBound in cellHeight steps and takes the first Y with density > 0 as the surface height
 public sealed class FindTopSurface : DensityFunction
 {
     public DensityFunction Density { get; }

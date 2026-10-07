@@ -4,22 +4,22 @@ using EntityAttributes = NetCraft.Registry.EntityAttribute.Attributes;
 
 namespace NetCraft.Game.World.Entity;
 
-//DefaultAttributes 实体类型到属性默认表的映射 对应原版 DefaultAttributes
-//分层照原版走 活体基础表 → 生物表 → 动物/怪物表 → 具体物种表 每层在上一层上叠加
-//两端共用同一份表 客户端实体按类型取表 本地就有初始属性 服务端只在属性被改过时补发
+//DefaultAttributes map from entity type to its default attribute table, maps to vanilla DefaultAttributes
+//Layering follows vanilla: living base -> mob -> animal/monster -> specific species, each layer builds on the previous
+//Both sides share the same table; client entities look it up by type and already have initial attributes locally, the server only resends when attributes were changed
 public static class DefaultAttributes
 {
-    //Suppliers 实体类型到默认表 键是注册表里的同一个类型实例
+    //Suppliers entity type to default table, the key is the same type instance in the registry
     private static readonly Dictionary<EntityType<object>, AttributeSupplier> Suppliers = new();
     private static bool _bootstrapped;
 
-    //GetSupplier 取实体类型的属性默认表 该类型没有属性返回 null 对应原版 getSupplier
+    //GetSupplier returns the attribute default table of an entity type, null when the type has no attributes, maps to vanilla getSupplier
     public static AttributeSupplier? GetSupplier(EntityType<object> type) => Suppliers.GetValueOrDefault(type);
 
-    //HasSupplier 该类型是否登记过属性 对应原版 hasSupplier
+    //HasSupplier whether the type has registered attributes, maps to vanilla hasSupplier
     public static bool HasSupplier(EntityType<object> type) => Suppliers.ContainsKey(type);
 
-    //Bootstrap 装配内置类型的默认表 必须早于任何实体构造 幂等
+    //Bootstrap wires up the default tables of built-in types, must run before any entity is constructed, idempotent
     public static void Bootstrap()
     {
         if (_bootstrapped) return;
@@ -42,7 +42,7 @@ public static class DefaultAttributes
         Suppliers[EntityTypes.PLAYER] = CreatePlayerAttributes().Build();
     }
 
-    //CreateLivingAttributes 活体基础表 对应原版 LivingEntity.createLivingAttributes
+    //CreateLivingAttributes living base table, maps to vanilla LivingEntity.createLivingAttributes
     private static AttributeSupplier.Builder CreateLivingAttributes()
         => AttributeSupplier.Builder.Create()
             .Add(EntityAttributes.MaxHealth)
@@ -72,19 +72,19 @@ public static class DefaultAttributes
             .Add(EntityAttributes.NameTagDistance)
             .Add(EntityAttributes.BelowNameDistance);
 
-    //CreateMobAttributes 生物表 活体基础表加跟随距离 16 对应原版 Mob.createMobAttributes
+    //CreateMobAttributes mob table, the living base plus follow range 16, maps to vanilla Mob.createMobAttributes
     private static AttributeSupplier.Builder CreateMobAttributes()
         => CreateLivingAttributes().Add(EntityAttributes.FollowRange, 16.0);
 
-    //CreateAnimalAttributes 动物表 生物表加引诱距离 10 对应原版 Animal.createAnimalAttributes
+    //CreateAnimalAttributes animal table, the mob table plus temptation range 10, maps to vanilla Animal.createAnimalAttributes
     private static AttributeSupplier.Builder CreateAnimalAttributes()
         => CreateMobAttributes().Add(EntityAttributes.TemptRange, 10.0);
 
-    //CreateMonsterAttributes 怪物表 生物表加攻击伤害 对应原版 Monster.createMonsterAttributes
+    //CreateMonsterAttributes monster table, the mob table plus attack damage, maps to vanilla Monster.createMonsterAttributes
     private static AttributeSupplier.Builder CreateMonsterAttributes()
         => CreateMobAttributes().Add(EntityAttributes.AttackDamage);
 
-    //CreatePlayerAttributes 玩家表 对应原版 Player.createAttributes
+    //CreatePlayerAttributes player table, maps to vanilla Player.createAttributes
     private static AttributeSupplier.Builder CreatePlayerAttributes()
         => CreateLivingAttributes()
             .Add(EntityAttributes.AttackDamage, 1.0)

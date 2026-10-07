@@ -6,7 +6,7 @@
         MinWidth="680" MinHeight="420"
         Background="{DynamicResource WindowBackground}">
 
-  <!--配色与字体集中在这里 两套主题按当前 ThemeVariant 取 面板只按 Classes 取样式 改外观不用碰 C#-->
+  <!--Colors and fonts live here; the two themes are picked by the current ThemeVariant, and panels take styles only by Classes, so changing the look never touches C#-->
   <Window.Resources>
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
@@ -22,11 +22,11 @@
           <SolidColorBrush x:Key="ConsoleText" Color="#C9D1D9" />
           <SolidColorBrush x:Key="Accent" Color="#3B82F6" />
           <SolidColorBrush x:Key="GraphBackground" Color="#F0F2F5" />
-          <!--区块图的网格线与两档加载色 绿黄取中明度 深浅两套底子都能看清-->
+          <!--Chunk-map grid lines and the two load-level colors; the green and yellow use medium luminance so both light and dark backgrounds stay legible-->
           <SolidColorBrush x:Key="GridLine" Color="#22000000" />
           <SolidColorBrush x:Key="ChunkLoaded" Color="#3FB950" />
           <SolidColorBrush x:Key="ChunkWeak" Color="#D29922" />
-          <!--世界中心那一格的固定标记 红在两档加载色上都跳得出来-->
+          <!--Fixed marker for the world-center cell; the red stands out against both load-level colors-->
           <SolidColorBrush x:Key="ChunkOrigin" Color="#E5484D" />
         </ResourceDictionary>
 
@@ -41,17 +41,17 @@
           <SolidColorBrush x:Key="ConsoleText" Color="#C9D1D9" />
           <SolidColorBrush x:Key="Accent" Color="#60A5FA" />
           <SolidColorBrush x:Key="GraphBackground" Color="#1B1D22" />
-          <!--区块图的网格线与两档加载色 绿黄取中明度 深浅两套底子都能看清-->
+          <!--Chunk-map grid lines and the two load-level colors; the green and yellow use medium luminance so both light and dark backgrounds stay legible-->
           <SolidColorBrush x:Key="GridLine" Color="#26FFFFFF" />
           <SolidColorBrush x:Key="ChunkLoaded" Color="#3FB950" />
           <SolidColorBrush x:Key="ChunkWeak" Color="#D29922" />
-          <!--世界中心那一格的固定标记 红在两档加载色上都跳得出来-->
+          <!--Fixed marker for the world-center cell; the red stands out against both load-level colors-->
           <SolidColorBrush x:Key="ChunkOrigin" Color="#E5484D" />
         </ResourceDictionary>
 
       </ResourceDictionary.ThemeDictionaries>
 
-      <!--字体不随主题变 放外面-->
+      <!--The font does not change with the theme, so it stays outside-->
       <FontFamily x:Key="MonoFont">Consolas,Menlo,DejaVu Sans Mono,monospace</FontFamily>
     </ResourceDictionary>
   </Window.Resources>
@@ -60,7 +60,7 @@
     <StyleInclude Source="avares://NetCraft.Server/ServerGui/Theme.axaml" />
   </Window.Styles>
 
-  <!--标签页 主页是原来的三张卡片 LOG 页是带过滤与搜索的日志 CHUNK 页是区块图-->
+  <!--Tabs; the main page is the original three cards, the LOG page is the log with filtering and search, and the CHUNK page is the chunk map-->
   <TabControl x:Name="Tabs" Margin="8,4,8,8" Padding="0">
     <TabItem Header="MAIN">
       <Grid Margin="4" ColumnDefinitions="320,12,*">
@@ -80,6 +80,6 @@
       <ContentControl x:Name="ChunkPageHost" Margin="4" />
     </TabItem>
 
-    <!--MODS 页不在这里 它由 NetCraft-ModApi 注入 RefreshNow 时插进来-->
+    <!--The MODS page is not here; NetCraft-ModApi injects it when it hooks RefreshNow-->
   </TabControl>
 </Window>

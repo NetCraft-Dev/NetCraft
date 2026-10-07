@@ -8,13 +8,13 @@ using NetCraft.Commands.Tree;
 
 namespace NetCraft.Game.Commands;
 
-//HelpCommand help 命令对应原版 net.minecraft.server.commands.HelpCommand
-//不带参数列出所有可用命令的简短用法 带命令名给出该命令的完整用法
-//命令名走 brigadier:string 不用自定义参数类型: 命令树要整棵同步给客户端
-//挂一个没注册进网络 id 表的参数类型会让整包在编码阶段被丢掉 客户端一条命令都看不到
+//HelpCommand help command, maps to vanilla net.minecraft.server.commands.HelpCommand
+//Without arguments lists a short usage for every available command; with a command name it gives the full usage
+//The command name goes through brigadier:string rather than a custom argument type: the whole command tree must sync to the client
+//Attaching an argument type not registered in the network id table makes the whole packet dropped at the encoding stage and the client sees no command
 public static class HelpCommand
 {
-    private const string Header = "--- 显示帮助 ---";
+    private const string Header = "--- showing help ---";
 
     private static readonly DynamicCommandExceptionType ErrorFailed =
         new(command => new TranslatableMessage("commands.help.failed", command));
@@ -28,7 +28,7 @@ public static class HelpCommand
                 .Executes(c => ShowUsage(c, dispatcher, StringArgumentType.GetString(c, "command")))));
     }
 
-    //ShowHelp 逐条列出根节点下每个可用命令的简短用法 对应原版 help 不带参数那支
+    //ShowHelp lists a short usage for each available command under the root, maps to vanilla help without arguments
     private static int ShowHelp(CommandContext<CommandSourceStack> context, CommandDispatcher<CommandSourceStack> dispatcher)
     {
         var source = (ServerCommandSource)context.GetSource();
@@ -38,19 +38,19 @@ public static class HelpCommand
         return usages.Count;
     }
 
-    //ShowUsage 给出单个命令的完整用法 对应原版 help <command> 那支
+    //ShowUsage gives the full usage of a single command, maps to vanilla help <command>
     private static int ShowUsage(CommandContext<CommandSourceStack> context, CommandDispatcher<CommandSourceStack> dispatcher,
         string name)
     {
         var source = (ServerCommandSource)context.GetSource();
-        //名字对不上直接报未知参数 与解析阶段失败一个效果
+        //A mismatched name reports unknown argument directly, same effect as failing at the parse stage
         var node = dispatcher.GetRoot().GetChild(name)
             ?? throw CommandSyntaxException.BuiltInExceptions.DispatcherUnknownArgument().Create();
         if (!node.CanUse(source)) throw ErrorFailed.Create(node.GetUsageText());
         source.SendSuccess(Header);
         var count = 0;
-        //节点自身能执行时先报裸命令名 子路径再各报一条
-        //用法文本是不含节点名的 这里得自己拼上 否则会显示成" /[<targets>]"这种没头没尾的样子
+        //When the node itself is executable it reports the bare command name first, then each sub-path
+        //The usage text excludes the node name, so it must be prepended here, or it shows as a headless " /[<targets>]"
         if (node.GetCommand() is not null)
         {
             source.SendSuccess("/" + name);
@@ -61,12 +61,12 @@ public static class HelpCommand
             source.SendSuccess("/" + name + " " + usage);
             count++;
         }
-        //既没有执行体也没有子路径(例如只做重定向的 tp)时至少把命令名报出来
+        //When there is neither an executor nor sub-paths (e.g. tp used only for redirect) at least report the command name
         if (count == 0) source.SendSuccess("/" + name);
         return count;
     }
 
-    //SuggestCommandNames 给 help 的命令名补全 只列执行者有权用的
+    //SuggestCommandNames completes help's command names, listing only those the executor may use
     private static Task<Suggestions> SuggestCommandNames(CommandContext<CommandSourceStack> context,
         CommandDispatcher<CommandSourceStack> dispatcher, SuggestionsBuilder builder)
     {

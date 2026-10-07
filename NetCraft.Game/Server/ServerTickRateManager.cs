@@ -4,18 +4,18 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.Server;
 
-//ServerTickRateManager 服务端刻速率管理对应原版 net.minecraft.server.ServerTickRateManager
-//管四件事: 每秒刻数 / 冻结世界 / 冻结下步进 / 加速跑
-//主循环每拍开头调 Tick 决定这一拍推不推进世界 拍尾调 EndTickWork 累计加速跑耗时
+//ServerTickRateManager server-side tick rate management, maps to vanilla net.minecraft.server.ServerTickRateManager
+//Manages four things: ticks per second / freezing the world / stepping while frozen / sprinting
+//The main loop calls Tick at the start of each tick to decide whether the world advances, and EndTickWork at the end to accumulate sprint time
 public sealed class ServerTickRateManager
 {
-    //MinTickRate 最低每秒刻数 对应原版 TickRateManager.MIN_TICKRATE
+    //MinTickRate min ticks per second, maps to vanilla TickRateManager.MIN_TICKRATE
     public const float MinTickRate = 1f;
 
-    //DefaultTickRate 默认每秒刻数 对应原版 20
+    //DefaultTickRate default ticks per second, maps to vanilla 20
     public const float DefaultTickRate = 20f;
 
-    //NanosecondsPerSecond 一秒的纳秒数
+    //NanosecondsPerSecond nanoseconds in one second
     private const long NanosecondsPerSecond = 1_000_000_000L;
 
     private float _tickRate = DefaultTickRate;
@@ -28,48 +28,48 @@ public sealed class ServerTickRateManager
     private long _sprintTimeSpentNanos;
     private bool _frozenBeforeSprint;
 
-    //Players 在线玩家集合 注入后状态变化会同步给客户端 未注入时只改本地状态
+    //Players online player set; after injection state changes sync to the client, otherwise only local state changes
     public PlayerList? Players { get; set; }
 
-    //TickRate 每秒刻数
+    //TickRate ticks per second
     public float TickRate => _tickRate;
 
-    //NanosecondsPerTick 单刻目标耗时
+    //NanosecondsPerTick per-tick target duration
     public long NanosecondsPerTick => _nanosecondsPerTick;
 
-    //MillisecondsPerTick 单刻目标毫秒
+    //MillisecondsPerTick per-tick target in milliseconds
     public float MillisecondsPerTick => _nanosecondsPerTick / 1_000_000f;
 
-    //TickMillis 主循环节拍毫秒 加速跑时不睡
+    //TickMillis main loop beat in milliseconds; no sleep while sprinting
     public int TickMillis => IsSprinting ? 0 : (int)(_nanosecondsPerTick / 1_000_000L);
 
-    //IsFrozen 世界是否冻结
+    //IsFrozen whether the world is frozen
     public bool IsFrozen => _isFrozen;
 
-    //IsSprinting 是否在加速跑
+    //IsSprinting whether sprinting
     public bool IsSprinting => _scheduledSprintTicks > 0;
 
-    //IsSteppingForward 是否在步进
+    //IsSteppingForward whether stepping
     public bool IsSteppingForward => _frozenTicksToRun > 0;
 
-    //FrozenTicksToRun 剩余步进刻数
+    //FrozenTicksToRun remaining step ticks
     public int FrozenTicksToRun => _frozenTicksToRun;
 
-    //SprintTicksRemaining 剩余加速刻数
+    //SprintTicksRemaining remaining sprint ticks
     public long SprintTicksRemaining => _remainingSprintTicks;
 
-    //RunsNormally 这一拍是否推进世界元素
+    //RunsNormally whether this tick advances world elements
     public bool RunsNormally => _runGameElements;
 
-    //SendStateToJoiningPlayer 新玩家进世界时补发当前刻速率与步进状态 对应原版 updateJoiningPlayer
-    //不补发的话客户端不知道世界当前是否冻结 本地世界会自顾自地推进
+    //SendStateToJoiningPlayer resends the current tick rate and step state when a new player enters the world, maps to vanilla updateJoiningPlayer
+    //Without it the client does not know whether the world is frozen and the local world advances on its own
     public void SendStateToJoiningPlayer(ServerPlayer player)
     {
         player.Connection.Send(new ClientboundTickingStatePacket(_tickRate, _isFrozen));
         player.Connection.Send(new ClientboundTickingStepPacket(_frozenTicksToRun));
     }
 
-    //SetTickRate 设置每秒刻数 对应原版 setTickRate
+    //SetTickRate sets ticks per second, maps to vanilla setTickRate
     public void SetTickRate(float rate)
     {
         _tickRate = Math.Max(rate, MinTickRate);
@@ -77,14 +77,14 @@ public sealed class ServerTickRateManager
         BroadcastState();
     }
 
-    //SetFrozen 冻结或解冻世界 对应原版 setFrozen
+    //SetFrozen freezes or unfreezes the world, maps to vanilla setFrozen
     public void SetFrozen(bool frozen)
     {
         _isFrozen = frozen;
         BroadcastState();
     }
 
-    //StepGameIfPaused 冻结状态下推进指定刻数 未冻结返回 false 对应原版 stepGameIfPaused
+    //StepGameIfPaused advances the given ticks while frozen; returns false when not frozen, maps to vanilla stepGameIfPaused
     public bool StepGameIfPaused(int ticks)
     {
         if (!_isFrozen) return false;
@@ -93,7 +93,7 @@ public sealed class ServerTickRateManager
         return true;
     }
 
-    //StopStepping 停止步进 对应原版 stopStepping
+    //StopStepping stops stepping, maps to vanilla stopStepping
     public bool StopStepping()
     {
         if (_frozenTicksToRun <= 0) return false;
@@ -102,8 +102,8 @@ public sealed class ServerTickRateManager
         return true;
     }
 
-    //RequestGameToSprint 请求加速跑指定刻数 对应原版 requestGameToSprint
-    //已在跑时返回 true 表示这次请求把上一次打断了 加速跑会先解冻并在结束后恢复原冻结状态
+    //RequestGameToSprint requests a sprint of the given ticks, maps to vanilla requestGameToSprint
+    //Returns true when already running, meaning this request interrupted the previous one; a sprint unfreezes first and restores the prior frozen state afterwards
     public bool RequestGameToSprint(int ticks)
     {
         var interrupted = _remainingSprintTicks > 0;
@@ -115,7 +115,7 @@ public sealed class ServerTickRateManager
         return interrupted;
     }
 
-    //StopSprinting 提前结束加速跑 对应原版 stopSprinting
+    //StopSprinting ends a sprint early, maps to vanilla stopSprinting
     public bool StopSprinting()
     {
         if (_remainingSprintTicks <= 0) return false;
@@ -123,8 +123,8 @@ public sealed class ServerTickRateManager
         return true;
     }
 
-    //Tick 每拍开头调 对应原版 TickRateManager.tick 与 checkShouldSprintThisTick
-    //冻结且没有待步进刻数时本拍不推进世界 步进与加速计数在这里递减
+    //Tick called at the start of each tick, maps to vanilla TickRateManager.tick and checkShouldSprintThisTick
+    //When frozen with no pending step ticks this tick does not advance the world; the step and sprint counters decrement here
     public void Tick()
     {
         _runGameElements = !_isFrozen || _frozenTicksToRun > 0;
@@ -135,17 +135,17 @@ public sealed class ServerTickRateManager
         else FinishTickSprint();
     }
 
-    //EndTickWork 拍尾把本拍实测耗时累计进加速跑统计 对应原版 endTickWork
+    //EndTickWork at the end of the tick accumulates this tick's measured time into the sprint stats, maps to vanilla endTickWork
     public void EndTickWork(long elapsedNanos)
     {
         if (_scheduledSprintTicks > 0) _sprintTimeSpentNanos += elapsedNanos;
     }
 
-    //FinishTickSprint 加速跑收尾 算平均每秒刻数与每刻毫秒并广播报告 对应原版 finishTickSprint
+    //FinishTickSprint finishes a sprint: computes the average ticks per second and per-tick milliseconds and broadcasts a report, maps to vanilla finishTickSprint
     private void FinishTickSprint()
     {
         var completed = _scheduledSprintTicks - _remainingSprintTicks;
-        //原版先把累计纳秒下限到 1 再换算毫秒 避免零耗时让每秒刻数溢出
+        //Vanilla floors the accumulated nanoseconds to 1 before converting to milliseconds, avoiding a zero duration overflowing ticks per second
         var spentMillis = Math.Max(1.0, (double)_sprintTimeSpentNanos) / 1_000_000.0;
         var ticksPerSecond = (int)(1000.0 * completed / spentMillis);
         var millisecondsPerTick = completed == 0 ? MillisecondsPerTick : (float)(spentMillis / completed);
@@ -153,16 +153,16 @@ public sealed class ServerTickRateManager
         _remainingSprintTicks = 0;
         _sprintTimeSpentNanos = 0;
         SetFrozen(_frozenBeforeSprint);
-        var text = $"加速跑结束 {completed} 刻 {ticksPerSecond} 刻/秒 每刻 {millisecondsPerTick:F2} ms";
+            var text = $"sprint finished {completed} ticks, {ticksPerSecond} tps, {millisecondsPerTick:F2} ms/tick";
         Log.Info(text);
         Players?.BroadcastSystemMessage(Component.Literal(text), false);
     }
 
-    //BroadcastState 把刻速率与冻结状态同步给客户端 对应原版 updateStateToClients
+    //BroadcastState syncs the tick rate and frozen state to the client, maps to vanilla updateStateToClients
     private void BroadcastState()
         => Players?.BroadcastAll(new ClientboundTickingStatePacket(_tickRate, _isFrozen));
 
-    //BroadcastStep 把待步进刻数同步给客户端 对应原版 updateStepTicks
+    //BroadcastStep syncs the pending step ticks to the client, maps to vanilla updateStepTicks
     private void BroadcastStep()
         => Players?.BroadcastAll(new ClientboundTickingStepPacket(_frozenTicksToRun));
 }

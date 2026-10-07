@@ -2,13 +2,13 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Synth;
 
-//PerlinNoise 多倍频柏林噪声对应原版 net.minecraft.world.level.levelgen.synth.PerlinNoise
-//多个 ImprovedNoise 不同频率叠加形成分形布朗运动 fBm
-//amplitudes 控制每倍频权重firstOctave 控制起始倍频
+//PerlinNoise multi-octave Perlin noise, maps to vanilla net.minecraft.world.level.levelgen.synth.PerlinNoise
+//Several ImprovedNoise layers at different frequencies sum into fractional Brownian motion (fBm)
+//amplitudes weights each octave; firstOctave sets the starting octave
 public class PerlinNoise
 {
     private const double RoundOff = 3.3554432E7;
-    //RoundOff 的倒数 2^-25 可精确表示 除以它等价于乘它 结果逐位一致
+    //Reciprocal of RoundOff, 2^-25, is exactly representable, so dividing by it equals multiplying and matches bit for bit
     private const double InvRoundOff = 1.0 / 3.3554432E7;
 
     private readonly ImprovedNoise[] _noiseLevels;
@@ -16,32 +16,32 @@ public class PerlinNoise
     private readonly double[] _amplitudes;
     private readonly double _lowestFreqValueFactor;
     private readonly double _lowestFreqInputFactor;
-    //每层倍频的输入缩放与输出权重预先展开成数组 采样循环里不再逐项递推乘除
-    //递推本身只是 2 的幂乘除 预计算不改变任何一位浮点结果
+    //Per-octave input scales and output weights are unrolled into arrays, so the sampling loop no longer does per-step multiply/divide
+    //The recurrence is only multiplication and division by powers of two, so precomputing changes no floating-point bit
     private readonly double[] _inputScales;
     private readonly double[] _valueFactors;
     private readonly double _maxValue;
 
-    //CreateLegacyForBlendedNoise BlendedNoise 专用 legacy 工厂对应原版 createLegacyForBlendedNoise
-    //原版此处 useNewFactory=false 走 legacy 初始化 本类参数语义是 forceLegacy 所以传 true
+    //CreateLegacyForBlendedNoise legacy factory used by BlendedNoise, maps to vanilla createLegacyForBlendedNoise
+    //Vanilla passes useNewFactory=false here for legacy initialization; this class names the flag forceLegacy, so pass true
     public static PerlinNoise CreateLegacyForBlendedNoise(RandomSource random, IEnumerable<int> octaves)
     {
         var (firstOctave, amplitudes) = MakeAmplitudes(new SortedSet<int>(octaves));
         return new PerlinNoise(random, firstOctave, amplitudes, true);
     }
 
-    //CreateLegacyForLegacyNetherBiome 旧版下界生物群系工厂对应原版 createLegacyForLegacyNetherBiome
-    //原版此处 useNewFactory=false 走 legacy 初始化 本类参数语义是 forceLegacy 所以传 true
+    //CreateLegacyForLegacyNetherBiome legacy nether biome factory, maps to vanilla createLegacyForLegacyNetherBiome
+    //Vanilla passes useNewFactory=false here for legacy initialization; this class names the flag forceLegacy, so pass true
     public static PerlinNoise CreateLegacyForLegacyNetherBiome(RandomSource random, int firstOctave, IReadOnlyList<double> amplitudes)
         => new(random, firstOctave, amplitudes, true);
 
-    //Create 新版工厂对应原版 create(random, firstOctave, amplitudes)
-    //原版此处 useNewFactory=true 走 forkPositional.FromHashOf 派生
+    //Create new-style factory, maps to vanilla create(random, firstOctave, amplitudes)
+    //Vanilla passes useNewFactory=true here, deriving through forkPositional.FromHashOf
     public static PerlinNoise Create(RandomSource random, int firstOctave, IReadOnlyList<double> amplitudes)
         => new(random, firstOctave, amplitudes, false);
 
-    //MakeAmplitudes 把 octave 集合推导为 (firstOctave, amplitudes) 对应对齐原版 makeAmplitudes
-    //octave 集合通常为负数区间推导出的 amplitudes 数组在对应位置为 1.0 其余为 0
+    //MakeAmplitudes derives (firstOctave, amplitudes) from the octave set, aligned with vanilla makeAmplitudes
+    //The octave set is usually a negative range; the derived amplitudes array holds 1.0 at those positions and 0 elsewhere
     private static (int FirstOctave, double[] Amplitudes) MakeAmplitudes(ISet<int> octaveSet)
     {
         if (octaveSet.Count == 0)
@@ -68,9 +68,9 @@ public class PerlinNoise
     {
     }
 
-    //forceLegacy 强制走 legacy Fork 派生路径对应原版 useNewInitialization=false
-    //legacy 路径对齐原版 createLegacyForBlendedNoise/createLegacyForLegacyNetherBiome
-    //新版路径用 forkPositional.FromHashOf 派生确定性随机源
+    //forceLegacy forces the legacy Fork derivation path, maps to vanilla useNewInitialization=false
+    //The legacy path matches vanilla createLegacyForBlendedNoise/createLegacyForLegacyNetherBiome
+    //The new path derives a deterministic random source with forkPositional.FromHashOf
     public PerlinNoise(RandomSource random, int firstOctave, IReadOnlyList<double> amplitudes, bool forceLegacy)
     {
         _firstOctave = firstOctave;
@@ -80,13 +80,13 @@ public class PerlinNoise
 
         if (forceLegacy)
         {
-            //legacy 路径共享同一个 random 逐个建倍频 与原版一样靠顺序消耗对齐
-            //每个 ImprovedNoise 固定推进 262 次 amplitudes 为 0 的位次只推进不建
+            //The legacy path shares one random and builds octaves in order, aligning through consumption order like vanilla
+            //Each ImprovedNoise advances the random by 262; positions with amplitude 0 only advance without building
             var zeroOctave = new ImprovedNoise(random);
             if (zeroOctaveIndex >= 0 && zeroOctaveIndex < amplitudes.Count && amplitudes[zeroOctaveIndex] != 0.0)
                 _noiseLevels[zeroOctaveIndex] = zeroOctave;
 
-            //从 zeroOctaveIndex-1 向下补全负倍频amplitudes 为 0 时跳过一次 random 推进
+            //Fill in the negative octaves from zeroOctaveIndex-1 downward; when amplitude is 0, skip with one random advance
             for (var i = zeroOctaveIndex - 1; i >= 0; i--)
             {
                 if (i < amplitudes.Count)
@@ -104,7 +104,7 @@ public class PerlinNoise
         }
         else
         {
-            //新版路径用 forkPositional.FromHashOf 派生确定性随机源对应原版 fromHashOf("octave_"+(firstOctave+i))
+            //The new path derives a deterministic random source with forkPositional.FromHashOf, maps to vanilla fromHashOf("octave_"+(firstOctave+i))
             var positional = random.ForkPositional();
             for (var i = 0; i < amplitudes.Count; i++)
             {
@@ -118,15 +118,15 @@ public class PerlinNoise
         _maxValue = EdgeValue(2.0);
     }
 
-    //GetValue 3 参数采样对应原版 getValue(x,y,z)
-    //单独走快路径: 直连 ImprovedNoise 的三参数噪声 省掉 yScale/yFudge 的分支与额外平滑计算
-    //yScale/yFudge 恒为 0 时两者数学上等价 逐位结果一致
+    //GetValue 3-argument sampling, maps to vanilla getValue(x,y,z)
+    //Takes a fast path: calls the 3-argument ImprovedNoise noise directly, skipping the yScale/yFudge branch and extra smoothing
+    //With yScale/yFudge at 0 the two are mathematically equivalent and match bit for bit
     public double GetValue(double x, double y, double z)
     {
         var value = 0.0;
         var factor = _lowestFreqInputFactor;
         var valueFactor = _lowestFreqValueFactor;
-        //两层表各取一次引用 采样循环里不再逐次经实例字段寻址
+        //Cache both tables once; the sampling loop no longer goes through instance fields each step
         var levels = _noiseLevels;
         var amplitudes = _amplitudes;
         for (var i = 0; i < levels.Length; i++)
@@ -141,8 +141,8 @@ public class PerlinNoise
         return value;
     }
 
-    //GetValue 5 参数采样对应原版 getValue(x,y,z,yScale,yFudge)
-    //BlendedNoise 调用时传入 yScale/yFudge 实现低倍频 y 方向阶梯偏移
+    //GetValue 5-argument sampling, maps to vanilla getValue(x,y,z,yScale,yFudge)
+    //BlendedNoise passes yScale/yFudge to get the y-direction step offset for low octaves
     public double GetValue(double x, double y, double z, double yScale, double yFudge)
     {
         var value = 0.0;
@@ -167,17 +167,17 @@ public class PerlinNoise
 
     public double MaxValue => _maxValue;
 
-    //MaxBrokenValue 给定 yScale 下的最大值对应原版 maxBrokenValue
-    //BlendedNoise 用 yMultiplier 作为 yScale 计算实际最大值
+    //MaxBrokenValue max value for a given yScale, maps to vanilla maxBrokenValue
+    //BlendedNoise uses yMultiplier as yScale to compute the actual max value
     public double MaxBrokenValue(double yScale)
         => EdgeValue(yScale + 2.0);
 
-    //GetOctaveNoise 取第 i 倍频(高到低索引)对应原版 getOctaveNoise
+    //GetOctaveNoise fetch the i-th octave (indexed high to low), maps to vanilla getOctaveNoise
     public ImprovedNoise GetOctaveNoise(int i)
         => _noiseLevels[_noiseLevels.Length - 1 - i];
 
-    //EdgeValue 按累加 valueFactor 计算给定 noiseValue 的边界值对应原版 edgeValue
-    //原版遍历所有非空 noiseLevels 用 amplitudes[i]*noiseValue*valueFactor 累加
+    //EdgeValue compute the boundary value for a given noiseValue using the accumulated valueFactor, maps to vanilla edgeValue
+    //Vanilla walks all non-null noiseLevels and accumulates amplitudes[i]*noiseValue*valueFactor
     private double EdgeValue(double noiseValue)
     {
         var value = 0.0;
@@ -191,7 +191,7 @@ public class PerlinNoise
         return value;
     }
 
-    //wrap 防止大坐标精度丢失对齐原版 wrap
+    //wrap prevents precision loss at large coordinates, aligned with vanilla wrap
     public static double Wrap(double x)
         => x - Math.Floor(x * InvRoundOff + 0.5) * RoundOff;
 }

@@ -2,21 +2,21 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//TheEndBiomeSource 末地生物群系源 对应原版 net.minecraft.world.level.biome.TheEndBiomeSource
-//主岛同心圆范围内恒为 the_end 之外按 end_islands 噪声值分四档
-//原版 ISLAND_CHUNK_DISTANCE_SQR 来自 NoiseRouterData 阈值 4096 即半径 64 区块
+//TheEndBiomeSource the End biome source, maps to vanilla net.minecraft.world.level.biome.TheEndBiomeSource
+//Always the_end within the concentric main island radius; outside it, four tiers by the end_islands noise value
+//Vanilla ISLAND_CHUNK_DISTANCE_SQR comes from NoiseRouterData, threshold 4096, a radius of 64 chunks
 public sealed class TheEndBiomeSource : BiomeSource
 {
-    //IslandChunkDistanceSqr 主岛判定阈值 对应原版 NoiseRouterData.ISLAND_CHUNK_DISTANCE_SQR
+    //IslandChunkDistanceSqr main island threshold, maps to vanilla NoiseRouterData.ISLAND_CHUNK_DISTANCE_SQR
     public const long IslandChunkDistanceSqr = 4096L;
 
-    //HighlandsThreshold 高地下限 对应原版 heightValue > 0.25
+    //HighlandsThreshold highlands lower bound, maps to vanilla heightValue > 0.25
     public const double HighlandsThreshold = 0.25;
 
-    //MidlandsThreshold 中地下限 对应原版 heightValue >= -0.0625
+    //MidlandsThreshold midlands lower bound, maps to vanilla heightValue >= -0.0625
     public const double MidlandsThreshold = -0.0625;
 
-    //SmallIslandsThreshold 小岛上限 对应原版 heightValue < -0.21875
+    //SmallIslandsThreshold small islands upper bound, maps to vanilla heightValue < -0.21875
     public const double SmallIslandsThreshold = -0.21875;
 
     public Biome End { get; }
@@ -25,11 +25,11 @@ public sealed class TheEndBiomeSource : BiomeSource
     public Biome SmallIslands { get; }
     public Biome Barrens { get; }
 
-    //PossibleBiomes 末地源固定产出这五个群系 对应原版 TheEndBiomeSource.possibleBiomes
+    //PossibleBiomes the End source always yields these five biomes, maps to vanilla TheEndBiomeSource.possibleBiomes
     public IReadOnlyList<Biome> PossibleBiomes => new[] { End, Highlands, Midlands, SmallIslands, Barrens };
 
-    //ErosionNoise 末地的 end_islands 密度函数 对应原版 sampler.erosion()
-    //装配时由 NoiseBasedChunkGenerator 按噪声设置的 erosion 槽注入 未注入时恒返回主岛群系
+    //ErosionNoise the End's end_islands density function, maps to vanilla sampler.erosion()
+    //Injected by NoiseBasedChunkGenerator from the noise settings' erosion slot during assembly; without it the main island biome is always returned
     public DensityFunction? ErosionNoise { get; }
 
     public TheEndBiomeSource(Biome end, Biome highlands, Biome midlands, Biome smallIslands, Biome barrens,
@@ -43,12 +43,12 @@ public sealed class TheEndBiomeSource : BiomeSource
         ErosionNoise = erosionNoise;
     }
 
-    //WithErosion 注入 end_islands 密度函数 对应原版 create 时按 sampler 定形
+    //WithErosion injects the end_islands density function, matching how vanilla create shapes it from the sampler
     public TheEndBiomeSource WithErosion(DensityFunction erosionNoise)
         => new(End, Highlands, Midlands, SmallIslands, Barrens, erosionNoise);
 
-    //FromRegistry 从群系注册表取末地五群系 对应原版 TheEndBiomeSource.create
-    //缺任一必需群系返回 null 由调用方报错 数据包不完整时不该拿占位群系凑出一个假末地
+    //FromRegistry takes the five End biomes from the biome registry, maps to vanilla TheEndBiomeSource.create
+    //Returns null if any required biome is missing and lets the caller report it; an incomplete data pack should not fake an End out of placeholder biomes
     public static TheEndBiomeSource? FromRegistry(Registry<Biome>? registry)
     {
         if (registry is null) return null;
@@ -62,8 +62,8 @@ public sealed class TheEndBiomeSource : BiomeSource
         return new TheEndBiomeSource(end, highlands, midlands, smallIslands, barrens);
     }
 
-    //GetBiome 传世界方块坐标 主岛判定要按区块坐标算
-    //噪声采样点取区块中心 (chunkX*2+1)*8 与原版一致 逐区 4 格采样时同区块结果恒定
+    //GetBiome takes world block coordinates; the main island test works on chunk coordinates
+    //The noise sample point is the chunk centre (chunkX*2+1)*8, matching vanilla, so the result is constant within a chunk when sampling every 4 blocks
     public Biome GetBiome(int x, int y, int z)
     {
         var chunkX = x >> 4;

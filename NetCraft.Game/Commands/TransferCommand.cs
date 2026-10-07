@@ -8,8 +8,8 @@ using NetCraft.Game.Server;
 
 namespace NetCraft.Game.Commands;
 
-//TransferCommand transfer 命令对应原版 net.minecraft.server.commands.TransferCommand
-//把目标玩家转交到另一台服务器 省略玩家时只传自己 省略端口时用原版默认 25565
+//TransferCommand transfer command, maps to vanilla net.minecraft.server.commands.TransferCommand
+//Transfers the target players to another server; without players it transfers only yourself; without a port it uses vanilla's default 25565
 public static class TransferCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -25,7 +25,7 @@ public static class TransferCommand
                             EntityArgument.GetPlayers(context, "players")))))));
     }
 
-    //Transfer 逐目标下发转交包 不给端口参数时用 25565
+    //Transfer sends the transfer packet per target; without a port it uses 25565
     private static int Transfer(CommandContext<CommandSourceStack> context, int port, IReadOnlyList<ServerPlayer>? explicitTargets)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -33,7 +33,7 @@ public static class TransferCommand
         var targets = explicitTargets ?? new[] { source.Player };
         if (targets.Count == 0)
         {
-            source.SendFailure("没有找到匹配的玩家");
+            source.SendFailure("no matching player found");
             return 0;
         }
 
@@ -41,8 +41,8 @@ public static class TransferCommand
             target.Connection.Send(new ClientboundTransferPacket(host, port));
 
         source.SendSuccess(targets.Count == 1
-            ? $"已将 {targets[0].Profile.Name} 转交到 {host}:{port}"
-            : $"已将 {targets.Count} 名玩家转交到 {host}:{port}");
+            ? $"transferred {targets[0].Profile.Name} to {host}:{port}"
+            : $"transferred {targets.Count} players to {host}:{port}");
         return targets.Count;
     }
 }

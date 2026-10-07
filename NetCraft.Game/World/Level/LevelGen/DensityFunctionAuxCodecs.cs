@@ -5,12 +5,12 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//DensityFunctionRefs 密度函数与噪声参数引用解析对应原版 RegistryFileCodec
-//字符串形式走注册表查询 内联形式走元素 codec
-//优先用 RegistryOps 携带的 RegistryAccess 回退 BuiltInRegistries 静态注册表
+//DensityFunctionRefs density function and noise parameter reference resolution, maps to vanilla RegistryFileCodec
+//String form goes through a registry lookup, inline form goes through the element codec
+//Prefers the RegistryAccess carried by RegistryOps, falling back to the static BuiltInRegistries
 public static class DensityFunctionRefs
 {
-    //Resolve 按 Identifier 在 RegistryOps 注册表或内置注册表查元素
+    //Resolve looks up an element by Identifier in the RegistryOps registry or the built-in registry
     public static DataResult<T> Resolve<T, U>(DynamicOps<U> ops, ResourceKey<Registry<T>> key,
         Registry<T> builtin, Identifier id) where T : class
     {
@@ -23,7 +23,7 @@ public static class DensityFunctionRefs
         return Lookup(builtin, key, id);
     }
 
-    //ResolveDensityFunction 解析密度函数引用字符串
+    //ResolveDensityFunction resolves a density function reference string
     public static DataResult<DensityFunction> ResolveDensityFunction<U>(DynamicOps<U> ops, Identifier id)
     {
         if (ops is RegistryOps<U> registryOps)
@@ -50,8 +50,8 @@ public static class DensityFunctionRefs
             : DataResult<DensityFunction>.Error(() => $"Can't find density function: {id}");
 }
 
-//NoiseHolderCodec 噪声持有者 codec 对应原版 DensityFunction.NoiseHolder.CODEC
-//接受引用字符串 "minecraft:temperature" 或内联对象 {"firstOctave":..,"amplitudes":[..]}
+//NoiseHolderCodec noise holder codec, maps to vanilla DensityFunction.NoiseHolder.CODEC
+//Accepts a reference string "minecraft:temperature" or an inline object {"firstOctave":..,"amplitudes":[..]}
 public sealed class NoiseHolderCodec : ScalarCodec<NoiseHolder>
 {
     public static readonly NoiseHolderCodec Instance = new();
@@ -83,9 +83,9 @@ public sealed class NoiseHolderCodec : ScalarCodec<NoiseHolder>
     }
 }
 
-//CubicSplineCodec 三次样条 codec 对应原版 CubicSpline.codec
-//数字形式是常量样条对象形式是 {coordinate, points[{location,value,derivative}]}
-//value 可继续嵌套样条 coordinate 是密度函数字段支持引用字符串
+//CubicSplineCodec cubic spline codec, maps to vanilla CubicSpline.codec
+//Number form is a constant spline; object form is {coordinate, points[{location,value,derivative}]}
+//value can nest further splines; coordinate is a density function field that supports reference strings
 public sealed class CubicSplineCodec : ScalarCodec<CubicSpline>
 {
     public static readonly CubicSplineCodec Instance = new();
@@ -127,7 +127,7 @@ public sealed class CubicSplineCodec : ScalarCodec<CubicSpline>
         return builder.Build(ops.Empty());
     }
 
-    //DecodeSpline 解析 {coordinate, points} 结构 location 必须严格递增
+    //DecodeSpline parses the {coordinate, points} structure; location must be strictly increasing
     private static DataResult<CubicSpline> DecodeSpline<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var coordinateTag = input.Get("coordinate");

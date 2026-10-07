@@ -5,18 +5,18 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//DensityFunctionCodecs 密度函数 codec 集合对应原版 DensityFunctions.CODEC 体系
-//每个 type 一个 MapCodec<DensityFunction> 只负责 type 之外的字段
-//AllCodecs 是 type 名到 codec 的单一事实来源bootstrap 按它注册 dispatch 查注册表
+//DensityFunctionCodecs density function codec collection, maps to the vanilla DensityFunctions.CODEC system
+//One MapCodec<DensityFunction> per type, handling only the fields other than type
+//AllCodecs is the single source of truth from type name to codec; bootstrap registers from it and dispatch queries the registry
 public static class DensityFunctionCodecs
 {
-    //ConstantCodec 常量密度函数 codec 对应原版 Constant.CODEC
+    //ConstantCodec constant density function codec, maps to vanilla Constant.CODEC
     public static readonly MapCodec<DensityFunction> ConstantCodec =
         Codecs.Double.ComapFlatMap(
             v => DataResult<DensityFunction>.Success(new Constant(v)),
             df => ((Constant)df).Value).FieldOf("argument");
 
-    //ClampCodec 钳制密度函数 codec 对应原版 Clamp.CODEC
+    //ClampCodec clamp density function codec, maps to vanilla Clamp.CODEC
     public static readonly MapCodec<DensityFunction> ClampCodec =
         RecordCodecBuilder.Of3(
             DensityFunctionCodecHelper.DensityFunctionField("input").ForGetter<DensityFunction, DensityFunction>(df => ((Clamp)df).Input),
@@ -24,7 +24,7 @@ public static class DensityFunctionCodecs
             Codecs.Double.FieldOf("max").ForGetter<DensityFunction, double>(df => ((Clamp)df).Max),
             (input, min, max) => (DensityFunction)new Clamp(input, min, max));
 
-    //YClampedGradientCodec Y 轴梯度 codec 对应原版 YClampedGradient.CODEC
+    //YClampedGradientCodec Y-axis gradient codec, maps to vanilla YClampedGradient.CODEC
     public static readonly MapCodec<DensityFunction> YClampedGradientCodec =
         RecordCodecBuilder.Of4(
             Codecs.Int.FieldOf("from_y").ForGetter<DensityFunction, int>(df => ((YClampedGradient)df).FromY),
@@ -33,7 +33,7 @@ public static class DensityFunctionCodecs
             Codecs.Double.FieldOf("to_value").ForGetter<DensityFunction, double>(df => ((YClampedGradient)df).ToValue),
             (fromY, toY, fromValue, toValue) => (DensityFunction)new YClampedGradient(fromY, toY, fromValue, toValue));
 
-    //NoiseCodec 噪声密度函数 codec 对应原版 Noise.DATA_CODEC
+    //NoiseCodec noise density function codec, maps to vanilla Noise.DATA_CODEC
     public static readonly MapCodec<DensityFunction> NoiseCodec =
         RecordCodecBuilder.Of3(
             NoiseHolderCodec.Instance.FieldOf("noise").ForGetter<DensityFunction, NoiseHolder>(df => ((Noise)df).NoiseData),
@@ -41,7 +41,7 @@ public static class DensityFunctionCodecs
             Codecs.Double.FieldOf("y_scale").ForGetter<DensityFunction, double>(df => ((Noise)df).YScale),
             (noise, xzScale, yScale) => (DensityFunction)new Noise(noise, xzScale, yScale));
 
-    //ShiftedNoiseCodec 偏移噪声 codec 对应原版 ShiftedNoise.DATA_CODEC
+    //ShiftedNoiseCodec shifted noise codec, maps to vanilla ShiftedNoise.DATA_CODEC
     public static readonly MapCodec<DensityFunction> ShiftedNoiseCodec =
         RecordCodecBuilder.Of6(
             DensityFunctionCodecHelper.DensityFunctionField("shift_x").ForGetter<DensityFunction, DensityFunction>(df => ((ShiftedNoise)df).ShiftX),
@@ -53,7 +53,7 @@ public static class DensityFunctionCodecs
             (shiftX, shiftY, shiftZ, xzScale, yScale, noise)
                 => (DensityFunction)new ShiftedNoise(noise, xzScale, yScale, shiftX, shiftY, shiftZ));
 
-    //RangeChoiceCodec 范围选择 codec 对应原版 RangeChoice.DATA_CODEC
+    //RangeChoiceCodec range choice codec, maps to vanilla RangeChoice.DATA_CODEC
     public static readonly MapCodec<DensityFunction> RangeChoiceCodec =
         RecordCodecBuilder.Of5(
             DensityFunctionCodecHelper.DensityFunctionField("input").ForGetter<DensityFunction, DensityFunction>(df => ((RangeChoice)df).Input),
@@ -64,10 +64,10 @@ public static class DensityFunctionCodecs
             (input, min, max, whenInRange, whenOutOfRange)
                 => (DensityFunction)new RangeChoice(input, min, max, whenInRange, whenOutOfRange));
 
-    //IntervalSelectCodec 多段选择 codec 对应原版 IntervalSelect.DATA_CODEC
+    //IntervalSelectCodec multi-segment select codec, maps to vanilla IntervalSelect.DATA_CODEC
     public static readonly MapCodec<DensityFunction> IntervalSelectCodec = IntervalSelectDensityFunctionCodec.Instance;
 
-    //FindTopSurfaceCodec 查找顶部表面 codec 对应原版 FindTopSurface.DATA_CODEC
+    //FindTopSurfaceCodec find-top-surface codec, maps to vanilla FindTopSurface.DATA_CODEC
     public static readonly MapCodec<DensityFunction> FindTopSurfaceCodec =
         RecordCodecBuilder.Of4(
             DensityFunctionCodecHelper.DensityFunctionField("density").ForGetter<DensityFunction, DensityFunction>(df => ((FindTopSurface)df).Density),
@@ -77,7 +77,7 @@ public static class DensityFunctionCodecs
             (density, upperBound, lowerBound, cellHeight)
                 => (DensityFunction)new FindTopSurface(density, upperBound, lowerBound, cellHeight));
 
-    //OldBlendedNoiseCodec 旧版混合噪声 codec 对应原版 BlendedNoise.DATA_CODEC
+    //OldBlendedNoiseCodec old blended noise codec, maps to vanilla BlendedNoise.DATA_CODEC
     public static readonly MapCodec<DensityFunction> OldBlendedNoiseCodec =
         RecordCodecBuilder.Of5(
             Codecs.Double.FieldOf("xz_scale").ForGetter<DensityFunction, double>(df => ((BlendedNoise)df).XzScale),
@@ -88,7 +88,7 @@ public static class DensityFunctionCodecs
             (xzScale, yScale, xzFactor, yFactor, smearScaleMultiplier)
                 => (DensityFunction)BlendedNoise.CreateUnseeded(xzScale, yScale, xzFactor, yFactor, smearScaleMultiplier));
 
-    //MarkerNames 缓存标记 type 名对应原版 Marker.Type.getSerializedName
+    //MarkerNames cache marker type names, maps to vanilla Marker.Type.getSerializedName
     private static readonly (DensityFunctionsExtra.MarkerType Type, string Name)[] MarkerNames =
     {
         (DensityFunctionsExtra.MarkerType.Interpolated, "interpolated"),
@@ -99,7 +99,7 @@ public static class DensityFunctionCodecs
         (DensityFunctionsExtra.MarkerType.BlendDensity, "blend_density")
     };
 
-    //MappedNames 一元变换 type 名对应原版 Mapped.Type.getSerializedName
+    //MappedNames unary transform type names, maps to vanilla Mapped.Type.getSerializedName
     private static readonly (MappedTypes.MappedType Type, string Name)[] MappedNames =
     {
         (MappedTypes.MappedType.Abs, "abs"),
@@ -111,10 +111,10 @@ public static class DensityFunctionCodecs
         (MappedTypes.MappedType.Squeeze, "squeeze")
     };
 
-    //AllCodecs 全部 type 名到 codec 的映射 供 bootstrap 注册 新增 type 只改这里
+    //AllCodecs full mapping from type name to codec for bootstrap registration; adding a type only touches here
     public static readonly IReadOnlyDictionary<string, MapCodec<DensityFunction>> AllCodecs = BuildAllCodecs();
 
-    //MarkerName 取缓存标记 type 名
+    //MarkerName gets the cache marker type name
     public static string MarkerName(DensityFunctionsExtra.MarkerType type)
     {
         foreach (var (candidate, name) in MarkerNames)
@@ -122,7 +122,7 @@ public static class DensityFunctionCodecs
         throw new NotSupportedException($"Unsupported MarkerType: {type}");
     }
 
-    //MappedName 取一元变换 type 名
+    //MappedName gets the unary transform type name
     public static string MappedName(MappedTypes.MappedType type)
     {
         foreach (var (candidate, name) in MappedNames)
@@ -130,7 +130,7 @@ public static class DensityFunctionCodecs
         throw new NotSupportedException($"Unsupported MappedType: {type}");
     }
 
-    //Ap2TypeName 取二元运算 type 名对应原版 TwoArgumentSimpleFunction.Type.getSerializedName
+    //Ap2TypeName gets the binary operation type name, maps to vanilla TwoArgumentSimpleFunction.Type.getSerializedName
     public static string Ap2TypeName(Ap2.OpType type) => type switch
     {
         Ap2.OpType.Max => "max",
@@ -140,7 +140,7 @@ public static class DensityFunctionCodecs
         _ => throw new NotSupportedException($"Unsupported Ap2 type: {type}")
     };
 
-    //BuildAllCodecs 构造全部 type 名到 codec 的映射 顺序与原版 bootstrap 一致
+    //BuildAllCodecs builds the full type-name-to-codec mapping in the same order as the vanilla bootstrap
     private static IReadOnlyDictionary<string, MapCodec<DensityFunction>> BuildAllCodecs()
     {
         var map = new Dictionary<string, MapCodec<DensityFunction>>
@@ -174,35 +174,35 @@ public static class DensityFunctionCodecs
         return map;
     }
 
-    //TwoArgumentCodec 二元运算 codec 对应原版 doubleFunctionArgumentCodec
-    //add/mul/min/max 统一 argument1 + argument2 布局
+    //TwoArgumentCodec binary operation codec, maps to vanilla doubleFunctionArgumentCodec
+    //add/mul/min/max share the argument1 + argument2 layout
     private static MapCodec<DensityFunction> TwoArgumentCodec(Ap2.OpType type)
         => RecordCodecBuilder.Of2(
             DensityFunctionCodecHelper.DensityFunctionField("argument1").ForGetter<DensityFunction, DensityFunction>(df => ((Ap2)df).Input1),
             DensityFunctionCodecHelper.DensityFunctionField("argument2").ForGetter<DensityFunction, DensityFunction>(df => ((Ap2)df).Input2),
             (input1, input2) => (DensityFunction)new Ap2(type, input1, input2));
 
-    //MarkerCodec 缓存标记 codec 对应原版 Marker.Type.codec
+    //MarkerCodec cache marker codec, maps to vanilla Marker.Type.codec
     private static MapCodec<DensityFunction> MarkerCodec(DensityFunctionsExtra.MarkerType type)
         => new SingleArgumentCodec<DensityFunction>(
             DensityFunctionCodec.Instance,
             input => new MarkerNode(type, input),
             df => ((MarkerNode)df).Wrapped);
 
-    //MappedCodec 一元变换 codec 对应原版 Mapped.Type.codec
+    //MappedCodec unary transform codec, maps to vanilla Mapped.Type.codec
     private static MapCodec<DensityFunction> MappedCodec(MappedTypes.MappedType type)
         => new SingleArgumentCodec<DensityFunction>(
             DensityFunctionCodec.Instance,
             input => MappedTypes.Create(type, input),
             df => ((Mapped)df).Input);
 
-    //ShiftCodec 偏移噪声 codec 对应原版 ShiftA/ShiftB/Shift.CODEC
-    //argument 是噪声参数引用而非密度函数
+    //ShiftCodec shift noise codec, maps to vanilla ShiftA/ShiftB/Shift.CODEC
+    //argument is a noise parameter reference rather than a density function
     private static MapCodec<DensityFunction> ShiftCodec(Func<NoiseHolder, DensityFunction> ctor, Func<DensityFunction, NoiseHolder> getter)
         => new SingleArgumentCodec<NoiseHolder>(NoiseHolderCodec.Instance, ctor, getter);
 
-    //SplineCodec 样条 codec 对应原版 Spline.DATA_CODEC
-    //原版字段名是 spline 不是通用的 argument
+    //SplineCodec spline codec, maps to vanilla Spline.DATA_CODEC
+    //The vanilla field name is spline, not the generic argument
     private static MapCodec<DensityFunction> SplineCodec()
         => new SingleArgumentCodec<CubicSpline>(
             CubicSplineCodec.Instance,
@@ -210,29 +210,29 @@ public static class DensityFunctionCodecs
             df => ((SplineFunction)df).Spline,
             "spline");
 
-    //UnitCodec 无字段 codec 对应原版 MapCodec.unit
+    //UnitCodec fieldless codec, maps to vanilla MapCodec.unit
     private static MapCodec<DensityFunction> UnitCodec(Func<DensityFunction> factory)
         => new UnitDensityFunctionCodec(factory);
 }
 
-//DensityFunctionCodecHelper 密度函数 codec 辅助工具
-//提供 DensityFunction 字段定义与 dispatch codec 入口
+//DensityFunctionCodecHelper density function codec helper
+//Provides DensityFunction field definitions and the dispatch codec entry point
 public static class DensityFunctionCodecHelper
 {
-    //DensityFunctionField 创建 DensityFunction 字段对应原版 DensityFunction.CODEC.fieldOf(name)
-    //dispatch 通过 DensityFunctionCodec 单例解码子类型也支持注册表引用字符串
+    //DensityFunctionField creates a DensityFunction field, maps to vanilla DensityFunction.CODEC.fieldOf(name)
+    //Dispatch decodes through the DensityFunctionCodec singleton and also supports registry reference strings
     public static MapCodec<DensityFunction> DensityFunctionField(string name)
         => DensityFunctionCodec.Instance.FieldOf(name);
 }
 
-//DensityFunctionCodec 密度函数 dispatch codec 对应原版 DensityFunctions.CODEC
-//按 "type" 字段查 DENSITY_FUNCTION_TYPE 注册表取子类 MapCodec
-//输入是字符串时按 DENSITY_FUNCTION 注册表解析引用
+//DensityFunctionCodec density function dispatch codec, maps to vanilla DensityFunctions.CODEC
+//Looks up the subclass MapCodec in the DENSITY_FUNCTION_TYPE registry by the "type" field
+//When the input is a string it resolves the reference through the DENSITY_FUNCTION registry
 public sealed class DensityFunctionCodec : AbstractMapCodec<DensityFunction>
 {
     public static readonly DensityFunctionCodec Instance = new();
 
-    //Parse 字符串走注册表引用其余回落基类的 map 解码
+    //Parse handles strings as registry references, otherwise falls back to the base map decode
     public override DataResult<DensityFunction> Parse<U>(DynamicOps<U> ops, U input)
     {
         var stringResult = ops.GetStringValue(input);
@@ -244,7 +244,7 @@ public sealed class DensityFunctionCodec : AbstractMapCodec<DensityFunction>
                 return DataResult<DensityFunction>.Error(() => $"Invalid density function identifier: {text}");
             return DensityFunctionRefs.ResolveDensityFunction(ops, id.Value);
         }
-        //裸数字等价于 constant 原版 DIRECT_CODEC 允许 either(double, CODEC) 真实 JSON 里 argument1 常直接写数字
+        //A bare number is equivalent to constant; vanilla DIRECT_CODEC allows either(double, CODEC) and argument1 in real JSON is often written as a plain number
         var numberResult = ops.GetNumberValue(input);
         if (numberResult.Result().IsPresent)
             return DataResult<DensityFunction>.Success(new Constant(numberResult.GetOrThrow()));
@@ -269,8 +269,8 @@ public sealed class DensityFunctionCodec : AbstractMapCodec<DensityFunction>
         return codec.Decode(ops, input).Map(o => (DensityFunction)o);
     }
 
-    //LookupId 运行时类型到 type 字符串对应原版 dispatch 写入 type 字段
-    //MulOrAdd 无独立 codec 按语义等价成 add/mul 的 Ap2 编码
+    //LookupId runtime type to type string, matching the type field vanilla dispatch writes
+    //MulOrAdd has no standalone codec; it encodes as the semantically equivalent add/mul Ap2
     private static string? LookupId(DensityFunction df) => df switch
     {
         Constant => "constant",
@@ -303,8 +303,8 @@ public sealed class DensityFunctionCodec : AbstractMapCodec<DensityFunction>
         _ => null
     };
 
-    //EncodeTo 先写 type 字段再把剩余字段委托给注册表里的子类 codec
-    //MulOrAdd 编码为 argument1=constant(value) + argument2=input 解码回来是语义等价的 Ap2
+    //EncodeTo writes the type field first then delegates the remaining fields to the subclass codec in the registry
+    //MulOrAdd encodes as argument1=constant(value) + argument2=input and decodes back to a semantically equivalent Ap2
     public override RecordBuilder<U> EncodeTo<U>(DynamicOps<U> ops, DensityFunction value, RecordBuilder<U> builder)
     {
         var id = LookupId(value);
@@ -323,7 +323,7 @@ public sealed class DensityFunctionCodec : AbstractMapCodec<DensityFunction>
             : codec.EncodeTo(ops, value, builder);
     }
 
-    //EncodeMulOrAdd 把 MulOrAdd 写成 add/mul 的 argument1/argument2 布局
+    //EncodeMulOrAdd writes a MulOrAdd in the add/mul argument1/argument2 layout
     private static RecordBuilder<U> EncodeMulOrAdd<U>(DynamicOps<U> ops, MulOrAdd value, RecordBuilder<U> builder)
     {
         builder.Add("argument1", Instance.EncodeStart(ops, new Constant(value.Value)).GetOrThrow());
@@ -332,14 +332,14 @@ public sealed class DensityFunctionCodec : AbstractMapCodec<DensityFunction>
     }
 }
 
-//SingleArgumentCodec 单 argument 字段 codec 对应原版 singleFunctionArgumentCodec
-//argument 的 codec 决定它接受内联对象还是注册表引用字符串
+//SingleArgumentCodec single-argument field codec, maps to vanilla singleFunctionArgumentCodec
+//The argument codec decides whether it accepts an inline object or a registry reference string
 internal sealed class SingleArgumentCodec<A> : AbstractMapCodec<DensityFunction>
 {
     private readonly Codec<A> _argumentCodec;
     private readonly Func<A, DensityFunction> _ctor;
     private readonly Func<DensityFunction, A> _getter;
-    //_fieldName 字段名 原版绝大多数单参数类型用 argument 只有 spline 用的是 spline
+    //_fieldName field name; vanilla uses argument for almost every single-argument type and spline only for spline
     private readonly string _fieldName;
 
     public SingleArgumentCodec(Codec<A> argumentCodec, Func<A, DensityFunction> ctor, Func<DensityFunction, A> getter,
@@ -366,8 +366,8 @@ internal sealed class SingleArgumentCodec<A> : AbstractMapCodec<DensityFunction>
     }
 }
 
-//UnitDensityFunctionCodec 无字段 codec 对应原版 MapCodec.unit
-//解码总是构造固定实例编码不写任何字段
+//UnitDensityFunctionCodec fieldless codec, maps to vanilla MapCodec.unit
+//Decode always builds the fixed instance and encode writes no fields
 internal sealed class UnitDensityFunctionCodec : AbstractMapCodec<DensityFunction>
 {
     private readonly Func<DensityFunction> _factory;
@@ -381,8 +381,8 @@ internal sealed class UnitDensityFunctionCodec : AbstractMapCodec<DensityFunctio
         => builder;
 }
 
-//IntervalSelectDensityFunctionCodec 多段选择 codec 对应原版 IntervalSelect.DATA_CODEC
-//手写解码便于阈值数量与分支数校验失败时返回 Error 而不是抛异常
+//IntervalSelectDensityFunctionCodec multi-segment select codec, maps to vanilla IntervalSelect.DATA_CODEC
+//Hand-written decode so a threshold-count vs branch-count validation failure returns Error instead of throwing
 internal sealed class IntervalSelectDensityFunctionCodec : AbstractMapCodec<DensityFunction>
 {
     public static readonly IntervalSelectDensityFunctionCodec Instance = new();

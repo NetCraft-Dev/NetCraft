@@ -8,8 +8,8 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//命名实体写读修复父类对应原版net.minecraft.util.datafix.fixes.NamedEntityWriteReadFix
-//按entityName匹配特定实体后write+fix+read应用子类的fix方法
+//Named entity write-read fix parent, maps to vanilla net.minecraft.util.datafix.fixes.NamedEntityWriteReadFix
+//Matches a specific entity by entityName then applies the subclass's fix via write+fix+read
 public abstract class NamedEntityWriteReadFix : DataFix
 {
     private readonly string _name;
@@ -36,7 +36,7 @@ public abstract class NamedEntityWriteReadFix : DataFix
         return FixInternal(inputEntityType, outputEntityType, patchedEntityType, entityF);
     }
 
-    //fixInternal按inputType与outputType与patchedType与choiceFinder构造规则
+    //fixInternal builds the rule from inputType and outputType and patchedType and choiceFinder
     private TypeRewriteRule FixInternal(
         T.Type<object> inputEntityType, T.Type<object> outputEntityType, T.Type<object> patchedEntityType,
         OpticFinder<object> choiceFinder)

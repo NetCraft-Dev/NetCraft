@@ -4,14 +4,14 @@ using System;
 using NetCraft.Codec;
 using T = NetCraft.DataFixer.Types;
 
-//PointFree无点函数对应原版com.mojang.datafixers.functions.PointFree
-//表示可缓存的优化函数包装eval惰性求值
+//PointFree point-free function maps to vanilla com.mojang.datafixers.functions.PointFree
+//represents a cacheable optimized function wrapper; eval evaluates lazily
 public abstract class PointFree<T2>
 {
     private volatile bool _initialized;
     private Func<DynamicOps<object>, T2>? _value;
 
-    //evalCached惰性求值并缓存结果线程安全双重检查
+    //evalCached evaluates lazily and caches the result; thread-safe double-checked
     public Func<DynamicOps<object>, T2> EvalCached()
     {
         if (!_initialized)
@@ -28,26 +28,26 @@ public abstract class PointFree<T2>
         return _value!;
     }
 
-    //type返回此PointFree的输出类型
+    //type returns the output type of this PointFree
     public abstract T.Type<T2> Type();
 
-    //eval子类提供求值逻辑
+    //eval is provided by subclasses to supply the evaluation logic
     public abstract Func<DynamicOps<object>, T2> Eval();
 
-    //all对所有子项应用规则默认返回自身
+    //all applies the rule to every child; defaults to returning itself
     public virtual Optional<PointFree<T2>> All(PointFreeRule rule)
         => Optional<PointFree<T2>>.Of(this);
 
-    //one对唯一子项应用规则默认空
+    //one applies the rule to the single child; defaults to empty
     public virtual Optional<PointFree<T2>> One(PointFreeRule rule)
         => Optional<PointFree<T2>>.Empty();
 
-    //toString带缩进级别
+    //toString with an indent level
     public abstract string ToString(int level);
 
-    //toString最终委托到带级别版本
+    //toString ultimately delegates to the level-taking version
     public override string ToString() => ToString(0);
 
-    //indent生成指定级别缩进
+    //indent produces indentation for the given level
     public static string Indent(int level) => new(' ', level);
 }

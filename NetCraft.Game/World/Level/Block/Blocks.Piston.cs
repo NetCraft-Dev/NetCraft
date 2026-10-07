@@ -9,41 +9,41 @@ using NetCraft.Registry.Enums;
 using NetCraft.Registry.State;
 using NetCraft.Storage;
 using NetCraft.Storage.Updates;
-//方向同时存在于 Primitives 与 Registry.Enums 这里取方块用的那套
+//Direction exists in both Primitives and Registry.Enums; the one used for blocks is taken here
 using Direction = NetCraft.Primitives.Direction;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//P-1 活塞系列方块 对应原版 net.minecraft.world.level.block.piston 包
-//底座负责收发信号与搬运 移动活塞顶替被推方块 活塞头是伸出后的那截
-//推动结构解析见 Piston.PistonStructureResolver 动画与挤压见 Piston.PistonMovingBlockEntity
+//P-1 piston family blocks, maps to the vanilla net.minecraft.world.level.block.piston package
+//The base handles signals and moving, the moving piston takes the place of a pushed block and the piston head is the extended segment
+//Push structure resolution is in Piston.PistonStructureResolver, animation and squeezing are in Piston.PistonMovingBlockEntity
 public static partial class Blocks
 {
     public static readonly PistonBaseBlock PISTON = new("piston", false);
     public static readonly PistonBaseBlock STICKY_PISTON = new("sticky_piston", true);
     public static readonly MovingPistonBlock MOVING_PISTON = new("moving_piston");
 
-    //RegisterPiston 活塞系列登记进真实方块表
+    //RegisterPiston registers the piston family into the real block table
     private static void RegisterPiston(Dictionary<string, BlockBehaviour> real)
     {
         BlockBehaviour[] blocks = { PISTON, STICKY_PISTON, MOVING_PISTON };
         foreach (var block in blocks) real[block.Id.Path] = block;
     }
 
-    //PistonBaseBlock 活塞底座 对应原版 PistonBaseBlock
-    //通电伸出断电收回 两刻完成 伸出后自身只剩底座那截 活塞臂由 piston_head 承担
+    //PistonBaseBlock piston base, maps to vanilla PistonBaseBlock
+    //Extends when powered and retracts when unpowered over two ticks; once extended only the base remains here and the arm is carried by piston_head
     public sealed class PistonBaseBlock : NamedBlock
     {
-        //TriggerExtend 伸出事件 对应原版 TRIGGER_EXTEND
+        //TriggerExtend extend event, maps to vanilla TRIGGER_EXTEND
         public const int TriggerExtend = 0;
 
-        //TriggerContract 收回事件 对应原版 TRIGGER_CONTRACT
+        //TriggerContract contract event, maps to vanilla TRIGGER_CONTRACT
         public const int TriggerContract = 1;
 
-        //TriggerDrop 收回时直接丢下不搬运 对应原版 TRIGGER_DROP
+        //TriggerDrop drops directly on retract without moving, maps to vanilla TRIGGER_DROP
         public const int TriggerDrop = 2;
 
-        //伸出后底座只剩四像素厚的一条 其余交给活塞头
+        //Once extended the base is only a four-pixel-thick strip, the rest is left to the piston head
         private static readonly Dictionary<Direction, VoxelShape> ShapesExtended =
             Shapes.RotateAll(NetCraft.Registry.Block.BoxZ(16.0, 4.0, 16.0));
 
@@ -51,7 +51,7 @@ public static partial class Blocks
 
         public PistonBaseBlock(string name, bool isSticky) : base(name) => _isSticky = isSticky;
 
-        //IsSticky 粘性活塞收回时把前方那格一起拉回来
+        //IsSticky a sticky piston pulls the block in front back with it on retract
         public bool IsSticky => _isSticky;
 
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos,
@@ -60,13 +60,13 @@ public static partial class Blocks
                 ? ShapesExtended[state.GetValue(BlockStateProperties.FacingProperty).ToPrimitive()]
                 : Shapes.Block();
 
-        //IsRedstoneConductor 活塞不是红石导体 对应原版 pistonProperties 里的 isRedstoneConductor(Blocks::never)
-        //不关掉的话未伸出的整格碰撞形状会被判成导体
-        //getSignal 的导体分支会把四周朝活塞的直接信号一并吸进来
-        //贴在推动面上的按钮正好朝下给直接信号 活塞就自己伸出把自己推的按钮铲掉了 原版不会
+        //IsRedstoneConductor a piston is not a redstone conductor, maps to isRedstoneConductor(Blocks::never) in vanilla pistonProperties
+        //Without turning it off the full-block collision shape of a retracted piston would count as a conductor
+        //The conductor branch of getSignal would pull in the direct signals from all sides toward the piston
+        //A button on the push face gives a direct signal downward and the piston would extend and shove off the very button pushing it, which vanilla avoids
         public override bool IsRedstoneConductor(ServerLevel level, BlockPos pos, BlockState state) => false;
 
-        //SetPlacedBy 放下时立刻按周围信号决定要不要伸出 对应原版 setPlacedBy
+        //SetPlacedBy decides immediately whether to extend from the surrounding signals on placement, maps to vanilla setPlacedBy
         public override void SetPlacedBy(ServerLevel level, BlockPos pos, BlockState state, ServerPlayer player)
             => CheckIfExtend(level, pos, state);
 
@@ -76,7 +76,7 @@ public static partial class Blocks
         public override void OnPlace(ServerLevel level, BlockPos pos, BlockState state, BlockState oldState,
             bool movedByPiston)
         {
-            //同方块换状态不算放置 移动中的底座也不重新判定
+            //A state change on the same block is not a placement and a moving base is not re-evaluated either
             if (ReferenceEquals(oldState.Owner, state.Owner)) return;
             if (level.GetBlockEntity<BlockEntity>(pos) is not null) return;
             CheckIfExtend(level, pos, state);
@@ -88,8 +88,8 @@ public static partial class Blocks
                 .SetValue(BlockStateProperties.FacingProperty, lookingDirection.Opposite.ToState())
                 .SetValue(BlockStateProperties.Extended, false);
 
-        //CheckIfExtend 信号变了就排一个方块事件 对应原版 checkIfExtend
-        //真正搬运放在事件里做 这样与原版一样延迟一刻 同刻内的多次信号变化能合并
+        //CheckIfExtend schedules a block event when the signal changes, maps to vanilla checkIfExtend
+        //The actual moving happens in the event, delaying one tick like vanilla so multiple signal changes in the same tick merge
         private void CheckIfExtend(ServerLevel level, BlockPos pos, BlockState state)
         {
             var direction = state.GetValue(BlockStateProperties.FacingProperty).ToPrimitive();
@@ -101,7 +101,7 @@ public static partial class Blocks
             }
             else if (!extend && state.GetValue(BlockStateProperties.Extended))
             {
-                //上一截还在半路时收回要降级成丢下 免得把没推完的方块留在原地
+                //Retracting while the previous segment is still moving downgrades to a drop, so unfinished pushes are not left behind
                 var pushedPos = pos.Relative(direction, 2);
                 var pushedState = level.GetBlockState(pushedPos);
                 var eventId = TriggerContract;
@@ -117,7 +117,7 @@ public static partial class Blocks
             }
         }
 
-        //HasNeighborSignal 六向加自身上方那格的信号 推动方向那面自己不触发 对应原版 getNeighborSignal
+        //HasNeighborSignal signals from six directions plus the block above itself; the push face itself does not trigger, maps to vanilla getNeighborSignal
         private static bool HasNeighborSignal(ServerLevel level, BlockPos pos, Direction pushDirection)
         {
             foreach (var direction in Direction.Values)
@@ -125,8 +125,8 @@ public static partial class Blocks
                 if (direction == pushDirection) continue;
                 if (level.GetSignal(pos.Offset(direction), direction) > 0) return true;
             }
-            //自身这格看朝向下方 再连上方一格及其六邻(除下) 这段就是原版的准连接性
-            //半连接装置能隔着方块激活活塞靠的是它 与是不是红石导体无关
+            //This cell checks downward along its facing and also the cell above and its six neighbors except below, which is vanilla's quasi-connectivity
+            //Quasi-connectivity lets a quasi-connectivity setup activate the piston through a block, regardless of whether it is a redstone conductor
             if (level.GetSignal(pos, Direction.Down) > 0) return true;
             var above = pos.Relative(Direction.Up, 1);
             foreach (var direction in Direction.Values)
@@ -142,7 +142,7 @@ public static partial class Blocks
             var direction = state.GetValue(BlockStateProperties.FacingProperty).ToPrimitive();
             var extendedState = state.SetValue(BlockStateProperties.Extended, true);
             var extend = HasNeighborSignal(level, pos, direction);
-            //信号在这刻又变了 事件作废按原版重排
+            //The signal changed again this tick, so the event is voided and rescheduled like vanilla
             if (extend && paramA is TriggerContract or TriggerDrop)
             {
                 level.SetBlock(pos, extendedState, 2);
@@ -159,7 +159,7 @@ public static partial class Blocks
                 return true;
             }
             if (paramA is not (TriggerContract or TriggerDrop)) return true;
-            //收回前把前方那截没走完的动画先落地
+            //Before retracting, the unfinished animation of the segment in front is settled first
             if (level.GetBlockEntity<PistonMovingBlockEntity>(pos.Offset(direction)) is { } previous)
                 previous.FinalTick();
             var movingState = MOVING_PISTON.DefaultBlockState
@@ -188,7 +188,7 @@ public static partial class Blocks
                 }
                 if (!pistonPiece)
                 {
-                    //前面那格能拖就拖回来 拖不动就直接删掉
+                    //Pulls the cell ahead back if it can, otherwise deletes it
                     if (paramA == TriggerContract && movingAhead is { } aheadState && !aheadState.Owner.IsAir
                         && IsPushable(aheadState, level, twoPos, direction.Opposite, false, direction)
                         && (PistonPushReactions.Of(aheadState) == PushReaction.normal
@@ -207,8 +207,8 @@ public static partial class Blocks
             return true;
         }
 
-        //IsPushable 该方块能不能被活塞挪走 对应原版静态方法
-        //allowDestroyable 为真时允许"推之前先毁掉"的那类方块通过
+        //IsPushable whether the block can be moved by a piston, maps to the vanilla static method
+        //When allowDestroyable is true, blocks that are "destroyed before pushing" are allowed through
         public static bool IsPushable(BlockState state, ServerLevel level, BlockPos pos, Direction direction,
             bool allowDestroyable, Direction connectionDirection)
         {
@@ -223,7 +223,7 @@ public static partial class Blocks
             if (direction == Direction.Up && pos.Y == level.MaxBuildHeight - 1) return false;
             if (path is "piston" or "sticky_piston")
             {
-                //伸出中的活塞自己推不动 没伸出的按普通方块算
+                //An extending piston cannot be pushed itself, a retracted one counts as a normal block
                 if (state.GetValue(BlockStateProperties.Extended)) return false;
             }
             else
@@ -240,12 +240,12 @@ public static partial class Blocks
                         return direction == connectionDirection;
                 }
             }
-            //带方块实体的方块一律推不动
+            //Blocks with a block entity are never pushable
             return state.Owner is not BlockBehaviour blockBehaviour || !blockBehaviour.HasBlockEntity;
         }
 
-        //MoveBlocks 按解析结果完成一次搬运 对应原版 moveBlocks
-        //顺序: 破坏该破坏的 -> 从远到近把方块换成移动活塞 -> 伸出时补活塞头 -> 清掉空出来的格子 -> 统一刷邻居
+        //MoveBlocks performs one move from the resolution result, maps to vanilla moveBlocks
+        //Order: break what should break -> replace blocks with moving pistons far to near -> add the piston head when extending -> clear vacated cells -> refresh neighbors all at once
         private bool MoveBlocks(ServerLevel level, BlockPos pistonPos, Direction direction, bool extending)
         {
             var armPos = pistonPos.Offset(direction);
@@ -254,7 +254,7 @@ public static partial class Blocks
             var resolver = new PistonStructureResolver(level, pistonPos, direction, extending);
             if (!resolver.Resolve()) return false;
 
-            //被推走的格子搬空后要清 但若又被别的方块填上就不清
+            //A pushed-away cell must be cleared once emptied, but not if another block filled it again
             var deleteAfterMove = new Dictionary<BlockPos, BlockState>();
             var toPushStates = new List<BlockState>();
             foreach (var pos in resolver.ToPush)
@@ -331,31 +331,31 @@ public static partial class Blocks
             return true;
         }
 
-        //DropResources 按方块自己的掉落表生成掉落物 对应原版 dropResources
+        //DropResources generates drops from the block's own loot table, maps to vanilla dropResources
         private static void DropResources(ServerLevel level, BlockPos pos, BlockState state)
         {
             if (state.Owner is not BlockBehaviour behaviour) return;
-            //掉落物要进实体管理器 只有持久化关卡有
+            //Drops must go into the entity manager, which only a persistent level has
             if (level is not PersistentServerLevel persistent) return;
             foreach (var drop in behaviour.GetDrops(persistent, null, pos, state))
                 ServerBlockUpdates.SpawnDrop(persistent, pos, drop);
         }
     }
 
-    //MovingPistonBlock 移动活塞 推动过程中顶替被推方块的临时方块 对应原版 MovingPistonBlock
-    //它自己没有形状 碰撞与表现全由同位置的方块实体给
+    //MovingPistonBlock moving piston, the temporary block standing in for a pushed block during a push, maps to vanilla MovingPistonBlock
+    //It has no shape of its own, collision and appearance all come from the block entity at the same position
     public sealed class MovingPistonBlock : NamedBlock
     {
         public MovingPistonBlock(string name) : base(name) { }
 
-        //HasBlockEntity 被推方块的状态存在方块实体里
+        //HasBlockEntity the pushed block's state lives in the block entity
         public override bool HasBlockEntity => true;
 
-        //CreateBlockEntity 实体由活塞带着参数塞进来 不走按状态新建那条路
+        //CreateBlockEntity the entity is passed in by the piston with parameters, not created from the state
         public override BlockEntity? CreateBlockEntity(BlockPos pos, BlockState state) => null;
 
-        //Destroy 被顶替掉时收掉反方向那格残留的伸出态活塞 对应原版 destroy
-        //移动活塞与活塞底座是一体的 搬运结束那格换回真方块时底座也得跟着收
+        //Destroy cleans up the leftover extended piston in the opposite cell when this is displaced, maps to vanilla destroy
+        //The moving piston is one with the piston base; when the cell reverts to the real block at the end of a move the base must retract too
         public override void Destroy(ServerLevel level, BlockPos pos, BlockState state)
         {
             var relative = pos.Offset(state.GetValue(BlockStateProperties.FacingProperty).ToPrimitive().Opposite);
@@ -367,8 +367,8 @@ public static partial class Blocks
             level.SetBlock(relative, Blocks.AIR.DefaultBlockState, BlockUpdateFlags.All);
         }
 
-        //UseOn 右键一个没有方块实体的移动活塞直接清掉 对应原版 useWithoutItem
-        //半路被打断留下的空壳没法自己消失 原版留了这么一条手动收拾的路
+        //UseOn right clicking a moving piston with no block entity clears it directly, maps to vanilla useWithoutItem
+        //An empty shell left by an interrupted move cannot disappear on its own and vanilla leaves this manual cleanup path
         public override bool UseOn(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state,
             Direction face)
         {
@@ -377,8 +377,8 @@ public static partial class Blocks
             return true;
         }
 
-        //GetDrops 掉落取被移动方块那一份 对应原版 getDrops
-        //不覆写的话搬运途中被挖掉会掉出移动活塞本身
+        //GetDrops drops come from the moved block, maps to vanilla getDrops
+        //Without the override, mining it mid-move would drop the moving piston itself
         public override IEnumerable<ItemStack> GetDrops(ServerLevel level, ServerPlayer? player, BlockPos pos,
             BlockState state)
         {
@@ -398,8 +398,8 @@ public static partial class Blocks
                     ?? Shapes.Empty()
                 : Shapes.Empty();
 
-        //IsRedstoneConductor 搬运中的移动活塞同样不是红石导体 对应原版 isRedstoneConductor(Blocks::never)
-        //它的碰撞形状取的是被搬运方块那份 多半是整格 不关掉会和活塞底座踩同一个坑
+        //IsRedstoneConductor a moving piston is also not a redstone conductor, maps to vanilla isRedstoneConductor(Blocks::never)
+        //Its collision shape comes from the moved block, usually a full block, so without turning it off it hits the same pitfall as the piston base
         public override bool IsRedstoneConductor(ServerLevel level, BlockPos pos, BlockState state) => false;
     }
 }

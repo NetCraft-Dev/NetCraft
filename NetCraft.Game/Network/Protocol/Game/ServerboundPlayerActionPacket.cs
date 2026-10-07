@@ -2,13 +2,13 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundPlayerActionPacket 玩家动作包对应原版 ServerboundPlayerActionPacket
-//字段 Action(枚举) Pos(BlockPos) Direction(命中面) Sequence(方块变更序号)
+//ServerboundPlayerActionPacket player action packet, maps to vanilla ServerboundPlayerActionPacket
+//Fields: Action(enum), Pos(BlockPos), Direction(hit face), Sequence(block change sequence)
 public sealed record ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.ActionType Action,
     BlockPos Pos, Direction Direction, int Sequence)
     : Packet<ServerGamePacketListener>
 {
-    //ActionType 动作枚举 声明顺序即网络序号 与原版 Action 对齐
+    //ActionType action enum, declaration order is the network ordinal, aligns with vanilla Action
     public enum ActionType
     {
         StartDestroyBlock,

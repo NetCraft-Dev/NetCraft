@@ -3,7 +3,7 @@ using RenderPipeline = NetCraft.Gpu.Pipeline.RenderPipeline;
 
 namespace NetCraft.Gpu;
 
-//GuiColor RGBA 浮点颜色 0-1
+//GuiColor RGBA float color 0-1
 public readonly record struct GuiColor(float R, float G, float B, float A)
 {
     public static GuiColor White => new(1f, 1f, 1f, 1f);
@@ -17,7 +17,7 @@ public readonly record struct GuiColor(float R, float G, float B, float A)
     public static GuiColor FromRgba(int r, int g, int b, int a) => new(r / 255f, g / 255f, b / 255f, a / 255f);
 }
 
-//GuiMouseButton 鼠标按键
+//GuiMouseButton mouse button
 [Flags]
 public enum GuiMouseButton
 {
@@ -27,14 +27,14 @@ public enum GuiMouseButton
     Middle = 4
 }
 
-//MouseEventArgs 鼠标事件参数
+//MouseEventArgs mouse event args
 public sealed class MouseEventArgs : EventArgs
 {
     public GuiMouseButton Button { get; }
     public int X { get; }
     public int Y { get; }
     public int Clicks { get; set; } = 1;
-    //Modifiers 派发时由 GuiWindow 填充供 TextBox 检测 Shift+点击扩展选区
+    //Modifiers filled in by GuiWindow on dispatch so TextBox can detect Shift+click to extend the selection
     public KeyModifiers Modifiers { get; }
 
     public MouseEventArgs(GuiMouseButton button, int x, int y, KeyModifiers modifiers = KeyModifiers.None)
@@ -46,12 +46,12 @@ public sealed class MouseEventArgs : EventArgs
     }
 }
 
-//KeyEventArgs 键盘事件参数
+//KeyEventArgs keyboard event args
 public sealed class KeyEventArgs : EventArgs
 {
     public int Key { get; }
     public char Char { get; }
-    //Modifiers 派发时由 GuiWindow 根据修饰键状态填充供 TextBox 检测 Shift/Ctrl 组合
+    //Modifiers filled in by GuiWindow from the modifier state on dispatch so TextBox can detect Shift/Ctrl combos
     public KeyModifiers Modifiers { get; }
 
     public KeyEventArgs(int key, char ch = '\0', KeyModifiers modifiers = KeyModifiers.None)
@@ -62,7 +62,7 @@ public sealed class KeyEventArgs : EventArgs
     }
 }
 
-//KeyModifiers 修饰键标志位 TextBox 用 Shift 扩展选区 Ctrl 复制粘贴
+//KeyModifiers modifier flags; TextBox uses Shift to extend the selection and Ctrl for copy/paste
 [Flags]
 public enum KeyModifiers
 {
@@ -72,7 +72,7 @@ public enum KeyModifiers
     Alt = 4
 }
 
-//GuiRectangle 整数矩形
+//GuiRectangle integer rectangle
 public readonly record struct GuiRectangle(int X, int Y, int Width, int Height)
 {
     public int Right => X + Width;
@@ -83,7 +83,7 @@ public readonly record struct GuiRectangle(int X, int Y, int Width, int Height)
     public GuiRectangle Offset(int dx, int dy) => new(X + dx, Y + dy, Width, Height);
 }
 
-//GuiTextAlign 文本水平对齐方式
+//GuiTextAlign horizontal text alignment
 public enum GuiTextAlign
 {
     Left,
@@ -91,101 +91,101 @@ public enum GuiTextAlign
     Right
 }
 
-//IGuiRenderContext GUI 渲染上下文
-//控件通过此接口绘制自身 DrawText 基于 FontAtlas 字形图集渲染
+//IGuiRenderContext GUI render context
+//Widgets draw themselves through this interface; DrawText renders via the FontAtlas glyph atlas
 public interface IGuiRenderContext
 {
-    //DrawQuad 绘制实心矩形
+    //DrawQuad draws a solid rectangle
     void DrawQuad(int x, int y, int width, int height, GuiColor color);
 
-    //DrawQuadInverted 绘制反色矩形 fragment shader 对 RGB 取反用于按钮按下等特效
-    //对应原版 RenderPipelines.GUI_INVERT
+    //DrawQuadInverted draws an inverted rectangle; the fragment shader inverts RGB, used for button-press effects
+    //corresponds to vanilla RenderPipelines.GUI_INVERT
     void DrawQuadInverted(int x, int y, int width, int height, GuiColor color);
 
-    //DrawText 绘制文本字符尺寸由实现决定
+    //DrawText draws text; the character size is decided by the implementation
     void DrawText(int x, int y, string text, GuiColor color);
 
-    //MeasureText 测量文本像素宽度供控件计算对齐偏移
+    //MeasureText measures the text pixel width for widgets to compute alignment offsets
     float MeasureText(string text);
 
-    //LineHeight 单行文本像素高度供控件计算多行换行间距
+    //LineHeight single-line text pixel height for widgets to compute multi-line spacing
     int LineHeight { get; }
 
-    //DrawImage 绘制已注册纹理的子区域到目标矩形 tint 调制颜色
-    //textureId 由 RegisterTexture 返回 src 像素坐标源纹理内偏移
+    //DrawImage draws a sub-region of a registered texture into the target rectangle; tint modulates the color
+    //textureId comes from RegisterTexture; src is the pixel-space offset inside the source texture
     void DrawImage(int textureId, int x, int y, int width, int height,
         int srcX, int srcY, int srcW, int srcH, GuiColor tint);
 
-    //DrawImageNinePatch 九宫格切片绘制纹理 border 为源纹理四周固定不拉伸的边角像素宽度
-    //旧 API 单一 border 中心固定拉伸目标/源尺寸不足 2*border 退化为 DrawImage
-    //保留兼容现有 button 调用新 per-side border API 走 Math.min 钳制策略
+    //DrawImageNinePatch draws a nine-slice texture; border is the pixel width of the fixed, non-stretched corners of the source texture
+    //Legacy API with a single border and a fixed stretched center; falls back to DrawImage when the target/source size is under 2*border
+    //Kept for compatibility with existing button calls; the new per-side border API uses Math.min clamping
     void DrawImageNinePatch(int textureId, int x, int y, int width, int height,
         int srcX, int srcY, int srcW, int srcH, int border, GuiColor tint);
 
-    //DrawImageNinePatch per-side border + stretchInner 重载对标原版 blitNineSlicedSprite
-    //borderLeft/Top/Right/Bottom 四边独立支持 slider_handle/tab 等 per-side border 控件
-    //stretchInner=true 中心拉伸 false 中心按 sw×sh 平铺对应原版 stretch_inner 字段
+    //DrawImageNinePatch per-side border + stretchInner overload, maps to vanilla blitNineSlicedSprite
+    //borderLeft/Top/Right/Bottom are independent per side, supporting per-side border widgets like slider_handle/tab
+    //stretchInner=true stretches the center, false tiles it at sw×sh, corresponding to the vanilla stretch_inner field
     void DrawImageNinePatch(int textureId, int x, int y, int width, int height,
         int srcX, int srcY, int srcW, int srcH,
         int borderLeft, int borderTop, int borderRight, int borderBottom,
         bool stretchInner, GuiColor tint);
 
-    //DrawTiledSprite 按 tileWidth/tileHeight 平铺纹理到目标区域
-    //对标原版 blitTiledSprite 提交 TiledBlitRenderState 边缘按比例截取 UV
-    //NineSlice stretchInner=false 中心平铺路径也走此方法
+    //DrawTiledSprite tiles the texture into the target area by tileWidth/tileHeight
+    //maps to vanilla blitTiledSprite, submitting a TiledBlitRenderState and cropping UVs proportionally at the edges
+    //The NineSlice stretchInner=false center-tile path also goes through this method
     void DrawTiledSprite(int textureId, int srcW, int srcH,
         int x, int y, int width, int height, GuiColor tint);
 
-    //DrawSprite 按 identifier 取 sprite 并按 scaling 分派 Stretch/Tile/NineSlice
-    //对标原版 GuiGraphicsExtractor.blitSprite 内部调 GuiSpriteManager.GetSprite
-    //identifier 格式 "minecraft:textures/gui/sprites/widget/button"
-    //textureId 与 scaling 由 GuiSpriteManager 解析.mcmeta 后填充到 GuiSprite
+    //DrawSprite looks up a sprite by identifier and dispatches Stretch/Tile/NineSlice by scaling
+    //maps to vanilla GuiGraphicsExtractor.blitSprite, internally calling GuiSpriteManager.GetSprite
+    //identifier format "minecraft:textures/gui/sprites/widget/button"
+    //textureId and scaling are filled into GuiSprite after GuiSpriteManager parses .mcmeta
     void DrawSprite(string identifier, int x, int y, int width, int height, GuiColor tint);
 
-    //DrawGlyphQuad 提交字形 quad 到渲染上下文 4 浮点顶点支持 italic/bold 偏移
-    //pipeline 由 GlyphRenderTypes.Select 选取 textureSetup 绑定字形图集
-    //x0/y0 左上 x1/y1 左下 x2/y2 右下 x3/y3 右上 UV 对应 (u0,v0)/(u0,v1)/(u1,v1)/(u1,v0)
-    //对标原版 BakedSheetGlyph.renderChar 直接提交 4 顶点到 VertexConsumer
+    //DrawGlyphQuad submits a glyph quad to the render context; 4 float vertices support italic/bold offsets
+    //pipeline is chosen by GlyphRenderTypes.Select and textureSetup binds the glyph atlas
+    //x0/y0 top-left x1/y1 bottom-left x2/y2 bottom-right x3/y3 top-right, UVs corresponding to (u0,v0)/(u0,v1)/(u1,v1)/(u1,v0)
+    //maps to vanilla BakedSheetGlyph.renderChar, submitting the 4 vertices directly to the VertexConsumer
     void DrawGlyphQuad(RenderPipeline pipeline, TextureSetup textureSetup,
         float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3,
         float u0, float v0, float u1, float v1, int color);
 
-    //PushPose 压入增量变换与当前栈顶相乘子控件相对父容器定位
+    //PushPose pushes an incremental transform multiplied with the current top; child widgets position relative to the parent
     void PushPose(Matrix3x2 delta);
 
-    //PopPose 弹出栈顶变换恢复到上一级
+    //PopPose pops the top transform, restoring the previous level
     void PopPose();
 
-    //PushScissor 压入裁剪矩形与当前栈顶求交开新绘制段
+    //PushScissor pushes a scissor rectangle intersected with the current top and starts a new draw segment
     void PushScissor(int x, int y, int width, int height);
 
-    //PopScissor 弹出裁剪矩形开新绘制段用新栈顶
+    //PopScissor pops the scissor rectangle and starts a new draw segment with the new top
     void PopScissor();
 
-    //BeginRecording 开始录制提交的 RenderState 到 cache 供未 dirty 帧 replay
-    //cache 由调用方拥有录制期间所有 DrawQuad/DrawText/DrawImage 提交同时写入 cache
-    //阶段 6 retained mode 缓存机制控件未变化时跳过 Render 直接 ReplayRange
+    //BeginRecording starts recording submitted RenderStates into cache for replay on non-dirty frames
+    //The cache is owned by the caller; during recording all DrawQuad/DrawText/DrawImage submits also write to cache
+    //Stage 6 retained-mode caching: widgets that did not change skip Render and directly ReplayRange
     void BeginRecording(List<GuiElementRenderState> cache);
 
-    //EndRecording 结束录制后续提交只进 GuiRenderState 不写 cache
+    //EndRecording ends recording; later submits only go to GuiRenderState and not to cache
     void EndRecording();
 
-    //ReplayRange 把缓存的 RenderState 列表重新提交到当前帧 GuiRenderState
-    //用于未 dirty 控件跳过 Render 直接重放上一帧的 RenderState
+    //ReplayRange re-submits the cached RenderState list into the current frame's GuiRenderState
+    //Used for non-dirty widgets to skip Render and replay the previous frame's RenderStates
     void ReplayRange(IReadOnlyList<GuiElementRenderState> cached);
 
-    //BlurBeforeThisStratum 开新 stratum 并标记之前所有 strata 为 blur 前段
-    //Screen 在 RenderBackground 末尾调用让背景进 BeforeBlur 段控件进 AfterBlur 段
-    //blur 帧不走 retained mode cache 每帧重新 Render 确保 blur 标记不丢失
+    //BlurBeforeThisStratum opens a new stratum and marks all previous strata as the pre-blur segment
+    //Screen calls it at the end of RenderBackground so the background goes into BeforeBlur and widgets into AfterBlur
+    //Blur frames skip the retained-mode cache and re-Render every frame so the blur marker is not lost
     void BlurBeforeThisStratum();
 
-    //AddPictureInPicture 提交 PIP 状态到当前帧 GuiRenderState 供 GuiRenderer.Prepare 调 renderer.Prepare
-    //Screen 在 Render 阶段构造 ItemPipState 等提交对标原版 addPicturesInPictureState
+    //AddPictureInPicture submits PIP state into the current frame's GuiRenderState for GuiRenderer.Prepare to call renderer.Prepare
+    //Screen builds ItemPipState etc. during Render and submits them, maps to vanilla addPicturesInPictureState
     void AddPictureInPicture(PictureInPictureRenderState pip);
 }
 
-//GuiKeys GLFW 键码常量与 Silk.NET.Input.Key 数值一致
-//避免 Gpu 层依赖 Silk.NET.Input 命名空间 TextBox 用这些常量处理编辑键
+//GuiKeys GLFW key code constants matching Silk.NET.Input.Key values
+//Avoids the GPU layer depending on the Silk.NET.Input namespace; TextBox uses these constants for editing keys
 public static class GuiKeys
 {
     public const int Left = 263;

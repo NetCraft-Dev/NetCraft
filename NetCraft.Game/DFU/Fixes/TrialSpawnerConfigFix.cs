@@ -7,8 +7,8 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//审判台配置修复对应原版TrialSpawnerConfigFix
-//1.20.5把审判台spawn_range等9个字段移到normal_config子map
+//Trial spawner config fix, maps to vanilla TrialSpawnerConfigFix
+//1.20.5 moves 9 fields such as the trial spawner's spawn_range into the normal_config sub-map
 public class TrialSpawnerConfigFix : NamedEntityWriteReadFix
 {
     private static readonly string[] KEYS_TO_MOVE = {
@@ -21,7 +21,7 @@ public class TrialSpawnerConfigFix : NamedEntityWriteReadFix
     public TrialSpawnerConfigFix(Schema outputSchema)
         : base(outputSchema, true, "Trial Spawner config tag fixer", References.BlockEntity, "minecraft:trial_spawner") { }
 
-    //moveToConfigTag按字段列表收集非空值移到normal_config子map
+    //moveToConfigTag collects non-empty values by field list and moves them into the normal_config sub-map
     private static Dynamic<object> MoveToConfigTag(Dynamic<object> input)
     {
         var map = new List<Pair<Dynamic<object>, Dynamic<object>>>();

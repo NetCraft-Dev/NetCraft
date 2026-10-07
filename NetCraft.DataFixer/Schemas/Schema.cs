@@ -8,8 +8,8 @@ using T = NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Families;
 using NetCraft.DataFixer.Types.Templates;
 
-//Schema类型架构对应原版com.mojang.datafixers.schemas.Schema
-//管理一个版本的所有TypeTemplate并构建RecursiveTypeFamily
+//Schema type architecture maps to vanilla com.mojang.datafixers.schemas.Schema
+//manages all TypeTemplates of a version and builds the RecursiveTypeFamily
 public class Schema
 {
     private readonly Dictionary<string, int> _recursiveTypes = new();
@@ -29,7 +29,7 @@ public class Schema
         _types = BuildTypes();
     }
 
-    //buildTypes构建所有TypeTemplate对应的Type递归类型用Check包装后折叠为choice
+    //buildTypes builds the Type for every TypeTemplate; recursive types are Check-wrapped then folded into choice
     protected Dictionary<string, T.Type<object>> BuildTypes()
     {
         var types = new Dictionary<string, T.Type<object>>();
@@ -62,7 +62,7 @@ public class Schema
 
     public HashSet<string> Types() => new(_types.Keys);
 
-    //getTypeRaw按引用取得原始类型未知类型抛异常
+    //getTypeRaw takes the raw type by reference; throws for unknown types
     public T.Type<object> GetTypeRaw(DSL.ITypeReference type)
     {
         var name = type.TypeName();
@@ -70,7 +70,7 @@ public class Schema
         throw new ArgumentException("Unknown type: " + name);
     }
 
-    //getType按引用取得类型递归点会展开checked
+    //getType takes the type by reference; recursive points expand checked
     public T.Type<object> GetType(DSL.ITypeReference type)
     {
         var name = type.TypeName();
@@ -87,25 +87,25 @@ public class Schema
         return type1!;
     }
 
-    //resolveTemplate按名解析模板未知抛异常
+    //resolveTemplate resolves a template by name; throws when unknown
     public TypeTemplate ResolveTemplate(string name)
     {
         if (_typeTemplates.TryGetValue(name, out var supplier)) return supplier();
         throw new ArgumentException("Unknown type: " + name);
     }
 
-    //id按名返回递归点模板或普通模板
+    //id returns a recursive point template or a plain template by name
     public TypeTemplate Id(string name)
     {
         if (_recursiveTypes.TryGetValue(name, out var id)) return DSL.Id(id);
         return GetTemplate(name);
     }
 
-    //getTemplate按名构造Named模板
+    //getTemplate constructs a Named template by name
     protected TypeTemplate GetTemplate(string name)
         => DSL.Named(name, ResolveTemplate(name));
 
-    //getChoiceType按引用与choice名取得对应子类型
+    //getChoiceType takes the corresponding child type by reference and choice name
     public virtual T.Type<object> GetChoiceType(DSL.ITypeReference type, string choiceName)
     {
         var choiceType = FindChoiceType(type);
@@ -117,10 +117,10 @@ public class Schema
         return types[choiceName];
     }
 
-    //findChoiceType按引用取得TaggedChoiceType
-    //实际类型是TaggedChoiceType<K>其中K可能是string或object
-    //C#严格泛型不变量下TaggedChoiceType<string>不能cast为TaggedChoiceType<object>
-    //用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+    //findChoiceType takes a TaggedChoiceType by reference
+    //the actual type is TaggedChoiceType<K> where K may be string or object
+    //under C# strict generic invariance TaggedChoiceType<string> cannot be cast to TaggedChoiceType<object>
+    //use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
     public TaggedChoice<object>.TaggedChoiceType<object> FindChoiceType(DSL.ITypeReference type)
     {
         var opt = GetType(type).FindChoiceType("id", -1);
@@ -139,18 +139,18 @@ public class Schema
     public virtual Dictionary<string, Func<TypeTemplate>> RegisterBlockEntities(Schema schema)
         => _parent?.RegisterBlockEntities(schema) ?? new();
 
-    //registerSimple按remainder模板注册
+    //registerSimple registers with a remainder template
     public void RegisterSimple(Dictionary<string, Func<TypeTemplate>> map, string name)
         => Register(map, name, _ => DSL.Remainder());
 
-    //register按名与模板工厂注册
+    //register registers by name and template factory
     public void Register(Dictionary<string, Func<TypeTemplate>> map, string name, Func<string, TypeTemplate> template)
         => Register(map, name, () => template(name));
 
     public void Register(Dictionary<string, Func<TypeTemplate>> map, string name, Func<TypeTemplate> template)
         => map[name] = template;
 
-    //registerType注册类型模板recursive决定是否参与递归家族
+    //registerType registers a type template; recursive decides whether it joins the recursive family
     public void RegisterType(bool recursive, DSL.ITypeReference type, Func<TypeTemplate> template)
     {
         _typeTemplates[type.TypeName()] = template;

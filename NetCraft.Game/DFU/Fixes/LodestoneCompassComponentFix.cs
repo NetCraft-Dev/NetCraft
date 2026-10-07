@@ -7,8 +7,8 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//磁石指南针组件修复对应原版LodestoneCompassComponentFix
-//1.20.5把minecraft:lodestone_target重命名为minecraft:lodestone_tracker并把pos/dimension移到target子map
+//Lodestone compass component fix, maps to vanilla LodestoneCompassComponentFix
+//1.20.5 renames minecraft:lodestone_target to minecraft:lodestone_tracker and moves pos/dimension into the target sub-map
 public class LodestoneCompassComponentFix : DataComponentRemainderFix
 {
     public LodestoneCompassComponentFix(Schema outputSchema)

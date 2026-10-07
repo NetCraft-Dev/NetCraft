@@ -4,42 +4,42 @@ using System.Text.Json;
 
 namespace NetCraft.ModLoader;
 
-//ScannedMod 静态扫描出的模组条目
+//ScannedMod: a mod entry produced by static scanning
 public sealed class ScannedMod
 {
-    //AssemblyPath 模组 dll 路径
+    //AssemblyPath: the mod dll path
     public string AssemblyPath { get; init; } = string.Empty;
-    //AssemblyName 程序集名 用来把 AssemblyRef 映射回模组
+    //AssemblyName: the assembly name, used to map AssemblyRef back to the mod
     public string AssemblyName { get; init; } = string.Empty;
-    //Manifest 内嵌 ncmod.json 的解析结果
+    //Manifest: the parse result of the embedded ncmod.json
     public ModManifest Manifest { get; init; } = new();
-    //EmbeddedResources 该程序集内嵌的全部资源名
-    //模组的第三方依赖由构建直接嵌成资源 依赖解析就靠这份清单
-    //列出来是为了解析时不用再开一次文件
+    //EmbeddedResources: all embedded resource names in this assembly
+    //A mod's third-party dependencies are embedded as resources directly by the build; dependency resolution relies on this list
+    //Listed so resolution does not need to open the file again
     public IReadOnlyList<string> EmbeddedResources { get; init; } = Array.Empty<string>();
-    //ReferencedAssemblies 该程序集引用的程序集名
+    //ReferencedAssemblies: assembly names this assembly references
     public IReadOnlyList<string> ReferencedAssemblies { get; init; } = Array.Empty<string>();
-    //AnnotatedHooks 从 Inject 注解静态扫出的注入规则
-    //与清单的 hooks 同形 装配时两路合并 同一个注入点两边都声明以注解为准
+    //AnnotatedHooks: injection rules statically scanned from Inject annotations
+    //Same shape as the manifest hooks; both paths merge at assembly time, and when both declare the same injection point the annotation wins
     public IReadOnlyList<ModHookRule> AnnotatedHooks { get; init; } = Array.Empty<ModHookRule>();
-    //AnnotatedMixins 从 Mixin 注解静态扫出的混入规则 与清单的 mixins 同形
+    //AnnotatedMixins: mixin rules statically scanned from Mixin annotations, same shape as the manifest mixins
     public IReadOnlyList<ModMixinRule> AnnotatedMixins { get; init; } = Array.Empty<ModMixinRule>();
 }
 
-//ModScanner 模组静态扫描器
-//用 MetadataReader 读 dll 的元数据表与内嵌资源 全程不加载程序集
-//加载程序集本身不会触发引用解析 但解析模组里的类型会连带拉起内核
-//先静态扫出运行端再决定加载哪些 是单 ALC 下的必要前提 加载了就没法卸载
+//ModScanner: the static mod scanner
+//Uses MetadataReader to read the dll's metadata tables and embedded resources without loading any assembly
+//Loading an assembly by itself does not trigger reference resolution, but resolving a type inside the mod pulls up the kernel along the way
+//Statically scanning the environment side first before deciding what to load is a prerequisite under a single ALC, since a loaded assembly cannot be unloaded
 public static class ModScanner
 {
-    //ManifestResourceName 模组声明固定用的内嵌资源名
+    //ManifestResourceName: the fixed embedded resource name used for the mod declaration
     public const string ManifestResourceName = "ncmod.json";
 
-    //InjectHostAssembly Inject 注解所在程序集
-    //没引用它的模组不可能有注解 直接跳过遍历 省下每个方法扫一遍特性表的开销
+    //InjectHostAssembly: the assembly containing the Inject annotation
+    //A mod that does not reference it cannot have annotations, so iteration is skipped, saving the cost of scanning the attribute table of every method
     private const string InjectHostAssembly = "NetCraft.ModApi";
 
-    //ScanAll 扫描目录下全部 dll 没有声明的直接跳过
+    //ScanAll: scans all dlls in the directory, skipping those without a declaration
     public static List<ScannedMod> ScanAll(string folderPath)
     {
         var result = new List<ScannedMod>();
@@ -55,7 +55,7 @@ public static class ModScanner
         return result;
     }
 
-    //Scan 扫一个 dll 没有内嵌声明或不是托管程序集时返回 null
+    //Scan: scans one dll, returns null when there is no embedded declaration or it is not a managed assembly
     public static ScannedMod? Scan(string dllPath)
     {
         try
@@ -79,7 +79,7 @@ public static class ModScanner
                 .Select(handle => reader.GetString(reader.GetAssemblyReference(handle).Name))
                 .ToList();
 
-            //注解规则与清单规则在同一趟里扫出来 装配时不分先后合并成一张表
+            //Annotation rules and manifest rules are scanned in the same pass and merged into one table at assembly time with no particular order
             var annotated = new List<ModHookRule>();
             var annotatedMixins = new List<ModMixinRule>();
             if (referenced.Contains(InjectHostAssembly, StringComparer.Ordinal))
@@ -105,8 +105,8 @@ public static class ModScanner
         }
     }
 
-    //ReadEmbeddedResource 读任意内嵌资源字节 供依赖库解析与诊断使用
-    //不吞异常 传入的不是托管程序集或资源不存在时由调用方自行处理
+    //ReadEmbeddedResource: reads any embedded resource bytes, used by dependency resolution and diagnostics
+    //Does not swallow exceptions; the caller handles a non-managed assembly or a missing resource
     public static byte[]? ReadEmbeddedResource(string dllPath, string resourceName)
     {
         using var stream = File.OpenRead(dllPath);
@@ -114,7 +114,7 @@ public static class ModScanner
         return pe.HasMetadata ? ReadResource(pe, pe.GetMetadataReader(), resourceName) : null;
     }
 
-    //ListResourceNames 列出内嵌资源名 指向外部文件的资源项不算
+    //ListResourceNames: lists embedded resource names, resource entries pointing at external files are excluded
     private static List<string> ListResourceNames(MetadataReader reader)
     {
         var names = new List<string>();
@@ -127,9 +127,9 @@ public static class ModScanner
         return names;
     }
 
-    //ReadResource 读内嵌资源字节 资源不存在或指向外部文件时返回 null
-    //ManifestResource.Offset 是相对 CLI 资源目录 RVA 的偏移而不是文件偏移
-    //数据在目录内以 4 字节长度开头 所以要从 GetSectionData(资源目录RVA) 的块里按该偏移取
+    //ReadResource: reads embedded resource bytes, returns null when the resource is missing or points at an external file
+    //ManifestResource.Offset is an offset relative to the CLI resources directory RVA, not a file offset
+    //The data in the directory begins with a 4-byte length, so it must be read from the block returned by GetSectionData(resources directory RVA) at that offset
     private static byte[]? ReadResource(PEReader pe, MetadataReader reader, string resourceName)
     {
         var resourcesRva = pe.PEHeaders.CorHeader?.ResourcesDirectory.RelativeVirtualAddress ?? 0;

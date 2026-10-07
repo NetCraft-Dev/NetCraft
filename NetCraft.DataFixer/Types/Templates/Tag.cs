@@ -7,21 +7,21 @@ using T = NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Families;
 using NetCraft.DataFixer.Util;
 
-//Tag字段模板对应原版com.mojang.datafixers.types.templates.Tag
-//给元素模板附加字段名用于MapCodec.fieldOf
+//Tag field template maps to vanilla com.mojang.datafixers.types.templates.Tag
+//attaches a field name to the element template for MapCodec.fieldOf
 public sealed record Tag(string Name, TypeTemplate Element) : TypeTemplate
 {
     public int Size() => Element.Size();
 
-    //apply每个index用DSL.field包装字段类型
+    //apply wraps the field type with DSL.field at each index
     public TypeFamily Apply(TypeFamily family)
         => new TagFamily(this, family);
 
-    //applyO直接复用元素的applyO
+    //applyO directly reuses the element's applyO
     public FamilyOptic<object, object> ApplyO<A, B>(FamilyOptic<A, B> input, T.Type<A> aType, T.Type<B> bType)
         => TypeFamily.FamilyOptic<object, object>(i => Element.ApplyO(input, aType, bType).Apply(i));
 
-    //findFieldOrType按名字匹配元素再查找
+    //findFieldOrType matches the element by name then looks it up
     public Either<TypeTemplate, T.Type<object>.FieldNotFoundException> FindFieldOrType<A, B>(
         int index, string? name, T.Type<A> type, T.Type<B> resultType)
     {
@@ -40,12 +40,12 @@ public sealed record Tag(string Name, TypeTemplate Element) : TypeTemplate
             return Either<TypeTemplate, T.Type<object>.FieldNotFoundException>
                 .Right(new T.Type<object>.FieldNotFoundException("don't match"));
         }
-        //类型相同时返回自身模板
+        //returns its own template when the types are equal
         if (Equals(type, resultType))
         {
             return Either<TypeTemplate, T.Type<object>.FieldNotFoundException>.Left(this);
         }
-        //递归点匹配时按索引判断后返回自身或常量模板
+        //on a recursive point match, returns itself or a constant template based on the index
         if (type is RecursivePoint.RecursivePointType<A> rpType && Element is RecursivePoint rp)
         {
             if (rp.Index == rpType.Index())
@@ -68,13 +68,13 @@ public sealed record Tag(string Name, TypeTemplate Element) : TypeTemplate
             .Right(new T.Type<object>.FieldNotFoundException("Recursive field"));
     }
 
-    //hmap直接复用元素的hmap
+    //hmap directly reuses the element's hmap
     public Func<int, RewriteResult<object, object>> Hmap(TypeFamily family, Func<int, RewriteResult<object, object>> function)
         => Element.Hmap(family, function);
 
     public override string ToString() => "NameTag[" + Name + ": " + Element + "]";
 
-    //TagFamily按index返回DSL.field包装的子类型
+    //TagFamily returns the child type wrapped with DSL.field at each index
     private sealed class TagFamily : TypeFamily
     {
         private readonly Tag _template;
@@ -86,8 +86,8 @@ public sealed record Tag(string Name, TypeTemplate Element) : TypeTemplate
         }
         public T.Type<object> Apply(int index)
         {
-            //element.Apply返回T.Type<A>包装为TagType<A>后强转T.Type<object>会失败
-            //两处都用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+            //element.Apply returns T.Type<A>; casting to T.Type<object> after wrapping as TagType<A> fails
+            //both places use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
             var elementObj = (object)_template.Element.Apply(_family).Apply(index)!;
             var elementType = System.Runtime.CompilerServices.Unsafe.As<object, T.Type<object>>(ref elementObj);
             var tagType = DSL.Field(_template.Name, elementType);
@@ -96,7 +96,7 @@ public sealed record Tag(string Name, TypeTemplate Element) : TypeTemplate
         }
     }
 
-    //TagType字段类型由名称与元素类型组成
+    //TagType field type composed of a name and an element type
     public sealed class TagType<A> : T.Type<A>
     {
         private readonly string _name;
@@ -111,12 +111,12 @@ public sealed record Tag(string Name, TypeTemplate Element) : TypeTemplate
         public string Name() => _name;
         public T.Type<A> Element() => _element;
 
-        //all对元素应用规则后用wrap包装回Tag层
+        //all applies the rule to the element, then wraps it back into the Tag layer
         public override RewriteResult<A, object> All(object rule, bool recurse, bool checkIndex)
             => Wrap(_element.RewriteOrNop(rule));
 
-        //wrap元素重写结果用Profunctor.id投射到Tag层
-        //RewriteResult/TypedOptic强转都用Unsafe.As绕过C#严格泛型不变量对齐Java类型擦除
+        //wrap projects the element rewrite result into the Tag layer via Profunctor.id
+        //RewriteResult/TypedOptic casts both use Unsafe.As to bypass C# strict generic invariance, aligning with Java type erasure
         private RewriteResult<A, object> Wrap<B>(RewriteResult<A, B> instance)
         {
             if (instance.View().IsNop())
@@ -140,7 +140,7 @@ public sealed record Tag(string Name, TypeTemplate Element) : TypeTemplate
             return System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<A, object>>(ref resultObj);
         }
 
-        //one对元素应用规则后用wrap包装
+        //one applies the rule to the element, then wraps with wrap
         public override Optional<RewriteResult<A, object>> One(object rule)
         {
             var view = ((TypeRewriteRule)rule).Rewrite(_element);
@@ -157,7 +157,7 @@ public sealed record Tag(string Name, TypeTemplate Element) : TypeTemplate
         protected override Codec<A> BuildCodec()
             => BuildFieldCodec(_element.Codec(), _name);
 
-        //BuildFieldCodec元素codec用fieldOf包装后取codec对应原版element.codec().fieldOf(name).codec()
+        //BuildFieldCodec wraps the element codec with fieldOf then takes codec, maps to vanilla element.codec().fieldOf(name).codec()
         private static Codec<A> BuildFieldCodec(Codec<A> elementCodec, string name)
             => (Codec<A>)(object)new FieldCodecWrapper<A>(elementCodec, name);
 
@@ -180,8 +180,8 @@ public sealed record Tag(string Name, TypeTemplate Element) : TypeTemplate
             => unchecked((_name?.GetHashCode() ?? 0) * 31 + (_element?.GetHashCode() ?? 0));
     }
 
-    //FieldCodecWrapper包装MapCodec为Codec对应原版MapCodec.codec
-    //通过EncodeStart/Decode循环到MapLike再用fieldOf codec
+    //FieldCodecWrapper wraps a MapCodec as a Codec, maps to vanilla MapCodec.codec
+    //loops to a MapLike via EncodeStart/Decode, then uses fieldOf codec
     private sealed class FieldCodecWrapper<A> : ScalarCodec<A>
     {
         private readonly Codec<A> _elementCodec;

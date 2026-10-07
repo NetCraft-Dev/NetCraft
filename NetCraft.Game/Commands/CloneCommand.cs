@@ -15,24 +15,24 @@ using NetCraft.Storage.Updates;
 
 namespace NetCraft.Game.Commands;
 
-//CloneCommand /clone 命令对应原版 net.minecraft.server.commands.CloneCommands
-//语法 clone [from <源维度>] <起点> <终点> [to <目标维度>] <目标点> [strict] [replace|masked|filtered <谓词>] [force|move|normal]
-//replace 复制全部 masked 跳过空气 filtered 按方块谓词筛
-//normal 目标与原区域重叠时报错 force 允许重叠 move 复制后把源区清空
-//strict 表示这一批改动不产生任何副作用(不发光照不发邻居更新)
+//CloneCommand /clone command, maps to vanilla net.minecraft.server.commands.CloneCommands
+//Syntax: clone [from <source dimension>] <begin> <end> [to <target dimension>] <destination> [strict] [replace|masked|filtered <predicate>] [force|move|normal]
+//replace copies everything; masked skips air; filtered selects by block predicate
+//normal errors when the destination overlaps the source region; force allows overlap; move clears the source after copying
+//strict means this batch of changes produces no side effects (no light, no neighbor updates)
 public static class CloneCommand
 {
-    //FilterAir masked 模式的过滤器 只复制非空气 对应原版 FILTER_AIR
+    //FilterAir the masked mode filter copies only non-air, maps to vanilla FILTER_AIR
     private static readonly Predicate<BlockInWorld> FilterAir = world =>
         world.State is { } state && state != Blocks.AIR.DefaultBlockState;
 
-    //AlwaysTrue replace 模式与不带过滤器时的过滤器 对应原版 c -> b -> true
+    //AlwaysTrue the replace mode filter and the filter when none is given, maps to vanilla c -> b -> true
     private static readonly Predicate<BlockInWorld> AlwaysTrue = _ => true;
 
-    //_barrierState barrier 占位方块 复制期间先把目标格占住免得邻居更新把还没写的位置改掉
+    //_barrierState barrier placeholder block; during copying it holds the target cell first so neighbor updates do not change positions not yet written
     private static BlockState? _barrierState;
 
-    //Mode 复制模式对应原版 CloneCommands.Mode
+    //Mode copy mode, maps to vanilla CloneCommands.Mode
     private enum Mode
     {
         Normal,
@@ -40,7 +40,7 @@ public static class CloneCommand
         Move,
     }
 
-    //ModeCanOverlap 该模式是否允许源区与目标区重叠 对应原版 Mode.canOverlap
+    //ModeCanOverlap whether the mode allows the source and destination regions to overlap, maps to vanilla Mode.canOverlap
     private static bool ModeCanOverlap(Mode mode) => mode is Mode.Force or Mode.Move;
 
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -56,8 +56,8 @@ public static class CloneCommand
         dispatcher.Register(root);
     }
 
-    //BeginEndDestinationAndModeSuffix 起点终点与目标点的分支 对应原版同名方法
-    //end 下分两路 直接给目标点(同维度) 或 to <目标维度> 再给目标点(跨维度)
+    //BeginEndDestinationAndModeSuffix branch for begin/end and destination, maps to the vanilla same-named method
+    //end splits two ways: a destination directly (same dimension), or to <target dimension> then a destination (cross-dimension)
     private static ArgumentBuilder<CommandSourceStack> BeginEndDestinationAndModeSuffix(
         Func<CommandContext<CommandSourceStack>, PersistentServerLevel?> fromDimension)
     {
@@ -76,8 +76,8 @@ public static class CloneCommand
         return begin;
     }
 
-    //DestinationAndStrictSuffix 目标点与 strict 后缀 对应原版同名方法
-    //不加 strict 表示这一批写入要带邻居更新 加了 strict 走无副作用那一套
+    //DestinationAndStrictSuffix destination and strict suffix, maps to the vanilla same-named method
+    //Without strict this batch of writes includes neighbor updates; with strict it uses the side-effect-free set
     private static ArgumentBuilder<CommandSourceStack> DestinationAndStrictSuffix(
         Func<CommandContext<CommandSourceStack>, PersistentServerLevel?> fromDimension,
         Func<CommandContext<CommandSourceStack>, PersistentServerLevel?> toDimension)
@@ -91,7 +91,7 @@ public static class CloneCommand
         return destination;
     }
 
-    //ModeSuffix 过滤器与模式后缀 对应原版 modeSuffix
+    //ModeSuffix filter and mode suffix, maps to vanilla modeSuffix
     private static void ModeSuffix<T>(ArgumentBuilder<CommandSourceStack, T> builder,
         Func<CommandContext<CommandSourceStack>, PersistentServerLevel?> fromDimension,
         Func<CommandContext<CommandSourceStack>, PersistentServerLevel?> toDimension, bool strict)
@@ -116,7 +116,7 @@ public static class CloneCommand
         builder.Then(filtered);
     }
 
-    //AddModeBranch 过滤器节点下挂默认与 force/move/normal 四支 对应原版 wrapWithCloneMode
+    //AddModeBranch under the filter node hangs the default and force/move/normal branches, maps to vanilla wrapWithCloneMode
     private static void AddModeBranch<T>(ArgumentBuilder<CommandSourceStack, T> builder,
         Func<CommandContext<CommandSourceStack>, Predicate<BlockInWorld>> filter,
         Func<CommandContext<CommandSourceStack>, PersistentServerLevel?> fromDimension,
@@ -135,19 +135,19 @@ public static class CloneCommand
         builder.Then(normal);
     }
 
-    //SourceLevel 取命令源所在维度 对应原版 c -> c.getSource().getLevel()
+    //SourceLevel gets the command source's dimension, maps to vanilla c -> c.getSource().getLevel()
     private static PersistentServerLevel? SourceLevel(CommandContext<CommandSourceStack> context)
         => context.GetSource() is ServerCommandSource source
             && source.PlayerOrThrow.Level is PersistentServerLevel level
                 ? level
                 : null;
 
-    //CloneInfo 一格待写的复制结果 对应原版 CloneBlockInfo
+    //CloneInfo one cell's pending copy result, maps to vanilla CloneBlockInfo
     private sealed record CloneInfo(BlockPos Pos, BlockState State, CompoundTag? EntityTag,
         BlockState? PreviousAtDestination);
 
-    //Clone 执行复制 对应原版 clone
-    //先按方块实体/实心/其他分三组读出来 再反向占位 正向写入 最后统一补邻居更新与调度刻
+    //Clone performs the copy, maps to vanilla clone
+    //First reads into three groups (block entity / full block / other), then places in reverse, writes forward, and finally adds neighbor updates and scheduled ticks
     private static int Clone(CommandContext<CommandSourceStack> context,
         PersistentServerLevel? fromLevel, PersistentServerLevel? toLevel,
         Predicate<BlockInWorld> filter, Mode mode, bool strict)
@@ -155,7 +155,7 @@ public static class CloneCommand
         if (context.GetSource() is not ServerCommandSource source) return 0;
         if (fromLevel is null || toLevel is null)
         {
-            source.SendFailure("命令源不在持久化维度里");
+            source.SendFailure("the command source is not in a persistent dimension");
             return 0;
         }
 
@@ -177,29 +177,29 @@ public static class CloneCommand
         var destMaxY = destination.Y + lenY - 1;
         var destMaxZ = destination.Z + lenZ - 1;
 
-        //重叠检测 normal 模式不允许源与目标相交 否则复制过程会自己吃掉自己
+        //Overlap check: normal mode does not allow source and destination to intersect, or the copy would eat itself
         if (!ModeCanOverlap(mode) && ReferenceEquals(fromLevel, toLevel)
             && destination.X <= fromMaxX && destMaxX >= fromMinX
             && destination.Y <= fromMaxY && destMaxY >= fromMinY
             && destination.Z <= fromMaxZ && destMaxZ >= fromMinZ)
         {
-            source.SendFailure("源区域与目标区域重叠");
+            source.SendFailure("the source and destination regions overlap");
             return 0;
         }
 
-        //上限按整块体积算 move 不额外折半 上限由世界规则 max_block_modifications 控制
+        //The limit is by the whole volume; move is not additionally halved; the limit is controlled by the world rule max_block_modifications
         var area = (long)lenX * lenY * lenZ;
         var limit = source.Server.GameRules.GetInt(GameRules.MaxBlockModifications);
         if (area > limit)
         {
-            source.SendFailure($"复制区域过大 上限 {limit} 实际 {area}");
+            source.SendFailure($"copy region too large, limit {limit}, actual {area}");
             return 0;
         }
 
         if (!HasChunksAt(fromLevel, fromMinX, fromMinZ, fromMaxX, fromMaxZ)
             || !HasChunksAt(toLevel, destination.X, destination.Z, destMaxX, destMaxZ))
         {
-            source.SendFailure("源区域或目标区域存在未加载的区块");
+            source.SendFailure("the source or destination region has unloaded chunks");
             return 0;
         }
 
@@ -224,7 +224,7 @@ public static class CloneCommand
                 sourcePos.Z + offset.Z);
             var previous = toLevel.GetBlockState(destinationPos);
 
-            //有方块实体的先存实体再存状态 实心方块与其余方块分开 写入顺序按原版三段走
+            //Those with block entities store the entity before the state; full blocks and the rest are separated; the write order follows the vanilla three phases
             if (blockEntities.Get(sourcePos) is { } entity)
             {
                 withEntity.Add(new CloneInfo(destinationPos, blockState, entity.SaveWithFullMetadata(), previous));
@@ -241,7 +241,7 @@ public static class CloneCommand
             clear.AddFirst(sourcePos);
         }
 
-        //strict 时这一批写入连邻居更新与形状更新都不发 非 strict 只发客户端包 最后统一补邻居
+        //Under strict this batch of writes sends not even neighbor and shape updates; under non-strict only the client packet is sent and neighbors are added at the end
         var writeFlags = BlockUpdateFlags.Clients
             | (strict ? BlockUpdateFlags.SkipAllSideEffects : 0);
         var barrierFlags = writeFlags | BlockUpdateFlags.SkipAllSideEffects;
@@ -249,7 +249,7 @@ public static class CloneCommand
 
         if (mode == Mode.Move)
         {
-            //先把源区换成 barrier 挡住更新链再把它们清成空气 否则掉落的方块会在搬运途中出事
+            //Replace the source region with barrier first to block the update chain then clear to air, otherwise falling blocks break mid-move
             foreach (var pos in clear) fromLevel.SetBlock(pos, barrier, barrierFlags);
             var clearFlags = strict ? writeFlags : BlockUpdateFlags.All;
             foreach (var pos in clear) fromLevel.SetBlock(pos, Blocks.AIR.DefaultBlockState, clearFlags);
@@ -260,7 +260,7 @@ public static class CloneCommand
         ordered.AddRange(withEntity);
         ordered.AddRange(other);
 
-        //反向先占位 正向再写 同格被两次写入时后写的赢
+        //Place in reverse first, then write forward; when a cell is written twice the later write wins
         for (var i = ordered.Count - 1; i >= 0; i--)
             toLevel.SetBlock(ordered[i].Pos, barrier, barrierFlags);
 
@@ -268,7 +268,7 @@ public static class CloneCommand
         foreach (var info in ordered)
             if (toLevel.SetBlock(info.Pos, info.State, writeFlags)) count++;
 
-        //方块实体数据在新方块实体建出来之后回填 再写一次状态让它落定
+        //Block entity data is backfilled after the new block entity is created, then the state is written again to settle it
         foreach (var info in withEntity)
         {
             if (info.EntityTag is { } tag && blockEntities.Get(info.Pos) is { } target)
@@ -276,7 +276,7 @@ public static class CloneCommand
             toLevel.SetBlock(info.Pos, info.State, writeFlags);
         }
 
-        //非 strict 时把目标格原本的状态当作源方块逐格补邻居更新 对应原版 updateNeighboursOnBlockSet
+        //Under non-strict, for each cell the destination's original state is treated as the source block for neighbor updates, maps to vanilla updateNeighboursOnBlockSet
         if (!strict)
         {
             for (var i = ordered.Count - 1; i >= 0; i--)
@@ -289,25 +289,25 @@ public static class CloneCommand
 
         if (count == 0)
         {
-            source.SendFailure("没有方块被复制");
+            source.SendFailure("no blocks were copied");
             return 0;
         }
-        source.SendSuccess($"已复制 {count} 个方块");
+        source.SendSuccess($"copied {count} blocks");
         return count;
     }
 
-    //BarrierState barrier 方块状态 首次使用时从方块注册表取
+    //BarrierState the barrier block state, fetched from the block registry on first use
     private static BlockState BarrierState
         => _barrierState ??= BuiltInRegistries.BLOCK
             .GetValue(Identifier.WithDefaultNamespace("barrier"))!.DefaultBlockState;
 
-    //IsFullBlock 实心判定 原版用 isSolidRender 或 isCollisionShapeFullBlock
-    //本作的遮挡与碰撞形状是分开算的 这里按碰撞形状占满整格近似
+    //IsFullBlock full-block test; vanilla uses isSolidRender or isCollisionShapeFullBlock
+    //This project computes occlusion and collision shapes separately; approximated here as the collision shape filling the whole cell
     private static bool IsFullBlock(BlockState state, PersistentServerLevel level, BlockPos pos)
         => state.Owner is BlockBehaviour behaviour
             && behaviour.IsCollisionShapeFullBlock(state, EmptyBlockGetter.Instance, pos);
 
-    //HasChunksAt 该矩形覆盖的区块是否全部已加载 对应原版 hasChunksAt
+    //HasChunksAt whether all chunks covered by the rectangle are loaded, maps to vanilla hasChunksAt
     private static bool HasChunksAt(PersistentServerLevel level, int minX, int minZ, int maxX, int maxZ)
     {
         for (var chunkX = minX >> 4; chunkX <= (maxX >> 4); chunkX++)

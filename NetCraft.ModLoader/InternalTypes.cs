@@ -2,7 +2,7 @@ using System.Reflection;
 
 namespace NetCraft.ModLoader;
 
-//InternalModInfo 加载流程内部持有的模组完整信息
+//InternalModInfo: the full mod information held internally during the loading flow
 internal sealed class InternalModInfo
 {
     public string Name { get; set; } = string.Empty;
@@ -14,25 +14,25 @@ internal sealed class InternalModInfo
     public List<string> Dependencies { get; set; } = new();
     public ModStatus Status { get; set; }
 
-    //AssemblyName 模组程序集名 用于把 AssemblyRef 映射回模组
+    //AssemblyName: the mod's assembly name, used to map AssemblyRef back to the mod
     public string AssemblyName { get; set; } = string.Empty;
 
-    //ReferencedAssemblies 该程序集引用的全部程序集名
+    //ReferencedAssemblies: all assembly names this assembly references
     public List<string> ReferencedAssemblies { get; set; } = new();
 
-    //Manifest 内嵌 ncmod.json 的解析结果
+    //Manifest: the parse result of the embedded ncmod.json
     public ModManifest? Manifest { get; set; }
 
-    //AnnotatedHooks 从 Inject 注解扫出的注入规则 与清单规则同形
+    //AnnotatedHooks: injection rules scanned from Inject annotations, same shape as manifest rules
     public List<ModHookRule> AnnotatedHooks { get; set; } = new();
 
-    //EmbeddedResources 程序集内嵌的全部资源名 图标兜底要在里面找
+    //EmbeddedResources: all embedded resource names in the assembly, the icon fallback looks here
     public List<string> EmbeddedResources { get; set; } = new();
 
-    //LoadMilliseconds 初始化耗时 毫秒 界面显示加载慢的模组靠它 未走到初始化时为 null
+    //LoadMilliseconds: initialization time in milliseconds, used by the UI to show slow-loading mods, null if initialization was not reached
     public double? LoadMilliseconds { get; set; }
 
-    //InitLock 保证同一模组只初始化一次
+    //InitLock: ensures a mod is initialized only once
     public SemaphoreSlim InitLock { get; } = new(1, 1);
 
     public ModInfo ToPublic() => new()
@@ -56,8 +56,8 @@ internal sealed class InternalModInfo
         Dependencies = Dependencies,
     };
 
-    //MergedHooks 注解与清单合成一份给界面看
-    //注解排在前 与装配时的优先级一致 同一个注入点只留前面那条
+    //MergedHooks: merges annotations and manifest into one list for the UI
+    //Annotations come first, matching assembly-time priority; only the first rule per injection point is kept
     private IReadOnlyList<ModHookRule> MergedHooks()
     {
         var manifestHooks = Manifest?.Hooks ?? (IReadOnlyList<ModHookRule>)Array.Empty<ModHookRule>();
@@ -72,7 +72,7 @@ internal sealed class InternalModInfo
     }
 }
 
-//ScanResult 扫描阶段的产出
+//ScanResult: the output of the scan phase
 internal sealed class ScanResult
 {
     public List<InternalModInfo> Mods { get; } = new();

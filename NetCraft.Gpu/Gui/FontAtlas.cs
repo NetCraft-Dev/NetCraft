@@ -2,11 +2,11 @@ using StbTrueTypeSharp;
 
 namespace NetCraft.Gpu;
 
-//GlyphInfo 单个字形在图集中的位置和度量
-//U0/V0 是图集中字形左上角 UV，U1/V1 是右下角 UV
-//Advance 是字符前进宽度，OffsetX/OffsetY 是字形相对于基线的偏移
-//F7 标记 Obsolete 由 Font/GlyphStitcher/SheetBakedGlyph 动态烘焙路径替代保留作 fallback
-[System.Obsolete("F7 由 Font 动态烘焙路径替代 GuiRenderContext 当 Font 非空时不再使用 FontAtlas")]
+//GlyphInfo position and metrics of a single glyph in the atlas
+//U0/V0 are the glyph's top-left UV in the atlas, U1/V1 the bottom-right UV
+//Advance is the character advance width, OffsetX/OffsetY the glyph offset relative to the baseline
+//F7 marks this Obsolete; replaced by the Font/GlyphStitcher/SheetBakedGlyph dynamic bake path, kept as a fallback
+[System.Obsolete("F7 replaced by the Font dynamic bake path; GuiRenderContext no longer uses FontAtlas when Font is non-null")]
 public readonly struct GlyphInfo
 {
     public readonly int X;
@@ -37,17 +37,17 @@ public readonly struct GlyphInfo
     }
 }
 
-//FontAtlas 字形图集
-//用 StbTrueType 加载 TTF 把 ASCII 32-126 + CJK U+4E00..U+9FFF 栅格化到 R8 单通道纹理
-//CJK 范围大装不下的字跳过查找时回退到问号
-//支持多分辨率重栅格化以便适配 DPI
-//F7 标记 Obsolete 由 Font 动态烘焙路径替代保留作系统字体 fallback
-[System.Obsolete("F7 由 Font/GlyphStitcher/SheetBakedGlyph 动态烘焙路径替代保留作系统字体 fallback")]
+//FontAtlas glyph atlas
+//Loads a TTF with StbTrueType and rasterizes ASCII 32-126 + CJK U+4E00..U+9FFF into an R8 single-channel texture
+//The CJK range is large; glyphs that do not fit are skipped and lookups fall back to a question mark
+//Supports multi-resolution re-rasterization for DPI adaptation
+//F7 marks this Obsolete; replaced by the Font dynamic bake path, kept as a system-font fallback
+[System.Obsolete("F7 replaced by the Font/GlyphStitcher/SheetBakedGlyph dynamic bake path, kept as a system-font fallback")]
 public sealed unsafe class FontAtlas : IDisposable
 {
     private const int FirstAsciiChar = 32;
     private const int AsciiCount = 95;
-    //CJK 统一表意文字 U+4E00..U+9FFF 覆盖常用汉字
+    //CJK unified ideographs U+4E00..U+9FFF covering common Han characters
     private const int FirstCjkChar = 0x4E00;
     private const int CjkCount = 0x9FFF - 0x4E00 + 1;
     private const float DefaultFontSize = 18f;
@@ -63,14 +63,14 @@ public sealed unsafe class FontAtlas : IDisposable
     public int AtlasHeight { get; }
     public byte[] AtlasPixels { get; }
     public int LineHeight { get; }
-    //Ascent 基线到字形顶部的距离 DrawText 转 baseline 用它而非 LineHeight
-    //LineHeight = ascent - descent 比 ascent 多算 -descent 导致基线偏下中文最明显
+    //Ascent distance from the baseline to the glyph top; DrawText converts to baseline with this rather than LineHeight
+    //LineHeight = ascent - descent, which overshoots ascent by -descent and pushes the baseline down, most visible with CJK
     public int Ascent => _ascent;
     public float FontSize => _fontSize;
     public IReadOnlyDictionary<int, GlyphInfo> Glyphs { get; }
 
-    //FromSystemFont 在常见系统字体路径中查找第一个可用的 TTF 加载
-    //找不到返回 null 由调用者决定回退
+    //FromSystemFont finds and loads the first available TTF among the common system font paths
+    //Returns null when none is found; the caller decides the fallback
     public static FontAtlas? FromSystemFont(float fontSize = DefaultFontSize)
     {
         foreach (var path in CandidateFontPaths())
@@ -83,13 +83,13 @@ public sealed unsafe class FontAtlas : IDisposable
             }
             catch
             {
-                //当前路径字体加载失败试下一个
+                //Font load failed at this path, try the next
             }
         }
         return null;
     }
 
-    //FromBytes 从 TTF 字节序列构造图集
+    //FromBytes builds the atlas from a TTF byte sequence
     public FontAtlas(byte[] ttfBytes, float fontSize = DefaultFontSize)
     {
         _ttfBytes = ttfBytes;
@@ -98,7 +98,7 @@ public sealed unsafe class FontAtlas : IDisposable
         fixed (byte* data = ttfBytes)
         {
             if (StbTrueType.stbtt_InitFont(_fontInfo, data, 0) == 0)
-                throw new InvalidOperationException("stbtt_InitFont 失败");
+                throw new InvalidOperationException("stbtt_InitFont failed");
         }
 
         int ascent, descent, lineGap;
@@ -108,7 +108,7 @@ public sealed unsafe class FontAtlas : IDisposable
         _lineGap = lineGap;
         LineHeight = _ascent - _descent;
 
-        //atlas 加大到 2048x2048 容纳 CJK 常用汉字
+        //The atlas is enlarged to 2048x2048 to hold common CJK Han characters
         AtlasWidth = 2048;
         AtlasHeight = 2048;
         AtlasPixels = new byte[AtlasWidth * AtlasHeight];
@@ -119,7 +119,7 @@ public sealed unsafe class FontAtlas : IDisposable
         fixed (byte* pixels = AtlasPixels)
         {
             if (StbTrueType.stbtt_PackBegin(packContext, pixels, AtlasWidth, AtlasHeight, AtlasWidth, 1, null) == 0)
-                throw new InvalidOperationException("stbtt_PackBegin 失败");
+                throw new InvalidOperationException("stbtt_PackBegin failed");
 
             fixed (byte* fontData = ttfBytes)
             {
@@ -127,9 +127,9 @@ public sealed unsafe class FontAtlas : IDisposable
                 {
                     if (StbTrueType.stbtt_PackFontRange(packContext, fontData, 0, fontSize,
                             FirstAsciiChar, AsciiCount, ap) == 0)
-                        throw new InvalidOperationException("stbtt_PackFontRange ASCII 失败");
+                        throw new InvalidOperationException("stbtt_PackFontRange ASCII failed");
                 }
-                //CJK 范围大允许部分失败装不下的字在收集时跳过
+                //The CJK range is large so partial failure is allowed; glyphs that do not fit are skipped when collecting
                 fixed (StbTrueType.stbtt_packedchar* cp = cjkPacked)
                 {
                     StbTrueType.stbtt_PackFontRange(packContext, fontData, 0, fontSize,
@@ -145,7 +145,7 @@ public sealed unsafe class FontAtlas : IDisposable
         Glyphs = dict;
     }
 
-    //CollectPacked 把 packedchar 收集进字典跳过 x1<=x0 或 y1<=y0 的装不下字形
+    //CollectPacked collects packed chars into the dictionary, skipping glyphs that do not fit with x1<=x0 or y1<=y0
     private void CollectPacked(Dictionary<int, GlyphInfo> dict, StbTrueType.stbtt_packedchar[] packed, int firstChar)
     {
         for (int i = 0; i < packed.Length; i++)
@@ -163,7 +163,7 @@ public sealed unsafe class FontAtlas : IDisposable
         }
     }
 
-    //GetGlyph 查找字符返回 null 表示不在图集中
+    //GetGlyph looks up a character and returns null when it is not in the atlas
     public GlyphInfo? GetGlyph(char c)
     {
         if (Glyphs.TryGetValue(c, out var info)) return info;
@@ -171,7 +171,7 @@ public sealed unsafe class FontAtlas : IDisposable
         return null;
     }
 
-    //MeasureText 估算文本像素宽度
+    //MeasureText estimates the text pixel width
     public float MeasureText(string text)
     {
         float w = 0;
@@ -185,32 +185,32 @@ public sealed unsafe class FontAtlas : IDisposable
         return w;
     }
 
-    //CandidateFontPaths 跨平台常见 TTF 路径优先中文字体保证中文可显示
+    //CandidateFontPaths common cross-platform TTF paths, preferring CJK fonts so Chinese renders
     private static IEnumerable<string> CandidateFontPaths()
     {
         if (OperatingSystem.IsWindows())
         {
-            //中文字体优先保证 CJK 字形存在
+            //Prefer CJK fonts to ensure CJK glyphs exist
             yield return @"C:\Windows\Fonts\msyh.ttc";
             yield return @"C:\Windows\Fonts\msyh.ttf";
             yield return @"C:\Windows\Fonts\simhei.ttf";
             yield return @"C:\Windows\Fonts\simsun.ttc";
             yield return @"C:\Windows\Fonts\DENG.TTF";
-            //英文回退
+            //Latin fallback
             yield return @"C:\Windows\Fonts\arial.ttf";
             yield return @"C:\Windows\Fonts\segoeui.ttf";
             yield return @"C:\Windows\Fonts\consola.ttf";
         }
         else if (OperatingSystem.IsLinux())
         {
-            //中文字体优先
+            //Prefer CJK fonts
             yield return "/usr/share/fonts/wqy-microhei/wqy-microhei.ttc";
             yield return "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc";
             yield return "/usr/share/fonts/wqy-zenhei/wqy-zenhei.ttc";
             yield return "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc";
             yield return "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc";
             yield return "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc";
-            //英文回退
+            //Latin fallback
             yield return "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
             yield return "/usr/share/fonts/dejavu/DejaVuSans.ttf";
             yield return "/usr/share/fonts/TTF/DejaVuSans.ttf";
@@ -218,12 +218,12 @@ public sealed unsafe class FontAtlas : IDisposable
         }
         else if (OperatingSystem.IsMacOS())
         {
-            //中文字体优先
+            //Prefer CJK fonts
             yield return "/System/Library/Fonts/PingFang.ttc";
             yield return "/System/Library/Fonts/STHeiti Light.ttc";
             yield return "/System/Library/Fonts/Hiragino Sans GB.ttc";
             yield return "/Library/Fonts/Songti.ttc";
-            //英文回退
+            //Latin fallback
             yield return "/System/Library/Fonts/Helvetica.ttc";
             yield return "/System/Library/Fonts/Menlo.ttc";
             yield return "/Library/Fonts/Arial.ttf";
@@ -232,6 +232,6 @@ public sealed unsafe class FontAtlas : IDisposable
 
     public void Dispose()
     {
-        //StbTrueType 字体字节由 _fontInfo 持有不释放
+        //The StbTrueType font bytes are held by _fontInfo and not released
     }
 }

@@ -4,7 +4,7 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//InsideWorldBoundsPredicate 在世界高度范围内对应原版 InsideWorldBoundsPredicate
+//InsideWorldBoundsPredicate inside the world height bounds, maps to vanilla InsideWorldBoundsPredicate
 public class InsideWorldBoundsPredicate : BlockPredicate
 {
     public static readonly Codec<InsideWorldBoundsPredicate> Codec =

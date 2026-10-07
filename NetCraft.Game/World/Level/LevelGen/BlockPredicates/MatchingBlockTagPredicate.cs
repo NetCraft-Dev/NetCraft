@@ -6,7 +6,7 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//MatchingBlockTagPredicate 匹配方块标签对应原版 MatchingBlockTagPredicate
+//MatchingBlockTagPredicate matches a block tag, maps to vanilla MatchingBlockTagPredicate
 public class MatchingBlockTagPredicate : StateTestingPredicate
 {
     public static readonly Codec<MatchingBlockTagPredicate> Codec =
@@ -24,7 +24,7 @@ public class MatchingBlockTagPredicate : StateTestingPredicate
 
     protected override bool Test(BlockState state)
     {
-        //标签未绑定(数据未装载)时按不匹配处理 免得 Holder.Is 抛未绑定标签异常
+        //While the tag is unbound (data not loaded) treat it as no match, so Holder.Is does not throw on an unbound tag
         var set = BuiltInRegistries.BLOCK.Get(_tag);
         if (set is null || !set.IsBound) return false;
         return set.Contains(BuiltInRegistries.BLOCK.WrapAsHolder(state.Owner));

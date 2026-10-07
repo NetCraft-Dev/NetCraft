@@ -2,30 +2,30 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.World.Inventory;
 
-//PlayerInventory 玩家物品栏对应原版 net.minecraft.world.entity.player.Inventory
-//槽位布局: 0-8 快捷栏 9-35 主物品栏 36-39 护甲(头盔->靴子) 40 副手 共 41 格
-//本类同时作为菜单的后端容器 菜单槽位按 InventoryMenu 的常量索引映射到这里的下标
+//PlayerInventory player inventory, maps to vanilla net.minecraft.world.entity.player.Inventory
+//Slot layout: 0-8 hotbar, 9-35 main inventory, 36-39 armor (helmet -> boots), 40 offhand, 41 slots total
+//This class also serves as the menu's backing container, menu slots map to indices here via the InventoryMenu constants
 public sealed class PlayerInventory : Container
 {
-    //HotbarSlots 快捷栏槽位数
+    //HotbarSlots number of hotbar slots
     public const int HotbarSlots = 9;
 
-    //MainSlots 主物品栏槽位数
+    //MainSlots number of main inventory slots
     public const int MainSlots = 27;
 
-    //BackpackSize 快捷栏加主物品栏共 36 格
+    //BackpackSize hotbar plus main inventory, 36 slots total
     public const int BackpackSize = HotbarSlots + MainSlots;
 
-    //ArmorSlots 护甲槽位数
+    //ArmorSlots number of armor slots
     public const int ArmorSlots = 4;
 
-    //TotalSize 总槽位数 含护甲与副手
+    //TotalSize total slot count including armor and offhand
     public const int TotalSize = BackpackSize + ArmorSlots + 1;
 
-    //OffhandSlot 副手在容器内的下标
+    //OffhandSlot container index of the offhand
     public const int OffhandSlot = BackpackSize + ArmorSlots;
 
-    //_items 槽位内容 空槽统一用 ItemStack.Empty
+    //_items slot contents, empty slots uniformly use ItemStack.Empty
     private readonly ItemStack[] _items = new ItemStack[TotalSize];
     private int _selected;
 
@@ -36,14 +36,14 @@ public sealed class PlayerInventory : Container
 
     public int Size => TotalSize;
 
-    //SelectedSlot 当前选中的快捷栏槽位 0-8 越界按绕回处理
+    //SelectedSlot currently selected hotbar slot, 0-8, out-of-range values wrap around
     public int SelectedSlot
     {
         get => _selected;
         set => _selected = ((value % HotbarSlots) + HotbarSlots) % HotbarSlots;
     }
 
-    //GetSelectedItem 取当前选中快捷栏槽位的物品
+    //GetSelectedItem returns the item in the current hotbar slot
     public ItemStack GetSelectedItem() => _items[_selected];
 
     public ItemStack GetItem(int slot)
@@ -68,8 +68,8 @@ public sealed class PlayerInventory : Container
         return taken;
     }
 
-    //RemoveFromSelected 取走当前选中槽的物品 对应原版 removeFromSelected
-    //all 为真整槽取走 为假只取一个
+    //RemoveFromSelected takes the item from the current slot, maps to vanilla removeFromSelected
+    //all true takes the whole slot, false takes only one
     public ItemStack RemoveFromSelected(bool all)
     {
         var stack = GetSelectedItem();
@@ -96,23 +96,23 @@ public sealed class PlayerInventory : Container
         for (var i = 0; i < _items.Length; i++) _items[i] = ItemStack.Empty;
     }
 
-    //CanPlaceItem 玩家物品栏接受任意物品
+    //CanPlaceItem the player inventory accepts any item
     public bool CanPlaceItem(int slot, ItemStack stack) => true;
 
-    //InfiniteMaterials 创造模式的无限材料 对应原版 player.hasInfiniteMaterials
-    //背包塞不下时创造模式直接吞掉物品不报满 由玩家在游戏模式变化时同步
+    //InfiniteMaterials creative infinite materials, maps to vanilla player.hasInfiniteMaterials
+    //In creative the item is swallowed instead of reporting a full inventory, synced when the player's game mode changes
     public bool InfiniteMaterials { get; set; }
 
-    //HasRemainingSpaceForItem 该槽还能不能继续塞进新的同种物品 对应原版 hasRemainingSpaceForItem
-    //四个条件缺一不可 槽非空且同种同组件且本身可堆叠且没到堆叠上限
+    //HasRemainingSpaceForItem whether the slot can still take more of the same item, maps to vanilla hasRemainingSpaceForItem
+    //All four conditions must hold: the slot is non-empty, same item and components, stackable, and below the stack limit
     private static bool HasRemainingSpaceForItem(ItemStack slotStack, ItemStack newStack)
         => !slotStack.IsEmpty()
             && slotStack.IsSameItemAndComponentsAs(newStack)
             && slotStack.IsStackable()
             && slotStack.GetCount() < slotStack.GetMaxStackSize();
 
-    //GetFreeSlot 从头找第一个空槽 找不到返回 -1 对应原版 getFreeSlot
-    //扫的是全部 41 格 护甲与副手也算可放位置
+    //GetFreeSlot finds the first empty slot from the start, returns -1 when none, maps to vanilla getFreeSlot
+    //Scans all 41 slots, armor and offhand also count as valid positions
     public int GetFreeSlot()
     {
         for (var i = 0; i < _items.Length; i++)
@@ -120,8 +120,8 @@ public sealed class PlayerInventory : Container
         return -1;
     }
 
-    //FindSlotMatchingItem 全背包找同物品同组件的槽 找不到返回 -1 对应原版 findSlotMatchingItem
-    //扫全部 41 格 护甲与副手里的也算命中
+    //FindSlotMatchingItem searches the whole inventory for a slot with the same item and components, returns -1 when none, maps to vanilla findSlotMatchingItem
+    //Scans all 41 slots, armor and offhand also count as hits
     public int FindSlotMatchingItem(ItemStack stack)
     {
         for (var i = 0; i < _items.Length; i++)
@@ -129,9 +129,9 @@ public sealed class PlayerInventory : Container
         return -1;
     }
 
-    //GetSuitableHotbarSlot 取一个适合放新物品的快捷栏槽 对应原版 getSuitableHotbarSlot
-    //从当前选中槽起绕一圈找第一个空槽 原版全满时再找第一个未附魔的
-    //本作暂无附魔组件 所有物品都算未附魔 第二轮必然在选中槽就命中 于是等价于有空格给空格 没空格才用当前选中槽
+    //GetSuitableHotbarSlot picks a hotbar slot suitable for a new item, maps to vanilla getSuitableHotbarSlot
+    //Walks from the current slot to find the first empty one, vanilla then looks for the first unenchanted slot when all are full
+    //This project has no enchantment component yet, so every item counts as unenchanted and the second pass always hits the current slot; it therefore reduces to using an empty slot when available and the current slot otherwise
     public int GetSuitableHotbarSlot()
     {
         for (var offset = 0; offset < HotbarSlots; offset++)
@@ -142,8 +142,8 @@ public sealed class PlayerInventory : Container
         return _selected;
     }
 
-    //AddAndPickItem 把物品放到合适的快捷栏槽并选中它 对应原版 addAndPickItem
-    //该槽原本有东西时先把它挪去任意空位 找不到空位才真的顶掉
+    //AddAndPickItem puts the item in a suitable hotbar slot and selects it, maps to vanilla addAndPickItem
+    //When the slot already holds something, it is moved to any free slot first, only displaced when no free slot exists
     public void AddAndPickItem(ItemStack stack)
     {
         SelectedSlot = GetSuitableHotbarSlot();
@@ -157,7 +157,7 @@ public sealed class PlayerInventory : Container
         SetChanged();
     }
 
-    //PickSlot 把背包某槽的物品与合适的快捷栏槽互换 对应原版 pickSlot
+    //PickSlot swaps an inventory slot with a suitable hotbar slot, maps to vanilla pickSlot
     public void PickSlot(int slot)
     {
         SelectedSlot = GetSuitableHotbarSlot();
@@ -167,7 +167,7 @@ public sealed class PlayerInventory : Container
         SetChanged();
     }
 
-    //GetSlotWithRemainingSpace 找还能叠进的槽 顺序照原版 当前选中槽 -> 副手 40 -> 全量从头
+    //GetSlotWithRemainingSpace finds a slot that can still stack, order follows vanilla: current slot -> offhand 40 -> whole inventory from the start
     public int GetSlotWithRemainingSpace(ItemStack stack)
     {
         if (HasRemainingSpaceForItem(_items[_selected], stack)) return _selected;
@@ -177,12 +177,12 @@ public sealed class PlayerInventory : Container
         return -1;
     }
 
-    //AddResource 往指定槽塞 返回没塞进去的剩余数量 对应原版 addResource(int, ItemStack)
+    //AddResource inserts into the given slot, returns the remainder that did not fit, maps to vanilla addResource(int, ItemStack)
     private int AddResource(int slot, ItemStack stack)
     {
         var count = stack.GetCount();
         var slotStack = _items[slot];
-        //空槽先落一个数量 0 的同种栈 原版就是先占位再 grow
+        //An empty slot first receives a matching stack with count 0; vanilla also places then grows
         if (slotStack.IsEmpty())
         {
             slotStack = stack.CopyWithCount(0);
@@ -195,7 +195,7 @@ public sealed class PlayerInventory : Container
         return count - toAdd;
     }
 
-    //AddResource 自动挑槽 对应原版 addResource(ItemStack)
+    //AddResource picks a slot automatically, maps to vanilla addResource(ItemStack)
     private int AddResource(ItemStack stack)
     {
         var slot = GetSlotWithRemainingSpace(stack);
@@ -203,13 +203,13 @@ public sealed class PlayerInventory : Container
         return slot == -1 ? stack.GetCount() : AddResource(slot, stack);
     }
 
-    //Add 按原版 Inventory.add 语义把物品收进背包 返回是否放进去了至少一个
-    //放入的部分从传入栈里扣掉 剩余量读 stack.GetCount() 这是原版契约调用方靠它判断掉落
-    //循环直到某一轮一个都放不进去为止 每一轮都能放满一整堆 所以多堆物品会依次占后面的空槽
+    //Add inserts items into the inventory with vanilla Inventory.add semantics, returns whether at least one was inserted
+    //The inserted part is removed from the passed stack, the remainder is read via stack.GetCount(); this is the vanilla contract callers use to decide what to drop
+    //Loops until a round inserts nothing; each round fills a full stack, so multiple stacks fill later empty slots in turn
     public bool Add(ItemStack stack) => Add(-1, stack);
 
-    //Add 指定槽位版本对应原版 add(int, ItemStack) 传 -1 表示自动选槽
-    //耐久物品整栈独占一个空槽的分支等耐久组件接入后再补 现在所有物品都走合并路径
+    //Add slot-specific version, maps to vanilla add(int, ItemStack); -1 means pick the slot automatically
+    //The branch where a whole stack of a damageable item takes its own empty slot is added once the damage component lands; for now everything goes through the merge path
     public bool Add(int slot, ItemStack stack)
     {
         if (stack.IsEmpty()) return false;
@@ -220,14 +220,14 @@ public sealed class PlayerInventory : Container
             stack.SetCount(slot == -1 ? AddResource(stack) : AddResource(slot, stack));
             if (stack.IsEmpty()) break;
         } while (stack.GetCount() < lastSize);
-        //整栈一个都没进去又赶上创造模式 按原版直接吞掉不算失败
+        //When none of the stack fit and the player is in creative, vanilla swallows it without counting it as a failure
         if (stack.GetCount() != lastSize || !InfiniteMaterials) return stack.GetCount() < lastSize;
         stack.SetCount(0);
         return true;
     }
 
-    //PlaceItemBackInInventory 把物品放回背包 放不下的部分掉在玩家脚下 对应原版 placeItemBackInInventory
-    //菜单关闭或结果槽退回时用 与原版差异是这里不做逐槽 set_slot 回包 由调用方统一同步
+    //PlaceItemBackInInventory puts items back in the inventory, dropping what does not fit at the player's feet, maps to vanilla placeItemBackInInventory
+    //Used when a menu closes or a result slot is returned; unlike vanilla it does not send per-slot set_slot packets, the caller syncs uniformly
     public void PlaceItemBackInInventory(ItemStack stack, Func<ItemStack, bool> dropFallback)
     {
         while (!stack.IsEmpty())
@@ -245,9 +245,9 @@ public sealed class PlayerInventory : Container
         }
     }
 
-    //SetChanged 内容变更钩子 菜单在 AddSlot 时注册监听后由菜单转发同步
+    //SetChanged content change hook, the menu forwards the sync after registering a listener in AddSlot
     public void SetChanged() => Changed?.Invoke(this);
 
-    //Changed 内容变更事件 由菜单订阅后触发同步
+    //Changed content change event, the menu subscribes to it and triggers a sync
     public event Action<Container>? Changed;
 }

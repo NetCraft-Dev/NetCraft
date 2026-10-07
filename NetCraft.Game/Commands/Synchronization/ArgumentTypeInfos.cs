@@ -5,35 +5,35 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Commands.Synchronization;
 
-//ArgumentTypeInfo 命令参数类型网络同步描述符对应原版 net.minecraft.commands.synchronization.ArgumentTypeInfo
-//把参数类型的附加参数(数值范围/字符串模式)写进命令树包 客户端按注册表 id 找同类描述符再还原
-//NC 的 ArgumentType<T> 只按泛型区分没有共同基类 所以这里统一用 object 承载参数类型实例
+//ArgumentTypeInfo command argument type network sync descriptor, maps to vanilla net.minecraft.commands.synchronization.ArgumentTypeInfo
+//Writes the argument type's extra parameters (numeric range/string pattern) into the command tree packet; the client finds the same descriptor by registry id and restores it
+//NC's ArgumentType<T> is distinguished only by generic and has no common base class, so object carries the argument type instance here
 public abstract class ArgumentTypeInfo
 {
-    //Template 参数类型模板对应原版 ArgumentTypeInfo.Template
+    //Template argument type template, maps to vanilla ArgumentTypeInfo.Template
     public abstract class Template
     {
-        //Info 产生该模板的描述符
+        //Info the descriptor producing the template
         public abstract ArgumentTypeInfo Info { get; }
 
-        //Instantiate 还原参数类型实例 原版需要 CommandBuildContext 本作参数类型不依赖上下文
+        //Instantiate restores the argument type instance; vanilla needs CommandBuildContext, this project's argument types do not depend on context
         public abstract object Instantiate();
     }
 
-    //ArgumentClrType 该描述符对应的参数类型 CLR 类型 供按类型反查
+    //ArgumentClrType the CLR type of the argument type for this descriptor, for reverse lookup by type
     public abstract Type ArgumentClrType { get; }
 
-    //Unpack 从参数类型实例取模板 类型不匹配抛异常
+    //Unpack takes the template from the argument type instance; a type mismatch throws
     public abstract Template Unpack(object argumentType);
 
-    //SerializeToNetwork 写该类型的附加参数
+    //SerializeToNetwork writes the type's extra parameters
     public abstract void SerializeToNetwork(Template template, FriendlyByteBuf buf);
 
-    //DeserializeFromNetwork 读回模板
+    //DeserializeFromNetwork reads the template back
     public abstract Template DeserializeFromNetwork(FriendlyByteBuf buf);
 }
 
-//ArgumentTemplate 通用模板实现 直接持有已构造的参数类型实例
+//ArgumentTemplate generic template implementation holding the already-constructed argument type instance
 public sealed class ArgumentTemplate : ArgumentTypeInfo.Template
 {
     public ArgumentTemplate(ArgumentTypeInfo info, object value)
@@ -44,16 +44,16 @@ public sealed class ArgumentTemplate : ArgumentTypeInfo.Template
 
     public override ArgumentTypeInfo Info { get; }
 
-    //Value 参数类型实例
+    //Value the argument type instance
     public object Value { get; }
 
     public override object Instantiate() => Value;
 }
 
-//ArgumentUtils 数值参数标志位工具对应原版 ArgumentUtils
+//ArgumentUtils numeric argument flag helpers, maps to vanilla ArgumentUtils
 internal static class ArgumentUtils
 {
-    //CreateNumberFlags 低两位表示是否带 min/max
+    //CreateNumberFlags the low two bits indicate whether min/max are present
     public static byte CreateNumberFlags(bool hasMin, bool hasMax)
     {
         byte flags = 0;
@@ -67,7 +67,7 @@ internal static class ArgumentUtils
     public static bool NumberHasMax(byte flags) => (flags & 2) != 0;
 }
 
-//BoolArgumentInfo 布尔参数 无附加参数 对应原版 SingletonArgumentInfo.contextFree(BoolArgumentType::bool)
+//BoolArgumentInfo boolean argument, no extra parameters, maps to vanilla SingletonArgumentInfo.contextFree(BoolArgumentType::bool)
 public sealed class BoolArgumentInfo : ArgumentTypeInfo
 {
     public static readonly BoolArgumentInfo Instance = new();
@@ -77,7 +77,7 @@ public sealed class BoolArgumentInfo : ArgumentTypeInfo
     public override Template Unpack(object argumentType)
         => argumentType is BoolArgumentType
             ? new ArgumentTemplate(this, argumentType)
-            : throw new InvalidOperationException($"不是布尔参数类型: {argumentType.GetType().Name}");
+            : throw new InvalidOperationException($"not a boolean argument type: {argumentType.GetType().Name}");
 
     public override void SerializeToNetwork(Template template, FriendlyByteBuf buf) { }
 
@@ -85,7 +85,7 @@ public sealed class BoolArgumentInfo : ArgumentTypeInfo
         => new ArgumentTemplate(this, BoolArgumentType.Bool());
 }
 
-//IntegerArgumentInfo 整数参数 写 min/max 存在标志与可选 int 值
+//IntegerArgumentInfo integer argument, writes the min/max presence flags and optional int values
 public sealed class IntegerArgumentInfo : ArgumentTypeInfo
 {
     public static readonly IntegerArgumentInfo Instance = new();
@@ -95,7 +95,7 @@ public sealed class IntegerArgumentInfo : ArgumentTypeInfo
     public override Template Unpack(object argumentType)
         => argumentType is IntegerArgumentType
             ? new ArgumentTemplate(this, argumentType)
-            : throw new InvalidOperationException($"不是整数参数类型: {argumentType.GetType().Name}");
+            : throw new InvalidOperationException($"not an integer argument type: {argumentType.GetType().Name}");
 
     public override void SerializeToNetwork(Template template, FriendlyByteBuf buf)
     {
@@ -116,7 +116,7 @@ public sealed class IntegerArgumentInfo : ArgumentTypeInfo
     }
 }
 
-//LongArgumentInfo 长整数参数 值走 VarLong
+//LongArgumentInfo long argument, the value goes through VarLong
 public sealed class LongArgumentInfo : ArgumentTypeInfo
 {
     public static readonly LongArgumentInfo Instance = new();
@@ -126,7 +126,7 @@ public sealed class LongArgumentInfo : ArgumentTypeInfo
     public override Template Unpack(object argumentType)
         => argumentType is LongArgumentType
             ? new ArgumentTemplate(this, argumentType)
-            : throw new InvalidOperationException($"不是长整数参数类型: {argumentType.GetType().Name}");
+            : throw new InvalidOperationException($"not a long argument type: {argumentType.GetType().Name}");
 
     public override void SerializeToNetwork(Template template, FriendlyByteBuf buf)
     {
@@ -147,7 +147,7 @@ public sealed class LongArgumentInfo : ArgumentTypeInfo
     }
 }
 
-//FloatArgumentInfo 单精度参数
+//FloatArgumentInfo single-precision argument
 public sealed class FloatArgumentInfo : ArgumentTypeInfo
 {
     public static readonly FloatArgumentInfo Instance = new();
@@ -157,7 +157,7 @@ public sealed class FloatArgumentInfo : ArgumentTypeInfo
     public override Template Unpack(object argumentType)
         => argumentType is FloatArgumentType
             ? new ArgumentTemplate(this, argumentType)
-            : throw new InvalidOperationException($"不是单精度参数类型: {argumentType.GetType().Name}");
+            : throw new InvalidOperationException($"not a float argument type: {argumentType.GetType().Name}");
 
     public override void SerializeToNetwork(Template template, FriendlyByteBuf buf)
     {
@@ -178,7 +178,7 @@ public sealed class FloatArgumentInfo : ArgumentTypeInfo
     }
 }
 
-//DoubleArgumentInfo 双精度参数
+//DoubleArgumentInfo double-precision argument
 public sealed class DoubleArgumentInfo : ArgumentTypeInfo
 {
     public static readonly DoubleArgumentInfo Instance = new();
@@ -188,7 +188,7 @@ public sealed class DoubleArgumentInfo : ArgumentTypeInfo
     public override Template Unpack(object argumentType)
         => argumentType is DoubleArgumentType
             ? new ArgumentTemplate(this, argumentType)
-            : throw new InvalidOperationException($"不是双精度参数类型: {argumentType.GetType().Name}");
+            : throw new InvalidOperationException($"not a double argument type: {argumentType.GetType().Name}");
 
     public override void SerializeToNetwork(Template template, FriendlyByteBuf buf)
     {
@@ -209,7 +209,7 @@ public sealed class DoubleArgumentInfo : ArgumentTypeInfo
     }
 }
 
-//StringArgumentInfo 字符串参数 只写三种解析模式的 id
+//StringArgumentInfo string argument, writes only the ids of the three parse modes
 public sealed class StringArgumentInfo : ArgumentTypeInfo
 {
     public static readonly StringArgumentInfo Instance = new();
@@ -219,7 +219,7 @@ public sealed class StringArgumentInfo : ArgumentTypeInfo
     public override Template Unpack(object argumentType)
         => argumentType is StringArgumentType
             ? new ArgumentTemplate(this, argumentType)
-            : throw new InvalidOperationException($"不是字符串参数类型: {argumentType.GetType().Name}");
+            : throw new InvalidOperationException($"not a string argument type: {argumentType.GetType().Name}");
 
     public override void SerializeToNetwork(Template template, FriendlyByteBuf buf)
         => buf.WriteVarInt(TypeId(((StringArgumentType)((ArgumentTemplate)template).Value).Type));
@@ -227,7 +227,7 @@ public sealed class StringArgumentInfo : ArgumentTypeInfo
     public override Template DeserializeFromNetwork(FriendlyByteBuf buf)
         => new ArgumentTemplate(this, FromId(buf.ReadVarInt()));
 
-    //TypeId 模式到 ordinal 的映射 对齐原版 StringType 枚举顺序
+    //TypeId mapping from mode to ordinal, aligned with the vanilla StringType enum order
     private static int TypeId(StringType type)
     {
         if (ReferenceEquals(type, StringType.SingleWord)) return 0;
@@ -243,8 +243,8 @@ public sealed class StringArgumentInfo : ArgumentTypeInfo
     };
 }
 
-//SingletonArgumentInfo 无附加参数的单例参数描述符对应原版 SingletonArgumentInfo
-//serializeToNetwork不写字节 客户端按注册表id用工厂还原
+//SingletonArgumentInfo descriptor for a parameterless singleton argument, maps to vanilla SingletonArgumentInfo
+//serializeToNetwork writes no bytes; the client restores via a factory by registry id
 public sealed class SingletonArgumentInfo(Type clrType, Func<object> factory) : ArgumentTypeInfo
 {
     public override Type ArgumentClrType { get; } = clrType;
@@ -252,7 +252,7 @@ public sealed class SingletonArgumentInfo(Type clrType, Func<object> factory) : 
     public override Template Unpack(object argumentType)
         => argumentType.GetType() == clrType
             ? new ArgumentTemplate(this, argumentType)
-            : throw new InvalidOperationException($"不是预期的参数类型: {argumentType.GetType().Name}");
+            : throw new InvalidOperationException($"not the expected argument type: {argumentType.GetType().Name}");
 
     public override void SerializeToNetwork(Template template, FriendlyByteBuf buf) { }
 
@@ -260,23 +260,23 @@ public sealed class SingletonArgumentInfo(Type clrType, Func<object> factory) : 
         => new ArgumentTemplate(this, factory());
 }
 
-//PlaceholderArgumentInfo 未实现参数类型的占位描述符
-//只占注册表id保证与客户端网络id对齐 命令树不可使用
-//注册表按值引用查重每个占位必须新实例
+//PlaceholderArgumentInfo placeholder descriptor for an unimplemented argument type
+//Only occupies the registry id to stay aligned with the client network id; unusable in the command tree
+//The registry deduplicates by value reference, so each placeholder must be a new instance
 public sealed class PlaceholderArgumentInfo : ArgumentTypeInfo
 {
     public override Type ArgumentClrType => typeof(object);
 
     public override Template Unpack(object argumentType)
-        => throw new NotSupportedException($"参数类型未实现不支持写入命令树: {argumentType.GetType().Name}");
+        => throw new NotSupportedException($"argument type not implemented; cannot write into the command tree: {argumentType.GetType().Name}");
 
     public override void SerializeToNetwork(Template template, FriendlyByteBuf buf) { }
 
     public override Template DeserializeFromNetwork(FriendlyByteBuf buf)
-        => throw new NotSupportedException("占位参数类型不支持反序列化");
+        => throw new NotSupportedException("placeholder argument types do not support deserialization");
 }
 
-//TimeArgumentInfo 时间参数描述符 写允许的最小tick数
+//TimeArgumentInfo time argument descriptor, writes the allowed minimum tick count
 public sealed class TimeArgumentInfo : ArgumentTypeInfo
 {
     public static readonly TimeArgumentInfo Instance = new();
@@ -286,7 +286,7 @@ public sealed class TimeArgumentInfo : ArgumentTypeInfo
     public override Template Unpack(object argumentType)
         => argumentType is TimeArgument time
             ? new ArgumentTemplate(this, time)
-            : throw new InvalidOperationException($"不是时间参数类型: {argumentType.GetType().Name}");
+            : throw new InvalidOperationException($"not a time argument type: {argumentType.GetType().Name}");
 
     public override void SerializeToNetwork(Template template, FriendlyByteBuf buf)
         => buf.WriteInt(((TimeArgument)((ArgumentTemplate)template).Value).Minimum);
@@ -295,7 +295,7 @@ public sealed class TimeArgumentInfo : ArgumentTypeInfo
         => new ArgumentTemplate(this, TimeArgument.Time(buf.ReadInt()));
 }
 
-//ResourceArgumentInfo 资源参数描述符 写目标注册表标识
+//ResourceArgumentInfo resource argument descriptor, writes the target registry id
 public sealed class ResourceArgumentInfo : ArgumentTypeInfo
 {
     public static readonly ResourceArgumentInfo Instance = new();
@@ -305,7 +305,7 @@ public sealed class ResourceArgumentInfo : ArgumentTypeInfo
     public override Template Unpack(object argumentType)
         => argumentType is ResourceArgument resource
             ? new ArgumentTemplate(this, resource)
-            : throw new InvalidOperationException($"不是资源参数类型: {argumentType.GetType().Name}");
+            : throw new InvalidOperationException($"not a resource argument type: {argumentType.GetType().Name}");
 
     public override void SerializeToNetwork(Template template, FriendlyByteBuf buf)
         => buf.WriteIdentifier(((ResourceArgument)((ArgumentTemplate)template).Value).RegistryKey);
@@ -314,9 +314,9 @@ public sealed class ResourceArgumentInfo : ArgumentTypeInfo
         => new ArgumentTemplate(this, new ResourceArgument(buf.ReadIdentifier()));
 }
 
-//ResourceKeyArgumentInfo 注册表键参数描述符 写目标注册表标识
-//与 ResourceArgumentInfo 的差别在客户端: 这个只按标识符拼 key 不查注册表是否存在
-//所以引用 recipe 这类不同步给客户端的注册表不会让客户端崩
+//ResourceKeyArgumentInfo registry key argument descriptor, writes the target registry id
+//Difference from ResourceArgumentInfo is on the client: this only builds the key from the identifier without looking up whether the registry exists
+//So referencing a registry not synced to the client such as recipe does not crash the client
 public sealed class ResourceKeyArgumentInfo : ArgumentTypeInfo
 {
     public static readonly ResourceKeyArgumentInfo Instance = new();
@@ -326,7 +326,7 @@ public sealed class ResourceKeyArgumentInfo : ArgumentTypeInfo
     public override Template Unpack(object argumentType)
         => argumentType is ResourceKeyArgument key
             ? new ArgumentTemplate(this, key)
-            : throw new InvalidOperationException($"不是注册表键参数类型: {argumentType.GetType().Name}");
+            : throw new InvalidOperationException($"not a registry key argument type: {argumentType.GetType().Name}");
 
     public override void SerializeToNetwork(Template template, FriendlyByteBuf buf)
         => buf.WriteIdentifier(((ResourceKeyArgument)((ArgumentTemplate)template).Value).RegistryKey);
@@ -335,7 +335,7 @@ public sealed class ResourceKeyArgumentInfo : ArgumentTypeInfo
         => new ArgumentTemplate(this, new ResourceKeyArgument(buf.ReadIdentifier()));
 }
 
-//EntityArgumentInfo 实体参数描述符 写single与playersOnly标志字节
+//EntityArgumentInfo entity argument descriptor, writes the single and playersOnly flag bytes
 public sealed class EntityArgumentInfo : ArgumentTypeInfo
 {
     private const byte FlagSingle = 1;
@@ -348,7 +348,7 @@ public sealed class EntityArgumentInfo : ArgumentTypeInfo
     public override Template Unpack(object argumentType)
         => argumentType is EntityArgument entity
             ? new ArgumentTemplate(this, entity)
-            : throw new InvalidOperationException($"不是实体参数类型: {argumentType.GetType().Name}");
+            : throw new InvalidOperationException($"not an entity argument type: {argumentType.GetType().Name}");
 
     public override void SerializeToNetwork(Template template, FriendlyByteBuf buf)
     {
@@ -367,14 +367,14 @@ public sealed class EntityArgumentInfo : ArgumentTypeInfo
     }
 }
 
-//ArgumentTypeInfos 参数类型描述符注册表对应原版 ArgumentTypeInfos
+//ArgumentTypeInfos argument type descriptor registry, maps to vanilla ArgumentTypeInfos
 public static class ArgumentTypeInfos
 {
-    //ByClass 参数类型 CLR 类型到描述符的索引
+    //ByClass index from argument type CLR type to descriptor
     private static readonly Dictionary<Type, ArgumentTypeInfo> ByClass = new();
 
-    //Bootstrap 注册内置参数类型 注册顺序即命令树包网络id 0-56 严格对齐原版bootstrap
-    //未实现类型用占位描述符保序 客户端按同id本地注册表还原命令树
+    //Bootstrap registers built-in argument types; the registration order is the command tree packet network id 0-56, strictly aligned with vanilla bootstrap
+    //Unimplemented types use placeholder descriptors to keep the order; the client restores the command tree from its local registry by the same id
     public static void Bootstrap()
     {
         Register("brigadier:bool", BoolArgumentInfo.Instance);                                 //0
@@ -436,7 +436,7 @@ public static class ArgumentTypeInfos
         Register("uuid", new PlaceholderArgumentInfo());                                    //56
     }
 
-    //Unpack 按参数类型实例查描述符 未注册返回 null
+    //Unpack looks up the descriptor by argument type instance; returns null when unregistered
     public static ArgumentTypeInfo? Unpack(object argumentType)
         => ByClass.TryGetValue(argumentType.GetType(), out var info) ? info : null;
 

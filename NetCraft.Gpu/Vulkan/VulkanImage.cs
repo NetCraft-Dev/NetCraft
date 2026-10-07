@@ -4,9 +4,9 @@ using VkFormat = Silk.NET.Vulkan.Format;
 
 namespace NetCraft.Gpu.Vulkan;
 
-//VulkanImage Vulkan 后端 GPU 图像/纹理
-//包装 VkImage + VkDeviceMemory + VkImageView
-//Upload 通过 staging buffer + CmdCopyBufferToImage + 布局转换到 ShaderReadOnlyOptimal
+//VulkanImage Vulkan backend GPU image/texture
+//Wraps VkImage + VkDeviceMemory + VkImageView
+//Upload goes through a staging buffer + CmdCopyBufferToImage + a layout transition to ShaderReadOnlyOptimal
 public sealed unsafe class VulkanImage : GpuImage
 {
     private readonly Vk _vk;
@@ -16,13 +16,13 @@ public sealed unsafe class VulkanImage : GpuImage
     private DeviceMemory _memory;
     private ImageView _view;
     private bool _disposed;
-    //_currentLayout 追踪当前 image layout 用于 UploadRegion 多次按区域写入
-    //Upload 首次 Undefined→TransferDst→ShaderReadOnly 后续 UploadRegion ShaderReadOnly→TransferDst→ShaderReadOnly
+    //_currentLayout tracks the current image layout for repeated region-wise UploadRegion writes
+    //Upload first goes Undefined→TransferDst→ShaderReadOnly; later UploadRegion goes ShaderReadOnly→TransferDst→ShaderReadOnly
     private ImageLayout _currentLayout = ImageLayout.Undefined;
 
     public Image Handle => _image;
     public ImageView View => _view;
-    //CurrentLayout 当前 image layout 供 blur 流程 barrier 决策
+    //CurrentLayout the current image layout for the blur flow's barrier decisions
     public ImageLayout CurrentLayout => _currentLayout;
 
     internal VulkanImage(Vk vk, Device device, VulkanGpuDevice gpuDevice, GpuImageDescription desc) : base(desc)
@@ -47,7 +47,7 @@ public sealed unsafe class VulkanImage : GpuImage
             InitialLayout = ImageLayout.Undefined
         };
         if (_vk.CreateImage(_device, &imageInfo, null, out _image) != Result.Success)
-            throw new InvalidOperationException("Image 创建失败");
+            throw new InvalidOperationException("Image creation failed");
         _vk.GetImageMemoryRequirements(_device, _image, out var memReqs);
         var allocInfo = new MemoryAllocateInfo
         {
@@ -56,19 +56,19 @@ public sealed unsafe class VulkanImage : GpuImage
             MemoryTypeIndex = gpuDevice.FindMemoryType(memReqs.MemoryTypeBits, MemoryPropertyFlags.DeviceLocalBit)
         };
         if (_vk.AllocateMemory(_device, &allocInfo, null, out _memory) != Result.Success)
-            throw new InvalidOperationException("Image memory 分配失败");
+            throw new InvalidOperationException("Image memory allocation failed");
         _vk.BindImageMemory(_device, _image, _memory, 0);
         CreateView();
-        //ColorAttachment 初始 layout 转换 Undefined->ColorAttachmentOptimal
-        //dynamic rendering 期望 ColorAttachmentOptimal 不转换会导致写入数据丢失或 validation warning
-        //SampledImage 不含 ColorAttachment 走 Upload 路径转换 DepthAttachment 走 Upload(Empty) 转换
-        //ColorAttachment|SampledImage（如 AtlasTexture）首次渲染前需 ColorAttachmentOptimal
+        //ColorAttachment initial layout transition Undefined->ColorAttachmentOptimal
+        //dynamic rendering expects ColorAttachmentOptimal; without the transition written data is lost or a validation warning appears
+        //A SampledImage without ColorAttachment uses the Upload path transition; a DepthAttachment uses the Upload(Empty) transition
+        //ColorAttachment|SampledImage (e.g. AtlasTexture) needs ColorAttachmentOptimal before the first render
         if (desc.Usage.HasFlag(GpuImageUsage.ColorAttachment))
             TransitionInitialColorAttachment();
     }
 
-    //TransitionInitialColorAttachment 把 ColorAttachment 图像从 Undefined 转到 ColorAttachmentOptimal
-    //供 AtlasTexture 这类不上传像素的 color attachment 用 dynamic rendering 前必须就位
+    //TransitionInitialColorAttachment transitions a ColorAttachment image from Undefined to ColorAttachmentOptimal
+    //For color attachments like AtlasTexture that upload no pixels, this must be in place before dynamic rendering
     private void TransitionInitialColorAttachment()
     {
         _gpuDevice.RunOneTimeCommand(cmd =>
@@ -84,7 +84,7 @@ public sealed unsafe class VulkanImage : GpuImage
     private void CreateView()
     {
         var fmt = ToVkFormat(Format);
-        //DepthAttachment 用 DepthBit 其他用 ColorBit aspect
+        //DepthAttachment uses the DepthBit aspect, others use ColorBit
         var aspectMask = Usage == GpuImageUsage.DepthAttachment
             ? ImageAspectFlags.DepthBit
             : ImageAspectFlags.ColorBit;
@@ -105,11 +105,11 @@ public sealed unsafe class VulkanImage : GpuImage
             }
         };
         if (_vk.CreateImageView(_device, &viewInfo, null, out _view) != Result.Success)
-            throw new InvalidOperationException("ImageView 创建失败");
+            throw new InvalidOperationException("ImageView creation failed");
     }
 
-    //Upload 通过 staging buffer 拷贝到 device local image 然后布局转换到 ShaderReadOnlyOptimal
-    //DepthAttachment 不上传像素只做 Undefined->DepthStencilAttachmentOptimal 布局转换
+    //Upload copies into the device-local image via a staging buffer then transitions the layout to ShaderReadOnlyOptimal
+    //DepthAttachment uploads no pixels and only does the Undefined->DepthStencilAttachmentOptimal layout transition
     public override void Upload(ReadOnlySpan<byte> pixels)
     {
         if (Usage == GpuImageUsage.DepthAttachment)
@@ -167,13 +167,13 @@ public sealed unsafe class VulkanImage : GpuImage
         }
     }
 
-    //UploadRegion 按区域上传像素到图集子区域对应原版 GlyphBitmap.upload(x,y,texture)
-    //用于动态字形烘焙 FontTexture 256×256 图集按需写入新字形像素
-    //ShaderReadOnly→TransferDst→写入区域→ShaderReadOnly 完整布局转换循环
+    //UploadRegion uploads pixels region-wise into an atlas sub-region, corresponds to vanilla GlyphBitmap.upload(x,y,texture)
+    //Used by dynamic glyph baking; the FontTexture 256×256 atlas writes new glyph pixels on demand
+    //ShaderReadOnly→TransferDst→write region→ShaderReadOnly full layout transition cycle
     public override void UploadRegion(int x, int y, int width, int height, ReadOnlySpan<byte> pixels)
     {
         if (Usage == GpuImageUsage.DepthAttachment)
-            throw new InvalidOperationException("DepthAttachment 不支持 UploadRegion");
+            throw new InvalidOperationException("DepthAttachment does not support UploadRegion");
         var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(pixels.Length, GpuBufferUsage.StagingBuffer);
         try
         {
@@ -217,7 +217,7 @@ public sealed unsafe class VulkanImage : GpuImage
         }
     }
 
-    //TransitionLayout 布局转换 helper aspect 默认 ColorBit 深度图传 DepthBit
+    //TransitionLayout layout transition helper; aspect defaults to ColorBit, depth images pass DepthBit
     private void TransitionLayout(CommandBuffer cmd, ImageLayout oldLayout, ImageLayout newLayout,
         AccessFlags srcAccess, AccessFlags dstAccess, PipelineStageFlags srcStage, PipelineStageFlags dstStage,
         ImageAspectFlags aspect = ImageAspectFlags.ColorBit)
@@ -244,9 +244,9 @@ public sealed unsafe class VulkanImage : GpuImage
         _vk.CmdPipelineBarrier(cmd, srcStage, dstStage, 0, 0, null, 0, null, 1, &barrier);
     }
 
-    //TransitionLayout 把 image 从 _currentLayout 转到 newLayout 录到外部 cmd buffer
-    //blur offscreen 链路 Undefined→ColorAttachmentOptimal→ShaderReadOnlyOptimal→ColorAttachmentOptimal
-    //access mask 和 stage 由 layout 自动推断调用方不必手填
+    //TransitionLayout transitions the image from _currentLayout to newLayout, recorded into an external cmd buffer
+    //blur offscreen chain Undefined→ColorAttachmentOptimal→ShaderReadOnlyOptimal→ColorAttachmentOptimal
+    //The access mask and stage are inferred from the layout so the caller need not fill them manually
     public void TransitionLayout(CommandBuffer cmd, ImageLayout newLayout)
     {
         if (_currentLayout == newLayout) return;
@@ -257,7 +257,7 @@ public sealed unsafe class VulkanImage : GpuImage
         _currentLayout = newLayout;
     }
 
-    //GetBarrierParams 按 layout 推断 access mask 和 pipeline stage
+    //GetBarrierParams infers the access mask and pipeline stage from the layout
     private static (AccessFlags, PipelineStageFlags) GetBarrierParams(ImageLayout layout) => layout switch
     {
         ImageLayout.Undefined => (AccessFlags.None, PipelineStageFlags.TopOfPipeBit),
@@ -269,14 +269,14 @@ public sealed unsafe class VulkanImage : GpuImage
         _ => (AccessFlags.None, PipelineStageFlags.BottomOfPipeBit)
     };
 
-    //Readback 把 GPU 图像像素读回 CPU 供集成测试验证渲染结果
-    //流程 当前layout→TransferSrcOptimal→CmdCopyImageToBuffer→map staging buffer→读 CPU→恢复原 layout
-    //AtlasTexture 渲染后是 ColorAttachmentOptimal 读取后恢复回 ColorAttachmentOptimal
-    //DepthAttachment 不支持 readback PoC 不验证深度图
+    //Readback reads GPU image pixels back to the CPU for integration tests to verify render output
+    //Flow current layout→TransferSrcOptimal→CmdCopyImageToBuffer→map staging buffer→read on CPU→restore the original layout
+    //AtlasTexture is ColorAttachmentOptimal after rendering and is restored to ColorAttachmentOptimal after reading
+    //DepthAttachment does not support readback; the PoC does not verify depth images
     public override byte[] Readback()
     {
         if (Usage == GpuImageUsage.DepthAttachment)
-            throw new NotSupportedException("DepthAttachment 不支持 Readback");
+            throw new NotSupportedException("DepthAttachment does not support Readback");
         var pixelSize = Width * Height * 4;
         var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(pixelSize, GpuBufferUsage.StagingBuffer);
         try
@@ -284,7 +284,7 @@ public sealed unsafe class VulkanImage : GpuImage
             var originalLayout = _currentLayout;
             _gpuDevice.RunOneTimeCommand(cmd =>
             {
-                //当前 layout→TransferSrcOptimal
+                //Current layout→TransferSrcOptimal
                 TransitionLayout(cmd, _currentLayout, ImageLayout.TransferSrcOptimal,
                     GetBarrierParams(_currentLayout).Item1, AccessFlags.TransferReadBit,
                     GetBarrierParams(_currentLayout).Item2, PipelineStageFlags.TransferBit,
@@ -311,7 +311,7 @@ public sealed unsafe class VulkanImage : GpuImage
                     _vk.CmdCopyImageToBuffer(cmd, _image, ImageLayout.TransferSrcOptimal, staging.Handle, 1, &region);
                 }
 
-                //TransferSrcOptimal→原 layout 恢复供后续渲染继续用
+                //TransferSrcOptimal→original layout restored for subsequent rendering
                 TransitionLayout(cmd, ImageLayout.TransferSrcOptimal, originalLayout,
                     AccessFlags.TransferReadBit, GetBarrierParams(originalLayout).Item1,
                     PipelineStageFlags.TransferBit, GetBarrierParams(originalLayout).Item2,
@@ -319,7 +319,7 @@ public sealed unsafe class VulkanImage : GpuImage
             });
             _currentLayout = originalLayout;
 
-            //map staging buffer 读 CPU
+            //map staging buffer read on CPU
             var pixels = new byte[pixelSize];
             staging.Download<byte>(pixels);
             return pixels;
@@ -349,7 +349,7 @@ public sealed unsafe class VulkanImage : GpuImage
             flags |= ImageUsageFlags.ColorAttachmentBit;
         if (usage.HasFlag(GpuImageUsage.DepthAttachment))
             flags |= ImageUsageFlags.DepthStencilAttachmentBit;
-        //所有 color image 都允许 TransferSrc 供 Readback 用 CmdCopyImageToBuffer
+        //All color images allow TransferSrc so Readback can use CmdCopyImageToBuffer
         if (!usage.HasFlag(GpuImageUsage.DepthAttachment))
             flags |= ImageUsageFlags.TransferSrcBit;
         return flags;

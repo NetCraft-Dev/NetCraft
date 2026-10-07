@@ -4,56 +4,56 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//StructureStart 结构装配结果 对应原版 StructureStart
-//持结构引用与片段列表 有效性只看片段是否为空
-//包围盒是全体片段的包络 地形适配还要按 terrain_adaptation 再外扩
+//StructureStart structure assembly result, maps to vanilla StructureStart
+//Holds the structure reference and piece list; validity depends only on whether pieces exist
+//The bounding box envelopes all pieces; terrain adaptation inflates it further by terrain_adaptation
 public sealed class StructureStart
 {
-    //InvalidStartId 无效标记 对应原版 INVALID_START_ID
+    //InvalidStartId invalid marker, maps to vanilla INVALID_START_ID
     public const string InvalidStartId = "invalid";
 
-    //Invalid 无效结果 生成失败时返回它而不是 null 调用方按 IsValid 判断
+    //Invalid invalid result returned instead of null on generation failure; the caller checks IsValid
     public static readonly StructureStart Invalid = new();
 
-    //Structure 结构引用 无效时为 null
+    //Structure structure reference, null when invalid
     public NetCraft.Registry.Structure? Structure { get; }
 
-    //StructureId 结构注册名 无效时是 invalid
+    //StructureId structure registry name, "invalid" when invalid
     public Identifier StructureId => Structure is Structure structure
         ? structure.Id
         : Identifier.WithDefaultNamespace(InvalidStartId);
 
     public ChunkPos ChunkPos { get; }
 
-    //Pieces 片段列表 空列表即无效
+    //Pieces piece list; an empty list means invalid
     public IReadOnlyList<StructurePiece> Pieces { get; }
 
-    //BoundingBox 全体片段的包络 无片段时是零盒
+    //BoundingBox envelope of all pieces; a zero box when there are none
     public BoundingBoxInt BoundingBox { get; }
 
-    //IsValid 有效判定 对应原版 isValid 只看片段是否为空
+    //IsValid validity check, maps to vanilla isValid; only looks at whether pieces exist
     public bool IsValid => Pieces.Count > 0;
 
-    //References 已被相邻区块引用过几次 对应原版 references
+    //References how many times adjacent chunks have referenced this, maps to vanilla references
     public int References { get; private set; }
 
-    //MaxReferences 引用次数上限 超过之后相邻区块不再复用本装配结果
+    //MaxReferences reference cap; past it adjacent chunks stop reusing this assembly result
     public const int MaxReferences = 1;
 
-    //CanBeReferenced 还能被引用 对应原版 canBeReferenced
+    //CanBeReferenced whether it can still be referenced, maps to vanilla canBeReferenced
     public bool CanBeReferenced => References < MaxReferences;
 
-    //AddReference 引用计数加一 对应原版 addReference
+    //AddReference increments the reference count, maps to vanilla addReference
     public void AddReference() => References++;
 
-    //CreateTag 序列化装配结果 对应原版 StructureStart.createTag
-    //字段名与取值方式逐字对齐原版 片段自身字段由各自 WriteSaveData 写
+    //CreateTag serializes the assembly result, maps to vanilla StructureStart.createTag
+    //Field names and value styles match vanilla verbatim; each piece writes its own fields via WriteSaveData
     public CompoundTag CreateTag()
     {
         var tag = new CompoundTag();
         if (!IsValid)
         {
-            //无效装配只落一个标记 读回来就是无效结果 不会污染区块的结构表
+            //An invalid assembly writes only a marker; it reads back as invalid and does not pollute the chunk's structure table
             tag.PutString("id", InvalidStartId);
             return tag;
         }
@@ -67,8 +67,8 @@ public sealed class StructureStart
         return tag;
     }
 
-    //LoadStaticStart 从 NBT 还原装配结果 对应原版 loadStaticStart
-    //结构注册名查不到返回 null 由调用方跳过 单个片段类型不认识则跳过该片段
+    //LoadStaticStart restores the assembly result from NBT, maps to vanilla loadStaticStart
+    //Returns null when the structure registry name is unknown, skipped by the caller; an unknown piece type skips just that piece
     public static StructureStart? LoadStaticStart(StructurePieceSerializationContext context, CompoundTag tag)
     {
         var idText = tag.GetStringValue("id");
@@ -90,7 +90,7 @@ public sealed class StructureStart
                 var pieceIdText = pieceTag.GetStringValue("id");
                 var pieceId = Identifier.TryParse(pieceIdText);
                 if (pieceId is null) continue;
-                //片段类型不认识的按原版跳过 保留其余片段比整条装配失败好
+                //An unknown piece type is skipped as in vanilla; keeping the other pieces beats failing the whole assembly
                 if (BuiltInRegistries.STRUCTURE_PIECE.GetValue(pieceId.Value) is not StructurePieceType pieceType)
                     continue;
                 pieces.Add(pieceType.Load(context, pieceTag));
@@ -120,16 +120,16 @@ public sealed class StructureStart
         BoundingBox = box;
     }
 
-    //AdjustBoundingBox 按地形适配外扩包围盒 对应原版 Structure.adjustBoundingBox
-    //需要改编地形时外扩 12 格 噪声阶段的地形核函数用它算影响范围
+    //AdjustBoundingBox inflates the bounding box per terrain adaptation, maps to vanilla Structure.adjustBoundingBox
+    //Inflates by 12 blocks when terrain adaptation is needed; the noise stage's terrain kernel uses it to compute the affected range
     public BoundingBoxInt AdjustBoundingBox()
         => Structure is Structure structure
             ? BoundingBox.InflatedBy(structure.Settings.TerrainAdaptation.BeardEdgeNeeded())
             : BoundingBox;
 
-    //PlaceInChunk 把落在目标区块内的片段写进世界 对应原版 StructureStart.placeInChunk
-    //只处理与目标区块相交的片段 越界写入由 WorldGenRegion 按写入半径静默丢弃
-    //装饰阶段每步先结构后特征 结构先落地才能让特征在结构上生长
+    //PlaceInChunk writes the pieces falling inside the target chunk into the world, maps to vanilla StructureStart.placeInChunk
+    //Only pieces intersecting the target chunk are handled; out-of-bounds writes are silently dropped by WorldGenRegion per the write radius
+    //Each decoration step runs structures then features; a structure must land first for features to grow on it
     public void PlaceInChunk(WorldGenRegion region, int chunkX, int chunkZ)
     {
         var chunkBox = BoundingBoxInt.FromChunkPos(new ChunkPos(chunkX, chunkZ));

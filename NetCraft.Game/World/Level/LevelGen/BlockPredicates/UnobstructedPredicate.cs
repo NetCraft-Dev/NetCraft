@@ -4,7 +4,7 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//UnobstructedPredicate 该位置无碰撞阻挡对应原版 UnobstructedPredicate
+//UnobstructedPredicate the position has no collision obstruction, maps to vanilla UnobstructedPredicate
 public sealed class UnobstructedPredicate : BlockPredicate
 {
     public static readonly Codec<UnobstructedPredicate> Codec =
@@ -16,7 +16,7 @@ public sealed class UnobstructedPredicate : BlockPredicate
 
     public Vec3i Offset { get; }
 
-    //NetCraft 没有 VoxelShape 用空气/流体/可替换方块近似无碰撞
+    //NetCraft has no VoxelShape, so air/fluid/replaceable blocks approximate no collision
     public override bool Test(WorldGenRegion level, BlockPos origin)
     {
         var pos = origin.Offset(Offset);

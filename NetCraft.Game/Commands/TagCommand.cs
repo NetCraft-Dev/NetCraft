@@ -7,9 +7,9 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Commands;
 
-//TagCommand tag 命令对应原版 net.minecraft.server.commands.TagCommand
-//tag <targets> add|remove <name> / list 给实体打自定义字符串标签
-//标签存在 Registry.Entity 基类上 玩家不是 Registry.Entity 玩家目标不参与标签
+//TagCommand tag command, maps to vanilla net.minecraft.server.commands.TagCommand
+//tag <targets> add|remove <name> / list adds custom string tags to entities
+//Tags live on the Registry.Entity base class; players are not Registry.Entity so player targets do not participate in tags
 public static class TagCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -27,7 +27,7 @@ public static class TagCommand
                     .Executes(ListTags))));
     }
 
-    //AddTag 给每个目标加标签 没有一个新增时报失败 对应原版 addTag
+    //AddTag adds the tag to each target; reports failure when none were added, maps to vanilla addTag
     private static int AddTag(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -38,16 +38,16 @@ public static class TagCommand
             if (entity.AddTag(name)) count++;
         if (count == 0)
         {
-            source.SendFailure($"没有实体被添加标签，因为目标已拥有标签 {name}");
+            source.SendFailure($"no entity was tagged because the target already has the tag {name}");
             return 0;
         }
         source.SendSuccess(targets.Count == 1
-            ? $"已给 {targets[0].Name} 添加标签 {name}"
-            : $"已给 {count} 个实体添加标签 {name}");
+            ? $"tagged {targets[0].Name} with {name}"
+            : $"tagged {count} entities with {name}");
         return count;
     }
 
-    //RemoveTag 给每个目标摘标签 没有一个摘掉时报失败 对应原版 removeTag
+    //RemoveTag removes the tag from each target; reports failure when none were removed, maps to vanilla removeTag
     private static int RemoveTag(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -58,16 +58,16 @@ public static class TagCommand
             if (entity.RemoveTag(name)) count++;
         if (count == 0)
         {
-            source.SendFailure($"没有实体被移除标签，因为目标没有标签 {name}");
+            source.SendFailure($"no entity was untagged because the target does not have the tag {name}");
             return 0;
         }
         source.SendSuccess(targets.Count == 1
-            ? $"已移除 {targets[0].Name} 的标签 {name}"
-            : $"已移除 {count} 个实体的标签 {name}");
+            ? $"removed tag {name} from {targets[0].Name}"
+            : $"removed tag {name} from {count} entities");
         return count;
     }
 
-    //ListTags 汇总目标集合的全部标签并回执 对应原版 listTags
+    //ListTags aggregates all tags of the target set and reports, maps to vanilla listTags
     private static int ListTags(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -79,19 +79,19 @@ public static class TagCommand
         if (targets.Count == 1)
         {
             source.SendSuccess(tags.Count == 0
-                ? $"{targets[0].Name} 没有任何标签"
-                : $"{targets[0].Name} 有 {tags.Count} 个标签: {joined}");
+                ? $"{targets[0].Name} has no tags"
+                : $"{targets[0].Name} has {tags.Count} tags: {joined}");
         }
         else
         {
             source.SendSuccess(tags.Count == 0
-                ? $"{targets.Count} 个目标都没有标签"
-                : $"{targets.Count} 个目标共有 {tags.Count} 个标签: {joined}");
+                ? $"{targets.Count} targets have no tags"
+                : $"{targets.Count} targets have {tags.Count} tags in total: {joined}");
         }
         return tags.Count;
     }
 
-    //Entities 取目标集合里的关卡实体 玩家不具有标签存储 直接跳过
+    //Entities takes the level entities from the target set; players have no tag storage and are skipped
     private static IEnumerable<Entity> Entities(IReadOnlyList<CommandTarget> targets)
     {
         foreach (var target in targets)

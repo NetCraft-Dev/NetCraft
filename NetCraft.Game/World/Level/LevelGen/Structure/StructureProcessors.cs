@@ -7,7 +7,7 @@ using HeightmapTypes = NetCraft.Registry.Heightmap.Types;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//NopProcessor 空处理器 对应原版 NopProcessor 什么都不改
+//NopProcessor no-op processor, maps to vanilla NopProcessor; changes nothing
 public sealed class NopProcessor : StructureProcessor
 {
     public static readonly NopProcessor Instance = new();
@@ -20,10 +20,10 @@ public sealed class NopProcessor : StructureProcessor
         new ProcessorMapCodec<NopProcessor, StructureProcessor>(MapCodec);
 }
 
-//BlockIgnoreProcessor 忽略指定方块 对应原版 BlockIgnoreProcessor 命中的格子直接丢弃
+//BlockIgnoreProcessor ignores the given blocks, maps to vanilla BlockIgnoreProcessor; a hit cell is dropped outright
 public sealed class BlockIgnoreProcessor : StructureProcessor
 {
-    //blocks 字段按原版是方块状态列表 这里只取方块本身
+    //In vanilla the blocks field is a block state list; here only the block itself is taken
     public static readonly MapCodec<BlockIgnoreProcessor> MapCodec =
         new StructureSingleFieldMapCodec<BlockIgnoreProcessor, IReadOnlyList<BlockState>>(
             BlockStateCodec.Instance.ListOf().FieldOf("blocks"),
@@ -34,15 +34,15 @@ public sealed class BlockIgnoreProcessor : StructureProcessor
     private static BlockIgnoreProcessor? _air;
     private static BlockIgnoreProcessor? _structureAndAir;
 
-    //StructureBlock 只忽略结构方块 对应原版 STRUCTURE_BLOCK
+    //StructureBlock ignores only structure blocks, maps to vanilla STRUCTURE_BLOCK
     public static BlockIgnoreProcessor StructureBlock
         => _structureBlock ??= new BlockIgnoreProcessor(new[] { ProcessorBlockHelper.BlockOf("structure_block")! });
 
-    //Air 只忽略空气 对应原版 AIR
+    //Air ignores only air, maps to vanilla AIR
     public static BlockIgnoreProcessor Air
         => _air ??= new BlockIgnoreProcessor(new[] { ProcessorBlockHelper.BlockOf("air")! });
 
-    //StructureAndAir 忽略空气与结构方块 对应原版 STRUCTURE_AND_AIR
+    //StructureAndAir ignores air and structure blocks, maps to vanilla STRUCTURE_AND_AIR
     public static BlockIgnoreProcessor StructureAndAir
         => _structureAndAir ??= new BlockIgnoreProcessor(new[]
         {
@@ -62,7 +62,7 @@ public sealed class BlockIgnoreProcessor : StructureProcessor
         new ProcessorMapCodec<BlockIgnoreProcessor, StructureProcessor>(MapCodec);
 }
 
-//BlockRotProcessor 按完整度随机丢弃方块 对应原版 BlockRotProcessor
+//BlockRotProcessor randomly drops blocks by integrity, maps to vanilla BlockRotProcessor
 public sealed class BlockRotProcessor : StructureProcessor
 {
     public static readonly MapCodec<BlockRotProcessor> MapCodec =
@@ -102,8 +102,8 @@ public sealed class BlockRotProcessor : StructureProcessor
         new ProcessorMapCodec<BlockRotProcessor, StructureProcessor>(MapCodec);
 }
 
-//GravityProcessor 把方块贴到高度图上 对应原版 GravityProcessor
-//没有世界视图时求不出高度 原版这条路径必定有 level 这里原样保留
+//GravityProcessor snaps blocks to the heightmap, maps to vanilla GravityProcessor
+//Height cannot be resolved without a world view; vanilla always has a level on this path, and the block is kept as is here
 public sealed class GravityProcessor : StructureProcessor
 {
     public static readonly MapCodec<GravityProcessor> MapCodec =
@@ -126,7 +126,7 @@ public sealed class GravityProcessor : StructureProcessor
         BlockPos templateRelativePos, StructureBlockInfo processedBlockInfo, StructurePlaceSettings settings)
     {
         if (level is null) return processedBlockInfo;
-        //有真实关卡时工作用高度图换成对应对外的类型 测试高度图不进存档
+        //With a real level, the working heightmap switches to the corresponding public type; the test heightmap is not saved
         var heightmap = Heightmap;
         if (level.Level is not null)
         {
@@ -144,7 +144,7 @@ public sealed class GravityProcessor : StructureProcessor
         new ProcessorMapCodec<GravityProcessor, StructureProcessor>(MapCodec);
 }
 
-//JigsawReplacementProcessor 把拼图方块换成它 nbt 里记录的最终状态 对应原版 JigsawReplacementProcessor
+//JigsawReplacementProcessor replaces a jigsaw block with the final state recorded in its nbt, maps to vanilla JigsawReplacementProcessor
 public sealed class JigsawReplacementProcessor : StructureProcessor
 {
     public static readonly JigsawReplacementProcessor Instance = new();
@@ -158,7 +158,7 @@ public sealed class JigsawReplacementProcessor : StructureProcessor
         BlockPos templateRelativePos, StructureBlockInfo processedBlockInfo, StructurePlaceSettings settings)
     {
         if (!ProcessorBlockHelper.HasBlock(processedBlockInfo.State, "jigsaw")) return processedBlockInfo;
-        //缺 nbt 的拼图方块不知道要换成什么 原版也是原样留下
+        //A jigsaw block without nbt has no known final state; vanilla also leaves it as is
         if (processedBlockInfo.Nbt is null) return processedBlockInfo;
         var stateString = processedBlockInfo.Nbt.GetString("final_state")?.Value ?? "minecraft:air";
         var parsed = ProcessorBlockHelper.ParseStateString(stateString);
@@ -171,7 +171,7 @@ public sealed class JigsawReplacementProcessor : StructureProcessor
         new ProcessorMapCodec<JigsawReplacementProcessor, StructureProcessor>(MapCodec);
 }
 
-//ProtectedBlockProcessor 保护世界里已有的一类方块不被覆盖 对应原版 ProtectedBlockProcessor
+//ProtectedBlockProcessor protects an existing block category in the world from being overwritten, maps to vanilla ProtectedBlockProcessor
 public sealed class ProtectedBlockProcessor : StructureProcessor
 {
     public static readonly MapCodec<ProtectedBlockProcessor> MapCodec =
@@ -198,7 +198,7 @@ public sealed class ProtectedBlockProcessor : StructureProcessor
         new ProcessorMapCodec<ProtectedBlockProcessor, StructureProcessor>(MapCodec);
 }
 
-//BlackstoneReplaceProcessor 石头系列整体换成黑石系列 对应原版 BlackstoneReplaceProcessor
+//BlackstoneReplaceProcessor swaps the whole stone family for blackstone, maps to vanilla BlackstoneReplaceProcessor
 public sealed class BlackstoneReplaceProcessor : StructureProcessor
 {
     public static readonly BlackstoneReplaceProcessor Instance = new();
@@ -245,7 +245,7 @@ public sealed class BlackstoneReplaceProcessor : StructureProcessor
             CopyShapeProperties(processedBlockInfo.State, block.DefaultBlockState), processedBlockInfo.Nbt);
     }
 
-    //CopyShapeProperties 只搬朝向 半砖位置 台阶类型三项 与原版逐属性比较一致
+    //CopyShapeProperties copies only the three properties facing / half / type, matching vanilla's per-property comparison
     private static BlockState CopyShapeProperties(BlockState from, BlockState to)
     {
         foreach (var entry in from.GetValues())
@@ -262,7 +262,7 @@ public sealed class BlackstoneReplaceProcessor : StructureProcessor
         new ProcessorMapCodec<BlackstoneReplaceProcessor, StructureProcessor>(MapCodec);
 }
 
-//LavaSubmergedBlockProcessor 岩浆里的不完整方块换回岩浆 对应原版 LavaSubmergedBlockProcessor
+//LavaSubmergedBlockProcessor turns incomplete blocks submerged in lava back into lava, maps to vanilla LavaSubmergedBlockProcessor
 public sealed class LavaSubmergedBlockProcessor : StructureProcessor
 {
     public static readonly LavaSubmergedBlockProcessor Instance = new();
@@ -278,7 +278,7 @@ public sealed class LavaSubmergedBlockProcessor : StructureProcessor
         if (level is null) return processedBlockInfo;
         var pos = processedBlockInfo.Pos;
         var wasLava = ProcessorBlockHelper.HasBlock(level.GetBlockState(pos.X, pos.Y, pos.Z), "lava");
-        //原版按碰撞形状判是否整块 本作只有遮挡形状可用
+        //Vanilla checks the collision shape for full-block; here only the occlusion shape is available
         if (wasLava && !RegBlock.IsShapeFullBlock(processedBlockInfo.State.Owner.GetOcclusionShape(processedBlockInfo.State)))
             return new StructureBlockInfo(pos, ProcessorBlockHelper.StateOf("lava"), processedBlockInfo.Nbt);
         return processedBlockInfo;

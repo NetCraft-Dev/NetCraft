@@ -2,11 +2,11 @@ namespace NetCraft.DataFixer.Optics;
 
 using NetCraft.DataFixer.Util;
 
-//Proj2投影Pair第二分量对应原版com.mojang.datafixers.optics.Proj2
-//view取Pair.Secondupdate替换Pair.Second保留First
+//Proj2 projects the second component of Pair, maps to vanilla com.mojang.datafixers.optics.Proj2
+//view takes Pair.Second; update replaces Pair.Second and preserves First
 public sealed class Proj2<F, G, G2> : Lens<Pair<F, G>, Pair<F, G2>, G, G2>
 {
-    //单例缓存类型参数擦除后共享
+    //singleton cached, shared after type parameter erasure
     internal static readonly Proj2<object, object, object> Instance = new();
 
     private Proj2() { }

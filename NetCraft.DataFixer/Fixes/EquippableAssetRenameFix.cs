@@ -3,8 +3,8 @@ using T = NetCraft.DataFixer.Types;
 
 namespace NetCraft.DataFixer.Fixes;
 
-//可装备组件资源重命名对应原版EquippableAssetRenameFix
-//1.21.4把minecraft:equippable组件的model字段重命名为asset_id
+//equippable component asset rename, maps to vanilla EquippableAssetRenameFix
+//1.21.4 renames the minecraft:equippable component's model field to asset_id
 public class EquippableAssetRenameFix : DataFix
 {
     public EquippableAssetRenameFix(Schema outputSchema) : base(outputSchema, true) { }

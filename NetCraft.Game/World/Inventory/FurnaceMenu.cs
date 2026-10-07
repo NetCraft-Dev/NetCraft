@@ -7,8 +7,8 @@ using NCItems = NetCraft.Game.World.Items.Items;
 
 namespace NetCraft.Game.World.Inventory;
 
-//FurnaceMenu 熔炼界面菜单对应原版 net.minecraft.world.inventory.AbstractFurnaceMenu
-//三格(输入/燃料/结果)加四个数据槽 熔炉 高炉 烟熏炉只有菜单类型与配方类型不同
+//FurnaceMenu smelting menu, maps to vanilla net.minecraft.world.inventory.AbstractFurnaceMenu
+//Three slots (input/fuel/result) plus four data slots; the furnace, blast furnace and smoker differ only in menu type and recipe type
 public sealed class FurnaceMenu : AbstractContainerMenu
 {
     public const int IngredientSlotIndex = 0;
@@ -16,13 +16,13 @@ public sealed class FurnaceMenu : AbstractContainerMenu
     public const int ResultSlotIndex = 2;
     public const int SlotCount = 3;
 
-    //背包区与快捷栏区在菜单内的下标范围 与原版 quickMoveStack 用的区间一致
+    //Menu index ranges of the inventory and hotbar sections, same ranges vanilla quickMoveStack uses
     public const int InvSlotStart = 3;
     private const int InvSlotEnd = 30;
     private const int UseRowSlotStart = 30;
     private const int UseRowSlotEnd = 39;
 
-    //InventoryTop 玩家背包首行 y 坐标 与原版 addStandardInventorySlots(inv, 8, 84) 对齐
+    //InventoryTop y coordinate of the inventory's first row, aligned with vanilla addStandardInventorySlots(inv, 8, 84)
     private const int InventoryTop = 84;
 
     private readonly AbstractFurnaceBlockEntity _furnace;
@@ -52,20 +52,20 @@ public sealed class FurnaceMenu : AbstractContainerMenu
     public static FurnaceMenu ForSmoker(int containerId, PlayerInventory inventory, AbstractFurnaceBlockEntity furnace)
         => new(MenuTypes.SMOKER, containerId, inventory, furnace);
 
-    //Furnace 菜单对应的熔炼方块实体
+    //Furnace smelting block entity backing the menu
     public AbstractFurnaceBlockEntity Furnace => _furnace;
 
-    //StillValid 方块还在且玩家没走远才有效 对应原版 AbstractFurnaceMenu.stillValid
+    //StillValid valid while the block remains and the player is close enough, maps to vanilla AbstractFurnaceMenu.stillValid
     public override bool StillValid(ServerPlayer player) => _furnace.StillValid(player);
 
-    //CanSmelt 该物品在本菜单对应的配方类型里有配方 对应原版 canSmelt
+    //CanSmelt whether the item has a recipe in this menu's recipe type, maps to vanilla canSmelt
     public bool CanSmelt(ItemStack stack)
         => RecipeManager.Active?.GetCookingRecipe(_furnace.CookingRecipeType, stack) is not null;
 
-    //IsFuel 该物品能当燃料 对应原版 isFuel
+    //IsFuel whether the item can be used as fuel, maps to vanilla isFuel
     public bool IsFuel(ItemStack stack) => FuelValues.Active?.IsFuel(stack) == true;
 
-    //QuickMoveStack 结果与输入燃料与背包互搬 对应原版 quickMoveStack 的分支顺序
+    //QuickMoveStack moves the result and input/fuel to and from the inventory, matching the branch order of vanilla quickMoveStack
     public override ItemStack QuickMoveStack(ServerPlayer player, int slotIndex)
     {
         var slot = GetSlot(slotIndex);
@@ -102,7 +102,7 @@ public sealed class FurnaceMenu : AbstractContainerMenu
         return moved;
     }
 
-    //FuelSlot 燃料槽 只收燃料与桶 且桶一格只能放一个 对应原版 FurnaceFuelSlot
+    //FuelSlot fuel slot, accepts only fuel and buckets, and only one bucket per slot, maps to vanilla FurnaceFuelSlot
     private sealed class FuelSlot(Container container, int slotIndex, int x, int y)
         : Slot(container, slotIndex, x, y)
     {

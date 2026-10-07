@@ -5,11 +5,11 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Game.World.Level.LevelGen.Carver;
 
-//CarverDebugSettings 雕刻调试设置对应原版 CarverDebugSettings
-//开调试时把挖出来的空气/水/岩浆/屏障换成显眼方块 DEFAULT 对齐原版用按钮蜡烛与橙色玻璃
+//CarverDebugSettings carver debug settings, maps to vanilla CarverDebugSettings
+//When debug is on, carved air/water/lava/barrier is swapped for eye-catching blocks; DEFAULT matches vanilla (button, candle, orange stained glass)
 public sealed class CarverDebugSettings
 {
-    //DEFAULT 原版默认调试设置 方块表未注册时退回空气避免静态初始化抛异常
+    //DEFAULT vanilla default debug settings; falls back to air when the block registry is not populated, avoiding exceptions in static init
     public static readonly CarverDebugSettings DEFAULT = new(
         false,
         StateOf("acacia_button"),
@@ -47,14 +47,14 @@ public sealed class CarverDebugSettings
         BarrierState = barrierState;
     }
 
-    //StateOf 按注册名取方块默认状态 方块表没这个方块时退回空气
+    //StateOf default block state by registry name; falls back to air when the block is missing
     private static BlockState StateOf(string path)
         => BuiltInRegistries.BLOCK.GetValue(Identifier.WithDefaultNamespace(path))?.DefaultBlockState
             ?? Blocks.AIR.DefaultBlockState;
 }
 
-//CarverConfiguration 雕刻配置基类对应原版 CarverConfiguration
-//原版继承 ProbabilityFeatureConfiguration feature 体系尚未移植这里直接放 Probability 字段
+//CarverConfiguration carver configuration base, maps to vanilla CarverConfiguration
+//Vanilla extends ProbabilityFeatureConfiguration; the feature system is not ported yet, so Probability sits here directly
 public class CarverConfiguration
 {
     public static readonly Codec<CarverConfiguration> Codec =
@@ -89,7 +89,7 @@ public class CarverConfiguration
     }
 }
 
-//CaveCarverConfiguration 洞穴雕刻配置对应原版 CaveCarverConfiguration
+//CaveCarverConfiguration cave carver configuration, maps to vanilla CaveCarverConfiguration
 public sealed class CaveCarverConfiguration : CarverConfiguration
 {
     public static readonly Codec<CaveCarverConfiguration> Codec =
@@ -127,7 +127,7 @@ public sealed class CaveCarverConfiguration : CarverConfiguration
     }
 }
 
-//CanyonCarverConfiguration 峡谷雕刻配置对应原版 CanyonCarverConfiguration
+//CanyonCarverConfiguration canyon carver configuration, maps to vanilla CanyonCarverConfiguration
 public sealed class CanyonCarverConfiguration : CarverConfiguration
 {
     public static readonly Codec<CanyonCarverConfiguration> Codec =
@@ -153,7 +153,7 @@ public sealed class CanyonCarverConfiguration : CarverConfiguration
     }
 }
 
-//CanyonShapeConfiguration 峡谷形状配置对应原版 CanyonShapeConfiguration
+//CanyonShapeConfiguration canyon shape configuration, maps to vanilla CanyonShapeConfiguration
 public sealed class CanyonShapeConfiguration
 {
     public static readonly Codec<CanyonShapeConfiguration> Codec =

@@ -8,9 +8,9 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//NoiseChunk 区块噪声上下文对应原版 net.minecraft.world.level.levelgen.NoiseChunk
-//构造时按 Marker 类型把密度树包装成插值/缓存节点 生成时逐 cell 流式推进
-//被 interpolated 包裹的子树只在 cell 角点采样格内走三线性插值其余节点逐方块求值
+//NoiseChunk chunk noise context, maps to vanilla net.minecraft.world.level.levelgen.NoiseChunk
+//At construction it wraps the density tree into interpolator/cache nodes by Marker type; generation advances cell by cell in a stream
+//Subtrees wrapped in interpolated sample only at cell corners and interpolate trilinearly in the cell; other nodes evaluate per block
 public sealed class NoiseChunk : FunctionContext, ContextProvider
 {
     public ChunkAccess Chunk { get; }
@@ -19,7 +19,7 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
     public DensityFunction FullNoiseDensity { get; }
     public Aquifer Aquifer { get; }
 
-    //cell 网格参数来自 NoiseSettings 对应原版 NoiseChunk 构造中的 cell 参数
+    //Cell grid parameters come from NoiseSettings, matching the cell parameters in the vanilla NoiseChunk constructor
     public int CellWidth { get; }
     public int CellHeight { get; }
     public int CellCountXZ { get; }
@@ -48,10 +48,10 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
     private readonly List<NoiseCacheAllInCell> _cellCaches = new();
     private readonly DensityFunction _preliminarySurfaceLevel;
     private readonly ContextProvider _sliceFillingContextProvider;
-    //初步地表按 quart 列缓存 地表规则与含水层都会反复问同一列
+    //Preliminary surface cached per quart column; surface rules and the aquifer both query the same column repeatedly
     private readonly Dictionary<long, int> _preliminarySurfaceCache = new();
 
-    //beardifier 结构地形适配项 未传时用恒为 0 的标记 结构与地形互不影响
+    //beardifier structure terrain adjustment; when omitted a constant-zero marker is used so structures and terrain do not affect each other
     public NoiseChunk(ChunkAccess chunk, RandomState randomState, NoiseGeneratorSettings settings,
         DensityFunction? beardifier = null)
     {
@@ -63,7 +63,7 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
         CellWidth = noiseSettings.GetCellWidth();
         CellHeight = noiseSettings.GetCellHeight();
         CellCountXZ = 16 / CellWidth;
-        //按区块高度夹取噪声高度设置 对应原版 noiseSettings.clampToHeightAccessor(chunk)
+        //Clamps the noise height settings to the chunk height, matches vanilla noiseSettings.clampToHeightAccessor(chunk)
         var levelMinY = chunk.MinSectionY * 16;
         var levelMaxY = levelMinY + chunk.SectionsCount * 16;
         var clampedMinY = Math.Max(noiseSettings.MinY, levelMinY);
@@ -80,17 +80,17 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
         NoiseSizeXZ = CellCountXZ * CellWidth >> 2;
         _sliceFillingContextProvider = new SliceFillingContextProvider(this);
 
-        //整棵密度树按 Marker 类型包装插值/缓存节点
+        //Wrap the whole density tree into interpolator/cache nodes by Marker type
         var wrappedRouter = randomState.Router.MapAll(new WrapVisitor(this));
         _preliminarySurfaceLevel = wrappedRouter.PreliminarySurfaceLevel;
         Aquifer = CreateAquifer(settings, this, wrappedRouter, chunk.Pos, randomState,
             clampedMinY, clampedMaxY - clampedMinY);
-        //结构地形适配项加在最终密度上 没传结构时用占位标记恒为 0
+        //The structure terrain adjustment is added to the final density; a placeholder marker constant 0 is used when no structures are passed
         FullNoiseDensity = Wrap(new MarkerNode(DensityFunctionsExtra.MarkerType.CacheAllInCell,
             new Ap2(Ap2.OpType.Add, wrappedRouter.FinalDensity, beardifier ?? BeardifierMarker.Instance)));
     }
 
-    //CreateAquifer 按 settings.AquifersEnabled 决定使用完整含水层还是禁用版对应原版 NoiseChunk 构造中的分支
+    //CreateAquifer picks the full aquifer or the disabled one from settings.AquifersEnabled, matching the branch in the vanilla NoiseChunk constructor
     private static Aquifer CreateAquifer(NoiseGeneratorSettings settings, NoiseChunk noiseChunk,
         NoiseRouter router, ChunkPos pos, RandomState randomState, int minBlockY, int yBlockSize)
     {
@@ -100,8 +100,8 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
             minBlockY, yBlockSize, globalFluidPicker);
     }
 
-    //Wrap 按 Marker 类型生成包装节点对应原版 NoiseChunk.wrap
-    //非 Marker 节点原样返回其子节点已在遍历时递归包装好
+    //Wrap builds the wrapper node for a Marker type, maps to vanilla NoiseChunk.wrap
+    //Non-Marker nodes are returned as-is; their children were already wrapped recursively during the traversal
     private DensityFunction Wrap(DensityFunction function)
     {
         if (_wrapped.TryGetValue(function, out var cached)) return cached;
@@ -119,7 +119,7 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
             DensityFunctionsExtra.MarkerType.Cache2D => new NoiseCache2D(marker.Wrapped),
             DensityFunctionsExtra.MarkerType.CacheOnce => new NoiseCacheOnce(this, marker.Wrapped),
             DensityFunctionsExtra.MarkerType.CacheAllInCell => new NoiseCacheAllInCell(this, marker.Wrapped),
-            //BlendDensity 在没有 blender 时原版也直接透传
+            //BlendDensity passes straight through in vanilla too when there is no blender
             _ => marker.Wrapped
         },
         HolderHolder holder => holder.Function,
@@ -139,12 +139,12 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
     internal long InterpolationCounter => _interpolationCounter;
     internal long ArrayInterpolationCounter => _arrayInterpolationCounter;
 
-    //BlockX/Y/Z 当前采样点坐标由 cell 起点加格内偏移组成对应原版 FunctionContext
+    //BlockX/Y/Z the current sample coordinate, the cell start plus the in-cell offset, maps to vanilla FunctionContext
     public int BlockX => _cellStartBlockX + _inCellX;
     public int BlockY => _cellStartBlockY + _inCellY;
     public int BlockZ => _cellStartBlockZ + _inCellZ;
 
-    //ForIndex 按格内线性下标还原三轴偏移 Y 从上往下对应原版 forIndex
+    //ForIndex restores the three-axis offsets from the in-cell linear index, Y from top to bottom, maps to vanilla forIndex
     public FunctionContext ForIndex(int cellIndex)
     {
         var zInCell = cellIndex % CellWidth;
@@ -158,7 +158,7 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
         return this;
     }
 
-    //FillAllDirectly 按 Y 降序 X/Z 升序遍历整格对应原版 fillAllDirectly
+    //FillAllDirectly walks the whole cell with Y descending and X/Z ascending, maps to vanilla fillAllDirectly
     public void FillAllDirectly(double[] output, DensityFunction function)
     {
         _arrayIndex = 0;
@@ -177,7 +177,7 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
         }
     }
 
-    //InitializeForFirstCellX 开始插值循环并填第一个 X 切片对应原版 initializeForFirstCellX
+    //InitializeForFirstCellX starts the interpolation loop and fills the first X slice, maps to vanilla initializeForFirstCellX
     public void InitializeForFirstCellX()
     {
         if (_interpolating) throw new InvalidOperationException("Staring interpolation twice");
@@ -186,7 +186,7 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
         FillSlice(true, _firstCellX);
     }
 
-    //AdvanceCellX 推进到下一个 X cell 填下一片角点对应原版 advanceCellX
+    //AdvanceCellX moves to the next X cell and fills the next slice of corners, maps to vanilla advanceCellX
     public void AdvanceCellX(int cellXIndex)
     {
         FillSlice(false, _firstCellX + cellXIndex + 1);
@@ -212,7 +212,7 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
         _arrayInterpolationCounter++;
     }
 
-    //SelectCellYZ 选中当前 YZ cell 取八个角点并预填整格缓存对应原版 selectCellYZ
+    //SelectCellYZ selects the current YZ cell, takes the eight corners and pre-fills the whole-cell caches, maps to vanilla selectCellYZ
     public void SelectCellYZ(int cellYIndex, int cellZIndex)
     {
         foreach (var interpolator in _interpolators) interpolator.SelectCellYZ(cellYIndex, cellZIndex);
@@ -255,16 +255,16 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
         _interpolating = false;
     }
 
-    //GetInterpolatedState 取当前采样点的方块状态对应原版 getInterpolatedState
-    //密度>0 时含水层返回 null 由上层用 Settings.DefaultBlock 兜底
+    //GetInterpolatedState returns the block state of the current sample, maps to vanilla getInterpolatedState
+    //The aquifer returns null when density > 0 and the caller falls back to Settings.DefaultBlock
     public BlockState? GetInterpolatedState()
     {
         var density = FullNoiseDensity.Compute(this);
         return Aquifer.ComputeSubstance(this, density);
     }
 
-    //PreliminarySurfaceLevel 初步地表高度对应原版 preliminarySurfaceLevel
-    //先按 4 格量化到 quart 对齐坐标 再采样 preliminary_surface_level 密度函数并向下取整
+    //PreliminarySurfaceLevel preliminary surface height, maps to vanilla preliminarySurfaceLevel
+    //Quantises to a quart-aligned coordinate by 4 blocks, then samples the preliminary_surface_level density function and floors it
     public int PreliminarySurfaceLevel(int blockX, int blockZ)
     {
         var quantizedX = blockX >> 2 << 2;
@@ -277,8 +277,8 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
         return value;
     }
 
-    //MaxPreliminarySurfaceLevel 在方块坐标矩形内按 4 格步长取初步地表最大值对应原版 maxPreliminarySurfaceLevel
-    //含水层用它决定高于地表的网格不再做中心搜索直接给全局流体
+    //MaxPreliminarySurfaceLevel takes the max preliminary surface over a block-coordinate rectangle at a 4-block step, maps to vanilla maxPreliminarySurfaceLevel
+    //The aquifer uses it to give global fluid to cells above the surface instead of doing a centre search
     public int MaxPreliminarySurfaceLevel(int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ)
     {
         var maxY = int.MinValue;
@@ -293,7 +293,7 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
         return maxY;
     }
 
-    //WrapVisitor 把 NoiseChunk.Wrap 包装成密度树访问者
+    //WrapVisitor adapts NoiseChunk.Wrap into a density tree visitor
     private sealed class WrapVisitor : Visitor
     {
         private readonly NoiseChunk _chunk;
@@ -305,8 +305,8 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
         public NoiseHolder VisitNoise(NoiseHolder noise) => noise;
     }
 
-    //SliceFillingContextProvider 切片填充上下文对应原版 sliceFillingContextProvider
-    //按 cell 的 Y 序号设置 Y 起点让角点采样落在 cell 边界上
+    //SliceFillingContextProvider slice filling context, maps to vanilla sliceFillingContextProvider
+    //Sets the Y start from the cell's Y index so corner sampling lands on cell boundaries
     private sealed class SliceFillingContextProvider : ContextProvider
     {
         private readonly NoiseChunk _chunk;

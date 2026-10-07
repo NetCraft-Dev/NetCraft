@@ -2,8 +2,8 @@ using Silk.NET.Vulkan;
 
 namespace NetCraft.Gpu.Vulkan;
 
-//VulkanTriangleApp Vulkan 三角形 PoC 主程序
-//继承 VulkanAppBase 只实现 pipeline 创建和命令录制其他由基类处理
+//VulkanTriangleApp Vulkan triangle PoC main program
+//Extends VulkanAppBase and only implements pipeline creation and command recording; the rest is handled by the base
 public sealed unsafe class VulkanTriangleApp : VulkanAppBase
 {
     private VulkanRenderPipeline _pipeline = null!;
@@ -12,15 +12,15 @@ public sealed unsafe class VulkanTriangleApp : VulkanAppBase
 
     protected override string WindowTitle => "NetCraft.Gpu.Vulkan Triangle PoC";
 
-    //OnCreatePipelineResources 创建三角形 pipeline 用内置 SpirvShaders shader
+    //OnCreatePipelineResources creates the triangle pipeline using the built-in SpirvShaders shader
     protected override void OnCreatePipelineResources()
     {
-        //PoC 用 SpirvShaders 内置 shader description 留 null 走 VulkanRenderPipeline 默认
+        //The PoC uses the built-in SpirvShaders shader and leaves description null, using VulkanRenderPipeline defaults
         var description = new RenderPipelineDescription();
         _pipeline = new VulkanRenderPipeline(_device.Api, _device.Device, _swapchainImageFormat, _swapchainExtent, description);
     }
 
-    //OnRecordCommandBuffer 4.3 改造传 colorImageView 走 dynamic rendering
+    //OnRecordCommandBuffer 4.3 rework passes colorImageView for dynamic rendering
     protected override void OnRecordCommandBuffer(VulkanCommandBuffer cmd, ImageView colorImageView)
     {
         cmd.BeginRecording();
@@ -30,7 +30,7 @@ public sealed unsafe class VulkanTriangleApp : VulkanAppBase
         cmd.EndRecording();
     }
 
-    //OnCleanupPipelineResources 销毁 pipeline 资源
+    //OnCleanupPipelineResources destroys pipeline resources
     protected override void OnCleanupPipelineResources()
     {
         _pipeline.Dispose();

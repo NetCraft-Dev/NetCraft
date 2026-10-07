@@ -8,7 +8,7 @@ using PrimDirection = NetCraft.Primitives.Direction;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Trees;
 
-//FoliagePlacerType 树叶放置器类型基类 对应原版 FoliagePlacerType<P>
+//FoliagePlacerType foliage placer type base, maps to vanilla FoliagePlacerType<P>
 public abstract class FoliagePlacerType : NetCraft.Registry.FoliagePlacerType<object>
 {
     public Identifier Id { get; }
@@ -20,7 +20,7 @@ public abstract class FoliagePlacerType : NetCraft.Registry.FoliagePlacerType<ob
     public abstract void EncodeFields<U>(DynamicOps<U> ops, FoliagePlacer value, RecordBuilder<U> builder);
 }
 
-//FoliagePlacerType<P> 具体放置器类型的泛型中间层
+//FoliagePlacerType<P> generic middle layer for a concrete placer type
 public abstract class FoliagePlacerType<P> : FoliagePlacerType where P : FoliagePlacer
 {
     private readonly MapCodec<P> _codec;
@@ -42,7 +42,7 @@ internal sealed class SimpleFoliagePlacerType<P> : FoliagePlacerType<P> where P 
         : base(Identifier.WithDefaultNamespace(id), codec) { }
 }
 
-//FoliagePlacerTypes 内置树叶放置器类型登记 对应原版 FoliagePlacerType 的静态字段
+//FoliagePlacerTypes built-in foliage placer type registration, maps to the static fields of vanilla FoliagePlacerType
 public static class FoliagePlacerTypes
 {
     public static readonly FoliagePlacerType<BlobFoliagePlacer> Blob =
@@ -87,14 +87,14 @@ public static class FoliagePlacerTypes
     }
 }
 
-//FoliagePlacerParts 树叶放置器共用的半径与偏移字段 对应原版 foliagePlacerParts
+//FoliagePlacerParts radius and offset fields shared by foliage placers, maps to vanilla foliagePlacerParts
 internal static class FoliagePlacerParts
 {
     public static readonly MapCodec<IntProvider> Radius = IntProviders.Codec.FieldOf("radius");
     public static readonly MapCodec<IntProvider> Offset = IntProviders.Codec.FieldOf("offset");
 }
 
-//FoliagePlacer 树叶放置器基类 对应原版 FoliagePlacer
+//FoliagePlacer foliage placer base, maps to vanilla FoliagePlacer
 public abstract class FoliagePlacer
 {
     public static readonly Codec<FoliagePlacer> Codec = new FoliagePlacerDispatchCodec();
@@ -108,8 +108,8 @@ public abstract class FoliagePlacer
         OffsetProvider = offset;
     }
 
-    //FoliageSetter 树叶落位回调 对应原版 FoliageSetter
-    //IsSet 供垂枝判断上方是否已有树叶
+    //FoliageSetter foliage placement callback, maps to vanilla FoliageSetter
+    //IsSet lets hanging branches check whether leaves already exist above
     public sealed class FoliageSetter
     {
         private readonly Action<BlockPos, BlockState> _set;
@@ -126,7 +126,7 @@ public abstract class FoliagePlacer
         public bool IsSet(BlockPos pos) => _isSet(pos);
     }
 
-    //FoliageAttachment 树叶挂点 对应原版 FoliageAttachment
+    //FoliageAttachment foliage attachment point, maps to vanilla FoliageAttachment
     public sealed class FoliageAttachment
     {
         public BlockPos Pos { get; }
@@ -152,17 +152,17 @@ public abstract class FoliagePlacer
     protected abstract bool ShouldSkipLocation(RandomSource random, int dx, int y, int dz, int currentRadius,
         bool doubleTrunk);
 
-    //CreateFoliage 取一次随机偏移后落到具体实现 对应原版 createFoliage 八参重载
+    //CreateFoliage takes one random offset then dispatches to the concrete implementation, maps to the vanilla 8-argument createFoliage overload
     public void CreateFoliage(WorldGenRegion level, FoliageSetter foliageSetter, RandomSource random,
         TreeConfiguration config, int treeHeight, FoliageAttachment foliageAttachment, int foliageHeight,
         int leafRadius)
         => CreateFoliage(level, foliageSetter, random, config, treeHeight, foliageAttachment, foliageHeight,
             leafRadius, OffsetProvider.Sample(random));
 
-    //FoliageRadius 树冠半径 对应原版 foliageRadius
+    //FoliageRadius canopy radius, maps to vanilla foliageRadius
     public virtual int FoliageRadius(RandomSource random, int trunkHeight) => Radius.Sample(random);
 
-    //ShouldSkipLocationSigned 先按双干把镜像距离折半再判定 对应原版 shouldSkipLocationSigned
+    //ShouldSkipLocationSigned halves the mirrored distance for double trunks before testing, maps to vanilla shouldSkipLocationSigned
     protected virtual bool ShouldSkipLocationSigned(RandomSource random, int dx, int y, int dz, int currentRadius,
         bool doubleTrunk)
     {
@@ -180,7 +180,7 @@ public abstract class FoliagePlacer
         return ShouldSkipLocation(random, minDx, y, minDz, currentRadius, doubleTrunk);
     }
 
-    //PlaceLeavesRow 铺一层树叶 对应原版 placeLeavesRow
+    //PlaceLeavesRow place one row of leaves, maps to vanilla placeLeavesRow
     protected void PlaceLeavesRow(WorldGenRegion level, FoliageSetter foliageSetter, RandomSource random,
         TreeConfiguration config, BlockPos origin, int currentRadius, int y, bool doubleTrunk)
     {
@@ -195,7 +195,7 @@ public abstract class FoliagePlacer
         }
     }
 
-    //PlaceLeavesRowWithHangingLeavesBelow 铺一层树叶并沿四周往下挂叶 对应原版同名方法
+    //PlaceLeavesRowWithHangingLeavesBelow place a leaf row and hang leaves down around it, maps to the vanilla method of the same name
     protected void PlaceLeavesRowWithHangingLeavesBelow(WorldGenRegion level, FoliageSetter foliageSetter,
         RandomSource random, TreeConfiguration config, BlockPos origin, int currentRadius, int y, bool doubleTrunk,
         float hangingLeavesChance, float hangingLeavesExtensionChance)
@@ -232,7 +232,7 @@ public abstract class FoliagePlacer
         }
     }
 
-    //TryPlaceExtension 挂叶候选 离树干太近或掷骰失败就不放 对应原版 tryPlaceExtension
+    //TryPlaceExtension hanging leaf candidate; skip when too close to the trunk or the roll fails, maps to vanilla tryPlaceExtension
     private static bool TryPlaceExtension(WorldGenRegion level, FoliageSetter foliageSetter, RandomSource random,
         TreeConfiguration config, float chance, BlockPos logPos, BlockPos pos)
     {
@@ -240,7 +240,7 @@ public abstract class FoliagePlacer
         return TryPlaceLeaf(level, foliageSetter, random, config, pos);
     }
 
-    //TryPlaceLeaf 尝试放一格树叶 已是持久叶或位置不可占用则跳过 对应原版 tryPlaceLeaf
+    //TryPlaceLeaf try to place one leaf; skip when it is already persistent or the position cannot be occupied, maps to vanilla tryPlaceLeaf
     protected static bool TryPlaceLeaf(WorldGenRegion level, FoliageSetter foliageSetter, RandomSource random,
         TreeConfiguration config, BlockPos pos)
     {
@@ -254,7 +254,7 @@ public abstract class FoliagePlacer
     }
 }
 
-//FoliagePlacerDispatchCodec 按 type 字段查 FOLIAGE_PLACER_TYPE 再委派给该类型
+//FoliagePlacerDispatchCodec look up FOLIAGE_PLACER_TYPE by the type field then delegate to that type
 internal sealed class FoliagePlacerDispatchCodec : ScalarCodec<FoliagePlacer>
 {
     public override DataResult<FoliagePlacer> Parse<U>(DynamicOps<U> ops, U input)
@@ -263,15 +263,15 @@ internal sealed class FoliagePlacerDispatchCodec : ScalarCodec<FoliagePlacer>
     private static DataResult<FoliagePlacer> DecodePlacer<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var typeTag = input.Get("type");
-        if (!typeTag.IsPresent) return DataResult<FoliagePlacer>.Error(() => "树叶放置器缺 type 字段");
+        if (!typeTag.IsPresent) return DataResult<FoliagePlacer>.Error(() => "foliage placer is missing the type field");
         var typeText = ops.GetStringValue(typeTag.Get());
         if (!typeText.Result().IsPresent)
-            return DataResult<FoliagePlacer>.Error(() => "树叶放置器的 type 必须是字符串");
+            return DataResult<FoliagePlacer>.Error(() => "foliage placer type must be a string");
         var typeId = Identifier.TryParse(typeText.GetOrThrow());
         if (typeId is null)
-            return DataResult<FoliagePlacer>.Error(() => $"非法的放置器类型: {typeText.GetOrThrow()}");
+            return DataResult<FoliagePlacer>.Error(() => $"invalid placer type: {typeText.GetOrThrow()}");
         if (BuiltInRegistries.FOLIAGE_PLACER_TYPE.GetValue(typeId.Value) is not FoliagePlacerType type)
-            return DataResult<FoliagePlacer>.Error(() => $"未知的树叶放置器类型: {typeId}");
+            return DataResult<FoliagePlacer>.Error(() => $"unknown foliage placer type: {typeId}");
         return type.Decode(ops, input);
     }
 
@@ -284,7 +284,7 @@ internal sealed class FoliagePlacerDispatchCodec : ScalarCodec<FoliagePlacer>
     }
 }
 
-//BlobFoliagePlacer 团状树冠 对应原版 BlobFoliagePlacer
+//BlobFoliagePlacer blob canopy, maps to vanilla BlobFoliagePlacer
 public class BlobFoliagePlacer : FoliagePlacer
 {
     public static readonly MapCodec<BlobFoliagePlacer> Codec =
@@ -320,7 +320,7 @@ public class BlobFoliagePlacer : FoliagePlacer
         => dx == currentRadius && dz == currentRadius && (random.NextInt(2) == 0 || y == 0);
 }
 
-//SpruceFoliagePlacer 云杉圆锥树冠 对应原版 SpruceFoliagePlacer
+//SpruceFoliagePlacer spruce conical canopy, maps to vanilla SpruceFoliagePlacer
 public sealed class SpruceFoliagePlacer : FoliagePlacer
 {
     public static readonly MapCodec<SpruceFoliagePlacer> Codec =
@@ -371,7 +371,7 @@ public sealed class SpruceFoliagePlacer : FoliagePlacer
         => dx == currentRadius && dz == currentRadius && currentRadius > 0;
 }
 
-//PineFoliagePlacer 松树树冠 对应原版 PineFoliagePlacer
+//PineFoliagePlacer pine canopy, maps to vanilla PineFoliagePlacer
 public sealed class PineFoliagePlacer : FoliagePlacer
 {
     public static readonly MapCodec<PineFoliagePlacer> Codec =
@@ -413,7 +413,7 @@ public sealed class PineFoliagePlacer : FoliagePlacer
         => dx == currentRadius && dz == currentRadius && currentRadius > 0;
 }
 
-//AcaciaFoliagePlacer 金合欢扁树冠 对应原版 AcaciaFoliagePlacer
+//AcaciaFoliagePlacer flat acacia canopy, maps to vanilla AcaciaFoliagePlacer
 public sealed class AcaciaFoliagePlacer : FoliagePlacer
 {
     public static readonly MapCodec<AcaciaFoliagePlacer> Codec =
@@ -449,7 +449,7 @@ public sealed class AcaciaFoliagePlacer : FoliagePlacer
             : dx == currentRadius && dz == currentRadius && currentRadius > 0;
 }
 
-//DarkOakFoliagePlacer 深色橡木树冠 对应原版 DarkOakFoliagePlacer
+//DarkOakFoliagePlacer dark oak canopy, maps to vanilla DarkOakFoliagePlacer
 public sealed class DarkOakFoliagePlacer : FoliagePlacer
 {
     public static readonly MapCodec<DarkOakFoliagePlacer> Codec =
@@ -500,7 +500,7 @@ public sealed class DarkOakFoliagePlacer : FoliagePlacer
             : dx == currentRadius && dz == currentRadius;
 }
 
-//MegaJungleFoliagePlacer 巨丛林树冠 注册名 jungle_foliage_placer 对应原版 MegaJungleFoliagePlacer
+//MegaJungleFoliagePlacer mega jungle canopy, registered as jungle_foliage_placer, maps to vanilla MegaJungleFoliagePlacer
 public sealed class MegaJungleFoliagePlacer : FoliagePlacer
 {
     public static readonly MapCodec<MegaJungleFoliagePlacer> Codec =
@@ -537,7 +537,7 @@ public sealed class MegaJungleFoliagePlacer : FoliagePlacer
         => dx + dz >= 7 || (dx * dx) + (dz * dz) > currentRadius * currentRadius;
 }
 
-//MegaPineFoliagePlacer 巨型松树锯齿树冠 对应原版 MegaPineFoliagePlacer
+//MegaPineFoliagePlacer jagged mega pine canopy, maps to vanilla MegaPineFoliagePlacer
 public sealed class MegaPineFoliagePlacer : FoliagePlacer
 {
     public static readonly MapCodec<MegaPineFoliagePlacer> Codec =
@@ -583,7 +583,7 @@ public sealed class MegaPineFoliagePlacer : FoliagePlacer
         => dx + dz >= 7 || (dx * dx) + (dz * dz) > currentRadius * currentRadius;
 }
 
-//FancyFoliagePlacer 大橡木球状树冠 对应原版 FancyFoliagePlacer
+//FancyFoliagePlacer spherical fancy oak canopy, maps to vanilla FancyFoliagePlacer
 public sealed class FancyFoliagePlacer : BlobFoliagePlacer
 {
     public static readonly MapCodec<FancyFoliagePlacer> Codec =
@@ -619,7 +619,7 @@ public sealed class FancyFoliagePlacer : BlobFoliagePlacer
         => Mth.Square(dx + 0.5f) + Mth.Square(dz + 0.5f) > currentRadius * currentRadius;
 }
 
-//BushFoliagePlacer 灌木树冠 对应原版 BushFoliagePlacer
+//BushFoliagePlacer bush canopy, maps to vanilla BushFoliagePlacer
 public sealed class BushFoliagePlacer : BlobFoliagePlacer
 {
     public static readonly MapCodec<BushFoliagePlacer> Codec =
@@ -653,7 +653,7 @@ public sealed class BushFoliagePlacer : BlobFoliagePlacer
         => dx == currentRadius && dz == currentRadius && random.NextInt(2) == 0;
 }
 
-//RandomSpreadFoliagePlacer 撒点式树冠 红树与杜鹃靠它 对应原版 RandomSpreadFoliagePlacer
+//RandomSpreadFoliagePlacer scatter-style canopy used by mangrove and azalea, maps to vanilla RandomSpreadFoliagePlacer
 public sealed class RandomSpreadFoliagePlacer : FoliagePlacer
 {
     public static readonly MapCodec<RandomSpreadFoliagePlacer> Codec =
@@ -703,7 +703,7 @@ public sealed class RandomSpreadFoliagePlacer : FoliagePlacer
         => false;
 }
 
-//CherryFoliagePlacer 樱花树冠 带下垂树叶 对应原版 CherryFoliagePlacer
+//CherryFoliagePlacer cherry canopy with hanging leaves, maps to vanilla CherryFoliagePlacer
 public sealed class CherryFoliagePlacer : FoliagePlacer
 {
     public static readonly MapCodec<CherryFoliagePlacer> Codec =

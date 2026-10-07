@@ -5,20 +5,20 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//StructurePoolElement 池元素 对应原版 net.minecraft.world.level.levelgen.structure.pools.StructurePoolElement
-//一个元素代表"往拼图里放什么" 可以是单模板 模板列表 特征 或者什么都不放
+//StructurePoolElement pool element, maps to vanilla net.minecraft.world.level.levelgen.structure.pools.StructurePoolElement
+//An element represents "what to put into the jigsaw": a single template, a template list, a feature, or nothing at all
 public abstract class StructurePoolElement
 {
-    //Codec 池元素多态 codec 按 element_type 字段派发 对应原版 StructurePoolElement.CODEC
+    //Codec pool element polymorphic codec, dispatches by the element_type field, maps to vanilla StructurePoolElement.CODEC
     public static readonly Codec<StructurePoolElement> Codec = new StructurePoolElementDispatchCodec();
 
     private StructureTemplatePool.Projection? _projection;
 
     protected StructurePoolElement(StructureTemplatePool.Projection projection) => _projection = projection;
 
-    //Projection 投影 没设过就抛异常 对应原版 getProjection
+    //Projection projection; throws when never set, maps to vanilla getProjection
     public StructureTemplatePool.Projection Projection
-        => _projection ?? throw new InvalidOperationException("池元素没有设置投影");
+        => _projection ?? throw new InvalidOperationException("pool element has no projection set");
 
     public virtual StructurePoolElement SetProjection(StructureTemplatePool.Projection projection)
     {
@@ -37,41 +37,41 @@ public abstract class StructurePoolElement
         ChunkGenerator generator, BlockPos position, BlockPos referencePos, Rotation rotation, BoundingBoxInt chunkBB,
         RandomSource random, LiquidSettings liquidSettings, bool keepJigsaws);
 
-    //GetType 该元素的类型 对应原版 getType 会遮蔽 object.GetType 取名一致便于对照原版
+    //GetType the element's type, maps to vanilla getType; it shadows object.GetType and keeps the same name for easy cross-reference
     public abstract new StructurePoolElementType GetType();
 
-    //HandleDataMarker 处理结构里的 data 模式结构方块 子类按需覆盖
+    //HandleDataMarker handles data-mode structure blocks inside the structure, subclasses override as needed
     public virtual void HandleDataMarker(WorldGenRegion level, StructureBlockInfo dataMarker, BlockPos position,
         Rotation rotation, RandomSource random, BoundingBoxInt chunkBB)
     {
     }
 
-    //GroundLevelDelta 结构落位时相对地面高度图的偏移 对应原版 getGroundLevelDelta
+    //GroundLevelDelta offset from the ground heightmap when the structure is placed, maps to vanilla getGroundLevelDelta
     public virtual int GroundLevelDelta => 1;
 }
 
-//StructurePoolElementDispatchCodec 池元素多态 codec 按 element_type 查 STRUCTURE_POOL_ELEMENT 再派发
+//StructurePoolElementDispatchCodec pool element polymorphic codec, looks up STRUCTURE_POOL_ELEMENT by element_type and dispatches
 internal sealed class StructurePoolElementDispatchCodec : ScalarCodec<StructurePoolElement>
 {
     public override DataResult<StructurePoolElement> Parse<U>(DynamicOps<U> ops, U input)
     {
         var mapResult = ops.GetMap(input);
-        if (!mapResult.Result().IsPresent) return DataResult<StructurePoolElement>.Error(() => "池元素必须是对象");
+        if (!mapResult.Result().IsPresent) return DataResult<StructurePoolElement>.Error(() => "pool element must be an object");
         var map = mapResult.GetOrThrow();
 
         var typeTag = map.Get("element_type");
-        if (!typeTag.IsPresent) return DataResult<StructurePoolElement>.Error(() => "池元素缺少 element_type 字段");
+        if (!typeTag.IsPresent) return DataResult<StructurePoolElement>.Error(() => "pool element is missing the element_type field");
         var typeText = ops.GetStringValue(typeTag.Get());
-        if (!typeText.Result().IsPresent) return DataResult<StructurePoolElement>.Error(() => "element_type 必须是字符串");
+        if (!typeText.Result().IsPresent) return DataResult<StructurePoolElement>.Error(() => "element_type must be a string");
         var typeId = Identifier.TryParse(typeText.GetOrThrow());
-        if (typeId is null) return DataResult<StructurePoolElement>.Error(() => $"非法的池元素类型: {typeText.GetOrThrow()}");
+        if (typeId is null) return DataResult<StructurePoolElement>.Error(() => $"invalid pool element type: {typeText.GetOrThrow()}");
 
         var type = BuiltInRegistries.STRUCTURE_POOL_ELEMENT.GetValue(typeId.Value) as StructurePoolElementType;
-        if (type is null) return DataResult<StructurePoolElement>.Error(() => $"未注册的池元素类型: {typeId}");
+        if (type is null) return DataResult<StructurePoolElement>.Error(() => $"unregistered pool element type: {typeId}");
         return type.Decode(ops, map);
     }
 
-    //EncodeStart 按元素实际类型派发编码 各类型编码后自带 element_type 字段
+    //EncodeStart dispatches encoding by the element's actual type; each type's encoding carries the element_type field
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, StructurePoolElement value)
         => value.GetType().Encode(ops, value);
 }

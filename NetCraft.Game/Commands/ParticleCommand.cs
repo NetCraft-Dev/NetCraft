@@ -11,13 +11,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Commands;
 
-//ParticleCommand particle 命令对应原版 net.minecraft.server.commands.ParticleCommand
-//参数树 <name> [<pos>] [<delta>] <speed> <count> [force|normal] [<viewers>] 与原版一致
+//ParticleCommand particle command, maps to vanilla net.minecraft.server.commands.ParticleCommand
+//Argument tree <name> [<pos>] [<delta>] <speed> <count> [force|normal] [<viewers>], matching vanilla
 public static class ParticleCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
-        //参数链自底向上装配 force 与 normal 是 count 之下互斥的两个分支
+        //The argument chain is assembled bottom-up; force and normal are two mutually exclusive branches under count
         var forceViewers = RequiredArgumentBuilder<CommandSourceStack, EntitySelector>
             .Argument("viewers", EntityArgument.Players())
             .Executes(c => SendWithinRange(c, true, EntityArgument.GetPlayers(c, "viewers")));
@@ -49,13 +49,13 @@ public static class ParticleCommand
             .Then(name));
     }
 
-    //SendWithinRange count 之后的所有分支都把 pos/delta/speed/count 写全了 统一从上下文取
+    //SendWithinRange every branch after count fills in pos/delta/speed/count, so they are read uniformly from the context
     private static int SendWithinRange(CommandContext<CommandSourceStack> context, bool force, IReadOnlyList<ServerPlayer>? viewers)
         => SendParticles(context, Vec3Argument.GetVec3(context, "pos"), Vec3Argument.GetVec3(context, "delta"),
             FloatArgumentType.GetFloat(context, "speed"), IntegerArgumentType.GetInteger(context, "count"), force, viewers);
 
-    //SendParticles 给目标玩家发粒子包 对应原版 Level.sendParticles 的玩家投递
-    //pos 为 null 用命令源位置 viewers 为 null 发全部在线玩家
+    //SendParticles sends a particle packet to the target players, maps to vanilla Level.sendParticles player delivery
+    //pos null uses the command source position; viewers null sends to all online players
     private static int SendParticles(CommandContext<CommandSourceStack> context, Vec3? pos, Vec3 delta,
         float speed, int count, bool force, IReadOnlyList<ServerPlayer>? viewers)
     {
@@ -65,14 +65,14 @@ public static class ParticleCommand
         var targets = viewers ?? source.Server.PlayerList.Players;
         if (targets.Count == 0)
         {
-            source.SendFailure("没有可接收粒子的玩家");
+            source.SendFailure("there are no players to receive particles");
             return 0;
         }
         var packet = new ClientboundLevelParticlesPacket(origin.X, origin.Y, origin.Z,
             (float)delta.X, (float)delta.Y, (float)delta.Z, speed, count, force, false, particle);
         foreach (var player in targets)
             player.Connection.Send(packet);
-        source.SendSuccess($"已向 {targets.Count} 名玩家发送粒子 {BuiltInRegistries.PARTICLE_TYPE.GetKey(particle.Type)}");
+        source.SendSuccess($"sent particle {BuiltInRegistries.PARTICLE_TYPE.GetKey(particle.Type)} to {targets.Count} players");
         return targets.Count;
     }
 }

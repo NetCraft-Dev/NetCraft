@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundAcceptTeleportationPacket 客户端确认传送包对应原版 ServerboundAcceptTeleportationPacket
-//字段 Id(int)
+//ServerboundAcceptTeleportationPacket client accept teleportation packet, maps to vanilla ServerboundAcceptTeleportationPacket
+//Field: Id(int)
 public sealed record ServerboundAcceptTeleportationPacket(int Id) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundAcceptTeleportationPacket> StreamCodec { get; } = new AcceptTeleportationCodec();
@@ -12,7 +12,7 @@ public sealed record ServerboundAcceptTeleportationPacket(int Id) : Packet<Serve
 
     private sealed class AcceptTeleportationCodec : StreamCodec<FriendlyByteBuf, ServerboundAcceptTeleportationPacket>
     {
-        //原版 writeVarInt(id) 对应客户端发来的传送 id
+        //Vanilla writeVarInt(id), the teleport id sent by the client
         public ServerboundAcceptTeleportationPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadVarInt());
 

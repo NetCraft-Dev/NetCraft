@@ -2,9 +2,9 @@ namespace NetCraft.DataFixer.Fixes;
 
 using System;
 
-//MC类型引用集合对应原版net.minecraft.util.datafix.fixes.References
-//每个引用是DSL.ITypeReference实例按type名从Schema取模板
-//原版部分字段引用Display/UnbakedModel/SpawnData常量这里用字面值替代
+//collection of MC type references, maps to vanilla net.minecraft.util.datafix.fixes.References
+//each reference is a DSL.ITypeReference instance that looks up a template from the Schema by type name
+//vanilla references Display/UnbakedModel/SpawnData constants in some fields; here literal values are used instead
 public static class References
 {
     public static readonly DSL.ITypeReference Level = Reference("level");
@@ -61,13 +61,13 @@ public static class References
     public static readonly DSL.ITypeReference MultiNoiseBiomeSourceParameterList = Reference("multi_noise_biome_source_parameter_list");
     public static readonly DSL.ITypeReference WorldGenSettings = Reference("world_gen_settings");
 
-    //ExampleCounter端到端示例引用非原版MC类型仅用于验证DFU流程
+    //ExampleCounter end-to-end example reference, not a vanilla MC type, only used to validate the DFU flow
     public static readonly DSL.ITypeReference ExampleCounter = Reference("example_counter");
 
-    //reference按id构造ITypeReference匿名实例
+    //reference builds an anonymous ITypeReference instance from an id
     public static DSL.ITypeReference Reference(string id) => new TypeReferenceImpl(id);
 
-    //内部ITypeReference实现typeName返回id toString返回@id
+    //inner ITypeReference implementation; typeName returns id and toString returns @id
     private sealed class TypeReferenceImpl : DSL.ITypeReference
     {
         private readonly string _id;

@@ -5,29 +5,29 @@ using NetCraft.DataFixer.Kinds;
 using NetCraft.DataFixer.Optics.Profunctors;
 using NetCraft.DataFixer.Util;
 
-//ReForgetCs容器存放Mu标记避免泛型嵌套
+//ReForgetCs container holding the Mu marker, avoiding generic nesting
 public static class ReForgetCs
 {
-    //二元HKT标记R为求值结果类型
+    //binary HKT marker; R is the evaluation result type
     public sealed class Mu<R> : K2 { }
 
-    //还原类型应用为ReForgetC<R,A,B>
+    //recover the type application as ReForgetC<R,A,B>
     public static ReForgetC<R, A, B> Unbox<R, A, B>(App2<Mu<R>, A, B> box)
         => (ReForgetC<R, A, B>)(object)box!;
 }
 
-//ReForgetC合并Either<Func<R,B>,Func<A,R,B>>的反向遗忘光学对应原版com.mojang.datafixers.optics.ReForgetC
-//impl返回Either左忽略A右使用A的双参数模式Affine写入用
+//ReForgetC reverse forgetful optic merging Either<Func<R,B>,Func<A,R,B>>, maps to vanilla com.mojang.datafixers.optics.ReForgetC
+//impl returns Either: the left ignores A, the right uses A (two-parameter mode), used by Affine writes
 public interface ReForgetC<R, A, B> : App2<ReForgetCs.Mu<R>, A, B>
 {
-    //impl返回Either<Func<R,B>忽略A或Func<A,R,B>使用A
+    //impl returns Either<Func<R,B> ignoring A, or Func<A,R,B> using A>
     Either<Func<R, B>, Func<A, R, B>> Impl();
 
-    //Name标识用于调试
+    //Name identifier used for debugging
     string Name { get; }
 }
 
-//ReForgetC具体实现持有Either委托与name
+//ReForgetC concrete implementation holding the Either delegate and name
 internal sealed class ReForgetCImpl<R, A, B> : ReForgetC<R, A, B>
 {
     private readonly Either<Func<R, B>, Func<A, R, B>> _impl;
@@ -42,15 +42,15 @@ internal sealed class ReForgetCImpl<R, A, B> : ReForgetC<R, A, B>
     public override string ToString() => "ReForgetC_" + _name;
 }
 
-//ReForgetCInstance作为AffineP实例
-//用reForgetC工厂方法构造新ReForgetC包装dimap/first/second/left/right组合
+//ReForgetCInstance as the AffineP instance
+//uses the reForgetC factory to build a new ReForgetC wrapping the dimap/first/second/left/right combination
 public sealed class ReForgetCInstance<R> : AffineP<ReForgetCs.Mu<R>, ReForgetCInstance<R>.Mu>, App<ReForgetCInstance<R>.Mu, ReForgetCs.Mu<R>>
 {
     public sealed class Mu : IAffinePMu { }
     public static readonly ReForgetCInstance<R> InstanceOf = new();
     private ReForgetCInstance() { }
 
-    //dimap用g前处理输入h后处理输出组合impl分支
+    //dimap preprocesses the input with g and postprocesses the output with h, composing the impl branch
     public Func<App2<ReForgetCs.Mu<R>, A, B>, App2<ReForgetCs.Mu<R>, C, D>> Dimap<A, B, C, D>(Func<C, A> g, Func<B, D> h)
     {
         return input => Optics.ReForgetC<R, C, D>("dimap",
@@ -61,7 +61,7 @@ public sealed class ReForgetCInstance<R> : AffineP<ReForgetCs.Mu<R>, ReForgetCIn
         );
     }
 
-    //first切换impl从Left忽略A到Right使用A
+    //first switches impl from Left (ignoring A) to Right (using A)
     public App2<ReForgetCs.Mu<R>, Pair<A, C>, Pair<B, C>> First<A, B, C>(App2<ReForgetCs.Mu<R>, A, B> input)
         => Optics.ReForgetC<R, Pair<A, C>, Pair<B, C>>("first",
             ReForgetCs.Unbox<R, A, B>(input).Impl().Map(
@@ -70,7 +70,7 @@ public sealed class ReForgetCInstance<R> : AffineP<ReForgetCs.Mu<R>, ReForgetCIn
             )
         );
 
-    //second切换impl从Left忽略A到Right使用A
+    //second switches impl from Left (ignoring A) to Right (using A)
     public new App2<ReForgetCs.Mu<R>, Pair<C, A>, Pair<C, B>> Second<A, B, C>(App2<ReForgetCs.Mu<R>, A, B> input)
         => Optics.ReForgetC<R, Pair<C, A>, Pair<C, B>>("second",
             ReForgetCs.Unbox<R, A, B>(input).Impl().Map(
@@ -79,7 +79,7 @@ public sealed class ReForgetCInstance<R> : AffineP<ReForgetCs.Mu<R>, ReForgetCIn
             )
         );
 
-    //left保持impl模式Left继续prism路径Right映射Either左分支
+    //left keeps the impl mode: Left continues the prism path, Right maps the Either left branch
     public App2<ReForgetCs.Mu<R>, Either<A, C>, Either<B, C>> Left<A, B, C>(App2<ReForgetCs.Mu<R>, A, B> input)
         => Optics.ReForgetC<R, Either<A, C>, Either<B, C>>("left",
             ReForgetCs.Unbox<R, A, B>(input).Impl().Map(
@@ -88,7 +88,7 @@ public sealed class ReForgetCInstance<R> : AffineP<ReForgetCs.Mu<R>, ReForgetCIn
             )
         );
 
-    //right保持impl模式Left继续prism路径Right映射Either右分支
+    //right keeps the impl mode: Left continues the prism path, Right maps the Either right branch
     public new App2<ReForgetCs.Mu<R>, Either<C, A>, Either<C, B>> Right<A, B, C>(App2<ReForgetCs.Mu<R>, A, B> input)
         => Optics.ReForgetC<R, Either<C, A>, Either<C, B>>("right",
             ReForgetCs.Unbox<R, A, B>(input).Impl().Map(

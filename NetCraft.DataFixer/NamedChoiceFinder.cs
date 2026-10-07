@@ -5,8 +5,8 @@ using NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Templates;
 using NetCraft.DataFixer.Util;
 
-//NamedChoiceFinder命名选择查找器对应原版NamedChoiceFinder
-//在TaggedChoiceType中按名查找选择分支
+//NamedChoiceFinder named choice finder maps to vanilla NamedChoiceFinder
+//looks up a choice branch by name in a TaggedChoiceType
 internal sealed class NamedChoiceFinder<FT> : OpticFinder<FT>
 {
     private readonly string _name;
@@ -20,12 +20,12 @@ internal sealed class NamedChoiceFinder<FT> : OpticFinder<FT>
 
     public Type<FT> Type() => _type;
 
-    //findType委托容器类型查找用Matcher按名匹配
+    //findType delegates to the container type lookup, matching by name with Matcher
     public Either<TypedOptic<object, object, FT, FR>, Type<object>.FieldNotFoundException> FindType<FR>(
         Type<object> containerType, Type<FR> resultType, bool recurse)
         => containerType.FindType(_type, resultType, new Matcher<FT, FR>(_name, _type, resultType), recurse);
 
-    //Matcher命名选择匹配器按名与类型构造optic
+    //Matcher named choice matcher builds an optic by name and type
     private sealed class Matcher<FT2, FR> : Type<object>.TypeMatcher<FT2, FR>
     {
         private readonly Type<FR> _resultType;
@@ -39,8 +39,8 @@ internal sealed class NamedChoiceFinder<FT> : OpticFinder<FT>
             _type = type;
         }
 
-        //match查找choiceType按名取子类型匹配则构造Tagged optic不匹配返回错误没找到返回Continue
-        //对应原版NamedChoiceFinder.Matcher.match直接检查targetType是否TaggedChoiceType
+        //match finds choiceType, takes the child type by name and builds a Tagged optic on match; returns an error on mismatch and Continue when not found
+        //maps to vanilla NamedChoiceFinder.Matcher.match, directly checking whether targetType is a TaggedChoiceType
         public Either<TypedOptic<object, object, FT2, FR>, Type<object>.FieldNotFoundException> Match<S>(Type<S> targetType)
         {
             if (targetType is not TaggedChoice<string>.TaggedChoiceType<string> choiceType)
@@ -56,9 +56,9 @@ internal sealed class NamedChoiceFinder<FT> : OpticFinder<FT>
             {
                 return Either<TypedOptic<object, object, FT2, FR>, Type<object>.FieldNotFoundException>.Right(new Type<object>.FieldNotFoundException("Type " + matchedType + " is not equal to type " + _type));
             }
-            //Tagged返回TypedOptic<Pair<string,object>,Pair<string,object>,FT2,FR>外层Pair<string,object>与object不同CLR类型
-            //(object)cast再(TypedOptic<object,object,FT2,FR>)cast运行时castclass会抛InvalidCastException
-            //用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+            //Tagged returns TypedOptic<Pair<string,object>,Pair<string,object>,FT2,FR>; the outer Pair<string,object> and object are different CLR types
+            //the (object) cast followed by a (TypedOptic<object,object,FT2,FR>) cast throws InvalidCastException at runtime
+            //use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
             var taggedRaw = TypedOptics.Tagged<string, FT2, FR>(choiceType, _name, _type, _resultType);
             var taggedObj = (object)taggedRaw!;
             var tagged = System.Runtime.CompilerServices.Unsafe.As<object, TypedOptic<object, object, FT2, FR>>(ref taggedObj);

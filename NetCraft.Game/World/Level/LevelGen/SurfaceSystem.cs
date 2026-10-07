@@ -9,15 +9,15 @@ using HeightmapRegistry = NetCraft.Registry.Heightmap;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//SurfaceSystem 表面构建系统对应原版 net.minecraft.world.level.levelgen.SurfaceSystem
-//按 surface_rule 逐列从上往下扫 只替换默认方块(石头) 逐格维护石头深度与水面高度供条件求值
-//默认方块/海平面由 NoiseGeneratorSettings 注入 噪声实例由 RandomState 提供
+//SurfaceSystem surface building system, maps to vanilla net.minecraft.world.level.levelgen.SurfaceSystem
+//Scans each column top-down by surface_rule, replacing only the default block (stone); maintains stone depth and water height per cell for condition evaluation
+//Default block/sea level are injected by NoiseGeneratorSettings and noise instances come from RandomState
 public sealed class SurfaceSystem
 {
-    //WayBelowMinY 低于最低建筑高度的一个哨兵值 对应原版 DimensionType.WAY_BELOW_MIN_Y
+    //WayBelowMinY sentinel below the minimum build height, maps to vanilla DimensionType.WAY_BELOW_MIN_Y
     private const int WayBelowMinY = -2032;
 
-    //扩展规则针对的群系 原版按 Biomes 里的具体注册名比对 不是按标签
+    //Biomes the extension rules target; vanilla compares concrete registry names, not tags
     private static readonly Identifier ErodedBadlandsId = Identifier.WithDefaultNamespace("eroded_badlands");
     private static readonly Identifier FrozenOceanId = Identifier.WithDefaultNamespace("frozen_ocean");
     private static readonly Identifier DeepFrozenOceanId = Identifier.WithDefaultNamespace("deep_frozen_ocean");
@@ -48,7 +48,7 @@ public sealed class SurfaceSystem
     public int SeaLevel { get; }
     public RandomState? RandomState { get; }
 
-    //SurfaceSystem 生产路径构造 噪声与条带表全部就绪
+    //SurfaceSystem production constructor with all noise and band tables ready
     public SurfaceSystem(RandomState randomState, BlockState defaultBlock, int seaLevel,
         PositionalRandomFactory noiseRandom)
     {
@@ -79,8 +79,8 @@ public sealed class SurfaceSystem
         _clayBands = GenerateBands(noiseRandom.FromHashOf("minecraft:clay_bands"));
     }
 
-    //SurfaceSystem 无噪声退化构造 供单元测试构造 Context 使用
-    //噪声缺失时 surfaceDepth 取 3 次级噪声取 0 条带取普通陶瓦
+    //SurfaceSystem noise-free degraded constructor for building a Context in unit tests
+    //Without noise surfaceDepth is 3, secondary noise is 0 and bands fall back to plain terracotta
     public SurfaceSystem(BlockState defaultBlock, int seaLevel)
     {
         _defaultBlock = defaultBlock;
@@ -96,17 +96,17 @@ public sealed class SurfaceSystem
         _snowBlock = defaultBlock;
     }
 
-    //StateOf 按注册名取方块默认状态 方块表未注册该名时直接抛错 免得静默生成错材质
+    //StateOf gets a block's default state by registry name; throws when the block registry lacks it, rather than silently generating the wrong material
     private static BlockState StateOf(string path)
     {
         var block = BuiltInRegistries.BLOCK.GetValue(Identifier.WithDefaultNamespace(path));
         return block is null
-            ? throw new InvalidOperationException($"方块表缺少 {path}")
+            ? throw new InvalidOperationException($"block registry is missing {path}")
             : block.DefaultBlockState;
     }
 
-    //BuildSurface 应用表面规则到整块区块 对应原版 SurfaceSystem.buildSurface
-    //逐列从上往下扫 空列重置深度 流体记录水面 石头累加深度并在默认方块上尝试替换
+    //BuildSurface applies surface rules to a whole chunk, maps to vanilla SurfaceSystem.buildSurface
+    //Scans each column top-down; an air column resets depth, fluid records water height, and stone accumulates depth and tries to replace the default block
     public void BuildSurface(ChunkAccess chunk, NoiseChunk? noiseChunk, SurfaceRules.RuleSource ruleSource,
         Func<int, int, int, Biome> biomeGetter, int minY, int height, bool useLegacyRandomSource)
     {
@@ -127,7 +127,7 @@ public sealed class SurfaceSystem
                 if (surfaceBiomeId == ErodedBadlandsId)
                     ErodedBadlandsExtension(chunk, blockX, blockZ, startingHeight, endY);
 
-                //恶地扩展会改方块 高度要重新取一次
+                //The badlands extension mutates blocks so the height must be re-read
                 var columnHeight = chunk.GetHeight(HeightmapRegistry.Types.WorldSurfaceWg, x, z) + 1;
                 context.UpdateXZ(blockX, blockZ);
                 var stoneAboveDepth = 0;
@@ -150,7 +150,7 @@ public sealed class SurfaceSystem
                     }
                     if (nextCeilingStoneY >= y)
                     {
-                        //往下找到下一段石头天花板 对应原版 lookahead
+                        //Walks down to the next stone ceiling segment, maps to vanilla lookahead
                         nextCeilingStoneY = WayBelowMinY;
                         for (var lookaheadY = y - 1; lookaheadY >= endY - 1; lookaheadY--)
                         {
@@ -174,8 +174,8 @@ public sealed class SurfaceSystem
         }
     }
 
-    //TopMaterial 重算某格的顶面材质对应原版 topMaterial
-    //雕刻挖到草方块后它下面那格要重新按地表规则决定是泥土还是石头
+    //TopMaterial recomputes a cell's top material, maps to vanilla topMaterial
+    //After carving cuts down to grass, the cell below must be re-decided as dirt or stone by the surface rule
     public BlockState? TopMaterial(SurfaceRules.RuleSource ruleSource, ChunkAccess chunk, NoiseChunk? noiseChunk,
         Func<int, int, int, Biome> biomeGetter, int minY, int height,
         int blockX, int blockY, int blockZ, bool underFluid)
@@ -186,7 +186,7 @@ public sealed class SurfaceSystem
         return ruleSource.Apply(context, chunk.GetBlockState(blockX, blockY, blockZ));
     }
 
-    //GetSurfaceDepth 地表厚度噪声对应原版 getSurfaceDepth 噪声值映射到 2..5 格并叠加位置随机
+    //GetSurfaceDepth surface thickness noise, maps to vanilla getSurfaceDepth; the noise maps to 2..5 blocks with positional randomness added
     public int GetSurfaceDepth(int blockX, int blockZ)
     {
         if (_surfaceNoise is null || _noiseRandom is null) return 3;
@@ -194,12 +194,12 @@ public sealed class SurfaceSystem
         return (int)(noiseValue * 2.75 + 3.0 + _noiseRandom.At(blockX, 0, blockZ).NextDouble() * 0.25);
     }
 
-    //GetSurfaceSecondary 次级地表噪声对应原版 getSurfaceSecondary
+    //GetSurfaceSecondary secondary surface noise, maps to vanilla getSurfaceSecondary
     public double GetSurfaceSecondary(int blockX, int blockZ)
         => _surfaceSecondaryNoise?.GetValue(blockX, 0.0, blockZ) ?? 0.0;
 
-    //GetBand 恶地条带材质对应原版 getBand
-    //按噪声偏移取模查 192 长条带表 无噪声时退化取普通陶瓦
+    //GetBand badlands band material, maps to vanilla getBand
+    //Looks up the 192-entry band table by noise offset modulo; falls back to plain terracotta without noise
     public BlockState GetBand(int blockX, int blockY, int blockZ)
     {
         if (_clayBands is null || _clayBandsOffsetNoise is null) return _terracotta;
@@ -207,8 +207,8 @@ public sealed class SurfaceSystem
         return _clayBands[((blockY + offset) % _clayBands.Length + _clayBands.Length) % _clayBands.Length];
     }
 
-    //ErodedBadlandsExtension 恶地风蚀柱 对应原版 erodedBadlandsExtension
-    //在地表以上按柱噪声补出高柱 只在原本是空气的位置补默认方块
+    //ErodedBadlandsExtension eroded badlands pillars, maps to vanilla erodedBadlandsExtension
+    //Adds tall pillars above the surface from pillar noise, only filling the default block where there was air
     private void ErodedBadlandsExtension(ChunkAccess chunk, int blockX, int blockZ, int height, int endY)
     {
         if (_badlandsSurfaceNoise is null || _badlandsPillarNoise is null || _badlandsPillarRoofNoise is null)
@@ -223,7 +223,7 @@ public sealed class SurfaceSystem
         var startY = Mth.Floor(extensionTop);
         if (height > startY) return;
 
-        //柱底已到底或遇到水直接放弃 免得把水面填成石头
+        //Abandon if the pillar base hits bedrock or meets water, so the water surface is not filled with stone
         for (var y = startY; y >= endY; y--)
         {
             var oldState = chunk.GetBlockState(blockX, y, blockZ);
@@ -234,8 +234,8 @@ public sealed class SurfaceSystem
             SetBlock(chunk, blockX, y, blockZ, _defaultBlock);
     }
 
-    //FrozenOceanExtension 冻洋冰山 对应原版 frozenOceanExtension
-    //按冰山噪声在水面上下补浮冰与雪块 无噪声时直接返回
+    //FrozenOceanExtension frozen ocean icebergs, maps to vanilla frozenOceanExtension
+    //Adds packed ice and snow above and below the water surface from iceberg noise; returns immediately without noise
     private void FrozenOceanExtension(int minSurfaceLevel, Biome surfaceBiome, ChunkAccess chunk,
         int blockX, int blockZ, int height, int endY)
     {
@@ -288,8 +288,8 @@ public sealed class SurfaceSystem
         }
     }
 
-    //GenerateBands 预生成 192 格恶地条带表 对应原版 generateBands
-    //先铺满普通陶瓦再逐层随机插入橙/黄/棕/红/白/浅灰 生成结果只与噪声随机源有关
+    //GenerateBands pre-generates the 192-entry badlands band table, maps to vanilla generateBands
+    //Fills with plain terracotta then randomly inserts orange/yellow/brown/red/white/light gray per layer; the result depends only on the noise random source
     private BlockState[] GenerateBands(RandomSource random)
     {
         var bands = new BlockState[192];
@@ -319,7 +319,7 @@ public sealed class SurfaceSystem
         return bands;
     }
 
-    //MakeBands 随机撒若干段指定颜色的条带 对应原版 makeBands
+    //MakeBands scatters several segments of the given colour, maps to vanilla makeBands
     private static void MakeBands(RandomSource random, BlockState[] bands, int baseWidth, BlockState state)
     {
         var bandCount = random.NextIntBetweenInclusive(6, 15);
@@ -332,7 +332,7 @@ public sealed class SurfaceSystem
         }
     }
 
-    //SetBlock 按世界坐标写方块 越出建筑高度时忽略
+    //SetBlock writes a block by world coordinate, ignoring anything outside the build height
     private static void SetBlock(ChunkAccess chunk, int blockX, int blockY, int blockZ, BlockState state)
     {
         var section = chunk.GetSection(blockY >> 4);
@@ -345,6 +345,6 @@ public sealed class SurfaceSystem
 
     private static bool IsWater(BlockState state) => state.Owner.Id.Path == "water";
 
-    //IsStone 非空气非流体即算石头 对应原版 isStone
+    //IsStone counts anything that is neither air nor fluid as stone, maps to vanilla isStone
     private static bool IsStone(BlockState state) => !IsAir(state) && !IsFluid(state);
 }

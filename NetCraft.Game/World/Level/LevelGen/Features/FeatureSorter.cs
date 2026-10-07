@@ -2,13 +2,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features;
 
-//FeatureSorter 特征排序器对应原版 net.minecraft.world.level.biome.FeatureSorter
-//把各群系按 step 引用的已放置特征汇总成「每 step 一个有序列表 + 全局索引映射」
-//排序保证同一位置在不同区块视角下的放置顺序一致 否则同一个种子会长出不同地形
+//FeatureSorter feature sorter, maps to vanilla net.minecraft.world.level.biome.FeatureSorter
+//Aggregates the placed features referenced per step across biomes into one ordered list per step plus a global index mapping
+//The ordering keeps placement order consistent for the same position across chunk views; otherwise one seed would grow different terrain
 public static class FeatureSorter
 {
-    //StepFeatureData 单步特征数据对应原版 StepFeatureData
-    //Features 是按全局索引排好序的列表 IndexOf 给出某个特征在该列表里的下标
+    //StepFeatureData per-step feature data, maps to vanilla StepFeatureData
+    //Features is the list ordered by global index; IndexOf gives a feature's index in that list
     public sealed class StepFeatureData
     {
         private readonly Dictionary<NetCraft.Registry.PlacedFeature, int> _indices;
@@ -18,20 +18,20 @@ public static class FeatureSorter
         public StepFeatureData(IReadOnlyList<NetCraft.Registry.PlacedFeature> features)
         {
             Features = features;
-            //按引用比对 原版用的是 identity 查找 元素本身没有值语义
+            //Compare by reference; vanilla uses identity lookup and the elements have no value semantics
             _indices = new Dictionary<NetCraft.Registry.PlacedFeature, int>(ReferenceEqualityComparer.Instance);
             for (var i = 0; i < features.Count; i++) _indices[features[i]] = i;
         }
 
-        //IndexOf 取特征在本步列表里的下标 未收录返回 -1
+        //IndexOf get the feature's index in this step's list; returns -1 when absent
         public int IndexOf(NetCraft.Registry.PlacedFeature feature)
             => _indices.TryGetValue(feature, out var index) ? index : -1;
     }
 
-    //NodeKey 排序图节点 同一特征出现在不同 step 视为两个节点 与原版一致
+    //NodeKey sort graph node; the same feature in different steps counts as two nodes, same as vanilla
     private readonly record struct NodeKey(int FeatureIndex, int Step);
 
-    //NodeComparer 按先 step 后全局索引排序 与原版 comparatorThenComparingInt 一致
+    //NodeComparer sorts by step then global index, same as vanilla comparatorThenComparingInt
     private sealed class NodeComparer : IComparer<NodeKey>
     {
         public int Compare(NodeKey x, NodeKey y)
@@ -41,9 +41,9 @@ public static class FeatureSorter
         }
     }
 
-    //BuildFeaturesPerStep 构建每步特征数据对应原版 buildFeaturesPerStep
-    //featureSources 是全部群系 featureGetter 取某群系逐 step 的特征引用
-    //返回列表的下标即 step 序数 长度等于所有群系里出现的最大 step 数
+    //BuildFeaturesPerStep build the per-step feature data, maps to vanilla buildFeaturesPerStep
+    //featureSources is all biomes; featureGetter fetches the per-step feature references of a biome
+    //The returned list is indexed by step ordinal and its length equals the largest step seen across all biomes
     public static IReadOnlyList<StepFeatureData> BuildFeaturesPerStep<T>(IReadOnlyList<T> featureSources,
         Func<T, IReadOnlyList<HolderSet<NetCraft.Registry.PlacedFeature>>> featureGetter)
     {
@@ -84,7 +84,7 @@ public static class FeatureSorter
             {
                 if (!edges.ContainsKey(key)) edges[key] = new SortedSet<NodeKey>(comparer);
             }
-            //同一群系里前一个特征必须先于后一个放置 这条偏序是排序的唯一依据
+            //Within a biome an earlier feature must be placed before a later one; this partial order is the only sorting input
             for (var i = 0; i + 1 < ordered.Count; i++)
                 edges[ordered[i]].Add(ordered[i + 1]);
         }
@@ -108,14 +108,14 @@ public static class FeatureSorter
         return result;
     }
 
-    //Visit 深度优先拓扑排序 后序收集再整体反转 对应原版 Graph.depthFirstSearch
-    //踩到回边说明群系之间存在特征顺序环 这是数据错误必须报出来
+    //Visit depth-first topological sort: collect post-order then reverse, maps to vanilla Graph.depthFirstSearch
+    //Hitting a back edge means a feature ordering cycle between biomes; that is a data error and must be reported
     private static void Visit(NodeKey node, SortedDictionary<NodeKey, SortedSet<NodeKey>> edges,
         HashSet<NodeKey> discovered, HashSet<NodeKey> visiting, List<NodeKey> sorted)
     {
         if (discovered.Contains(node)) return;
         if (!visiting.Add(node))
-            throw new InvalidOperationException($"群系特征顺序成环 step={node.Step} index={node.FeatureIndex}");
+            throw new InvalidOperationException($"biome feature ordering has a cycle: step={node.Step} index={node.FeatureIndex}");
         if (edges.TryGetValue(node, out var successors))
         {
             foreach (var successor in successors) Visit(successor, edges, discovered, visiting, sorted);

@@ -5,7 +5,7 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//ReplaceablePredicate 可替换判定对应原版 ReplaceablePredicate
+//ReplaceablePredicate replaceable check, maps to vanilla ReplaceablePredicate
 public class ReplaceablePredicate : StateTestingPredicate
 {
     public static readonly Codec<ReplaceablePredicate> Codec = new SingleFieldMapCodec<ReplaceablePredicate, Vec3i>(

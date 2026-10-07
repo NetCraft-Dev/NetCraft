@@ -7,12 +7,12 @@ using VkFormat = Silk.NET.Vulkan.Format;
 
 namespace NetCraft.Gpu.Vulkan;
 
-//VulkanCubeApp 3D 立方体渲染示例
-//验证深度测试+MVP uniform buffer+索引绘制+描述符集绑定完整链路
-//每帧更新 model 旋转矩阵演示 uniform buffer 动态更新
+//VulkanCubeApp 3D cube rendering example
+//Validates the full chain of depth test+MVP uniform buffer+indexed drawing+descriptor set binding
+//Updates the model rotation matrix every frame to demonstrate dynamic uniform buffer updates
 public sealed unsafe class VulkanCubeApp : VulkanAppBase
 {
-    //CubeVertex 立方体顶点 vec3 position + vec3 color 共 24 字节
+    //CubeVertex cube vertex vec3 position + vec3 color, 24 bytes total
     [StructLayout(LayoutKind.Sequential)]
     private struct CubeVertex
     {
@@ -25,8 +25,8 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
         }
     }
 
-    //MvpUniform 模型视图投影矩阵 column-major 上传到 shader
-    //System.Numerics.Matrix4x4 是 row-major 上传前需要 transpose
+    //MvpUniform model-view-projection matrix, uploaded column-major to the shader
+    //System.Numerics.Matrix4x4 is row-major and needs a transpose before upload
     [StructLayout(LayoutKind.Sequential)]
     private struct MvpUniform
     {
@@ -48,8 +48,8 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
 
     protected override string WindowTitle => "NetCraft.Gpu Vulkan Cube PoC";
 
-    //4.3 改造 dynamic rendering 不再需要 GetFramebufferRenderPass 和 CreateFramebuffers
-    //深度附件由 OnRecordCommandBuffer 传 _depthImage 给 BeginRenderPass
+    //4.3 rework to dynamic rendering no longer needs GetFramebufferRenderPass and CreateFramebuffers
+    //The depth attachment is passed by OnRecordCommandBuffer as _depthImage to BeginRenderPass
 
     protected override void OnCreatePipelineResources()
     {
@@ -60,8 +60,8 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
         CreatePipeline();
     }
 
-    //OnSwapchainRecreated swapchain 重建后重建 depth image 和 pipeline 因依赖 extent
-    //descriptor set 已分配只需重新绑定 uniform buffer
+    //OnSwapchainRecreated rebuilds the depth image and pipeline after swapchain recreation since they depend on the extent
+    //The descriptor set is already allocated and only needs the uniform buffer rebound
     protected override void OnSwapchainRecreated()
     {
         _depthImage.Dispose();
@@ -81,7 +81,7 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
             Usage = GpuImageUsage.DepthAttachment
         };
         _depthImage = (VulkanImage)_device.CreateImage(desc);
-        //Upload 空像素触发 Undefined->DepthStencilAttachmentOptimal 布局转换
+        //Uploading empty pixels triggers the Undefined->DepthStencilAttachmentOptimal layout transition
         _depthImage.Upload(ReadOnlySpan<byte>.Empty);
     }
 
@@ -164,18 +164,18 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
         _pipeline = new VulkanRenderPipeline(_device.Api, _device.Device, fmt, _swapchainExtent, desc);
     }
 
-    //UpdateUniformBuffer 每帧更新 model 旋转矩阵 view/proj 固定
-    //Matrix4x4 是 row-major 上传前 transpose 转 column-major 对齐 GLSL mat4
+    //UpdateUniformBuffer updates the model rotation matrix every frame with view/proj fixed
+    //Matrix4x4 is row-major; transpose to column-major before upload to match GLSL mat4
     private void UpdateUniformBuffer()
     {
         _rotation += 0.01f;
         var model = Matrix4x4.CreateRotationY(_rotation) * Matrix4x4.CreateRotationX(_rotation * 0.5f);
         var view = Matrix4x4.CreateLookAt(new Vector3(2, 2, 2), Vector3.Zero, Vector3.UnitY);
         var proj = Matrix4x4.CreatePerspectiveFieldOfView(60f * MathF.PI / 180f, (float)_swapchainExtent.Width / _swapchainExtent.Height, 0.1f, 10f);
-        //Vulkan clip space Z 范围 [0,1] 不同于 OpenGL [-1,1] 需要修正 M33/M43
+        //Vulkan clip space Z range [0,1] differs from OpenGL [-1,1], so M33/M43 need correction
         proj.M33 = 0.1f / (0.1f - 10f);
         proj.M43 = (0.1f * 10f) / (0.1f - 10f);
-        //Vulkan framebuffer Y 朝下 翻转 Y 使立方体正向显示
+        //The Vulkan framebuffer has Y down; flipping Y shows the cube upright
         proj.M22 *= -1;
         var mvp = new MvpUniform
         {
@@ -186,7 +186,7 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
         _uniformBuffer.Upload<MvpUniform>(new[] { mvp });
     }
 
-    //OnRecordCommandBuffer 4.3 改造传 colorImageView + _depthImage + clearDepth=1.0 走 dynamic rendering
+    //OnRecordCommandBuffer 4.3 rework passes colorImageView + _depthImage + clearDepth=1.0 for dynamic rendering
     protected override void OnRecordCommandBuffer(VulkanCommandBuffer cmd, ImageView colorImageView)
     {
         UpdateUniformBuffer();

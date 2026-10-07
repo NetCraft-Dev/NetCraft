@@ -7,11 +7,11 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//BlockCoordinates 三段方块坐标对应原版 BlockPosArgument 解析出的坐标三元组
-//与 WorldCoordinates 的差别是不支持 ^ 局部坐标 绝对段只接受整数
+//BlockCoordinates three-segment block coordinates, maps to the coordinate triple parsed by vanilla BlockPosArgument
+//Difference from WorldCoordinates: no ^ local coordinates, and absolute segments accept integers only
 public sealed record BlockCoordinates(WorldCoordinate X, WorldCoordinate Y, WorldCoordinate Z)
 {
-    //GetBlockPos 按执行者位置求绝对坐标 相对段允许小数故统一下取整到方块格
+    //GetBlockPos resolves the absolute coordinate from the executor's position; relative segments allow decimals so always floor to a block cell
     public BlockPos GetBlockPos(ServerCommandSource source)
     {
         var pos = source.Position;
@@ -22,8 +22,8 @@ public sealed record BlockCoordinates(WorldCoordinate X, WorldCoordinate Y, Worl
     }
 }
 
-//BlockPosArgument 方块坐标参数对应原版 net.minecraft.commands.arguments.coordinates.BlockPosArgument
-//setblock 与 fill 用它定位 语法 0 0 0 或 ~ ~1 ~
+//BlockPosArgument block coordinate argument, maps to vanilla net.minecraft.commands.arguments.coordinates.BlockPosArgument
+//Used by setblock and fill to locate; syntax: 0 0 0 or ~ ~1 ~
 public sealed class BlockPosArgument : ArgumentType<BlockCoordinates>
 {
     public static readonly SimpleCommandExceptionType ErrorNotComplete =
@@ -52,7 +52,7 @@ public sealed class BlockPosArgument : ArgumentType<BlockCoordinates>
         return new BlockCoordinates(x, y, z);
     }
 
-    //GetBlockPos 取解析结果并按执行者位置求绝对坐标
+    //GetBlockPos takes the parse result and resolves the absolute coordinate from the executor's position
     public static BlockPos GetBlockPos(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<BlockCoordinates>(name).GetBlockPos((ServerCommandSource)context.GetSource());
 

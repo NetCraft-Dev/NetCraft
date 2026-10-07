@@ -5,13 +5,13 @@ using NetCraft.Network;
 using NetCraft.Network.Chat;
 using NetCraft.Network.Component;
 using NetCraft.Registry;
-//别名避开与上级命名空间段 Component 撞名 命名空间成员优先于 using 别名所以不能同名
+//Alias avoids clashing with Component, a namespace segment above; namespace members take precedence over using aliases so the names cannot match
 using ChatComponent = NetCraft.Network.Chat.Component;
 
 namespace NetCraft.Game.World.Items.Component.Predicates;
 
-//WrittenBookPredicate 成书谓词 判定页集合与作者与标题与世代与解析标记
-//对应原版 net.minecraft.core.component.predicates.WrittenBookPredicate
+//WrittenBookPredicate written book predicate, checks the page set, author, title, generation and resolved flag
+//Maps to vanilla net.minecraft.core.component.predicates.WrittenBookPredicate
 public sealed record WrittenBookPredicate(
     Optional<CollectionPredicate<Filterable<ChatComponent>, WrittenBookPredicate.PagePredicate>> Pages,
     Optional<string> Author,
@@ -19,7 +19,7 @@ public sealed record WrittenBookPredicate(
     MinMaxBounds.Ints Generation,
     Optional<bool> Resolved) : SingleComponentItemPredicate<WrittenBookContent>
 {
-    //Codec 持久化编解码 五字段 对应原版 CODEC
+    //Codec persistence codec, five fields, maps to vanilla CODEC
     public static readonly Codec<WrittenBookPredicate> Codec = RecordCodecBuilder.Of5(
         CollectionPredicate<Filterable<ChatComponent>, PagePredicate>.Codec(PagePredicate.Codec)
             .OptionalFieldOf("pages")
@@ -34,7 +34,7 @@ public sealed record WrittenBookPredicate(
 
     public DataComponentType<object> ComponentType => DataComponents.WRITTEN_BOOK_CONTENT;
 
-    //MatchesValue 标题比的是裸值 其余字段缺省即不约束
+    //MatchesValue the title is compared as a raw value, the other fields are unconstrained when absent
     public bool MatchesValue(WrittenBookContent value)
     {
         if (Author.IsPresent && Author.Get() != value.Author) return false;
@@ -44,7 +44,7 @@ public sealed record WrittenBookPredicate(
         return !Pages.IsPresent || Pages.Get().Test(value.Pages);
     }
 
-    //PagePredicate 单页匹配 按裸组件相等 对应原版 PagePredicate
+    //PagePredicate single page match by raw component equality, maps to vanilla PagePredicate
     public sealed record PagePredicate(ChatComponent Contents) : IValuePredicate<Filterable<ChatComponent>>
     {
         public static readonly Codec<PagePredicate> Codec = ComponentSerialization.Codec.ComapFlatMap(

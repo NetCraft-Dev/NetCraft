@@ -10,7 +10,7 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Nether;
 
-//DeltaFeatureConfiguration 三角洲配置 对应原版 DeltaFeatureConfiguration
+//DeltaFeatureConfiguration delta configuration, maps to vanilla DeltaFeatureConfiguration
 public sealed class DeltaFeatureConfiguration : FeatureConfiguration
 {
     public static readonly Codec<DeltaFeatureConfiguration> Codec =
@@ -38,13 +38,13 @@ public sealed class DeltaFeatureConfiguration : FeatureConfiguration
     }
 }
 
-//DeltaFeature 三角洲特征 对应原版 DeltaFeature
-//下界的岩浆湖与黑曜石镶边
+//DeltaFeature delta feature, maps to vanilla DeltaFeature
+//Nether lava deltas with obsidian rims
 public sealed class DeltaFeature : Feature<DeltaFeatureConfiguration>
 {
     private const string FeatureId = "delta_feature";
 
-    //RimSpawnChance 出现镶边的概率 对应原版 RIM_SPAWN_CHANCE
+    //RimSpawnChance chance of spawning a rim, maps to vanilla RIM_SPAWN_CHANCE
     private const double RimSpawnChance = 0.9d;
 
     public static readonly DeltaFeature Instance = Register(
@@ -53,7 +53,7 @@ public sealed class DeltaFeature : Feature<DeltaFeatureConfiguration>
     private DeltaFeature()
         : base(Identifier.WithDefaultNamespace(FeatureId), DeltaFeatureConfiguration.Codec) { }
 
-    //CannotReplace 不允许被三角洲覆盖的方块 对应原版 CANNOT_REPLACE
+    //CannotReplace blocks the delta may not cover, maps to vanilla CANNOT_REPLACE
     private static RegBlock[]? _cannotReplace;
 
     private static RegBlock[] CannotReplace => _cannotReplace ??= new[]
@@ -97,7 +97,7 @@ public sealed class DeltaFeature : Feature<DeltaFeatureConfiguration>
         return anyPlaced;
     }
 
-    //IsClear 该位置四周只有上方不封闭且不是禁改方块 对应原版 isClear
+    //IsClear the position is open only above and is not a cannot-replace block, maps to vanilla isClear
     private static bool IsClear(WorldGenRegion level, BlockPos pos, DeltaFeatureConfiguration config)
     {
         var state = NetherSupport.GetBlockState(level, pos);
@@ -112,8 +112,8 @@ public sealed class DeltaFeature : Feature<DeltaFeatureConfiguration>
     }
 }
 
-//SpikeConfiguration 尖刺配置 对应原版 SpikeConfiguration
-//冰刺与硫磺尖刺共用 靠方块状态与两个谓词区分
+//SpikeConfiguration spike configuration, maps to vanilla SpikeConfiguration
+//Shared by ice spikes and sulfur spikes, distinguished by block state and two predicates
 public sealed class SpikeConfiguration : FeatureConfiguration
 {
     public static readonly Codec<SpikeConfiguration> Codec =
@@ -138,8 +138,8 @@ public sealed class SpikeConfiguration : FeatureConfiguration
     }
 }
 
-//SpikeFeature 尖刺特征 对应原版 SpikeFeature
-//从上往下长出尖朝上的锥体并往下拖一条柱体
+//SpikeFeature spike feature, maps to vanilla SpikeFeature
+//Grows an upward-pointing cone from the top down and drags a column below it
 public sealed class SpikeFeature : Feature<SpikeConfiguration>
 {
     private const string FeatureId = "spike";
@@ -211,16 +211,16 @@ public sealed class SpikeFeature : Feature<SpikeConfiguration>
     }
 }
 
-//VoidStartPlatformFeature 虚空起始平台特征 对应原版 VoidStartPlatformFeature
-//超平坦与虚空世界在主岛中心搭一块圆角方形石台
+//VoidStartPlatformFeature void start platform feature, maps to vanilla VoidStartPlatformFeature
+//Builds a rounded square stone platform at the main island center for superflat and void worlds
 public sealed class VoidStartPlatformFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "void_start_platform";
 
-    //PlatformOffset 平台中心相对世界原点的坐标 对应原版 PLATFORM_OFFSET
+    //PlatformOffset coordinate of the platform center relative to the world origin, maps to vanilla PLATFORM_OFFSET
     private static readonly BlockPos PlatformOffset = new(8, 3, 8);
 
-    //PlatformRadius 平台的方形半径 对应原版 PLATFORM_RADIUS
+    //PlatformRadius square radius of the platform, maps to vanilla PLATFORM_RADIUS
     private const int PlatformRadius = 16;
 
     public static readonly VoidStartPlatformFeature Instance = Register(
@@ -234,7 +234,7 @@ public sealed class VoidStartPlatformFeature : Feature<NoneFeatureConfiguration>
         var level = context.Level;
         var origin = context.Origin;
         var currentChunk = new ChunkPos(origin.X >> 4, origin.Z >> 4);
-        //平台只覆盖原点区块周围的 3x3 区块 对应原版与 PLATFORM_ORIGIN_CHUNK 的棋盘距离判定
+        //The platform covers only the 3x3 chunks around the origin chunk, matching the checkerboard distance check against vanilla PLATFORM_ORIGIN_CHUNK
         if (CheckerboardDistance(currentChunk.X, currentChunk.Z, 0, 0) > 1) return true;
         var platformOrigin = new BlockPos(PlatformOffset.X, origin.Y + PlatformOffset.Y, PlatformOffset.Z);
         var cobblestone = NetherSupport.State("cobblestone");
@@ -251,7 +251,7 @@ public sealed class VoidStartPlatformFeature : Feature<NoneFeatureConfiguration>
         return true;
     }
 
-    //CheckerboardDistance 两点的棋盘距离 对应原版 checkerboardDistance
+    //CheckerboardDistance checkerboard distance between two points, maps to vanilla checkerboardDistance
     private static int CheckerboardDistance(int xa, int za, int xb, int zb)
         => Math.Max(Math.Abs(xa - xb), Math.Abs(za - zb));
 }

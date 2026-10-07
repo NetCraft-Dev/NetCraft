@@ -4,34 +4,34 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//StructurePieceSerializationContext 片段序列化上下文 对应原版同名类
-//片段从 NBT 还原时要拿运行期资源 结构模板管理器只有世界装配侧才有
+//StructurePieceSerializationContext piece serialization context, maps to the identically named vanilla class
+//Restoring a piece from NBT needs runtime resources, and the structure template manager only exists on the world assembly side
 public sealed class StructurePieceSerializationContext
 {
-    //TemplateManager 结构模板管理器 未注入时为 null 此时池元素片段还原不出模板
+    //TemplateManager structure template manager, null when not injected; pool element pieces then cannot restore their template
     public StructureTemplateManager? TemplateManager { get; }
 
     public StructurePieceSerializationContext(StructureTemplateManager? templateManager)
         => TemplateManager = templateManager;
 
-    //FromManager 把世界装配注入的模板管理器包成上下文
+    //FromManager wraps the template manager injected by world assembly into a context
     public static StructurePieceSerializationContext FromManager(StructureTemplateManager? manager)
         => new(manager);
 }
 
-//StructurePieceType 结构片段类型 对应原版 net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType
-//一个类型就是"按 NBT 还原片段"的一份实现 片段落盘写的 id 就是拿它查回来的
+//StructurePieceType structure piece type, maps to vanilla net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType
+//A type is one implementation of "restore a piece from NBT"; the id written to disk is what looks it back up
 public abstract class StructurePieceType : NetCraft.Registry.StructurePieceType
 {
     public Identifier Id { get; }
 
     protected StructurePieceType(Identifier id) => Id = id;
 
-    //Load 从 NBT 还原片段 通用字段 BB/O/GD 由片段基类构造消费
+    //Load restores a piece from NBT; the common fields BB/O/GD are consumed by the piece base constructor
     public abstract NetCraft.Game.World.Level.LevelGen.StructurePiece Load(
         StructurePieceSerializationContext context, CompoundTag tag);
 
-    //Register 注册进 STRUCTURE_PIECE 并返回自身 便于静态字段直接赋值
+    //Register registers into STRUCTURE_PIECE and returns itself so a static field can be assigned directly
     protected static T Register<T>(Identifier id, T type) where T : StructurePieceType
     {
         Registry<NetCraft.Registry.StructurePieceType>.Register(BuiltInRegistries.STRUCTURE_PIECE, id, type);
@@ -41,8 +41,8 @@ public abstract class StructurePieceType : NetCraft.Registry.StructurePieceType
     public override string ToString() => $"StructurePieceType[{Id}]";
 }
 
-//JigsawPieceType 拼图片段类型 注册名与原版一致
-//世界里绝大多数结构片段都是池元素片段 缺它 jigsaw 结构读档后只剩空壳
+//JigsawPieceType jigsaw piece type, registry name matches vanilla
+//Almost all structure pieces in the world are pool element pieces; without it a jigsaw structure is an empty shell after load
 public sealed class JigsawPieceType : StructurePieceType
 {
     public static readonly JigsawPieceType Instance =
@@ -56,7 +56,7 @@ public sealed class JigsawPieceType : StructurePieceType
         => new PoolElementStructurePiece(context, tag);
 }
 
-//PillarPieceType 石柱片段类型 本项目示例结构用 原版没有对应物
+//PillarPieceType pillar piece type used by this project's sample structure; no vanilla counterpart
 public sealed class PillarPieceType : StructurePieceType
 {
     public static readonly PillarPieceType Instance =
@@ -70,10 +70,10 @@ public sealed class PillarPieceType : StructurePieceType
         => NetCraft.Game.World.Level.LevelGen.Structures.PillarStructurePiece.FromTag(tag);
 }
 
-//StructurePieceBootstrap 片段类型登记入口
+//StructurePieceBootstrap piece type registration entry point
 public static class StructurePieceBootstrap
 {
-    //RegisterAll 登记全部片段类型 必须在结构读档之前完成 否则片段的 id 查不到类型
+    //RegisterAll registers all piece types and must complete before structures load, or a piece id cannot find its type
     public static void RegisterAll()
     {
         _ = JigsawPieceType.Instance;

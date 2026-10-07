@@ -1,30 +1,30 @@
 namespace NetCraft.Gpu.Font;
 
-//SheetBakedGlyph 烘焙到图集后的字形对标原版 BakedSheetGlyph
-//持 IGlyphInfo 度量 + UV 坐标 + Left/Right/Top/Bottom 像素偏移 + TextureSetup + GlyphRenderTypes
-//Render 完整实现 italic/bold/shadow 渲染逻辑对标原版 BakedSheetGlyph.renderChar
-//italic 用 shearTop/shearBottom 公式 1.0-0.25*up/down bold 用 extraThickness=0.1 加粗二次绘制
-//shadow 用 PolygonOffset pipeline 偏移 shadowOffset 绘制阴影色
+//SheetBakedGlyph glyph baked into an atlas, maps to vanilla BakedSheetGlyph
+//Holds IGlyphInfo metrics + UV coordinates + Left/Right/Top/Bottom pixel offsets + TextureSetup + GlyphRenderTypes
+//Render fully implements the italic/bold/shadow logic, maps to vanilla BakedSheetGlyph.renderChar
+//italic uses the shearTop/shearBottom formula 1.0-0.25*up/down; bold uses extraThickness=0.1 with a second thickened draw
+//shadow uses the PolygonOffset pipeline offset by shadowOffset to draw the shadow color
 internal sealed class SheetBakedGlyph : BakedGlyph
 {
     public override IGlyphInfo Info { get; }
 
-    //UV 图集纹理坐标内缩 0.01 像素避免采样越界
+    //UVs are inset by 0.01 pixels to avoid sampling out of bounds
     internal readonly float U0;
     internal readonly float V0;
     internal readonly float U1;
     internal readonly float V1;
 
-    //Left/Right/Top/Bottom 字形相对基线的像素偏移对标原版 BakedSheetGlyph left/right/up/down
-    //Left/Top 是左上角偏移 Right/Bottom 是右下角偏移渲染时与 x/y 组合得四角顶点
+    //Left/Right/Top/Bottom glyph pixel offsets relative to the baseline, maps to vanilla BakedSheetGlyph left/right/up/down
+    //Left/Top are the top-left offsets, Right/Bottom the bottom-right; combined with x/y at render time to get the four corners
     internal readonly float Left;
     internal readonly float Right;
     internal readonly float Top;
     internal readonly float Bottom;
 
-    //TextureSetup 绑定字形图集纹理 Render 时传给 IGuiRenderContext.DrawGlyphQuad
+    //TextureSetup binds the glyph atlas texture and is passed to IGuiRenderContext.DrawGlyphQuad on Render
     private readonly TextureSetup _textureSetup;
-    //GlyphRenderTypes 三种 pipeline normal/seeThrough/polygonOffset Render 时按 DisplayMode 选取
+    //GlyphRenderTypes the three pipelines normal/seeThrough/polygonOffset, selected by DisplayMode on Render
     private readonly GlyphRenderTypes _renderTypes;
 
     public SheetBakedGlyph(IGlyphInfo info, float u0, float v0, float u1, float v1,
@@ -44,9 +44,9 @@ internal sealed class SheetBakedGlyph : BakedGlyph
         _renderTypes = renderTypes;
     }
 
-    //Render 完整渲染逻辑对标原版 BakedSheetGlyph.renderChar
-    //阴影用 PolygonOffset pipeline 偏移 shadowOffset 绘制阴影色 bold 时阴影也加粗
-    //主字形用 Normal pipeline bold 时二次绘制偏移 boldOffset 加粗
+    //Render full render logic, maps to vanilla BakedSheetGlyph.renderChar
+    //The shadow uses the PolygonOffset pipeline offset by shadowOffset to draw the shadow color; bold also thickens the shadow
+    //The main glyph uses the Normal pipeline; when bold a second draw offset by boldOffset thickens it
     public override void Render(IGuiRenderContext context, in GlyphRenderOptions options)
     {
         float x = options.X;
@@ -54,7 +54,7 @@ internal sealed class SheetBakedGlyph : BakedGlyph
         bool bold = options.Bold;
         bool italic = options.Italic;
 
-        //阴影先绘制对标原版 renderChar hasShadow 时先 polygonOffset 阴影再 normal 主字形
+        //The shadow is drawn first, maps to vanilla renderChar: with hasShadow, polygonOffset shadow before the normal main glyph
         if (options.HasShadow)
         {
             RenderSingle(context, x + options.ShadowOffset, y + options.ShadowOffset,
@@ -66,7 +66,7 @@ internal sealed class SheetBakedGlyph : BakedGlyph
             }
         }
 
-        //主字形
+        //Main glyph
         RenderSingle(context, x, y, options.Color, bold, italic, DisplayMode.Normal);
         if (bold)
         {
@@ -74,19 +74,19 @@ internal sealed class SheetBakedGlyph : BakedGlyph
         }
     }
 
-    //RenderSingle 提交单个字形 quad 到渲染上下文
-    //italic shearTop/shearBottom 公式 1.0-0.25*Top/Bottom bold extraThickness=0.1
-    //4 顶点对标原版 左上→左下→右下→右上
+    //RenderSingle submits a single glyph quad to the render context
+    //italic shearTop/shearBottom formula 1.0-0.25*Top/Bottom; bold extraThickness=0.1
+    //4 vertices, maps to vanilla top-left→bottom-left→bottom-right→top-right
     private void RenderSingle(IGuiRenderContext context, float x, float y, int color,
         bool bold, bool italic, DisplayMode mode)
     {
-        //italic shear 对标原版 1.0 - 0.25 * up/down
+        //italic shear, maps to vanilla 1.0 - 0.25 * up/down
         float shearTop = italic ? 1.0f - 0.25f * Top : 0.0f;
         float shearBottom = italic ? 1.0f - 0.25f * Bottom : 0.0f;
-        //bold extraThickness 对标原版 bold 时 0.1f
+        //bold extraThickness, maps to the vanilla 0.1f when bold
         float extra = bold ? 0.1f : 0.0f;
 
-        //4 顶点对标原版 BakedSheetGlyph.renderChar
+        //4 vertices, maps to vanilla BakedSheetGlyph.renderChar
         float x0 = x + Left + shearTop - extra;
         float y0 = y + Top - extra;
         float x1 = x + Left + shearBottom - extra;

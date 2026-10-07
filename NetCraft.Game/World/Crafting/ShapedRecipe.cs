@@ -2,11 +2,11 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.World.Crafting;
 
-//ShapedRecipe 有序合成配方对应原版 ShapedRecipe
-//命中完全交给图案判断 产出是固定的成品栈
+//ShapedRecipe shaped crafting recipe, maps to vanilla ShapedRecipe
+//Matching is fully delegated to the pattern, the output is a fixed result stack
 public sealed class ShapedRecipe : CraftingRecipe
 {
-    //SerializerId 配方序列化 id 即 JSON 里的 type
+    //SerializerId recipe serializer id, the type field in JSON
     public const string SerializerId = "crafting_shaped";
 
     private readonly ShapedRecipePattern _pattern;
@@ -20,13 +20,13 @@ public sealed class ShapedRecipe : CraftingRecipe
         _result = result;
     }
 
-    //Pattern 图案
+    //Pattern the pattern
     public ShapedRecipePattern Pattern => _pattern;
 
     public override string Type => SerializerId;
 
     public override bool Matches(CraftingInput input) => _pattern.Matches(input);
 
-    //Assemble 产出成品 给的是成品栈的副本 免得调用方改动污染配方
+    //Assemble produces the result as a copy of the result stack, so callers cannot mutate the recipe
     public override ItemStack Assemble(CraftingInput input) => _result.Copy();
 }

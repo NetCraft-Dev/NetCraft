@@ -2,24 +2,24 @@ using System.Numerics;
 
 namespace NetCraft.Gpu;
 
-//HumanoidModel 人形实体模型对标原版 net.minecraft.client.model.HumanoidModel
-//部件树 head/body/rightArm/leftArm/rightLeg/leftLeg 各持单 Cube 简化版
-//SetupAnim 驱动行走摆动（limbSwing 相位四肢交替）+ 头部朝向
-//坐标单位 1/16 块 pivot 与 cube 范围对齐原版模型数据
+//HumanoidModel humanoid entity model, maps to vanilla net.minecraft.client.model.HumanoidModel
+//Part tree head/body/rightArm/leftArm/rightLeg/leftLeg each holding a single Cube, a simplified version
+//SetupAnim drives the walk swing (limbSwing phase alternating the limbs) + head orientation
+//Coordinate unit 1/16 block; the pivot and cube ranges match the vanilla model data
 public sealed class HumanoidModel : EntityModel
 {
-    //部件 pivot 位置 model space 1/16 单位
-    //Head 头部 头顶在 y=0 脖子在 y=-8
+    //Part pivot position model space 1/16 units
+    //Head head, top at y=0 and neck at y=-8
     public ModelPart Head { get; }
-    //Body 躯干 从 y=0 到 y=12
+    //Body torso, from y=0 to y=12
     public ModelPart Body { get; }
-    //RightArm 右臂 pivot(-5,2,0) 右肩
+    //RightArm right arm pivot(-5,2,0) right shoulder
     public ModelPart RightArm { get; }
-    //LeftArm 左臂 pivot(5,2,0) 左肩
+    //LeftArm left arm pivot(5,2,0) left shoulder
     public ModelPart LeftArm { get; }
-    //RightLeg 右腿 pivot(-1.9,12,0) 右髋
+    //RightLeg right leg pivot(-1.9,12,0) right hip
     public ModelPart RightLeg { get; }
-    //LeftLeg 左腿 pivot(1.9,12,0) 左髋
+    //LeftLeg left leg pivot(1.9,12,0) left hip
     public ModelPart LeftLeg { get; }
 
     public HumanoidModel() : base(CreateBody())
@@ -32,8 +32,8 @@ public sealed class HumanoidModel : EntityModel
         LeftLeg = Root.GetChild("left_leg");
     }
 
-    //SetupAnim 动画驱动对标原版 HumanoidModel.setupAnim
-    //头部朝向弧度直接应用 四肢按 limbSwing 相位 0.6662 摆动幅度 speed 左右相位差 π
+    //SetupAnim animation driver, maps to vanilla HumanoidModel.setupAnim
+    //The head orientation in radians is applied directly; limbs swing by the limbSwing phase 0.6662 with amplitude speed and a π phase offset between left and right
     public override void SetupAnim(EntityRenderState state)
     {
         Head.YRot = state.YRot;
@@ -47,7 +47,7 @@ public sealed class HumanoidModel : EntityModel
         RightLeg.XRot = MathF.Cos(swing * 0.6662f) * amount * 1.4f;
     }
 
-    //CreateBody 构建人形部件树 root 无 cube 只作容器
+    //CreateBody builds the humanoid part tree; root has no cube and only acts as a container
     private static ModelPart CreateBody()
     {
         var children = new Dictionary<string, ModelPart>
@@ -62,7 +62,7 @@ public sealed class HumanoidModel : EntityModel
         return new ModelPart(new List<ModelPart.Cube>(), children);
     }
 
-    //CreatePart 创建单 cube 部件 pivot 位置 + cube from/to 范围
+    //CreatePart creates a single-cube part with a pivot position + cube from/to range
     private static ModelPart CreatePart(float pivotX, float pivotY, float pivotZ,
         float fromX, float fromY, float fromZ, float toX, float toY, float toZ)
     {
@@ -75,7 +75,7 @@ public sealed class HumanoidModel : EntityModel
         };
     }
 
-    //CreateBoxPolygons 生成 from-to 立方体 6 面 polygon 顶点 CCW 从外侧看 UV 0-1
+    //CreateBoxPolygons generates the 6 face polygons of a from-to cube, vertices CCW seen from outside, UV 0-1
     private static ModelPart.Polygon[] CreateBoxPolygons(Vector3 from, Vector3 to)
     {
         var (x0, y0, z0) = (from.X, from.Y, from.Z);

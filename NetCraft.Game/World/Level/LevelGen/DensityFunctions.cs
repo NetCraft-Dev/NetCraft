@@ -4,18 +4,18 @@ using NetCraft.Game.World.Level.LevelGen.Synth;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//DensityFunctions 密度函数集合对应原版 net.minecraft.world.level.levelgen.DensityFunctions
-//集中放置常量/噪声/变换/钳制/乘加/二元运算等具体 DensityFunction 实现
-//Codec 注册到 DENSITY_FUNCTION_TYPE 注册表待 dispatch codec 子系统就绪后接入
+//DensityFunctions density function collection, maps to vanilla net.minecraft.world.level.levelgen.DensityFunctions
+//Central place for concrete DensityFunction implementations such as constant/noise/transform/clamp/mul-or-add/binary operations
+//Codecs register into the DENSITY_FUNCTION_TYPE registry, to be wired up once the dispatch codec subsystem is ready
 public static class DensityFunctions
 {
-    //Constant.ConstantValue Codec 直接 double 序列化对齐原版 Constant.CODEC
+    //Constant.ConstantValue codec serialising a bare double, aligned with vanilla Constant.CODEC
     public static readonly Codec<Constant> ConstantCodec =
         Codecs.Double.ComapFlatMap(
             v => DataResult<Constant>.Success(new Constant(v)),
             c => c.Value);
 
-    //YClampedGradientCodec 简化为常量字段对齐原版 YClampedGradient.CODEC
+    //YClampedGradientCodec simplified to constant fields, aligned with vanilla YClampedGradient.CODEC
     public static readonly Codec<YClampedGradient> YClampedGradientCodec =
         RecordCodecBuilder.Of4(
             Codecs.Int.FieldOf("from_y").ForGetter<YClampedGradient, int>(g => g.FromY),
@@ -24,46 +24,46 @@ public static class DensityFunctions
             Codecs.Double.FieldOf("to_value").ForGetter<YClampedGradient, double>(g => g.ToValue),
             (fromY, toY, fromValue, toValue) => new YClampedGradient(fromY, toY, fromValue, toValue));
 
-    //Marker 标记接口对应原版 DensityFunctions.Marker
-    //标识无子节点的叶子密度函数只覆盖 mapChildren 返回自身 不覆盖 mapAll 否则子树不会被访问
+    //Marker marker interface, maps to vanilla DensityFunctions.Marker
+    //Marks leaf density functions with no children; only mapChildren is overridden to return itself, not mapAll or subtrees would go unvisited
     public interface Marker : DensityFunction
     {
-        //MapChildren 无子节点返回自身
+        //MapChildren has no children so it returns itself
         DensityFunction DensityFunction.MapChildren(Visitor visitor) => this;
     }
 
-    //工厂方法集合对应原版 DensityFunctions 静态工厂
-    //NoiseRouterData 用此构造 overworld/nether/end 等密度树
+    //Factory method collection, maps to the vanilla DensityFunctions static factories
+    //NoiseRouterData uses these to build the overworld/nether/end density trees
 
-    //Zero 零常量对应原版 zero
+    //Zero zero constant, maps to vanilla zero
     public static DensityFunction Zero() => NetCraft.Game.World.Level.LevelGen.Constant.Zero;
 
-    //ConstantValue 常量对应原版 constant
-    //方法名避开与 Constant 类名冲突C# 同名时方法组优先于类型会编译失败
+    //ConstantValue constant, maps to vanilla constant
+    //The name avoids clashing with the Constant class name; in C# a method group takes priority over a type of the same name and would fail to compile
     public static DensityFunction ConstantValue(double value) => new Constant(value);
 
-    //YClampedGradient Y 轴钳制梯度对应原版 yClampedGradient
+    //YClampedGradient Y-axis clamped gradient, maps to vanilla yClampedGradient
     public static DensityFunction YClampedGradient(int fromY, int toY, double fromValue, double toValue)
         => new YClampedGradient(fromY, toY, fromValue, toValue);
 
-    //Add 二元加对应原版 add带 Constant 折叠优化为 MulOrAdd
+    //Add binary add, maps to vanilla add; folds to MulOrAdd when a Constant is involved
     public static DensityFunction Add(DensityFunction a, DensityFunction b)
         => TwoArgumentCreate(Ap2.OpType.Add, a, b);
 
-    //Mul 二元乘对应原版 mul带 Constant 折叠优化为 MulOrAdd
+    //Mul binary multiply, maps to vanilla mul; folds to MulOrAdd when a Constant is involved
     public static DensityFunction Mul(DensityFunction a, DensityFunction b)
         => TwoArgumentCreate(Ap2.OpType.Mul, a, b);
 
-    //Min 二元最小对应原版 min
+    //Min binary minimum, maps to vanilla min
     public static DensityFunction Min(DensityFunction a, DensityFunction b)
         => new Ap2(Ap2.OpType.Min, a, b);
 
-    //Max 二元最大对应原版 max
+    //Max binary maximum, maps to vanilla max
     public static DensityFunction Max(DensityFunction a, DensityFunction b)
         => new Ap2(Ap2.OpType.Max, a, b);
 
-    //TwoArgumentCreate 二元运算工厂对应原版 TwoArgumentSimpleFunction.create
-    //Add/Mul 时若任一参数为 Constant 折叠为 MulOrAdd 避免无谓嵌套
+    //TwoArgumentCreate binary operation factory, maps to vanilla TwoArgumentSimpleFunction.create
+    //For Add/Mul, folds to MulOrAdd when either argument is a Constant, avoiding pointless nesting
     private static DensityFunction TwoArgumentCreate(Ap2.OpType type, DensityFunction a, DensityFunction b)
     {
         if (type is Ap2.OpType.Add or Ap2.OpType.Mul)
@@ -80,8 +80,8 @@ public static class DensityFunctions
         return new Ap2(type, a, b);
     }
 
-    //Lerp 三参线性插值对应原版 lerp(alpha, first, second)
-    //first 为 Constant 时走简化路径否则用 cacheOnce 缓存 alpha 避免重复采样
+    //Lerp three-argument linear interpolation, maps to vanilla lerp(alpha, first, second)
+    //Takes the simplified path when first is a Constant; otherwise cacheOnce caches alpha to avoid repeated sampling
     public static DensityFunction Lerp(DensityFunction alpha, DensityFunction first, DensityFunction second)
     {
         if (first is Constant c)
@@ -91,66 +91,66 @@ public static class DensityFunctions
         return Add(Mul(first, oneMinus), Mul(second, cached));
     }
 
-    //Lerp 常量版对应原版 lerp(factor, firstValue, second)
-    //返回 mul(factor, second - firstValue) + firstValue
+    //Lerp constant form, maps to vanilla lerp(factor, firstValue, second)
+    //Returns mul(factor, second - firstValue) + firstValue
     public static DensityFunction Lerp(DensityFunction factor, double first, DensityFunction second)
         => Add(Mul(factor, Add(second, ConstantValue(-first))), ConstantValue(first));
 
-    //Clamp 钳制对应原版 clamp
+    //Clamp clamping, maps to vanilla clamp
     public static DensityFunction Clamp(DensityFunction input, double min, double max)
         => new Clamp(input, min, max);
 
-    //Interpolated 插值标记对应原版 interpolated
+    //Interpolated interpolation marker, maps to vanilla interpolated
     public static DensityFunction Interpolated(DensityFunction function)
         => DensityFunctionsExtra.Interpolated(function);
 
-    //FlatCache 平面缓存对应原版 flatCache
+    //FlatCache flat cache, maps to vanilla flatCache
     public static DensityFunction FlatCache(DensityFunction function)
         => DensityFunctionsExtra.FlatCache(function);
 
-    //Cache2D 二维缓存对应原版 cache2d
+    //Cache2D 2D cache, maps to vanilla cache2d
     public static DensityFunction Cache2D(DensityFunction function)
         => DensityFunctionsExtra.Cache2D(function);
 
-    //CacheOnce 单次缓存对应原版 cacheOnce
+    //CacheOnce single-shot cache, maps to vanilla cacheOnce
     public static DensityFunction CacheOnce(DensityFunction function)
         => DensityFunctionsExtra.CacheOnce(function);
 
-    //BlendDensity 混合密度标记对应原版 blendDensity
+    //BlendDensity blend density marker, maps to vanilla blendDensity
     public static DensityFunction BlendDensity(DensityFunction function)
         => DensityFunctionsExtra.BlendDensity(function);
 
-    //Spline 样条密度函数对应原版 spline
+    //Spline spline density function, maps to vanilla spline
     public static DensityFunction Spline(CubicSpline spline)
         => DensityFunctionsExtra.Spline(spline);
 
-    //Noise 噪声密度函数对应原版 noise(holder)
+    //Noise noise density function, maps to vanilla noise(holder)
     public static DensityFunction Noise(NoiseParameters noiseData)
         => Noise(noiseData, 1.0, 1.0);
 
-    //Noise 带缩放噪声对应原版 noise(holder, xzScale, yScale)
+    //Noise scaled noise, maps to vanilla noise(holder, xzScale, yScale)
     public static DensityFunction Noise(NoiseParameters noiseData, double xzScale, double yScale)
         => new Noise(new NoiseHolder(noiseData), xzScale, yScale);
 
-    //Noise Y 缩放版对应原版 noise(holder, yScale) 简化为 xzScale=1
+    //Noise Y-scaled form, maps to vanilla noise(holder, yScale), simplified with xzScale=1
     public static DensityFunction Noise(NoiseParameters noiseData, double yScale)
         => Noise(noiseData, 1.0, yScale);
 
-    //MappedNoise 单位区间映射噪声对应原版 mappedNoise(holder, xzScale, yScale, minTarget, maxTarget)
-    //把噪声 [-1,1] 区间映射到 [minTarget, maxTarget]
+    //MappedNoise unit-range mapped noise, maps to vanilla mappedNoise(holder, xzScale, yScale, minTarget, maxTarget)
+    //Maps the noise range [-1,1] onto [minTarget, maxTarget]
     public static DensityFunction MappedNoise(NoiseParameters noiseData, double xzScale, double yScale, double minTarget, double maxTarget)
         => MapFromUnitTo(Noise(noiseData, xzScale, yScale), minTarget, maxTarget);
 
-    //MappedNoise 简化版对应原版 mappedNoise(holder, yScale, minTarget, maxTarget)
+    //MappedNoise simplified form, maps to vanilla mappedNoise(holder, yScale, minTarget, maxTarget)
     public static DensityFunction MappedNoise(NoiseParameters noiseData, double yScale, double minTarget, double maxTarget)
         => MappedNoise(noiseData, 1.0, yScale, minTarget, maxTarget);
 
-    //MappedNoise 双 1 缩放对应原版 mappedNoise(holder, minTarget, maxTarget)
+    //MappedNoise both scales one, maps to vanilla mappedNoise(holder, minTarget, maxTarget)
     public static DensityFunction MappedNoise(NoiseParameters noiseData, double minTarget, double maxTarget)
         => MappedNoise(noiseData, 1.0, 1.0, minTarget, maxTarget);
 
-    //MapFromUnitTo 单位区间映射对应原版 mapFromUnitTo
-    //middle = (min+max)/2, factor = (max-min)/2, 输出 = middle + factor * input
+    //MapFromUnitTo unit-range mapping, maps to vanilla mapFromUnitTo
+    //middle = (min+max)/2, factor = (max-min)/2, output = middle + factor * input
     private static DensityFunction MapFromUnitTo(DensityFunction function, double min, double max)
     {
         var middle = (min + max) * 0.5;
@@ -158,62 +158,62 @@ public static class DensityFunctions
         return Add(ConstantValue(middle), Mul(ConstantValue(factor), function));
     }
 
-    //RangeChoice 范围选择对应原版 rangeChoice
+    //RangeChoice range choice, maps to vanilla rangeChoice
     public static DensityFunction RangeChoice(DensityFunction input, double minInclusive, double maxExclusive,
         DensityFunction whenInRange, DensityFunction whenOutOfRange)
         => DensityFunctionsExtra.RangeChoice(input, minInclusive, maxExclusive, whenInRange, whenOutOfRange);
 
-    //IntervalSelect 多段选择对应原版 intervalSelect
+    //IntervalSelect multi-segment select, maps to vanilla intervalSelect
     public static DensityFunction IntervalSelect(DensityFunction input, double[] thresholds, DensityFunction[] functions)
         => DensityFunctionsExtra.IntervalSelect(input, thresholds, functions);
 
-    //ShiftA/ShiftB/Shift 噪声偏移对应原版 shiftA/shiftB/shift
+    //ShiftA/ShiftB/Shift noise shift, maps to vanilla shiftA/shiftB/shift
     public static DensityFunction ShiftA(NoiseParameters noiseData) => new ShiftA(new NoiseHolder(noiseData));
     public static DensityFunction ShiftB(NoiseParameters noiseData) => new ShiftB(new NoiseHolder(noiseData));
     public static DensityFunction Shift(NoiseParameters noiseData) => new Shift(new NoiseHolder(noiseData));
 
-    //ShiftedNoise2d 二维偏移噪声对应原版 shiftedNoise2d
-    //shiftY 用 Constant.Zero 占位原版 zero()
+    //ShiftedNoise2d 2D shifted noise, maps to vanilla shiftedNoise2d
+    //shiftY uses Constant.Zero, the vanilla zero() placeholder
     public static DensityFunction ShiftedNoise2d(DensityFunction shiftX, DensityFunction shiftZ, double xzScale, NoiseParameters noiseData)
         => new ShiftedNoise(new NoiseHolder(noiseData), xzScale, 0.0, shiftX, Zero(), shiftZ);
 
-    //EndIslands 末地岛屿密度对应原版 endIslands
+    //EndIslands End island density, maps to vanilla endIslands
     public static DensityFunction EndIslands(long seed) => DensityFunctionsExtra.EndIslands(seed);
 
-    //FindTopSurface 查找顶部表面对应原版 findTopSurface
+    //FindTopSurface finds the top surface, maps to vanilla findTopSurface
     public static DensityFunction FindTopSurface(DensityFunction density, DensityFunction upperBound, int lowerBound, int stepSize)
         => new FindTopSurface(density, upperBound, lowerBound, stepSize);
 
-    //BlendAlpha 混合透明度单例对应原版 blendAlpha
+    //BlendAlpha blend alpha singleton, maps to vanilla blendAlpha
     public static DensityFunction BlendAlpha() => NetCraft.Game.World.Level.LevelGen.BlendAlpha.Instance;
 
-    //BlendOffset 混合偏移单例对应原版 blendOffset
+    //BlendOffset blend offset singleton, maps to vanilla blendOffset
     public static DensityFunction BlendOffset() => NetCraft.Game.World.Level.LevelGen.BlendOffset.Instance;
 
-    //Abs 一元绝对值对应原版 map(input, ABS)
+    //Abs unary absolute value, maps to vanilla map(input, ABS)
     public static DensityFunction Abs(DensityFunction input) => new MappedTypes.Abs(input);
 
-    //Square 一元平方对应原版 map(input, SQUARE)
+    //Square unary square, maps to vanilla map(input, SQUARE)
     public static DensityFunction Square(DensityFunction input) => new MappedTypes.Square(input);
 
-    //Cube 一元三次方对应原版 map(input, CUBE)
+    //Cube unary cube, maps to vanilla map(input, CUBE)
     public static DensityFunction Cube(DensityFunction input) => new MappedTypes.Cube(input);
 
-    //HalfNegative 一元负值减半对应原版 map(input, HALF_NEGATIVE)
+    //HalfNegative unary halve-negative, maps to vanilla map(input, HALF_NEGATIVE)
     public static DensityFunction HalfNegative(DensityFunction input) => new MappedTypes.HalfNegative(input);
 
-    //QuarterNegative 一元负值减四分之一对应原版 map(input, QUARTER_NEGATIVE)
+    //QuarterNegative unary quarter-negative, maps to vanilla map(input, QUARTER_NEGATIVE)
     public static DensityFunction QuarterNegative(DensityFunction input) => new MappedTypes.QuarterNegative(input);
 
-    //Invert 一元倒数对应原版 map(input, INVERT)
+    //Invert unary reciprocal, maps to vanilla map(input, INVERT)
     public static DensityFunction Invert(DensityFunction input) => new MappedTypes.Invert(input);
 
-    //Squeeze 一元挤压对应原版 map(input, SQUEEZE)
+    //Squeeze unary squeeze, maps to vanilla map(input, SQUEEZE)
     public static DensityFunction Squeeze(DensityFunction input) => new MappedTypes.Squeeze(input);
 }
 
-//Constant 常量密度函数对应原版 DensityFunctions.Constant
-//所有坐标返回固定值用于偏移/缩放基线
+//Constant constant density function, maps to vanilla DensityFunctions.Constant
+//Returns a fixed value at every coordinate, used as an offset/scale baseline
 public sealed class Constant : DensityFunctions.Marker
 {
     public double Value { get; }
@@ -228,13 +228,13 @@ public sealed class Constant : DensityFunctions.Marker
     public double MinValue => Value;
     public double MaxValue => Value;
 
-    //Zero 与 One 预定义常量对应原版 ConstantZero/ConstantOne
+    //Zero and One predefined constants, maps to vanilla ConstantZero/ConstantOne
     public static readonly Constant Zero = new(0.0);
     public static readonly Constant One = new(1.0);
 }
 
-//Noise 噪声密度函数对应原版 DensityFunctions.Noise
-//包装 NoiseHolder 按坐标采样输出噪声值 不是叶子节点必须让 visitor 访问到噪声引用
+//Noise noise density function, maps to vanilla DensityFunctions.Noise
+//Wraps a NoiseHolder and samples a noise value by coordinate; not a leaf, so the visitor must be able to reach the noise reference
 public sealed class Noise : DensityFunction
 {
     public NoiseHolder NoiseData { get; }
@@ -264,7 +264,7 @@ public sealed class Noise : DensityFunction
             output[i] = Compute(contextProvider.ForIndex(i));
     }
 
-    //MapChildren 替换噪声引用对应原版 mapChildren 里的 visitNoise
+    //MapChildren replaces the noise reference, maps to visitNoise inside vanilla mapChildren
     public DensityFunction MapChildren(Visitor visitor)
         => new Noise(visitor.VisitNoise(NoiseData), XzScale, YScale);
 
@@ -272,8 +272,8 @@ public sealed class Noise : DensityFunction
     public double MaxValue => NoiseData.MaxValue;
 }
 
-//Mapped 映射密度函数基类对应原版 DensityFunctions.Mapped
-//持有 input 子函数子类按需变换 compute/min/max
+//Mapped base class for mapped density functions, maps to vanilla DensityFunctions.Mapped
+//Holds the input child function; subclasses transform compute/min/max as needed
 public abstract class Mapped : DensityFunction
 {
     public DensityFunction Input { get; }
@@ -294,8 +294,8 @@ public abstract class Mapped : DensityFunction
     public abstract double MaxValue { get; }
 }
 
-//Clamp 钳制密度函数对应原版 DensityFunctions.Clamp
-//将 input 输出限制在 [min, max] 范围
+//Clamp clamp density function, maps to vanilla DensityFunctions.Clamp
+//Restricts the input output to the range [min, max]
 public sealed class Clamp : Mapped
 {
     public double Min { get; }
@@ -322,8 +322,8 @@ public sealed class Clamp : Mapped
     public override double MaxValue => Max;
 }
 
-//MulOrAdd 乘加密度函数对应原版 DensityFunctions.MulOrAdd
-//type=ADD 时 output = input + valuetype=MUL 时 output = input * value
+//MulOrAdd mul-or-add density function, maps to vanilla DensityFunctions.MulOrAdd
+//type=ADD gives output = input + value; type=MUL gives output = input * value
 public sealed class MulOrAdd : Mapped
 {
     public enum OpType { Add, Mul }
@@ -337,7 +337,7 @@ public sealed class MulOrAdd : Mapped
         Value = value;
     }
 
-    //Of 工厂方法对应原版 MulOrAdd.create
+    //Of factory method, maps to vanilla MulOrAdd.create
     public static MulOrAdd Of(OpType type, double value, DensityFunction input)
         => new(type, value, input);
 
@@ -354,8 +354,8 @@ public sealed class MulOrAdd : Mapped
     public override double MaxValue => Type == OpType.Add ? Input.MaxValue + Value : Input.MaxValue * Value;
 }
 
-//Ap2 二元运算密度函数对应原版 DensityFunctions.Ap2
-//支持 Max/Min/Add/Mul 四种二元运算
+//Ap2 binary operation density function, maps to vanilla DensityFunctions.Ap2
+//Supports the four binary operations Max/Min/Add/Mul
 public sealed class Ap2 : DensityFunction
 {
     public enum OpType { Max, Min, Add, Mul }
@@ -413,8 +413,8 @@ public sealed class Ap2 : DensityFunction
     };
 }
 
-//YClampedGradient Y 轴钳制梯度密度函数对应原版 DensityFunctions.YClampedGradient
-//在 fromY..toY 区间内线性插值 fromValue..toValue 超出范围取端点值
+//YClampedGradient Y-axis clamped gradient density function, maps to vanilla DensityFunctions.YClampedGradient
+//Linear interpolation from fromValue..toValue over fromY..toY; out of range takes the end value
 public sealed class YClampedGradient : DensityFunctions.Marker
 {
     public int FromY { get; }
@@ -446,15 +446,15 @@ public sealed class YClampedGradient : DensityFunctions.Marker
     public double MaxValue => Math.Max(FromValue, ToValue);
 }
 
-//ShiftNoise 噪声偏移密度函数接口对应原版 DensityFunctions.ShiftNoise
-//持有 offsetNoise 把坐标缩放 0.25 后采样放大 4 倍输出用于 ShiftedNoise 的 shiftX/Y/Z 偏移量
-//min/max 取 offsetNoise.MaxValue 的 4 倍正负对称
+//ShiftNoise noise shift density function interface, maps to vanilla DensityFunctions.ShiftNoise
+//Holds offsetNoise; scales the coordinate by 0.25, samples and multiplies by 4, feeding ShiftedNoise's shiftX/Y/Z offsets
+//min/max are ±4 times offsetNoise.MaxValue
 public interface ShiftNoise : DensityFunction
 {
     NoiseHolder OffsetNoise { get; }
 
-    //SampleLocal 局部坐标采样对应原版 ShiftNoise.compute(localX, localY, localZ)
-    //静态辅助子类 Compute 委托把坐标缩放 0.25 后取噪声值放大 4 倍
+    //SampleLocal local-coordinate sampling, maps to vanilla ShiftNoise.compute(localX, localY, localZ)
+    //Static helper the Compute overrides delegate to; scales the coordinate by 0.25, samples the noise and multiplies by 4
     static double SampleLocal(NoiseHolder noise, double localX, double localY, double localZ)
         => noise.GetValue(localX * 0.25, localY * 0.25, localZ * 0.25) * 4.0;
 
@@ -465,8 +465,8 @@ public interface ShiftNoise : DensityFunction
         => contextProvider.FillAllDirectly(output, this);
 }
 
-//ShiftA XZ 平面偏移噪声对应原版 DensityFunctions.ShiftA
-//compute 取 blockX 与 blockZ 局部坐标 Y 置零用于 ShiftedNoise 的 X 偏移
+//ShiftA XZ-plane shift noise, maps to vanilla DensityFunctions.ShiftA
+//compute takes the local blockX and blockZ with Y zeroed, feeding ShiftedNoise's X offset
 public sealed class ShiftA : ShiftNoise
 {
     public ShiftA(NoiseHolder offsetNoise) { OffsetNoise = offsetNoise; }
@@ -479,8 +479,8 @@ public sealed class ShiftA : ShiftNoise
     public DensityFunction MapChildren(Visitor visitor) => new ShiftA(visitor.VisitNoise(OffsetNoise));
 }
 
-//ShiftB ZX 交叉偏移噪声对应原版 DensityFunctions.ShiftB
-//compute 取 blockZ 与 blockX 局部坐标 Y 置零用于 ShiftedNoise 的 Z 偏移
+//ShiftB ZX crossed shift noise, maps to vanilla DensityFunctions.ShiftB
+//compute takes the local blockZ and blockX with Y zeroed, feeding ShiftedNoise's Z offset
 public sealed class ShiftB : ShiftNoise
 {
     public ShiftB(NoiseHolder offsetNoise) { OffsetNoise = offsetNoise; }
@@ -493,8 +493,8 @@ public sealed class ShiftB : ShiftNoise
     public DensityFunction MapChildren(Visitor visitor) => new ShiftB(visitor.VisitNoise(OffsetNoise));
 }
 
-//Shift 三轴偏移噪声对应原版 DensityFunctions.Shift
-//compute 取 blockX/Y/Z 全部局部坐标用于 ShiftedNoise 的 Y 偏移
+//Shift three-axis shift noise, maps to vanilla DensityFunctions.Shift
+//compute takes all local blockX/Y/Z, feeding ShiftedNoise's Y offset
 public sealed class Shift : ShiftNoise
 {
     public Shift(NoiseHolder offsetNoise) { OffsetNoise = offsetNoise; }
@@ -507,8 +507,8 @@ public sealed class Shift : ShiftNoise
     public DensityFunction MapChildren(Visitor visitor) => new Shift(visitor.VisitNoise(OffsetNoise));
 }
 
-//ShiftedNoise 偏移噪声密度函数对应原版 DensityFunctions.ShiftedNoise
-//采样前先按 shiftX/Y/Z 三个密度函数计算坐标偏移再调用内部 Noise
+//ShiftedNoise shifted noise density function, maps to vanilla DensityFunctions.ShiftedNoise
+//Computes the coordinate offset from the shiftX/Y/Z functions before calling the inner Noise
 public sealed class ShiftedNoise : DensityFunction
 {
     public NoiseHolder NoiseData { get; }
@@ -543,7 +543,7 @@ public sealed class ShiftedNoise : DensityFunction
             output[i] = Compute(contextProvider.ForIndex(i));
     }
 
-    //MapChildren 替换噪声引用与三个偏移函数对应原版 mapChildren
+    //MapChildren replaces the noise reference and the three shift functions, maps to vanilla mapChildren
     public DensityFunction MapChildren(Visitor visitor)
         => new ShiftedNoise(visitor.VisitNoise(NoiseData), XzScale, YScale,
             visitor.Apply(ShiftX), visitor.Apply(ShiftY), visitor.Apply(ShiftZ));

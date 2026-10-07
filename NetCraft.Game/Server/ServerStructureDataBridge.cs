@@ -6,14 +6,14 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Server;
 
-//ServerStructureDataBridge 结构数据桥的 Game 层实现
-//把结构表按区块打包成 structures 段 读档时再还原回同一张结构表
+//ServerStructureDataBridge the Game-layer implementation of the structure data bridge
+//Packs the structure table by chunk into a structures section and restores the same table on load
 public sealed class ServerStructureDataBridge(
     StructureFeatureManager structures,
     StructurePieceSerializationContext context) : IStructureDataBridge
 {
-    //Pack 写出 starts 与 References 两段 对应原版 packStructureData
-    //starts 按结构名分键存装配结果 References 按结构名分键存被引用到的区块坐标
+    //Pack writes the starts and References sections, maps to vanilla packStructureData
+    //starts keys the assembly result by structure name; References keys referenced chunk coordinates by structure name
     public CompoundTag Pack(ChunkPos pos)
     {
         var tag = new CompoundTag();
@@ -39,8 +39,8 @@ public sealed class ServerStructureDataBridge(
         return tag;
     }
 
-    //Restore 读回 starts 与 References 对应原版 unpackStructureStart/unpackStructureReferences
-    //结构名查不到的条目按原版丢弃 片段类型不认识的由 StructureStart 自己跳过
+    //Restore reads back starts and References, maps to vanilla unpackStructureStart/unpackStructureReferences
+    //Entries whose structure name is not found are discarded like vanilla; unknown piece types are skipped by StructureStart itself
     public void Restore(ChunkPos pos, CompoundTag tag)
     {
         var startsTag = tag.GetCompound("starts");

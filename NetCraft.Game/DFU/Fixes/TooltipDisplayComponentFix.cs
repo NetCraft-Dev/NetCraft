@@ -8,13 +8,13 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//tooltip显示组件修复对应原版TooltipDisplayComponentFix
-//1.21.4把show_in_tooltip字段从各数据组件移到minecraft:tooltip_display统一管理
-//can_place_on/can_break解包为predicates列表trim/unbreakable/dyed_color/attribute_modifiers等移除show_in_tooltip
-//hide_tooltip和hide_additional_tooltip合并到minecraft:tooltip_display
+//Tooltip display component fix, maps to vanilla TooltipDisplayComponentFix
+//1.21.4 moves the show_in_tooltip field from each data component into minecraft:tooltip_display for unified management
+//can_place_on/can_break are unpacked into a predicates list; trim/unbreakable/dyed_color/attribute_modifiers etc. have show_in_tooltip removed
+//hide_tooltip and hide_additional_tooltip are merged into minecraft:tooltip_display
 public class TooltipDisplayComponentFix : DataFix
 {
-    //18个有additional_tooltip语义的数据组件ID
+    //IDs of the 18 data components with additional_tooltip semantics
     private static readonly List<string> ConvertedAdditionalTooltipTypes = new()
     {
         "minecraft:banner_patterns",
@@ -51,7 +51,7 @@ public class TooltipDisplayComponentFix : DataFix
             typed => Fix(typed, canPlaceOnFinder, canBreakFinder, newCanPlaceOnType, newCanBreakType));
     }
 
-    //fix先用Set累积hiddenTooltips再依次处理can_place_on/can_break和7个剩余组件最后构造tooltip_display
+    //fix first accumulates hiddenTooltips with a Set, then handles can_place_on/can_break and the 7 remaining components, and finally builds tooltip_display
     private static Typed<object> Fix(Typed<object> typed,
         OpticFinder<object> canPlaceOnFinder, OpticFinder<object> canBreakFinder,
         T.Type<object> newCanPlaceOnType, T.Type<object> newCanBreakType)
@@ -93,16 +93,16 @@ public class TooltipDisplayComponentFix : DataFix
         });
     }
 
-    //fixSimpleComponent处理只移除show_in_tooltip的组件对应原版fixSimpleComponent
+    //fixSimpleComponent handles components that only have show_in_tooltip removed, maps to vanilla fixSimpleComponent
     private static Dynamic<object> FixSimpleComponent(Dynamic<object> remainder, string componentId, HashSet<string> hiddenTooltips)
         => FixRemainderComponent(remainder, componentId, hiddenTooltips, c => c);
 
-    //fixComponentAndUnwrap移除show_in_tooltip并解包到fieldName子值对应原版fixComponentAndUnwrap
+    //fixComponentAndUnwrap removes show_in_tooltip and unpacks into the fieldName sub-value, maps to vanilla fixComponentAndUnwrap
     private static Dynamic<object> FixComponentAndUnwrap(Dynamic<object> remainder, string componentId, string fieldName, HashSet<string> hiddenTooltips)
         => FixRemainderComponent(remainder, componentId, hiddenTooltips,
             component => DataFixUtils.OrElse(component.Get(fieldName).Result(), component));
 
-    //fixRemainderComponent统一处理show_in_tooltip字段累加到hiddenTooltips后应用fixer
+    //fixRemainderComponent uniformly handles the show_in_tooltip field, accumulates it into hiddenTooltips then applies the fixer
     private static Dynamic<object> FixRemainderComponent(Dynamic<object> remainder, string componentId, HashSet<string> hiddenTooltips, Func<Dynamic<object>, Dynamic<object>> fixer)
         => remainder.Update(componentId, component =>
         {
@@ -112,7 +112,7 @@ public class TooltipDisplayComponentFix : DataFix
             return fixer(component.Remove("show_in_tooltip"));
         });
 
-    //fixAdventureModePredicate用WriteAndReadTypedOrThrow把component重写为只含predicates的Dynamic
+    //fixAdventureModePredicate uses WriteAndReadTypedOrThrow to rewrite the component into a Dynamic containing only predicates
     private static Typed<object> FixAdventureModePredicate(Typed<object> typedComponents,
         OpticFinder<object> componentFinder, T.Type<object> newType, string componentId, HashSet<string> hiddenTooltips)
         => typedComponents.UpdateTyped(componentFinder, newType, typedComponent =>

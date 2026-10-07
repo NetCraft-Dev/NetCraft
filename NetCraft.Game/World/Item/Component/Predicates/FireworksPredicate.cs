@@ -6,13 +6,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items.Component.Predicates;
 
-//FireworksPredicate 烟花火箭谓词 判定爆炸集合与飞行时长
-//对应原版 net.minecraft.core.component.predicates.FireworksPredicate
+//FireworksPredicate firework rocket predicate, checks the explosion set and flight duration
+//Maps to vanilla net.minecraft.core.component.predicates.FireworksPredicate
 public sealed record FireworksPredicate(
     Optional<CollectionPredicate<FireworkExplosion, FireworkExplosionPredicate.FireworkPredicate>> Explosions,
     Optional<MinMaxBounds.Ints> FlightDuration) : SingleComponentItemPredicate<Fireworks>
 {
-    //Codec 持久化编解码 字段名 explosions 与 flight_duration 对应原版 CODEC
+    //Codec persistence codec, field names explosions and flight_duration, maps to vanilla CODEC
     public static readonly Codec<FireworksPredicate> Codec = RecordCodecBuilder.Of2(
         CollectionPredicate<FireworkExplosion, FireworkExplosionPredicate.FireworkPredicate>
             .Codec(FireworkExplosionPredicate.FireworkPredicate.Codec)

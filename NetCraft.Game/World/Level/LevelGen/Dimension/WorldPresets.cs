@@ -6,16 +6,16 @@ using NetCraft.Resources;
 
 namespace NetCraft.Game.World.Level.LevelGen.Dimension;
 
-//WorldPresets 世界预设装载 对应原版 net.minecraft.world.level.levelgen.presets.WorldPresets
-//26.2 起 level_stem 不再有独立目录 而是内嵌在 data/<ns>/worldgen/world_preset/<预设>.json 的 dimensions 段
-//这里读该段把每个维度定义注册进 LEVEL_STEM 注册表 键就是维度标识
+//WorldPresets world preset loading, maps to vanilla net.minecraft.world.level.levelgen.presets.WorldPresets
+//Since 26.2 level stems no longer have their own directory; they are embedded in the dimensions section of data/<ns>/worldgen/world_preset/<preset>.json
+//Reads that section and registers each dimension definition into the LEVEL_STEM registry, keyed by the dimension id
 public static class WorldPresets
 {
-    //Normal 默认世界预设 对应原版 minecraft:normal
+    //Normal default world preset, maps to vanilla minecraft:normal
     public static readonly Identifier Normal = Identifier.WithDefaultNamespace("normal");
 
-    //Load 装载指定预设的全部维度定义
-    //返回注册成功的维度键 资源包里没有这个预设文件时返回空表且不报错
+    //Load load every dimension definition of the given preset
+    //Returns the registered dimension keys; returns an empty list without error when the pack has no such preset file
     public static IReadOnlyList<Identifier> Load(ResourceManager resourceManager, RegistryAccess context,
         Identifier presetId)
     {
@@ -36,7 +36,7 @@ public static class WorldPresets
         var loaded = new List<Identifier>(stems.Count);
         foreach (var (dimensionId, stem) in stems)
         {
-            //同名维度已存在时不覆盖 让先装载的那份生效
+            //Do not overwrite an existing dimension of the same name; let the first loaded one win
             if (!registry.ContainsKey(dimensionId))
                 registry.Register(ResourceKey<NetCraft.Registry.LevelStem>.Create(registry.Key, dimensionId), stem,
                     RegistrationInfo.BuiltIn);
@@ -45,13 +45,13 @@ public static class WorldPresets
         return loaded;
     }
 
-    //Parse 解析预设 JSON 的 dimensions 段 逐个维度解出关卡定义
-    //单个维度解析失败只降级该维度 让其余维度照常建出来 免得一个数据问题挡住整个服务端
+    //Parse parse the dimensions section of the preset JSON, decoding a level stem per dimension
+    //A failing dimension only degrades itself so the others still build, preventing one data issue from blocking the whole server
     public static IReadOnlyList<(Identifier Id, LevelStem Stem)> Parse(RegistryOps<JsonNode?> ops, JsonNode? root,
         Identifier presetId)
     {
         if (root is not JsonObject jsonRoot || jsonRoot["dimensions"] is not JsonObject dimensions)
-            throw new InvalidDataException($"世界预设 {presetId} 缺少 dimensions 段");
+            throw new InvalidDataException($"world preset {presetId} is missing the dimensions section");
 
         var stems = new List<(Identifier, LevelStem)>(dimensions.Count);
         foreach (var (key, value) in dimensions)
@@ -73,7 +73,7 @@ public static class WorldPresets
         return stems;
     }
 
-    //Get 取已装载的维度定义 未装载返回 null
+    //Get get a loaded dimension definition; returns null when not loaded
     public static LevelStem? Get(Identifier dimensionId)
         => BuiltInRegistries.LEVEL_STEM.GetValue(dimensionId) as LevelStem;
 }

@@ -1,8 +1,8 @@
 namespace NetCraft.Game.World.Entity;
 
-//EquipmentSlot 装备槽对应原版 net.minecraft.world.entity.EquipmentSlot
-//8 个槽位enum 数字值对齐原版 id 简化 VarInt 编解码
-//原版字段 type/index/countLimit/name 通过扩展方法查询
+//EquipmentSlot equipment slot, maps to vanilla net.minecraft.world.entity.EquipmentSlot
+//8 slots, an enum whose numeric values align with vanilla ids to simplify VarInt encoding
+//The vanilla fields type/index/countLimit/name are queried through extension methods
 public enum EquipmentSlot
 {
     MAINHAND = 0,
@@ -15,7 +15,7 @@ public enum EquipmentSlot
     SADDLE = 7
 }
 
-//EquipmentSlotType 装备槽类型对应原版 EquipmentSlot.Type
+//EquipmentSlotType equipment slot type, maps to vanilla EquipmentSlot.Type
 public enum EquipmentSlotType
 {
     HAND,
@@ -24,11 +24,11 @@ public enum EquipmentSlotType
     SADDLE
 }
 
-//EquipmentSlotExtensions 装备槽扩展方法
-//提供 name/type/index/countLimit/byId/byName 查询对齐原版
+//EquipmentSlotExtensions equipment slot extension methods
+//Provides name/type/index/countLimit/byId/byName lookups matching vanilla
 public static class EquipmentSlotExtensions
 {
-    //GetSlotType 返回装备槽类型对齐原版 getType
+    //GetSlotType returns the equipment slot type, matches vanilla getType
     public static EquipmentSlotType GetSlotType(this EquipmentSlot slot) => slot switch
     {
         EquipmentSlot.MAINHAND or EquipmentSlot.OFFHAND => EquipmentSlotType.HAND,
@@ -38,7 +38,7 @@ public static class EquipmentSlotExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(slot))
     };
 
-    //GetName 返回槽位小写名字符串对齐原版 getName/getSerializedName
+    //GetName returns the lowercase slot name, matches vanilla getName/getSerializedName
     public static string GetName(this EquipmentSlot slot) => slot switch
     {
         EquipmentSlot.MAINHAND => "mainhand",
@@ -52,7 +52,7 @@ public static class EquipmentSlotExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(slot))
     };
 
-    //GetIndex 返回同类型内的索引对齐原版 getIndex
+    //GetIndex returns the index within the same type, matches vanilla getIndex
     public static int GetIndex(this EquipmentSlot slot) => slot switch
     {
         EquipmentSlot.MAINHAND => 0,
@@ -60,21 +60,21 @@ public static class EquipmentSlotExtensions
         _ => 0
     };
 
-    //GetCountLimit 返回堆叠上限对齐原版 countLimit
-    //盔槽类返回 1 手槽返回 0 表示无限制
+    //GetCountLimit returns the stack limit, matches vanilla countLimit
+    //Armor slots return 1, hand slots return 0 meaning unlimited
     public static int GetCountLimit(this EquipmentSlot slot) => slot switch
     {
         EquipmentSlot.FEET or EquipmentSlot.LEGS or EquipmentSlot.CHEST or EquipmentSlot.HEAD or EquipmentSlot.BODY or EquipmentSlot.SADDLE => 1,
         _ => 0
     };
 
-    //GetId 返回原版 id 对齐 enum 数字值
+    //GetId returns the vanilla id, aligned with the enum numeric value
     public static int GetId(this EquipmentSlot slot) => (int)slot;
 
-    //ById 按 id 查询对齐原版 BY_ID 越界回退 MAINHAND
+    //ById looks up by id matching vanilla BY_ID, falls back to MAINHAND when out of range
     public static EquipmentSlot ById(int id) => id >= 0 && id <= 7 ? (EquipmentSlot)id : EquipmentSlot.MAINHAND;
 
-    //ByName 按名字查询对齐原版 byName
+    //ByName looks up by name matching vanilla byName
     public static EquipmentSlot ByName(string name) => name switch
     {
         "mainhand" => EquipmentSlot.MAINHAND,
@@ -88,7 +88,7 @@ public static class EquipmentSlotExtensions
         _ => throw new ArgumentException($"Invalid slot '{name}'")
     };
 
-    //IsArmor 是否盔槽对齐原版 isArmor
+    //IsArmor whether it is an armor slot, matches vanilla isArmor
     public static bool IsArmor(this EquipmentSlot slot)
     {
         var type = slot.GetSlotType();

@@ -7,21 +7,21 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//EntitySelector 实体选择器对应原版 net.minecraft.commands.arguments.selector.EntitySelector
-//持解析期组装的过滤条件在执行期按命令源解析出目标集合
-//目标来源两类 在线玩家与关卡实体 都包成 CommandTarget 走同一套过滤与排序
+//EntitySelector entity selector, maps to vanilla net.minecraft.commands.arguments.selector.EntitySelector
+//Holds the filters assembled at parse time and resolves the target set against the command source at execution time
+//Two target sources: online players and level entities, both wrapped as CommandTarget through the same filtering and sorting
 public sealed class EntitySelector
 {
     public const int Infinite = int.MaxValue;
 
-    //玩家碰撞箱宽0.6高1.8 供aabb相交过滤
+    //Player hit box 0.6 wide, 1.8 tall, for aabb intersection filtering
     public const float PlayerWidth = 0.6f;
     public const float PlayerHeight = 1.8f;
 
-    //排序器按基准点对候选列表排序对应原版BiConsumer<Vec3,List>
+    //The sorter sorts the candidate list by a reference point, maps to vanilla BiConsumer<Vec3,List>
     public delegate void Orderer(Vec3 pos, List<CommandTarget> list);
 
-    //OrderArbitrary 不排序保留自然顺序
+    //OrderArbitrary does not sort, keeping natural order
     public static readonly Orderer OrderArbitrary = (_, _) => { };
 
     private readonly int _maxResults;
@@ -64,10 +64,10 @@ public sealed class EntitySelector
     public bool IsWorldLimited => _worldLimited;
     public bool UsesSelector => _usesSelector;
 
-    //Type 类型过滤在解析期已转为谓词 这里保留解析结果供诊断
+    //Type the type filter has already become a predicate at parse time; the parse result is kept here for diagnostics
     public EntityType<object>? Type => _type;
 
-    //FindSingleEntity 单实体结果空抛NO_ENTITIES_FOUND多于一个抛ERROR_NOT_SINGLE_ENTITY
+    //FindSingleEntity: an empty result throws NO_ENTITIES_FOUND, more than one throws ERROR_NOT_SINGLE_ENTITY
     public CommandTarget FindSingleEntity(ServerCommandSource source)
     {
         var entities = FindEntities(source);
@@ -78,10 +78,10 @@ public sealed class EntitySelector
         return entities[0];
     }
 
-    //FindEntities 多实体结果 按名字/UUID优先其次aabb与谓词过滤最后排序截断
+    //FindEntities multiple entity result; name/UUID first, then aabb and predicate filtering, finally sorted and truncated
     public List<CommandTarget> FindEntities(ServerCommandSource source)
     {
-        //@a/@p/@r 一类选择器只作用于玩家
+        //Selectors such as @a/@p/@r only act on players
         if (!_includesEntities)
             return FindPlayers(source).Select(CommandTarget.OfPlayer).ToList();
         if (_playerName is not null)
@@ -114,7 +114,7 @@ public sealed class EntitySelector
         return SortAndLimit(pos, result);
     }
 
-    //FindSinglePlayer 单玩家结果 数量不为1抛NO_PLAYERS_FOUND
+    //FindSinglePlayer single player result; throws NO_PLAYERS_FOUND when the count is not 1
     public ServerPlayer FindSinglePlayer(ServerCommandSource source)
     {
         var players = FindPlayers(source);
@@ -123,7 +123,7 @@ public sealed class EntitySelector
         return players[0];
     }
 
-    //FindPlayers 多玩家结果 只遍历在线玩家 谓词先包成玩家视图再套用
+    //FindPlayers multiple player result; iterates online players only, wrapping the predicate in the player view first
     public List<ServerPlayer> FindPlayers(ServerCommandSource source)
     {
         if (_playerName is not null)
@@ -158,16 +158,16 @@ public sealed class EntitySelector
         return SortAndLimitPlayers(pos, result);
     }
 
-    //FindByName 按玩家名查找大小写不敏感对齐原版getPlayerByName
+    //FindByName looks up by player name, case-insensitive like vanilla getPlayerByName
     private static ServerPlayer? FindByName(ServerCommandSource source, string name)
         => source.Server.PlayerList.Players.FirstOrDefault(
             p => string.Equals(p.Profile.Name, name, StringComparison.OrdinalIgnoreCase));
 
-    //FindByUuid 按UUID查找
+    //FindByUuid looks up by UUID
     private static ServerPlayer? FindByUuid(ServerCommandSource source, Guid uuid)
         => source.Server.PlayerList.Players.FirstOrDefault(p => p.Uuid == uuid);
 
-    //AddEntities 玩家与关卡实体一起收集 到达结果上限提前退出
+    //AddEntities collects players and level entities together and exits early once the result limit is reached
     private void AddEntities(List<CommandTarget> result, ServerCommandSource source,
         Predicate<CommandTarget> predicate)
     {
@@ -180,7 +180,7 @@ public sealed class EntitySelector
             if (predicate(target))
                 result.Add(target);
         }
-        //关卡实体先物化 命令执行期会移除实体 直接遍历可见集合会踩到改动
+        //Level entities are materialized first, because command execution may remove entities and iterating the live set would hit modification
         foreach (var entity in source.Server.Overworld.Entities.ToList())
         {
             if (result.Count >= limit) return;
@@ -190,15 +190,15 @@ public sealed class EntitySelector
         }
     }
 
-    //GetResultLimit 排序存在时先收集全部再截断 非ARBITRARY返回无限
+    //GetResultLimit collects everything before truncating when sorting is present; returns unbounded for non-ARBITRARY
     private int GetResultLimit()
         => _order == OrderArbitrary ? _maxResults : Infinite;
 
-    //GetAbsoluteAabb 相对aabb平移到基准点
+    //GetAbsoluteAabb translates the relative aabb to the reference point
     private AABB? GetAbsoluteAabb(Vec3 pos)
         => _aabb?.Move(pos);
 
-    //GetPredicate 组装上下文相关过滤 aabb相交与距离平方
+    //GetPredicate assembles the context-dependent filters: aabb intersection and squared distance
     private Predicate<CommandTarget> GetPredicate(Vec3 pos, AABB? absoluteAabb)
     {
         var predicates = new List<Predicate<CommandTarget>>(_contextFreePredicates);
@@ -212,14 +212,14 @@ public sealed class EntitySelector
         return e => predicates.All(p => p(e));
     }
 
-    //GetPlayerPredicate 把目标谓词收窄成玩家谓词
+    //GetPlayerPredicate narrows the target predicate to a player predicate
     private Predicate<ServerPlayer> GetPlayerPredicate(Vec3 pos, AABB? absoluteAabb)
     {
         var predicate = GetPredicate(pos, absoluteAabb);
         return player => predicate(CommandTarget.OfPlayer(player));
     }
 
-    //GetBoundingBox 玩家碰撞箱以脚底为中心
+    //GetBoundingBox the player hit box is centered on the feet
     public static AABB GetBoundingBox(ServerPlayer player)
     {
         var pos = player.Position;
@@ -228,7 +228,7 @@ public sealed class EntitySelector
             pos.X + half, pos.Y + PlayerHeight, pos.Z + half);
     }
 
-    //SortAndLimit 多于一个结果先排序再按maxResults截断
+    //SortAndLimit sorts multiple results then truncates by maxResults
     private List<CommandTarget> SortAndLimit(Vec3 pos, List<CommandTarget> result)
     {
         if (result.Count > 1)
@@ -236,7 +236,7 @@ public sealed class EntitySelector
         return result.GetRange(0, Math.Min(_maxResults, result.Count));
     }
 
-    //SortAndLimitPlayers 玩家结果排序 包成目标列表排完再摊回玩家
+    //SortAndLimitPlayers sorts player results, wrapping into a target list then unwrapping
     private List<ServerPlayer> SortAndLimitPlayers(Vec3 pos, List<ServerPlayer> result)
     {
         if (result.Count > 1)

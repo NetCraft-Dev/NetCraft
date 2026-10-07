@@ -4,8 +4,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//Vec3iCodec 整型向量编解码对应原版 Vec3i.CODEC 与 Vec3i.offsetCodec(16)
-//JSON 形态是 [x, y, z] 三个整数 每轴上限非零时做越界校验
+//Vec3iCodec int vector codec, maps to vanilla Vec3i.CODEC and Vec3i.offsetCodec(16)
+//JSON form is three ints [x, y, z]; when the per-axis cap is non-zero it validates the bounds
 internal sealed class Vec3iCodec : ScalarCodec<Vec3i>
 {
     public static readonly Vec3iCodec Offset16 = new(16);
@@ -19,22 +19,22 @@ internal sealed class Vec3iCodec : ScalarCodec<Vec3i>
     {
         var streamResult = ops.GetStream(input);
         if (!streamResult.Result().IsPresent)
-            return DataResult<Vec3i>.Error(() => "偏移必须是 [x, y, z] 数组");
+            return DataResult<Vec3i>.Error(() => "offset must be an [x, y, z] array");
         var components = new List<int>();
         foreach (var element in streamResult.GetOrThrow())
         {
             var numberResult = ops.GetNumberValue(element);
             if (!numberResult.Result().IsPresent)
-                return DataResult<Vec3i>.Error(() => "偏移分量必须是整数");
+                return DataResult<Vec3i>.Error(() => "offset components must be integers");
             components.Add((int)numberResult.GetOrThrow());
         }
         if (components.Count != 3)
-            return DataResult<Vec3i>.Error(() => $"偏移需要 3 个分量 实际 {components.Count}");
+            return DataResult<Vec3i>.Error(() => $"offset needs 3 components, got {components.Count}");
         var offset = new Vec3i(components[0], components[1], components[2]);
         if (_maxOffsetPerAxis > 0
             && (Math.Abs(offset.X) >= _maxOffsetPerAxis || Math.Abs(offset.Y) >= _maxOffsetPerAxis
                 || Math.Abs(offset.Z) >= _maxOffsetPerAxis))
-            return DataResult<Vec3i>.Error(() => $"偏移越界 每轴最多 {_maxOffsetPerAxis}: {offset}");
+            return DataResult<Vec3i>.Error(() => $"offset out of range, at most {_maxOffsetPerAxis} per axis: {offset}");
         return DataResult<Vec3i>.Success(offset);
     }
 
@@ -42,8 +42,8 @@ internal sealed class Vec3iCodec : ScalarCodec<Vec3i>
         => DataResult<U>.Success(ops.CreateIntList(new[] { value.X, value.Y, value.Z }));
 }
 
-//DirectionCodec 方向编解码对应原版 Direction.CODEC
-//JSON 形态是 down/up/north/south/west/east 小写名
+//DirectionCodec direction codec, maps to vanilla Direction.CODEC
+//JSON form is a lowercase name: down/up/north/south/west/east
 internal sealed class DirectionCodec : ScalarCodec<Direction>
 {
     public static readonly DirectionCodec Instance = new();
@@ -54,19 +54,19 @@ internal sealed class DirectionCodec : ScalarCodec<Direction>
     {
         var textResult = ops.GetStringValue(input);
         if (!textResult.Result().IsPresent)
-            return DataResult<Direction>.Error(() => "方向必须是字符串");
+            return DataResult<Direction>.Error(() => "direction must be a string");
         var name = textResult.GetOrThrow();
         for (var i = 0; i < Names.Length; i++)
             if (Names[i] == name) return DataResult<Direction>.Success(Direction.Values[i]);
-        return DataResult<Direction>.Error(() => $"未知方向: {name}");
+        return DataResult<Direction>.Error(() => $"unknown direction: {name}");
     }
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, Direction value)
         => DataResult<U>.Success(ops.CreateString(Names[value.Id3D]));
 }
 
-//TagKeyCodec 标签键编解码对应原版 TagKey.codec
-//JSON 形态是 namespace:path 字符串 不带 # 前缀(带 # 的是 TagKey.hashedCodec 形态)
+//TagKeyCodec tag key codec, maps to vanilla TagKey.codec
+//JSON form is a namespace:path string without a # prefix (the # form is TagKey.hashedCodec)
 internal sealed class TagKeyCodec<T> : ScalarCodec<TagKey<T>> where T : class
 {
     private readonly Registry<T> _registry;
@@ -77,10 +77,10 @@ internal sealed class TagKeyCodec<T> : ScalarCodec<TagKey<T>> where T : class
     {
         var textResult = ops.GetStringValue(input);
         if (!textResult.Result().IsPresent)
-            return DataResult<TagKey<T>>.Error(() => "标签必须是字符串");
+            return DataResult<TagKey<T>>.Error(() => "tag must be a string");
         var id = Identifier.TryParse(textResult.GetOrThrow());
         return id is null
-            ? DataResult<TagKey<T>>.Error(() => $"非法标签 id: {textResult.GetOrThrow()}")
+            ? DataResult<TagKey<T>>.Error(() => $"invalid tag id: {textResult.GetOrThrow()}")
             : DataResult<TagKey<T>>.Success(TagKey<T>.Create(_registry.Key, id.Value));
     }
 
@@ -88,9 +88,9 @@ internal sealed class TagKeyCodec<T> : ScalarCodec<TagKey<T>> where T : class
         => DataResult<U>.Success(ops.CreateString(value.Location.ToString()));
 }
 
-//RegistryHolderSetCodec 注册表元素集合编解码对应原版 RegistryCodecs.homogeneousList
-//单个 id 字符串或 id 字符串数组都接受 前缀 # 视为标签引用
-//NetCraft 的 HolderSetCodec 是 Registry 程序集内部类 Game 层用不了 这里复制一份供群系与流体使用
+//RegistryHolderSetCodec registry element set codec, maps to vanilla RegistryCodecs.homogeneousList
+//Accepts a single id string or an array of id strings; a leading # is treated as a tag reference
+//NetCraft's HolderSetCodec is internal to the Registry assembly and unavailable in Game, so this is a copy for biomes and fluids
 internal sealed class RegistryHolderSetCodec<T> : ScalarCodec<HolderSet<T>> where T : class
 {
     private readonly Registry<T> _registry;
@@ -103,26 +103,26 @@ internal sealed class RegistryHolderSetCodec<T> : ScalarCodec<HolderSet<T>> wher
         if (text.Result().IsPresent) return ParseOne(text.GetOrThrow());
         var stream = ops.GetStream(input);
         if (!stream.Result().IsPresent)
-            return DataResult<HolderSet<T>>.Error(() => "集合必须是字符串或字符串数组");
+            return DataResult<HolderSet<T>>.Error(() => "set must be a string or an array of strings");
         var holders = new List<Holder<T>>();
         foreach (var element in stream.GetOrThrow())
         {
             var elementText = ops.GetStringValue(element);
             if (!elementText.Result().IsPresent)
-                return DataResult<HolderSet<T>>.Error(() => "集合元素必须是字符串");
+                return DataResult<HolderSet<T>>.Error(() => "set elements must be strings");
             holders.Add(Resolve(elementText.GetOrThrow()));
         }
         return DataResult<HolderSet<T>>.Success(new DirectHolderSet<T>(holders));
     }
 
-    //ParseOne 单字符串 # 前缀解成标签集合 否则解成单元素集合
+    //ParseOne a single string starting with # decodes to a tag set, otherwise to a single-element set
     private DataResult<HolderSet<T>> ParseOne(string text)
     {
         if (text.StartsWith('#'))
         {
             var tagId = Identifier.TryParse(text[1..]);
             if (tagId is null)
-                return DataResult<HolderSet<T>>.Error(() => $"非法标签 id: {text}");
+                return DataResult<HolderSet<T>>.Error(() => $"invalid tag id: {text}");
             var tag = TagKey<T>.Create(_registry.Key, tagId.Value);
             HolderSet<T> set = _registry.GetOrCreate(tag);
             return DataResult<HolderSet<T>>.Success(set);
@@ -130,7 +130,7 @@ internal sealed class RegistryHolderSetCodec<T> : ScalarCodec<HolderSet<T>> wher
         return DataResult<HolderSet<T>>.Success(new DirectHolderSet<T>(new[] { Resolve(text) }));
     }
 
-    //Resolve 按注册名取已注册 Holder 未注册退化成未绑定 Reference
+    //Resolve look up a registered Holder by name; an unregistered one degrades to an unbound Reference
     private Holder<T> Resolve(string text)
     {
         var id = Identifier.Parse(text);
@@ -152,8 +152,8 @@ internal sealed class RegistryHolderSetCodec<T> : ScalarCodec<HolderSet<T>> wher
     }
 }
 
-//SingleFieldMapCodec 单字段 map codec 对应原版 RecordCodecBuilder 单字段形态
-//项目 RecordCodecBuilder 从两字段起 单字段谓词用这个包装
+//SingleFieldMapCodec single-field map codec, maps to the single-field form of vanilla RecordCodecBuilder
+//The project's RecordCodecBuilder starts at two fields, so single-field predicates wrap with this
 internal sealed class SingleFieldMapCodec<T, F> : AbstractMapCodec<T>
 {
     private readonly MapCodec<F> _field;
@@ -174,7 +174,7 @@ internal sealed class SingleFieldMapCodec<T, F> : AbstractMapCodec<T>
         => _field.EncodeTo(ops, _getter(value), builder);
 }
 
-//UnitMapCodec 无参数谓词编解码对应原版 MapCodec.unit
+//UnitMapCodec parameterless predicate codec, maps to vanilla MapCodec.unit
 internal sealed class UnitMapCodec<T> : AbstractMapCodec<T>
 {
     private readonly Func<T> _factory;

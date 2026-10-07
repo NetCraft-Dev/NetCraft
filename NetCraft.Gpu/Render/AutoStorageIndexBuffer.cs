@@ -2,26 +2,26 @@ using NetCraft.Gpu.Pipeline;
 
 namespace NetCraft.Gpu;
 
-//AutoStorageIndexBuffer 自动索引缓冲对标原版 AutoStorageIndexBuffer
-//QUADS topology 自动生成 6 索引(0,1,2,2,3,0)避免每 Draw 单独建索引缓冲
-//其他 topology 不生成索引直接非索引绘制
-//CPU 暂存 List<uint> Upload 阶段才创建 GpuBuffer 上传单测不依赖 GpuDevice
+//AutoStorageIndexBuffer automatic index buffer, maps to vanilla AutoStorageIndexBuffer
+//QUADS topology auto-generates 6 indices (0,1,2,2,3,0), avoiding a separate index buffer per Draw
+//Other topologies generate no indices and draw non-indexed directly
+//Staged on the CPU as List<uint>; the GpuBuffer is created and uploaded only during Upload, so unit tests do not need GpuDevice
 public sealed class AutoStorageIndexBuffer : IDisposable
 {
-    //UInt32 索引足够 GUI 顶点规模单帧顶点数不会超 2^32
+    //UInt32 indices are enough for GUI vertex counts; a frame never exceeds 2^32 vertices
     private readonly List<uint> _indices = new();
     private GpuBuffer? _indexBuffer;
     private bool _disposed;
 
-    //Count 索引总数用于上传前确定 buffer 大小
+    //Count total index count used to size the buffer before upload
     public int Count => _indices.Count;
 
-    //IndexBuffer 上传后的 GPU 索引缓冲 Upload 前为 null
+    //IndexBuffer the GPU index buffer after upload; null before Upload
     public GpuBuffer? IndexBuffer => _indexBuffer;
 
-    //Append 对指定 topology 的 Draw 生成索引返回 firstIndex 和 indexCount
-    //QUADS 每 4 顶点生成 6 索引(0,1,2,2,3,0)其他 topology 不生成返回 0
-    //baseVertex 是该 Draw 在 vertex buffer 中的起始顶点偏移
+    //Append generates indices for a Draw of the given topology and returns firstIndex and indexCount
+    //QUADS generates 6 indices per 4 vertices (0,1,2,2,3,0); other topologies generate none and return 0
+    //baseVertex is the Draw's starting vertex offset in the vertex buffer
     public (int firstIndex, int indexCount) Append(int baseVertex, int vertexCount, PrimitiveTopology topology)
     {
         if (topology != PrimitiveTopology.Quads)
@@ -31,7 +31,7 @@ public sealed class AutoStorageIndexBuffer : IDisposable
         for (int i = 0; i < quads; i++)
         {
             var v = baseVertex + i * 4;
-            //两个三角形 v0-v1-v2 和 v2-v3-v0 覆盖一个四边形
+            //Two triangles v0-v1-v2 and v2-v3-v0 cover one quad
             _indices.Add((uint)(v + 0));
             _indices.Add((uint)(v + 1));
             _indices.Add((uint)(v + 2));
@@ -42,12 +42,12 @@ public sealed class AutoStorageIndexBuffer : IDisposable
         return (firstIndex, quads * 6);
     }
 
-    //GetIndices 返回索引快照供单测验证顺序
+    //GetIndices returns an index snapshot for unit tests to verify order
     public ReadOnlySpan<uint> GetIndices() => _indices.ToArray();
 
-    //Upload 创建 UInt32 index buffer 上传索引数据
-    //buffer 跨帧复用 size 不够才重建 HostVisible 每帧 map+memcpy 重写内容
-    //修复旧实现 _indexBuffer!=null 直接 return 导致第二帧索引数据没更新的 bug
+    //Upload creates a UInt32 index buffer and uploads the index data
+    //The buffer is reused across frames and rebuilt only when too small; host-visible, map+memcpy rewrites it each frame
+    //Fixed the old bug where _indexBuffer!=null returned early, leaving the second frame's index data unupdated
     public void Upload(GpuDevice device)
     {
         if (_indices.Count == 0) return;
@@ -60,8 +60,8 @@ public sealed class AutoStorageIndexBuffer : IDisposable
         _indexBuffer.Upload<uint>(_indices.ToArray());
     }
 
-    //EndFrame 重置索引列表保留 GPU buffer 跨帧复用
-    //调用后 Upload 可再次为新帧上传
+    //EndFrame resets the index list while keeping the GPU buffer for cross-frame reuse
+    //After the call Upload can upload again for the new frame
     public void EndFrame()
     {
         _indices.Clear();

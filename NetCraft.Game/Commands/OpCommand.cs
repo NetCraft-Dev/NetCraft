@@ -6,8 +6,8 @@ using NetCraft.Game.Server;
 
 namespace NetCraft.Game.Commands;
 
-//OpCommand 管理员命令 op/deop 读写 ops.json 名单并即时同步在线目标权限等级
-//原版目标参数是游戏档案可含离线玩家 本作只解析在线玩家名
+//OpCommand operator commands op/deop read/write the ops.json list and sync online targets' permission level immediately
+//Vanilla's target argument is a game profile that may include offline players; this only resolves online player names
 public static class OpCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -22,7 +22,7 @@ public static class OpCommand
                 .Executes(context => Apply(context, false))));
     }
 
-    //Apply 按开关增删名单 在线目标立即刷新权限等级并同步客户端
+    //Apply adds/removes from the list by the flag; online targets refresh their permission level and sync to the client immediately
     private static int Apply(CommandContext<CommandSourceStack> context, bool op)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -30,7 +30,7 @@ public static class OpCommand
         var target = source.Server.PlayerList.GetPlayerByName(name);
         if (target is null)
         {
-            source.SendFailure($"玩家 {name} 不在线");
+            source.SendFailure($"player {name} is not online");
             return 0;
         }
 
@@ -39,13 +39,13 @@ public static class OpCommand
             var level = source.Server.Settings.OpPermissionLevel;
             source.Server.OpList.Add(target.Profile, level);
             source.Server.PlayerList.ApplyPermissionLevel(target, level);
-            source.SendSuccess($"已将 {target.Profile.Name} 设为管理员 权限等级 {level}");
+            source.SendSuccess($"made {target.Profile.Name} an operator, permission level {level}");
             return 1;
         }
 
         source.Server.OpList.Remove(target.Profile);
         source.Server.PlayerList.ApplyPermissionLevel(target, 0);
-        source.SendSuccess($"已撤销 {target.Profile.Name} 的管理员权限");
+        source.SendSuccess($"revoked {target.Profile.Name}'s operator permission");
         return 1;
     }
 }

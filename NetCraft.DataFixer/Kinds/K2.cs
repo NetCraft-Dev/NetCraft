@@ -1,4 +1,4 @@
 namespace NetCraft.DataFixer.Kinds;
 
-//二元高阶类型标记表示F<A,B>的F
+//binary higher-kinded type marker, the F of F<A,B>
 public interface K2 { }

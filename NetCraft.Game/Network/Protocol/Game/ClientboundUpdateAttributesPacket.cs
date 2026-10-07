@@ -1,8 +1,8 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientboundUpdateAttributesPacket 属性更新包对应原版 ClientboundUpdateAttributesPacket
-//字段 EntityId(int) Attributes(List<AttributeSnapshot>)
-//实体配对时下发全部可同步属性 之后每刻只补发被改脏的属性
+//ClientboundUpdateAttributesPacket attributes update packet, maps to vanilla ClientboundUpdateAttributesPacket
+//Fields: EntityId(int), Attributes(List<AttributeSnapshot>)
+//On entity pairing all syncable attributes are sent; afterwards only attributes marked dirty are resent each tick
 public sealed record ClientboundUpdateAttributesPacket(int EntityId, IReadOnlyList<AttributeSnapshot> Attributes)
     : Packet<ClientGamePacketListener>
 {

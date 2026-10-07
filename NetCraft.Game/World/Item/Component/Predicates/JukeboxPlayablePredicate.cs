@@ -4,12 +4,12 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items.Component.Predicates;
 
-//JukeboxPlayablePredicate 唱片机谓词 判定曲目引用是否落在给定集合
-//对应原版 net.minecraft.core.component.predicates.JukeboxPlayablePredicate
+//JukeboxPlayablePredicate jukebox predicate, checks whether the song reference falls in the given set
+//Maps to vanilla net.minecraft.core.component.predicates.JukeboxPlayablePredicate
 public sealed record JukeboxPlayablePredicate(Optional<HolderSet<JukeboxSong>> Song)
     : SingleComponentItemPredicate<JukeboxPlayable>
 {
-    //Codec 持久化编解码 只有 song 一个可选字段 对应原版 CODEC
+    //Codec persistence codec, a single optional song field, maps to vanilla CODEC
     public static readonly Codec<JukeboxPlayablePredicate> Codec = RecordCodecBuilder.Of1(
         HolderSetCodecs.JukeboxSongSet.OptionalFieldOf("song")
             .ForGetter((JukeboxPlayablePredicate predicate) => predicate.Song),
@@ -17,7 +17,7 @@ public sealed record JukeboxPlayablePredicate(Optional<HolderSet<JukeboxSong>> S
 
     public DataComponentType<object> ComponentType => DataComponents.JUKEBOX_PLAYABLE;
 
-    //MatchesValue 按注册名逐项比对 对应原版遍历 unwrapKey 的写法
+    //MatchesValue compares entry by entry by registry name, maps to vanilla's loop over unwrapKey
     public bool MatchesValue(JukeboxPlayable value)
     {
         if (!Song.IsPresent) return true;
@@ -31,6 +31,6 @@ public sealed record JukeboxPlayablePredicate(Optional<HolderSet<JukeboxSong>> S
         return false;
     }
 
-    //Any 无约束谓词 对应原版 any
+    //Any unconstrained predicate, maps to vanilla any
     public static JukeboxPlayablePredicate Any() => new(Optional<HolderSet<JukeboxSong>>.Empty());
 }

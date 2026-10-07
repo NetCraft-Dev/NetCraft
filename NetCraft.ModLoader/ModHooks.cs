@@ -5,9 +5,9 @@ using NetCraft.Logging;
 
 namespace NetCraft.ModLoader;
 
-//ModHooks 注入装配 把模组的 hook 清单转成 Lead.Hook 规则
-//装配必须早于内核子库被解析 子库一进来改写就没机会了
-//替换类不要引用内核类型 解析它会连带解析基类 可能把内核提前拉起来
+//ModHooks: injection assembly, converts a mod's hook list into Lead.Hook rules
+//Assembly must precede the resolution of kernel sub-libraries; once a sub-library comes in there is no chance to rewrite
+//The replacement class must not reference kernel types; resolving it also resolves base classes and may pull the kernel up early
 public sealed class ModHooks
 {
     private readonly HookEngine _engine;
@@ -26,31 +26,31 @@ public sealed class ModHooks
         Warnings = warnings;
     }
 
-    //Errors 装配过程中的问题 单条规则出错只跳过它不影响其余
+    //Errors: problems during assembly; a single faulty rule is skipped without affecting the rest
     public List<string> Errors { get; }
 
-    //Warnings 不至于失败但需要让人知道的问题 目前只有多模组抢同一个注入点
-    //这类规则不报错 只是后装配的那条不生效 不记下来没人看得出来
+    //Warnings: problems that do not cause failure but should be known, currently only multiple mods competing for the same injection point
+    //Such rules do not error, only the later-assembled one does not apply, which no one would notice if not recorded
     public List<string> Warnings { get; }
 
-    //TargetAssemblies 有加载时改写规则命中的程序集名
+    //TargetAssemblies: assembly names matched by load-time rewriting rules
     public IReadOnlyCollection<string> TargetAssemblies => _targets;
 
-    //RuntimeTargets 有运行时注入规则命中的程序集名
-    //这类程序集不走加载前改写 由 ApplyRuntimeInjects 在它们加载之后提交给 ReJIT
+    //RuntimeTargets: assembly names matched by runtime injection rules
+    //Such assemblies do not go through pre-load rewriting; ApplyRuntimeInjects submits them to ReJIT after they load
     public IReadOnlyCollection<string> RuntimeTargets => _runtimeTargets;
 
-    //Rules 已装配的规则
+    //Rules: the assembled rules
     public IReadOnlyList<HookRule> Rules => _engine.Rules;
 
-    //Mixins 已装配的混入规则
+    //Mixins: the assembled mixin rules
     public IReadOnlyList<MixinRule> Mixins => _engine.Mixins;
 
-    //Build 从静态扫描结果装配注入规则
-    //kernelAssemblies 是内核程序集名 用来建立类型到程序集的索引
-    //模组程序集也一并进索引 因此模组之间可以互相注入
-    //索引必须读元数据表得来 命名空间前缀与程序集并不一一对应 猜前缀会把规则打到错的程序集上
-    //全程不加载任何模组程序集 目标一旦被提前加载就再没有改写的机会了
+    //Build: assembles injection rules from the static scan result
+    //kernelAssemblies are kernel assembly names, used to build the type-to-assembly index
+    //Mod assemblies enter the index too, so mods can inject into each other
+    //The index must come from reading metadata tables; namespace prefixes and assemblies do not correspond one to one and guessing the prefix would apply rules to the wrong assembly
+    //No mod assembly is loaded throughout; once a target is loaded early there is no chance to rewrite it
     public static ModHooks Build(IEnumerable<ScannedMod> mods, IEnumerable<string> kernelAssemblies, ModEnvironment environment)
     {
         var modList = mods.ToList();
@@ -60,13 +60,13 @@ public sealed class ModHooks
         var paths = new Dictionary<string, string>(StringComparer.Ordinal);
         var errors = new List<string>();
         var warnings = new List<string>();
-        //注入点 到 先占用它的模组 用来发现多模组抢同一处
+        //Injection point to the mod that claimed it first, used to detect multiple mods competing for the same place
         var owners = new Dictionary<string, string>(StringComparer.Ordinal);
 
         foreach (var mod in modList)
             paths[mod.AssemblyName] = mod.AssemblyPath;
 
-        //内核先扫 模组同名类型不会盖掉内核
+        //The kernel is scanned first so a mod's same-named type does not override it
         var typeIndex = KernelTypeIndex.Build(kernelAssemblies, ModBootstrap.ReadKernelAssembly);
         foreach (var mod in modList)
         {
@@ -76,7 +76,7 @@ public sealed class ModHooks
             }
             catch (Exception ex)
             {
-                errors.Add($"模组 {mod.Manifest.Id} 读元数据失败 {ex.Message}");
+                errors.Add($"mod {mod.Manifest.Id} failed to read metadata {ex.Message}");
             }
         }
 
@@ -84,12 +84,12 @@ public sealed class ModHooks
                              && m.Manifest.Mixins.Count == 0 && m.AnnotatedMixins.Count == 0))
             return new ModHooks(builder.Build(), targets, runtimeTargets, paths, errors, warnings);
 
-        //混入目标 到 先占用它的模组 与 hooks 分开记 两者是不同的东西
+        //Mixin target to the mod that claimed it first, tracked separately from hooks since they are different things
         var mixinOwners = new Dictionary<string, string>(StringComparer.Ordinal);
 
         foreach (var mod in modList)
         {
-            //注解写在替换方法或来源类旁边 改名时跟着走 所以同一个目标两边都声明时以注解为准
+            //Annotations sit next to the replacement method or source class and follow renames, so when both sides declare the same target the annotation wins
             var declared = new HashSet<string>(StringComparer.Ordinal);
             foreach (var hook in mod.AnnotatedHooks)
                 AddRule(builder, typeIndex, targets, runtimeTargets, errors, warnings, owners, mod, hook, environment, declared);
@@ -97,7 +97,7 @@ public sealed class ModHooks
             foreach (var hook in mod.Manifest.Hooks)
                 AddRule(builder, typeIndex, targets, runtimeTargets, errors, warnings, owners, mod, hook, environment, declared);
 
-            //同一个模组可以用两个来源混入同一个目标 去重键要带上来源
+            //One mod can mix two sources into the same target, so the dedup key must include the source
             var declaredMixins = new HashSet<string>(StringComparer.Ordinal);
             foreach (var mixin in mod.AnnotatedMixins)
                 AddMixin(builder, typeIndex, targets, errors, warnings, mixinOwners, mod, mixin, declaredMixins);
@@ -107,29 +107,29 @@ public sealed class ModHooks
         }
 
         var engine = builder.Build();
-        //替换方按需加载 改写命中时才现拉 所以规则表可以先于任何模组程序集建完
+        //Replacement sources load on demand, pulled in only when a rewrite hits, so the rule table can be built before any mod assembly
         foreach (var name in paths.Keys)
         {
             var path = paths[name];
             engine.RegisterReplacementSource(name, () => ModAssemblies.Load(name, path));
-            //混入要读来源类的定义 不能把它加载起来 直接给字节让引擎自己解析
+            //Mixing needs to read the source class definition without loading it, so bytes are handed to the engine to parse itself
             engine.RegisterMixinSource(name, () => File.ReadAllBytes(path));
         }
 
-        //两类落地方式碰在同一个程序集上时 运行时注入提交的方法体是从原始字节改出来的
-        //加载期改写对同一个方法做过的改动会被它整份盖掉 这类组合只能提示 装配期看不出两条规则是不是命中同一个方法
+        //When the two application modes land on the same assembly, the method body submitted by runtime injection is rewritten from the original bytes
+        //Changes made to the same method by load-time rewriting are entirely overwritten by it; such combinations can only be warned about, since assembly time cannot tell whether two rules hit the same method
         foreach (var name in runtimeTargets)
         {
             if (targets.Contains(name))
-                warnings.Add($"程序集 {name} 同时有加载时改写与运行时注入两类规则 同被改写的方法上加载期改动会被运行时注入盖掉");
+                warnings.Add($"assembly {name} has both load-time rewriting and runtime injection rules; on methods rewritten by both, the load-time changes are overwritten by runtime injection");
         }
 
         return new ModHooks(engine, targets, runtimeTargets, paths, errors, warnings);
     }
 
-    //AddRule 把一条规则并进装配
-    //注解与清单走的是同一个入口 唯一区别是注解先处理 于是同一个注入点注解说话算数
-    //declared 记本模组已占用的注入点 目标与形态相同就算同一个点
+    //AddRule: merges one rule into the assembly
+    //Annotations and the manifest go through the same entry point; the only difference is that annotations are processed first, so the annotation wins at the same injection point
+    //declared records injection points already claimed by this mod; the same target and form count as one point
     private static void AddRule(
         HookBuilder builder,
         Dictionary<string, string> typeIndex,
@@ -148,19 +148,19 @@ public sealed class ModHooks
 
         if (!Enum.TryParse<HookType>(hook.HookTypeName, ignoreCase: true, out var hookType))
         {
-            errors.Add($"模组 {mod.Manifest.Id} 的注入类型 {hook.HookTypeName} 无法识别");
+            errors.Add($"unrecognized injection type {hook.HookTypeName} in mod {mod.Manifest.Id}");
             return;
         }
 
         if (!Enum.TryParse<PatchMode>(hook.PatchModeName, ignoreCase: true, out var patchMode))
         {
-            errors.Add($"模组 {mod.Manifest.Id} 的补丁模式 {hook.PatchModeName} 无法识别");
+            errors.Add($"unrecognized patch mode {hook.PatchModeName} in mod {mod.Manifest.Id}");
             return;
         }
 
         if (!Enum.TryParse<HookPlacement>(hook.PlacementName, ignoreCase: true, out var placement))
         {
-            errors.Add($"模组 {mod.Manifest.Id} 的落位方式 {hook.PlacementName} 无法识别");
+            errors.Add($"unrecognized placement {hook.PlacementName} in mod {mod.Manifest.Id}");
             return;
         }
 
@@ -169,7 +169,7 @@ public sealed class ModHooks
 
         if (!typeIndex.TryGetValue(hook.Target, out var target))
         {
-            errors.Add($"模组 {mod.Manifest.Id} 的注入目标 {hook.Target} 不在任何已知程序集里");
+            errors.Add($"injection target {hook.Target} of mod {mod.Manifest.Id} is in no known assembly");
             return;
         }
 
@@ -181,31 +181,31 @@ public sealed class ModHooks
             inType: hook.InType, inMethod: hook.InMethod, placement: placement,
             argumentIndex: hook.ArgumentIndex, sliceFrom: hook.SliceFrom, sliceTo: hook.SliceTo));
 
-        //两类落地方式分开记 静态那条走加载前改写 运行时那条等目标加载完再提交
+        //The two application modes are tracked separately: the static one goes through pre-load rewriting, the runtime one is submitted after the target loads
         if (patchMode == PatchMode.RuntimeInject)
             runtimeTargets.Add(target);
         else
             targets.Add(target);
 
-        //同一个注入点被两个模组声明时 只有先装配的那条会落地
-        //这里记一笔 否则被顶掉的那个模组连个提示都没有
+        //When two mods declare the same injection point, only the one assembled first applies
+        //Recorded here so the displaced mod gets at least a hint
         var anchor = $"{hook.Target}::{hook.Method}[{hookType}/{patchMode}]";
         if (owners.TryGetValue(anchor, out var owner))
         {
-            warnings.Add($"模组 {mod.Manifest.Id} 的注入 {anchor} 已被模组 {owner} 占用 本条不会生效");
+            warnings.Add($"injection {anchor} of mod {mod.Manifest.Id} is already claimed by mod {owner}, this rule will not apply");
         }
         else
         {
             owners[anchor] = mod.Manifest.Id;
         }
 
-        //逐条落 debug 日志 排查注入时能直接看出哪条规则来自哪个模组
+        //Logs each rule at debug level so injection troubleshooting shows at a glance which rule comes from which mod
         Log.Debug($"Mod {mod.Manifest.Id} injects {target}!{hook.Target}::{hook.Method} replaced by {hook.ReplaceType}::{hook.ReplaceMethod} [{hookType}/{patchMode}]");
     }
 
-    //AddMixin 把一条混入规则并进装配
-    //来源类型固定在本模组程序集里 所以不必写程序集名
-    //混入只对加载期改写生效 目标进静态那本册子 与运行时注入无关
+    //AddMixin: merges one mixin rule into the assembly
+    //The source type is fixed in this mod's own assembly, so no assembly name is needed
+    //Mixing only takes effect for load-time rewriting and the target joins the static list, unrelated to runtime injection
     private static void AddMixin(
         HookBuilder builder,
         Dictionary<string, string> typeIndex,
@@ -219,7 +219,7 @@ public sealed class ModHooks
     {
         if (mixin.Target.Length == 0 || mixin.Source.Length == 0)
         {
-            errors.Add($"模组 {mod.Manifest.Id} 的混入规则缺少目标或来源");
+            errors.Add($"mixin rule of mod {mod.Manifest.Id} is missing a target or source");
             return;
         }
 
@@ -228,11 +228,11 @@ public sealed class ModHooks
 
         if (!typeIndex.TryGetValue(mixin.Target, out var targetAssembly))
         {
-            errors.Add($"模组 {mod.Manifest.Id} 的混入目标 {mixin.Target} 不在任何已知程序集里");
+            errors.Add($"mixin target {mixin.Target} of mod {mod.Manifest.Id} is in no known assembly");
             return;
         }
 
-        //接口按类型索引补程序集名 查不到就留空交给引擎在当前模块里找
+        //Interfaces get their assembly name from the type index; if not found it is left empty for the engine to locate within the current module
         var interfaces = mixin.Interfaces
             .Select(name => typeIndex.TryGetValue(name, out var assembly)
                 ? new TypeRef(name, assembly)
@@ -242,27 +242,27 @@ public sealed class ModHooks
         builder.AddMixin(new MixinRule(mixin.Target, mod.AssemblyName, mixin.Source, interfaces));
         targets.Add(targetAssembly);
 
-        //两个模组混入同一个目标时两条都会落地 只有成员撞名的那部分后者被跳过 比 hooks 那边温和
+        //When two mods mix into the same target both apply, only the later one's name-colliding members are skipped, gentler than hooks
         if (owners.TryGetValue(mixin.Target, out var owner))
-            warnings.Add($"模组 {mod.Manifest.Id} 的混入 {mixin.Target} 已被模组 {owner} 占用 同名成员只有先装配的那个会落地");
+            warnings.Add($"mixin {mixin.Target} of mod {mod.Manifest.Id} is already claimed by mod {owner}, only the first-assembled one's same-named members apply");
         else
             owners[mixin.Target] = mod.Manifest.Id;
 
         Log.Debug($"Mod {mod.Manifest.Id} mixes {mod.AssemblyName}!{mixin.Source} into {mixin.Target}");
     }
 
-    //Rewrite 改写器 交给主库的 EmbeddedAssemblyLoader 与模组加载
-    //没有规则命中的程序集原样返回 避免白跑一遍 Cecil
+    //Rewrite: the rewriter handed to the main library's EmbeddedAssemblyLoader and mod loading
+    //Assemblies with no matching rule are returned as-is, avoiding a wasted Cecil pass
     public byte[] Rewrite(string assemblyName, byte[] bytes)
         => _targets.Contains(assemblyName) ? _engine.Rewrite(bytes) : bytes;
 
-    //ApplyRuntimePatches 执行 RuntimePatch 规则
-    //必须等内核程序集都加载完再调 改写那一刻目标类型还没进来 那时找不到
+    //ApplyRuntimePatches: applies RuntimePatch rules
+    //Must be called only after all kernel assemblies are loaded; at rewrite time the target type is not in yet and cannot be found
     public void ApplyRuntimePatches() => _engine.ApplyRuntimePatches();
 
-    //ApplyRuntimeInjects 把运行时注入的规则提交给 CLR 的 ReJIT
-    //只认此刻已经加载的目标 没加载的程序集连模块名都拿不到 提交上去原生层也无从匹配
-    //原生注入层没挂时整批跳过 这类规则不报错 只留一句警告
+    //ApplyRuntimeInjects: submits runtime injection rules to the CLR's ReJIT
+    //Only targets already loaded at this moment are recognized; an unloaded assembly does not even give a module name, and the native layer has nothing to match
+    //The whole batch is skipped when the native injection layer is not attached; such rules do not error, leaving only a warning
     public void ApplyRuntimeInjects()
     {
         if (_runtimeTargets.Count == 0)
@@ -270,7 +270,7 @@ public sealed class ModHooks
 
         if (!RuntimeInjector.IsAvailable)
         {
-            Warnings.Add($"有 {_runtimeTargets.Count} 个程序集声明了运行时注入 但进程没挂原生注入层 这批规则本次不生效");
+            Warnings.Add($"{_runtimeTargets.Count} assemblies declare runtime injection but the native injection layer is not attached to the process, this batch will not apply this run");
             return;
         }
 
@@ -280,31 +280,31 @@ public sealed class ModHooks
                 .FirstOrDefault(a => a.GetName().Name == name);
             if (assembly is null)
             {
-                Warnings.Add($"运行时注入的目标 {name} 此刻还没加载 本次跳过");
+                Warnings.Add($"runtime injection target {name} is not loaded yet, skipping this run");
                 continue;
             }
 
             var bytes = ReadOriginalBytes(name);
             if (bytes is null)
             {
-                Warnings.Add($"运行时注入的目标 {name} 取不到原始字节 本次跳过");
+                Warnings.Add($"cannot get original bytes for runtime injection target {name}, skipping this run");
                 continue;
             }
 
             try
             {
-                //提交的是原始件改出来的方法体 不含加载期改写的改动
+                //What is submitted is the method body rewritten from the original bytes, without load-time rewrite changes
                 var injected = RuntimeInjector.Inject(bytes, assembly.ManifestModule.Name, _engine);
                 Log.Info($"Runtime injected {injected.Count} methods into {name}");
             }
             catch (Exception ex)
             {
-                Errors.Add($"运行时注入 {name} 失败 {ex.Message}");
+                Errors.Add($"runtime injection into {name} failed {ex.Message}");
             }
         }
     }
 
-    //ReadOriginalBytes 取程序集原始字节 模组目录优先 内核内嵌资源兜底
+    //ReadOriginalBytes: gets the assembly's original bytes, mod directory first with kernel embedded resources as fallback
     private byte[]? ReadOriginalBytes(string name)
     {
         if (_assemblyPaths.TryGetValue(name, out var path) && File.Exists(path))
@@ -312,16 +312,16 @@ public sealed class ModHooks
         return ModBootstrap.ReadKernelAssembly(name);
     }
 
-    //PreloadReplacers 预载替换方程序集
-    //被注入方改写时要能解析替换方法 那一刻替换方必须在场
-    //替换方自己也被注入时它的加载会递归走同一套改写 所以不必预先排加载顺序
+    //PreloadReplacers: preloads replacement assemblies
+    //The injected side needs to resolve the replacement method while being rewritten, so the replacement must be present at that moment
+    //When the replacement is itself injected its load recurses through the same rewriting, so load order need not be pre-arranged
     public void PreloadReplacers()
     {
         foreach (var rule in _engine.Rules)
         {
             if (!_assemblyPaths.TryGetValue(rule.ReplacementAssembly, out var path))
             {
-                Errors.Add($"规则 {rule} 的替换方程序集 {rule.ReplacementAssembly} 不在模组目录里");
+                Errors.Add($"replacement assembly {rule.ReplacementAssembly} of rule {rule} is not in the mod directory");
                 continue;
             }
 
@@ -331,7 +331,7 @@ public sealed class ModHooks
             }
             catch (Exception ex)
             {
-                Errors.Add($"替换方程序集 {rule.ReplacementAssembly} 加载失败 {ex.Message}");
+                Errors.Add($"replacement assembly {rule.ReplacementAssembly} failed to load {ex.Message}");
             }
         }
     }

@@ -6,8 +6,8 @@ using NetCraft.Game.Server;
 
 namespace NetCraft.Game.Commands;
 
-//PerfCommand perf 命令对应原版 net.minecraft.server.commands.PerfCommand
-//原版用 JFR 记录 NC 没有对应物 这里退化为进程 CPU 时间与 GC 分配的区间统计
+//PerfCommand perf command, maps to vanilla net.minecraft.server.commands.PerfCommand
+//Vanilla uses JFR; NC has no equivalent, so this degrades to interval statistics of process CPU time and GC allocation
 public static class PerfCommand
 {
     private static TimeSpan _startCpu;
@@ -28,7 +28,7 @@ public static class PerfCommand
                 .Executes(Stop)));
     }
 
-    //Start 记下起点指标 重复开始直接覆盖
+    //Start records the starting metrics; a repeated start just overwrites
     private static int Start(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -40,19 +40,19 @@ public static class PerfCommand
         _startGen2 = GC.CollectionCount(2);
         _startTicks = Environment.TickCount64;
         _recording = true;
-        //tick 阶段计时与这份区间统计同起同停 两块时钟都从这一刻算
+        //The tick stage timing starts and stops with this interval stat; both clocks count from this moment
         TickStageProfiler.Start();
-        source.SendSuccess("已开始性能记录");
+        source.SendSuccess("performance recording started");
         return 1;
     }
 
-    //Stop 输出区间内的 CPU 时间与分配量与各代回收次数
+    //Stop prints the interval's CPU time, allocation and per-generation collection counts
     private static int Stop(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         if (!_recording)
         {
-            source.SendFailure("当前没有正在进行的性能记录");
+            source.SendFailure("there is no performance recording in progress");
             return 0;
         }
 
@@ -66,10 +66,10 @@ public static class PerfCommand
         _recording = false;
         TickStageProfiler.Stop();
 
-        source.SendSuccess($"时长 {wall:F2} 秒 CPU 时间 {cpu.TotalSeconds:F2} 秒");
-        source.SendSuccess($"托管分配 {allocated / 1048576.0:F1} MB");
-        source.SendSuccess($"GC 次数 Gen0 {gen0} Gen1 {gen1} Gen2 {gen2}");
-        //阶段表跟在总览后面 每行一条回执
+        source.SendSuccess($"duration {wall:F2} s, CPU time {cpu.TotalSeconds:F2} s");
+        source.SendSuccess($"managed allocation {allocated / 1048576.0:F1} MB");
+        source.SendSuccess($"GC counts Gen0 {gen0} Gen1 {gen1} Gen2 {gen2}");
+        //The stage table follows the overview, one reply per line
         foreach (var line in TickStageProfiler.Report()) source.SendSuccess(line);
         return 1;
     }

@@ -6,12 +6,12 @@ using MiscCodecs = NetCraft.Game.World.Level.LevelGen.Features.Impl.Misc.Rotatio
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//PoolElementStructurePiece 池元素片段 对应原版 net.minecraft.world.level.levelgen.structure.PoolElementStructurePiece
-//一个池元素在装配结果里的落位：位置 旋转 地面高度差 与它接出的全部接缝
+//PoolElementStructurePiece pool element piece, maps to vanilla net.minecraft.world.level.levelgen.structure.PoolElementStructurePiece
+//Placement of a pool element in the assembly result: position, rotation, ground level delta and all junctions it connects to
 public sealed class PoolElementStructurePiece : StructurePiece
 {
     private readonly List<JigsawJunction> _junctions = new();
-    //读档路径上模板管理器由上下文提供 未注入时片段还原出来也放不下东西
+    //On the load path the template manager comes from the context; when not injected, a restored piece cannot place anything
     private readonly StructureTemplateManager? _structureTemplateManager;
     private readonly LiquidSettings _liquidSettings;
     private BlockPos _position;
@@ -29,8 +29,8 @@ public sealed class PoolElementStructurePiece : StructurePiece
         _liquidSettings = liquidSettings;
     }
 
-    //从 NBT 还原池元素片段 对应原版 PoolElementStructurePiece(context, tag) 构造
-    //模板管理器不落盘 从上下文拿 读档时由世界装配注入
+    //Restores a pool element piece from NBT, maps to the vanilla PoolElementStructurePiece(context, tag) constructor
+    //The template manager is not saved; it comes from the context, injected by world assembly on load
     public PoolElementStructurePiece(StructurePieceSerializationContext context, CompoundTag tag)
         : base(JigsawPieceType.Instance, tag)
     {
@@ -38,7 +38,7 @@ public sealed class PoolElementStructurePiece : StructurePiece
         _position = new BlockPos(tag.GetIntOr("PosX", 0), tag.GetIntOr("PosY", 0), tag.GetIntOr("PosZ", 0));
         GroundLevelDelta = tag.GetIntOr("ground_level_delta", 0);
         var elementResult = tag.Read("pool_element", StructurePoolElement.Codec);
-        if (!elementResult.IsPresent) throw new InvalidOperationException("池元素片段缺少 pool_element 字段");
+        if (!elementResult.IsPresent) throw new InvalidOperationException("pool element piece is missing the pool_element field");
         Element = elementResult.Get();
         Rotation = tag.Read("rotation", MiscCodecs.Instance).OrElse(Rotation.None);
         _liquidSettings = tag.Read("liquid_settings", StructurePoolCodecs.LiquidSettingsCodec)
@@ -55,31 +55,31 @@ public sealed class PoolElementStructurePiece : StructurePiece
         }
     }
 
-    //Element 该片段放置的池元素
+    //Element the pool element this piece places
     public StructurePoolElement Element { get; }
 
-    //Position 片段落位坐标 对应原版 getPosition
+    //Position the piece placement position, maps to vanilla getPosition
     public BlockPos Position => _position;
 
-    //GroundLevelDelta 相对地面高度图的偏移 对应原版 getGroundLevelDelta
+    //GroundLevelDelta offset from the ground heightmap, maps to vanilla getGroundLevelDelta
     public int GroundLevelDelta { get; }
 
     public Rotation Rotation { get; }
 
-    //Junctions 该片段接出的接缝 地形适配按它做平滑
+    //Junctions the junctions this piece connects to; terrain adaptation smooths by them
     public IReadOnlyList<JigsawJunction> Junctions => _junctions;
 
     public void AddJunction(JigsawJunction junction) => _junctions.Add(junction);
 
-    //Move 平移片段 位置与包围盒一起动 对应原版 move
+    //Move translates the piece, moving position and bounding box together, maps to vanilla move
     public override void Move(int dx, int dy, int dz)
     {
         base.Move(dx, dy, dz);
         _position = _position.Offset(dx, dy, dz);
     }
 
-    //AddAdditionalSaveData 写入池元素片段自身字段 对应原版同名方法
-    //模板管理器不落盘 读档时由世界装配重新注入
+    //AddAdditionalSaveData writes the pool element piece's own fields, maps to the identically named vanilla method
+    //The template manager is not saved; it is re-injected by world assembly on load
     protected override void AddAdditionalSaveData(CompoundTag tag)
     {
         tag.PutInt("PosX", _position.X);
@@ -92,21 +92,21 @@ public sealed class PoolElementStructurePiece : StructurePiece
         foreach (var junction in _junctions)
             junctionsTag.Add(JigsawJunction.Codec.EncodeStart(NbtOps.Instance, junction).GetOrThrow());
         tag.Put("junctions", junctionsTag);
-        //默认液体设置不写盘 原版读回时按默认值兜底 少写一个字段少一处兼容负担
+        //The default liquid settings are not written; vanilla falls back to the default on read, and omitting one field removes one compatibility burden
         if (_liquidSettings != JigsawStructure.DefaultLiquidSettings)
             tag.Store("liquid_settings", StructurePoolCodecs.LiquidSettingsCodec, NbtOps.Instance, _liquidSettings);
     }
 
-    //PostProcess 把池元素写进世界 对应原版 postProcess
-    //真实写入走 element.Place 装饰阶段逐区块调用
+    //PostProcess writes the pool element into the world, maps to vanilla postProcess
+    //The actual write goes through element.Place, called chunk by chunk during decoration
     public void PostProcess(WorldGenRegion level, StructureManager structureManager, ChunkGenerator generator,
         RandomSource random, BoundingBoxInt chunkBB, BlockPos referencePos)
         => Place(level, structureManager, generator, random, chunkBB, referencePos, false);
 
-    //Place 放置池元素 keepJigsaws 为真时保留拼图方块不替换成最终状态
+    //Place places the pool element; when keepJigsaws is true the jigsaw blocks are kept instead of becoming their final state
     public void Place(WorldGenRegion level, StructureManager structureManager, ChunkGenerator generator,
         RandomSource random, BoundingBoxInt chunkBB, BlockPos referencePos, bool keepJigsaws)
-        //世界装配一定注入过模板管理器 走到放置这一步必然非空
+        //World assembly always injects the template manager, so it is non-null by the time placement runs
         => Element.Place(_structureTemplateManager!, level, structureManager, generator, _position, referencePos,
             Rotation, chunkBB, random, _liquidSettings, keepJigsaws);
 

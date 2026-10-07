@@ -6,18 +6,18 @@ using System.Linq.Expressions;
 using System.Reflection;
 using NetCraft.DataFixer.Kinds;
 
-//WanderInvokerCache缓存Traversal.Wander的反射委托调用
-//traversal实际类型可能是Traversal<Pair<string,object>,...>被Unsafe.As强转为Traversal<object,object,...>
-//C#严格泛型不变量下两封闭类型方法表入口不共享直接调Wander抛EntryPointNotFoundException
-//用表达式树委托缓存绕过方法表入口检查对齐Java类型擦除后虚方法分派语义
+//WanderInvokerCache caches the reflective delegate invocations for Traversal.Wander
+//the actual traversal type may be Traversal<Pair<string,object>,...>, hard-cast via Unsafe.As to Traversal<object,object,...>
+//under C#'s strict generic invariance the method table entries of the two closed types are not shared, so calling Wander directly throws EntryPointNotFoundException
+//using an expression tree delegate cache bypasses the method table entry check, aligning with Java's erased virtual dispatch semantics
 internal static class WanderInvokerCache
 {
-    //wanderInvoker缓存(traversalType, FType, TMu2Type, inputFuncType) -> Func<object, object, object, object>
-    //调用traversal.Wander<F,TMu2>(applicative, input)返回wanderFunc
+    //wanderInvoker caches (traversalType, FType, TMu2Type, inputFuncType) -> Func<object, object, object, object>
+    //calls traversal.Wander<F,TMu2>(applicative, input) and returns wanderFunc
     private static readonly ConcurrentDictionary<(Type, Type, Type, Type), Func<object, object, object, object>> _wanderCache = new();
 
-    //funcInvoker缓存(wanderFuncType, argType) -> Func<object, object, object>
-    //调用wanderFunc.Invoke(value)返回boxed结果
+    //funcInvoker caches (wanderFuncType, argType) -> Func<object, object, object>
+    //calls wanderFunc.Invoke(value) and returns the boxed result
     private static readonly ConcurrentDictionary<(Type, Type), Func<object, object, object>> _funcInvokeCache = new();
 
     public static object InvokeWander<FT, FR, F, TMu2>(
@@ -28,8 +28,8 @@ internal static class WanderInvokerCache
         return InvokeWanderFunc(wanderFunc, value);
     }
 
-    //GetWanderFunc只调用traversal.Wander返回wanderFunc不调用
-    //DimapTraversal.Wander内部需要wanderFunc延迟调用对齐原版语义
+    //GetWanderFunc only calls traversal.Wander to return wanderFunc without invoking it
+    //DimapTraversal.Wander needs to invoke wanderFunc lazily, aligning with vanilla semantics
     public static object GetWanderFunc<FT, FR, F, TMu2>(
         object traversal, object applicative, Func<FT, App<F, FR>> input)
         where F : K1 where TMu2 : IApplicativeMu
@@ -40,7 +40,7 @@ internal static class WanderInvokerCache
 
         var wanderInvoker = _wanderCache.GetOrAdd(cacheKey, key =>
         {
-            //查找Wander方法可能在接口上对齐Java类型擦除后虚方法分派
+            //finds the Wander method, which may live on an interface, aligning with Java's erased virtual dispatch
             var wanderMethod = FindWanderMethod(key.Item1)
                 ?? throw new InvalidOperationException($"Wander method not found on {key.Item1.FullName}");
             var method = wanderMethod.MakeGenericMethod(key.Item2, key.Item3);
@@ -49,19 +49,19 @@ internal static class WanderInvokerCache
             var applicativeParam = Expression.Parameter(typeof(object), "a");
             var inputParam = Expression.Parameter(typeof(object), "i");
 
-            //input参数类型method.GetParameters()[1].ParameterType是Func<A,App<F,B>>
-            //调用方传input是Func<FT,App<F,FR>> FT=A FR=B匹配
-            //但跨封闭泛型实例化下Func<FT,App<F,FR>>与方法期望类型可能不同
-            //用Unsafe.As绕过castclass运行时检查对齐Java类型擦除语义
+            //the input parameter type method.GetParameters()[1].ParameterType is Func<A,App<F,B>>
+            //the caller passes input as Func<FT,App<F,FR>>, with FT=A and FR=B matching
+            //but across closed generic instantiations Func<FT,App<F,FR>> may differ from the method's expected type
+            //so Unsafe.As bypasses the castclass runtime check, aligning with Java type erasure semantics
             var inputParamType = method.GetParameters()[1].ParameterType;
             var castInputMethod = typeof(WanderInvokerCache)
                 .GetMethod(nameof(CastTo), BindingFlags.NonPublic | BindingFlags.Static)!
                 .MakeGenericMethod(inputParamType);
 
-            //applicative参数类型method.GetParameters()[0].ParameterType是Applicative<F,TMu2>
-            //调用方传applicative实现Applicative<F,TMu2>接口
-            //跨封闭泛型实例化下Applicative<具体F,具体TMu2>与方法期望类型可能不同
-            //用Unsafe.As绕过castclass运行时检查
+            //the applicative parameter type method.GetParameters()[0].ParameterType is Applicative<F,TMu2>
+            //the caller passes an applicative implementing the Applicative<F,TMu2> interface
+            //across closed generic instantiations Applicative<concrete F,concrete TMu2> may differ from the method's expected type
+            //so Unsafe.As bypasses the castclass runtime check
             var applicativeParamType = method.GetParameters()[0].ParameterType;
             var castApplicativeMethod = typeof(WanderInvokerCache)
                 .GetMethod(nameof(CastTo), BindingFlags.NonPublic | BindingFlags.Static)!
@@ -81,8 +81,8 @@ internal static class WanderInvokerCache
         return wanderInvoker(traversal, applicative, input!);
     }
 
-    //InvokeWanderFunc调用wanderFunc(value)返回boxed结果
-    //DimapTraversal.Wander拿到wanderFunc后用_g(c)作为value调用
+    //InvokeWanderFunc calls wanderFunc(value) and returns the boxed result
+    //DimapTraversal.Wander uses _g(c) as value to invoke after obtaining wanderFunc
     public static object InvokeWanderFunc(object wanderFunc, object value)
     {
         var wanderFuncType = wanderFunc.GetType();
@@ -90,9 +90,9 @@ internal static class WanderInvokerCache
 
         var funcInvoker = _funcInvokeCache.GetOrAdd(funcInvokeKey, key =>
         {
-            //wanderFunc是Func<S,App<F,T>> S实际类型Pair<string,object>等
-            //value编译期是A=object运行时是Pair<string,object>匹配S
-            //用Unsafe.As绕过castclass运行时检查对齐Java类型擦除语义
+            //wanderFunc is Func<S,App<F,T>>, where S's actual type is Pair<string,object> and so on
+            //value is A=object at compile time and Pair<string,object> at runtime, matching S
+            //so Unsafe.As bypasses the castclass runtime check, aligning with Java type erasure semantics
             var invokeMethod = key.Item1.GetMethod("Invoke")!;
             var paramType = invokeMethod.GetParameters()[0].ParameterType;
 
@@ -116,7 +116,7 @@ internal static class WanderInvokerCache
         return funcInvoker(wanderFunc, value!);
     }
 
-    //FindWanderMethod递归查找类与所有接口的Wander泛型方法
+    //FindWanderMethod recursively searches the class and all interfaces for the generic Wander method
     private static MethodInfo? FindWanderMethod(Type type)
     {
         var method = type.GetMethod("Wander");
@@ -129,10 +129,10 @@ internal static class WanderInvokerCache
         return type.BaseType != null ? FindWanderMethod(type.BaseType) : null;
     }
 
-    //GetWanderFuncForWander调用Wander接口实例的Wander方法返回Func<S,App<F,T>>
-    //WanderTraversal._wander运行时是Wander<具体S,T,A,B>被Unsafe.As cast为Wander<S,T,A,B>
-    //C#严格泛型不变量下两封闭类型方法表入口不共享直接调Wander抛EntryPointNotFoundException
-    //用表达式树委托缓存绕过方法表入口检查对齐Java类型擦除后虚方法分派语义
+    //GetWanderFuncForWander calls the Wander method of a Wander interface instance and returns Func<S,App<F,T>>
+    //WanderTraversal._wander is Wander<concrete S,T,A,B> at runtime, Unsafe.As cast to Wander<S,T,A,B>
+    //under C#'s strict generic invariance the method table entries of the two closed types are not shared, so calling Wander directly throws EntryPointNotFoundException
+    //using an expression tree delegate cache bypasses the method table entry check, aligning with Java's erased virtual dispatch semantics
     public static Func<S, App<F, T>> GetWanderFuncForWander<S, T, F, TMu2, A, B>(
         object wander, object applicative, Func<A, App<F, B>> input)
         where F : K1 where TMu2 : IApplicativeMu
@@ -175,8 +175,8 @@ internal static class WanderInvokerCache
         return System.Runtime.CompilerServices.Unsafe.As<object, Func<S, App<F, T>>>(ref result!);
     }
 
-    //CastTo用Unsafe.As绕过C#严格泛型不变量让object转任意类型T
-    //对齐Java类型擦除语义避免castclass运行时检查失败
+    //CastTo uses Unsafe.As to bypass C#'s strict generic invariance, converting object to any type T
+    //aligning with Java type erasure semantics and avoiding castclass runtime check failures
     private static T CastTo<T>(object obj)
     {
         var local = obj;

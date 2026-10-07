@@ -2,116 +2,116 @@ using NetCraft.Game.World.Items;
 using NetCraft.Primitives;
 using NetCraft.Registry;
 using NetCraft.Registry.EntityAttribute;
-//属性常量类与 Entity 上的 Attributes 实例属性同名 引用常量要走别名
+//The attribute constants class shares a name with the Attributes instance property on Entity, so referencing the constants needs an alias
 using EntityAttributes = NetCraft.Registry.EntityAttribute.Attributes;
 
 namespace NetCraft.Game.World.Entity;
 
-//Inventory 玩家物品栏 PoC 数据层对应原版 net.minecraft.world.entity.player.Inventory
-//PoC 用 object identity 标识物品（如字符串 "cube"）不接真 ItemStack/Item 注册表
-//生产环境由 ClientboundContainerSetContentPacket 等网络包填充真 ItemStack
-//Hotbar 占用 0-8 槽位主物品栏 9-35 槽位共 36 格对标原版
+//Inventory player inventory PoC data layer, maps to vanilla net.minecraft.world.entity.player.Inventory
+//The PoC identifies items by object identity (e.g. the string "cube") and does not use the real ItemStack/Item registry
+//In production, network packets such as ClientboundContainerSetContentPacket fill in real ItemStacks
+//Hotbar takes slots 0-8, the main inventory slots 9-35, 36 slots total matching vanilla
 public sealed class Inventory
 {
-    //HotbarSlots hotbar 槽位数固定 9 对标原版
+    //HotbarSlots fixed hotbar slot count of 9, matching vanilla
     public const int HotbarSlots = 9;
-    //TotalSlots 总槽位数 36 = 9 hotbar + 27 主物品栏 对标原版
+    //TotalSlots total slot count, 36 = 9 hotbar + 27 main inventory, matching vanilla
     public const int TotalSlots = 36;
 
-    //_items 槽位物品 identity null 表示空槽
+    //_items slot item identities, null means an empty slot
     private readonly object?[] _items = new object?[TotalSlots];
 
-    //GetItem 取指定槽位物品 identity null 表示空槽
+    //GetItem returns the item identity in the given slot, null means empty
     public object? GetItem(int slot) => (uint)slot < TotalSlots ? _items[slot] : null;
 
-    //SetItem 设置指定槽位物品 identity null 清空槽位
+    //SetItem sets the item identity in the given slot, null clears it
     public void SetItem(int slot, object? identity)
     {
         if ((uint)slot < TotalSlots) _items[slot] = identity;
     }
 
-    //GetHotbarItem 取 hotbar 槽位物品 identity（0-8）便捷方法供 GameScreen Hotbar 渲染用
+    //GetHotbarItem returns the hotbar slot item identity (0-8), a convenience for GameScreen hotbar rendering
     public object? GetHotbarItem(int hotbarSlot) => GetItem(hotbarSlot);
 }
 
-//Player 玩家实体对应原版 net.minecraft.world.entity.player.Player
-//继承 Entity 持有经验/生命值/饥饿值核心字段
-//Inventory/Abilities 等子系统待后续接入此处仅基础字段
+//Player player entity, maps to vanilla net.minecraft.world.entity.player.Player
+//Extends Entity and holds the core experience/health/hunger fields
+//Subsystems such as Inventory/Abilities come later, only basic fields are here
 public class Player : NetCraft.Registry.Entity, IEquipmentHolder, IEffectHolder
 {
-    //Equipment 玩家装备槽 供实体谓词与后续装备同步使用
+    //Equipment player equipment slots, used by entity predicates and later equipment sync
     public EntityEquipment Equipment { get; } = new();
 
-    //Effects 活跃药水效果 供实体谓词与后续效果同步使用
+    //Effects active potion effects, used by entity predicates and later effect sync
     public EntityEffects Effects { get; } = new();
 
-    //GetItemBySlot 取指定槽位物品 对应原版 LivingEntity.getItemBySlot
+    //GetItemBySlot returns the item in the given slot, maps to vanilla LivingEntity.getItemBySlot
     public ItemStack GetItemBySlot(EquipmentSlot slot) => Equipment.Get(slot);
 
-    //Id 玩家实体类型注册名固定 minecraft:player
+    //Id the player entity type registry name is fixed to minecraft:player
     public override Identifier Id => Identifier.WithDefaultNamespace("player");
 
-    //Type 玩家实体类型 追踪器据此识别玩家
+    //Type player entity type, the tracker uses it to recognize players
     public override EntityType<object>? Type => EntityTypes.PLAYER;
 
-    //玩家是活体 阻挡方块放置 对应原版 LivingEntity 构造里打开 blocksBuilding
+    //A player is a living entity and blocks block placement, maps to blocksBuilding being enabled in the vanilla LivingEntity constructor
     public override bool BlocksBuilding => true;
 
-    //玩家是活体 受坠落伤害 对应原版 LivingEntity 覆盖 Entity 的基类行为
+    //A player is a living entity and takes fall damage, maps to vanilla LivingEntity overriding Entity
     public override bool TakesFallDamage => true;
 
-    //玩家的重力/击退抗性/安全坠落距离/坠落伤害系数/跨步高度一律走属性
+    //A player's gravity/knockback resistance/safe fall distance/fall damage multiplier/step height all go through attributes
     public override double DefaultGravity => GetAttributeValue(EntityAttributes.Gravity);
     public override double KnockbackResistance => GetAttributeValue(EntityAttributes.KnockbackResistance);
     public override double SafeFallDistance => GetAttributeValue(EntityAttributes.SafeFallDistance);
     public override double FallDamageMultiplier => GetAttributeValue(EntityAttributes.FallDamageMultiplier);
     public override double MaxUpStep => GetAttributeValue(EntityAttributes.StepHeight);
 
-    //XpLevel 玩家经验等级默认 0
+    //XpLevel player experience level, default 0
     public int XpLevel { get; set; }
 
-    //XpP 当前经验进度 0~1
+    //XpP current experience progress, 0 to 1
     public float XpP { get; set; }
 
-    //XpTotal 累计经验总点数
+    //XpTotal total accumulated experience points
     public int XpTotal { get; set; }
 
-    //Health 当前生命值默认 20
+    //Health current health, default 20
     public float Health { get; set; } = 20f;
 
-    //MaxHealth 最大生命值默认 20
+    //MaxHealth maximum health, default 20
     public float MaxHealth { get; set; } = 20f;
 
-    //FoodLevel 饥饿值默认 20
+    //FoodLevel hunger value, default 20
     public int FoodLevel { get; set; } = 20;
 
-    //AbsorptionHealth 吸收生命值（金苹果等）默认 0 用于吸收心渲染
+    //AbsorptionHealth absorption health (golden apple etc.), default 0, used to render absorption hearts
     public float AbsorptionHealth { get; set; }
 
-    //ActiveEffects 当前活跃药水效果集合用于 forPlayer 检测 POISON/WITHER/REGENERATION
+    //ActiveEffects current active potion effect set, used by forPlayer to detect POISON/WITHER/REGENERATION
     public HashSet<MobEffect> ActiveEffects { get; set; } = new();
 
-    //IsFullyFrozen 玩家是否完全冻结（细雪等）用于 forPlayer 检测 FROZEN
+    //IsFullyFrozen whether the player is fully frozen (powder snow etc.), used by forPlayer to detect FROZEN
     public bool IsFullyFrozen { get; set; }
 
-    //IsHardcore 硬核模式用于 heart sprite 选取 hardcore 变体对标原版 level.getLevelData().isHardcore()
+    //IsHardcore hardcore mode, used to pick the hardcore heart sprite variant, matching vanilla level.getLevelData().isHardcore()
     public bool IsHardcore { get; set; }
 
-    //GameMode 游戏模式 0=生存 1=创造 2=冒险 3=旁观
+    //GameMode 0=survival 1=creative 2=adventure 3=spectator
     public int GameMode { get; set; }
 
-    //Inventory 玩家物品栏 PoC 数据层 hotbar 0-8 主物品栏 9-35
-    //生产由网络包填充 PoC 预填 cube 用于 Hotbar 物品图标渲染演示
+    //Inventory player inventory PoC data layer, hotbar 0-8, main inventory 9-35
+    //Production fills it from network packets; the PoC pre-fills cube to demo hotbar item icon rendering
     public Inventory Inventory { get; } = new();
 
     public Player()
     {
-        //玩家属性表按类型取 对应原版 Player.createAttributes
+        //The player attribute map is taken by type, maps to vanilla Player.createAttributes
         Attributes = new AttributeMap(DefaultAttributes.GetSupplier(EntityTypes.PLAYER) ?? AttributeSupplier.Empty);
-        //玩家默认站在原点稍上方
+        //The player stands slightly above the origin by default
         Pos = new Vec3(0, 0, 0);
-        //PoC 预填 hotbar 9 格 cube 物品演示 Hotbar 物品图标渲染
-        //生产环境由 ClientboundContainerSetContentPacket 填充真 ItemStack
+        //The PoC pre-fills the 9 hotbar slots with cube items to demo hotbar item icon rendering
+        //In production, ClientboundContainerSetContentPacket fills in real ItemStacks
         for (var i = 0; i < Inventory.HotbarSlots; i++)
             Inventory.SetItem(i, "cube");
     }

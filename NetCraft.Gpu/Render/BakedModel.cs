@@ -1,19 +1,19 @@
 namespace NetCraft.Gpu;
 
-//BakedModel 烘焙后模型纯数据容器对标原版 BakedModel
-//按 (RenderLayer, Direction?) 二维分组存储 BakedQuad
-//Direction? null 表示无 cullface 总是渲染 Direction 值表示该方向 cullface 参与面剔除
-//Gpu 层只提供数据结构不含业务逻辑（解析/映射由 Game 层做）
-//BlockModelBaker 烘焙 UnbakedModel+图集 UV→BakedModel
-//ChunkMeshBuilder 按 layer 遍历 cullface quad 查邻居剔除 no-cull quad 总是渲染
+//BakedModel baked model pure-data container, maps to vanilla BakedModel
+//Stores BakedQuads grouped two-dimensionally by (RenderLayer, Direction?)
+//Direction? null means no cullface and always renders; a Direction value means that direction is culled
+//The GPU layer only provides the data structures, no domain logic (parsing/mapping is done by the Game layer)
+//BlockModelBaker bakes UnbakedModel+atlas UVs→BakedModel
+//ChunkMeshBuilder walks cullface quads by layer and culls against neighbors; no-cull quads always render
 public sealed class BakedModel
 {
-    //按 (layer, cullface) 二维分组 cullface=null 表示 no-cull quad
+    //Grouped two-dimensionally by (layer, cullface); cullface=null means a no-cull quad
     private readonly Dictionary<(RenderLayer, Direction?), List<BakedQuad>> _quads = new();
-    //Layers 缓存避免每次查询分配
+    //Layers cache to avoid allocating on every query
     private HashSet<RenderLayer>? _layersCache;
 
-    //GetQuads 获取指定 layer 的所有 quad（含 cullface 和 no-cull）向后兼容
+    //GetQuads gets all quads of the given layer (including cullface and no-cull), backward compatible
     public IReadOnlyList<BakedQuad> GetQuads(RenderLayer layer)
     {
         List<BakedQuad>? result = null;
@@ -25,8 +25,8 @@ public sealed class BakedModel
         return (IReadOnlyList<BakedQuad>?)result ?? Array.Empty<BakedQuad>();
     }
 
-    //GetCullfaceQuads 获取指定方向所有 layer 的 cullface quad 向后兼容
-    //chunk mesh 生成应优先用 GetCullfaceQuads(layer, dir) 避免 cross-layer 混淆
+    //GetCullfaceQuads gets cullface quads of all layers for the given direction, backward compatible
+    //Chunk mesh generation should prefer GetCullfaceQuads(layer, dir) to avoid cross-layer confusion
     public IReadOnlyList<BakedQuad> GetCullfaceQuads(Direction dir)
     {
         List<BakedQuad>? result = null;
@@ -38,16 +38,16 @@ public sealed class BakedModel
         return (IReadOnlyList<BakedQuad>?)result ?? Array.Empty<BakedQuad>();
     }
 
-    //GetCullfaceQuads 获取指定 layer + 方向的 cullface quad 供 chunk mesh 面剔除查询
+    //GetCullfaceQuads gets cullface quads for the given layer + direction, for chunk mesh face-culling queries
     public IReadOnlyList<BakedQuad> GetCullfaceQuads(RenderLayer layer, Direction dir)
         => _quads.TryGetValue((layer, dir), out var list) ? list : Array.Empty<BakedQuad>();
 
-    //GetNoCullQuads 获取指定 layer 无 cullface 的 quad 总是渲染不参与面剔除
+    //GetNoCullQuads gets quads of the given layer without cullface; they always render and are never culled
     public IReadOnlyList<BakedQuad> GetNoCullQuads(RenderLayer layer)
         => _quads.TryGetValue((layer, null), out var list) ? list : Array.Empty<BakedQuad>();
 
-    //AddQuad 添加 quad 到指定 layer 和 cullface 分组
-    //cullface=null 放 NoCull 不参与 face culling 总是渲染
+    //AddQuad adds a quad into the given layer and cullface group
+    //cullface=null goes to NoCull, is not culled and always renders
     public void AddQuad(RenderLayer layer, BakedQuad quad, Direction? cullface)
     {
         var key = (layer, cullface);
@@ -60,7 +60,7 @@ public sealed class BakedModel
         list.Add(quad);
     }
 
-    //Layers 返回所有存在的 RenderLayer
+    //Layers returns all existing RenderLayers
     public IEnumerable<RenderLayer> Layers
     {
         get
@@ -76,10 +76,10 @@ public sealed class BakedModel
     }
 }
 
-//RenderLayer 渲染层级对标原版 RenderType
-//Solid 不透明方块最早渲染写深度
-//Cutout 透明像素方块（玻璃）alpha=0 或 1 用 alpha test
-//Translucent 半透明方块（水）按距离排序后渲染
+//RenderLayer render layer, maps to vanilla RenderType
+//Solid opaque blocks render first and write depth
+//Cutout transparent-pixel blocks (glass) with alpha=0 or 1 use alpha test
+//Translucent translucent blocks (water) render after sorting by distance
 public enum RenderLayer
 {
     Solid,

@@ -7,24 +7,24 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//StructureFeatureManager 结构管理器 对应原版 net.minecraft.world.level.StructureManager
-//持本世界已装配的结构结果与跨区块引用
-//整个维度共享一个实例 结构按区块存进来 装饰阶段才能看到邻块已装配的结构
-//生成期由多个区块并行推进 表用并发字典 查询走无锁读 对应原版 ConcurrentHashMap
-//原来整张表挂一把锁 装饰阶段每区块要按结构逐个查邻域 十几个生成线程全被串起来
+//StructureFeatureManager is the structure manager, maps to vanilla net.minecraft.world.level.StructureManager
+//Holds this world's assembled structure results and cross-chunk references
+//One instance is shared per dimension; structures are stored per chunk so the decoration stage can see neighbors' assembled structures
+//Chunks advance in parallel during generation, so tables use concurrent dictionaries with lock-free reads, maps to vanilla ConcurrentHashMap
+//Previously a single lock covered the whole table; the decoration stage queried the neighborhood structure by structure per chunk, serializing a dozen generation threads
 public sealed class StructureFeatureManager
 {
-    //一个区块可以同时有多个结构的装配结果 键是区块压缩坐标
-    //内层只被持有它的线程写 读方并发安全
+    //A chunk may hold assembled results for several structures at once; the key is the packed chunk coordinate
+    //The inner map is only written by the thread owning it; concurrent readers are safe
     private readonly ConcurrentDictionary<long, ConcurrentDictionary<Identifier, StructureStart>> _starts = new();
-    //每个 chunk 可能被多个跨 chunk 结构的包围盒覆盖故用 List
-    //List 不并发写 追加与拷贝都拿 List 自身当锁 按键分开互不干扰
+    //A chunk may be covered by several cross-chunk structure bounding boxes, hence a List
+    //The List is not written concurrently; appends and copies use the List itself as the lock, so keys stay independent
     private readonly ConcurrentDictionary<long, List<StructureReference>> _references = new();
 
     private readonly ChunkGenerator? _generator;
     private readonly StructurePlacementRegistry? _registry;
 
-    //无参构造用于不生成结构的场景 此时 CreateStarts 直接返回 0
+    //The parameterless constructor is for scenes without structure generation; CreateStarts then returns 0 directly
     public StructureFeatureManager() { }
 
     public StructureFeatureManager(ChunkGenerator generator, StructurePlacementRegistry registry)
@@ -33,8 +33,8 @@ public sealed class StructureFeatureManager
         _registry = registry;
     }
 
-    //AllStarts 全部已装配结果快照 供诊断与引用扫描
-    //返回拷贝而不是活视图 遍历期间别的线程还会往表里写
+    //AllStarts is a snapshot of all assembled results, for diagnostics and reference scanning
+    //Returns a copy rather than a live view, since other threads keep writing to the table during iteration
     public IEnumerable<StructureStart> AllStarts
     {
         get
@@ -46,7 +46,7 @@ public sealed class StructureFeatureManager
         }
     }
 
-    //HasStructureReferences 查询区块是否有结构引用
+    //HasStructureReferences queries whether a chunk has structure references
     public bool HasStructureReferences(ChunkPos pos)
     {
         var key = ChunkPos.Pack(pos.X, pos.Z);
@@ -54,7 +54,7 @@ public sealed class StructureFeatureManager
         lock (list) return list.Count > 0;
     }
 
-    //GetReferences 返回区块的全部结构引用 未命中返回空列表
+    //GetReferences returns all structure references of a chunk, or an empty list on miss
     public IReadOnlyList<StructureReference> GetReferences(ChunkPos pos)
     {
         if (!_references.TryGetValue(ChunkPos.Pack(pos.X, pos.Z), out var list))
@@ -62,27 +62,27 @@ public sealed class StructureFeatureManager
         lock (list) return new List<StructureReference>(list);
     }
 
-    //HasStructureStartsForChunk 查询区块是否有任意结构装配结果
+    //HasStructureStartsForChunk queries whether a chunk has any assembled structure results
     public bool HasStructureStartsForChunk(ChunkAccess chunk)
         => _starts.TryGetValue(ChunkPos.Pack(chunk.Pos.X, chunk.Pos.Z), out var perStructure)
             && !perStructure.IsEmpty;
 
-    //GetStructureStarts 取该区块的全部装配结果 未命中返回空
+    //GetStructureStarts gets all assembled results for the chunk, empty on miss
     public IReadOnlyCollection<StructureStart> GetStructureStarts(ChunkPos pos)
         => _starts.TryGetValue(ChunkPos.Pack(pos.X, pos.Z), out var perStructure)
             ? new List<StructureStart>(perStructure.Values)
             : Array.Empty<StructureStart>();
 
-    //ShouldGenerateStructures 本世界是否生成结构 对应原版 StructureManager.shouldGenerateStructures
-    //由服务端配置 generate-structures 注入 关掉后 CreateStarts 直接返回 0 连结构模板都不会加载
+    //ShouldGenerateStructures says whether this world generates structures, maps to vanilla StructureManager.shouldGenerateStructures
+    //Injected from the server config generate-structures; when off, CreateStarts returns 0 and not even structure templates are loaded
     public bool ShouldGenerateStructures { get; set; } = true;
 
-    //SearchRadius 结构最大水平半径 128 格即 8 区块
-    //对应原版 JigsawStructure.MAX_TOTAL_STRUCTURE_RANGE 换算成区块数
+    //SearchRadius is the max horizontal structure radius, 128 blocks or 8 chunks
+    //Maps to vanilla JigsawStructure.MAX_TOTAL_STRUCTURE_RANGE converted to chunks
     private const int SearchRadius = 8;
 
-    //StartsForStructure 取包围盒覆盖目标区块的指定结构 对应原版 StructureManager.startsForStructure
-    //结果按邻域扫描 同一结构跨越多区块时每个区块都会拿到它
+    //StartsForStructure gets the given structures whose bounding box covers the target chunk, maps to vanilla StructureManager.startsForStructure
+    //Scans the neighborhood; when one structure spans multiple chunks every one of them gets it
     public IEnumerable<StructureStart> StartsForStructure(ChunkPos chunk, Identifier structureId)
     {
         var result = new List<StructureStart>();
@@ -99,8 +99,8 @@ public sealed class StructureFeatureManager
         return result;
     }
 
-    //StartsForStructure 取包围盒覆盖目标区块且满足条件的装配结果 对应原版 startsForStructure(pos, predicate)
-    //地形适配要按 terrain_adaptation 过滤 只要需要改编地形的那些结构
+    //StartsForStructure gets assembled results whose bounding box covers the target chunk and satisfy the predicate, maps to vanilla startsForStructure(pos, predicate)
+    //Terrain adaptation filters by terrain_adaptation, only structures that need terrain editing
     public IReadOnlyList<StructureStart> StartsForStructure(ChunkPos chunk, Func<StructureStart, bool> predicate)
     {
         var result = new List<StructureStart>();
@@ -120,51 +120,51 @@ public sealed class StructureFeatureManager
         return result;
     }
 
-    //AddStructureStart 记录某个结构的装配结果 同结构重复装配时后者覆盖
+    //AddStructureStart records a structure's assembled result; a repeat assembly of the same structure is overwritten by the latter
     public void AddStructureStart(ChunkPos pos, StructureStart start)
     {
         var key = ChunkPos.Pack(pos.X, pos.Z);
-        //内层字典的创建与写入只由持有该区块的生成线程做 读方并发安全
+        //The inner dictionary is created and written only by the generation thread owning the chunk; concurrent readers are safe
         var perStructure = _starts.GetOrAdd(key, static _ => new ConcurrentDictionary<Identifier, StructureStart>());
         perStructure[start.StructureId] = start;
     }
 
-    //AddStructureReference 记录一条跨区块引用 同结构同源区块只记一次
-    //原版引用表是 Map<Structure, Set<Long>> 重复追加会让落盘数据无谓膨胀
+    //AddStructureReference records a cross-chunk reference; the same structure and source chunk is recorded once
+    //Vanilla's reference table is Map<Structure, Set<Long>>; duplicate appends would needlessly bloat persisted data
     public void AddStructureReference(ChunkPos pos, StructureReference reference)
     {
         Log.Debug($"AddStructureReference entry pos={pos} reference={reference.StructureId}");
         var key = ChunkPos.Pack(pos.X, pos.Z);
         var list = _references.GetOrAdd(key, static _ => new List<StructureReference>());
-        //同一个 List 可能被多个线程追加 拿它自身当锁 不同区块各锁各的互不影响
+        //One List may be appended by several threads; it uses itself as the lock, so different chunks lock independently
         lock (list)
         {
             if (!list.Contains(reference)) list.Add(reference);
         }
-        //Log.Debug("AddStructureReference 出口");
+        //Log.Debug("AddStructureReference exit");
     }
 
-    //CreateStarts 装配当前区块命中的结构 对应原版 ChunkGenerator.createStructures 的集合循环
-    //每个集合按权重抽一个结构 抽中但装配无效就把该项剔除重抽 直到成功或没有候选项
-    //返回装配成功的结构数
+    //CreateStarts assembles the structures hit by the current chunk, maps to the set loop in vanilla ChunkGenerator.createStructures
+    //Each set picks one structure by weight; a pick whose assembly is invalid is removed and re-rolled until success or no candidates remain
+    //Returns the number of successfully assembled structures
     public int CreateStarts(ChunkAccess chunk)
     {
         if (_generator is null || _registry is null) return 0;
-        //关掉结构生成时直接跳过 不装配也不加载任何结构模板
+        //Skipped entirely when structure generation is off; nothing is assembled and no structure template is loaded
         if (!ShouldGenerateStructures) return 0;
         var sets = _registry.GetSetsForChunk(chunk.Pos);
         var count = 0;
         foreach (var set in sets)
         {
-            //该区块已经有本集合的结构时不重复生成 原版靠 hasStructureStart 判断
+            //Not regenerated when the chunk already has a structure from this set; vanilla decides via hasStructureStart
             if (HasStartForSet(chunk.Pos, set)) continue;
             count += PickAndGenerate(set, chunk);
         }
         return count;
     }
 
-    //PickAndGenerate 按权重抽结构并装配 对应原版 createStructures 里的抽取循环
-    //随机源与种子派生必须逐字对齐原版 否则结构分布会与原版不同
+    //PickAndGenerate picks a structure by weight and assembles it, maps to the pick loop in vanilla createStructures
+    //The random source and seed derivation must match vanilla exactly, or the structure distribution would differ
     private int PickAndGenerate(StructureSet set, ChunkAccess chunk)
     {
         var options = new List<StructureSelectionEntry>(set.Structures);
@@ -186,19 +186,19 @@ public sealed class StructureFeatureManager
             }
             if (picked is null) break;
             if (TryGenerate(picked, chunk)) return 1;
-            //装配无效 剔除该项后重抽 权重总和同步扣减
+            //Invalid assembly; remove the entry and re-roll, decrementing the weight total too
             options.Remove(picked);
             total -= picked.Weight;
         }
         return 0;
     }
 
-    //TryGenerate 调结构装配并登记结果
+    //TryGenerate runs structure assembly and registers the result
     private bool TryGenerate(StructureSelectionEntry entry, ChunkAccess chunk)
     {
         if (!entry.Structure.IsBound() || entry.Structure.Value is not Structure structure) return false;
         var context = new GenerationContext(_generator!, _registry!.Seed, chunk.Pos, chunk);
-        //声明了群系的结构才做过滤 程序化与测试结构不声明群系按放行处理
+        //Only structures that declare biomes are filtered; procedural and test structures with no biome declaration are allowed through
         if (structure.Settings.Biomes.Size > 0)
             context.ValidBiome = pos => context.IsBiomeAllowed(structure, pos);
         var start = structure.Generate(context);
@@ -208,7 +208,7 @@ public sealed class StructureFeatureManager
         return true;
     }
 
-    //HasStartForSet 该区块是否已有本集合中任一结构的装配结果
+    //HasStartForSet says whether the chunk already has an assembled result for any structure in this set
     private bool HasStartForSet(ChunkPos pos, StructureSet set)
     {
         if (!_starts.TryGetValue(ChunkPos.Pack(pos.X, pos.Z), out var perStructure)) return false;
@@ -221,14 +221,14 @@ public sealed class StructureFeatureManager
         return false;
     }
 
-    //CollectReferences 扫描目标 chunk 周围 radius 半径内邻居的装配结果
-    //包围盒与目标 chunk 相交的记为引用 对应原版 createReferences
-    //原版半径是 8 覆盖 17x17 个区块
+    //CollectReferences scans assembled results of neighbors within radius around the target chunk
+    //Those whose bounding box intersects the target chunk are recorded as references, maps to vanilla createReferences
+    //Vanilla's radius is 8, covering 17x17 chunks
     public int CollectReferences(ChunkPos pos, int radius = 8)
     {
         var targetBox = BoundingBoxInt.FromChunkPos(pos);
-        //无锁扫邻域 命中即写引用表 对应原版 createReferences 的边扫边加
-        //表里只会有装配成功的结构 TryGenerate 已滤掉无效结果
+        //Lock-free neighborhood scan, writes to the reference table on hit, maps to vanilla createReferences adding as it scans
+        //The table only holds successfully assembled structures; TryGenerate already filtered out invalid results
         var count = 0;
         for (var dx = -radius; dx <= radius; dx++)
         {
@@ -249,6 +249,6 @@ public sealed class StructureFeatureManager
     }
 }
 
-//StructureReference 结构引用 记录某个区块被哪个结构覆盖以及结构所在区块
-//record 按值比较 引用表要按它去重
+//StructureReference is a structure reference recording which structure covers a chunk and the chunk the structure resides in
+//record compares by value; the reference table dedupes by it
 public sealed record StructureReference(Identifier StructureId, ChunkPos TargetChunk);

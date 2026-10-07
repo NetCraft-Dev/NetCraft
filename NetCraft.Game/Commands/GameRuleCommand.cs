@@ -8,9 +8,9 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Commands;
 
-//GameRuleCommand /gamerule 命令对应原版 net.minecraft.server.commands.GameRuleCommand
-//每条规则的短名与带命名空间形式各注册一份 不带值查询 带值修改
-//布尔规则走 brigadier:bool 整数规则走 brigadier:integer 并按规则范围限制取值
+//GameRuleCommand /gamerule command, maps to vanilla net.minecraft.server.commands.GameRuleCommand
+//Each rule is registered both by short name and by namespaced form; without a value it queries, with a value it sets
+//Boolean rules use brigadier:bool and integer rules use brigadier:integer, bound by the rule's range
 public static class GameRuleCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -25,7 +25,7 @@ public static class GameRuleCommand
         dispatcher.Register(root);
     }
 
-    //BuildRule 单条规则的命令节点 查询与设置挂在同一个字面量下
+    //BuildRule the command node for a single rule; query and set hang under the same literal
     private static LiteralArgumentBuilder<CommandSourceStack> BuildRule(string literal, GameRule<object> rule)
     {
         var node = LiteralArgumentBuilder<CommandSourceStack>.Literal(literal)
@@ -45,17 +45,17 @@ public static class GameRuleCommand
         return node;
     }
 
-    //QueryRule 查询规则当前值 对应原版 queryRule
+    //QueryRule queries the rule's current value, maps to vanilla queryRule
     private static int QueryRule(CommandContext<CommandSourceStack> context, GameRule<object> rule)
     {
         var source = context.GetSource() as ServerCommandSource;
         if (source is null) return 0;
         var value = CurrentValue(source, rule);
-        source.SendSuccess($"{rule.Id.ToShortString()} 当前为 {FormatValue(value)}");
+        source.SendSuccess($"{rule.Id.ToShortString()} is currently {FormatValue(value)}");
         return CommandResult(rule, value);
     }
 
-    //SetRule 修改规则值 对应原版 setRule
+    //SetRule changes the rule value, maps to vanilla setRule
     private static int SetRule(CommandContext<CommandSourceStack> context, GameRule<object> rule)
     {
         var source = context.GetSource() as ServerCommandSource;
@@ -64,21 +64,21 @@ public static class GameRuleCommand
             ? BoolArgumentType.GetBool(context, "value")
             : IntegerArgumentType.GetInteger(context, "value");
         source.Server.GameRules.SetRule(rule, value);
-        source.SendSuccess($"已将 {rule.Id.ToShortString()} 设为 {FormatValue(value)}");
+        source.SendSuccess($"set {rule.Id.ToShortString()} to {FormatValue(value)}");
         return CommandResult(rule, value);
     }
 
-    //CurrentValue 取规则当前值 没设置过时由存档回退到规则默认值
+    //CurrentValue gets the rule's current value; when never set it falls back to the rule default from the save
     private static object CurrentValue(ServerCommandSource source, GameRule<object> rule)
         => rule.Type == GameRuleType.Bool
             ? source.Server.GameRules.GetBool(rule)
             : source.Server.GameRules.GetInt(rule);
 
-    //CommandResult 命令返回值 对应原版 getCommandResult 布尔规则返回 0/1 整数规则返回值本身
+    //CommandResult the command return value, maps to vanilla getCommandResult; boolean rules return 0/1, integer rules return the value itself
     private static int CommandResult(GameRule<object> rule, object value)
         => rule.Type == GameRuleType.Bool ? ((bool)value ? 1 : 0) : (int)value;
 
-    //FormatValue 回执文案用原版的小写形式 布尔不能走 ToString 否则是 True/False
+    //FormatValue uses the vanilla lowercase form for the reply text; booleans must not go through ToString or it is True/False
     private static string FormatValue(object value)
         => value is bool flag ? (flag ? "true" : "false") : value.ToString() ?? "";
 }

@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//InvertableSetOptionState 可反转集合选项状态对应原版 options.InvertableSetOptionState
-//name/gamemode/team/type选项共用 正向取值后锁定单值 反向取值或标签可多值
+//InvertableSetOptionState invertible set option state, maps to vanilla options.InvertableSetOptionState
+//Shared by the name/gamemode/team/type options; a positive value locks to a single value while inversion or tags allow multiple
 public sealed class InvertableSetOptionState
 {
     private enum Limitation { None, Single, Multiple }
@@ -38,8 +38,8 @@ public sealed class InvertableSetOptionState
     }
 }
 
-//SetOnceOptionState 单次选项状态对应原版 options.SetOnceOptionState
-//limit/sort/scores/advancements选项防重复解析
+//SetOnceOptionState set-once option state, maps to vanilla options.SetOnceOptionState
+//Prevents repeated parsing for the limit/sort/scores/advancements options
 public sealed class SetOnceOptionState
 {
     private bool _hasValue;

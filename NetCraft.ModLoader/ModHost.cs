@@ -1,17 +1,17 @@
 namespace NetCraft.ModLoader;
 
-//ModHost 加载器对宿主组件的只读访问点
-//对应原版 FabricLoader.getInstance() 界面这类不参与加载流程的代码从这里取模组数据
-//引导是单次性的 绑一次之后不再变 所以这里不加锁
+//ModHost: a read-only access point for the loader's host components
+//Maps to vanilla FabricLoader.getInstance(); UI code that does not take part in the loading flow reads mod data from here
+//Bootstrap is one-shot and never changes after binding, so no locking is needed here
 public static class ModHost
 {
-    //RuntimeModId 彩蛋条目的标识 它不在 mods 目录里 靠这个 id 认出来
+    //RuntimeModId: the id of the easter-egg entry; it is not in the mods directory so this id identifies it
     private const string RuntimeModId = "dotnet.runtime";
-    //RuntimeIconResource 彩蛋图标的内嵌资源名
+    //RuntimeIconResource: the embedded resource name of the easter-egg icon
     private const string RuntimeIconResource = "logo_net.png";
 
-    //RuntimeMod 借模组页露脸的 .NET 运行时
-    //它不是模组也不参与加载 所以状态直接标成已加载 注入规则留空
+    //RuntimeMod: the .NET runtime showing up through the mod page
+    //It is not a mod and takes no part in loading, so its status is marked as loaded and injection rules are left empty
     private static readonly ModInfo RuntimeMod = new()
     {
         Name = RuntimeModId,
@@ -22,41 +22,41 @@ public static class ModHost
         Contact = new ModContact { Homepage = "https://github.com/dotnet/runtime" },
         Environment = ModEnvironment.Both,
         Status = ModStatus.Running,
-        //初始化那一步对运行时没有意义 用负值让界面整行都不显示
+        //The initialization step is meaningless for the runtime, a negative value keeps the whole row from showing in the UI
         LoadMilliseconds = -1,
     };
 
     private static readonly Lazy<byte[]?> RuntimeIconLazy = new(ReadRuntimeIcon);
 
-    //Manager 已绑定的模组管理器 引导之前为 null
+    //Manager: the bound mod manager, null before bootstrap
     public static ModManager? Manager { get; private set; }
 
-    //ModsFolder 模组目录 未绑定时为空串
+    //ModsFolder: the mods directory, an empty string when unbound
     public static string ModsFolder { get; private set; } = string.Empty;
 
-    //Bind 引导结束时登记
+    //Bind: registers at the end of bootstrap
     public static void Bind(ModManager manager, string modsFolder)
     {
         Manager = manager;
         ModsFolder = modsFolder;
     }
 
-    //LoadedMods 已加载完成的模组
+    //LoadedMods: mods that finished loading
     public static IReadOnlyList<ModInfo> LoadedMods => Merge(Manager?.GetLoadedMods());
 
-    //AllMods 扫描到的全部模组 含失败与跳过的
+    //AllMods: all scanned mods, including failed and skipped ones
     public static IReadOnlyList<ModInfo> AllMods => Merge(Manager?.GetAllMods());
 
-    //Find 按模组标识查一个 查不到返回 null
+    //Find: looks up one mod by its identifier, returns null if not found
     public static ModInfo? Find(string name)
         => name == RuntimeModId ? RuntimeMod : Manager?.GetModInfo(name);
 
-    //ReadIcon 取模组图标字节 没有图标与未绑定时都返回 null
+    //ReadIcon: gets the mod icon bytes, returns null when there is no icon or when unbound
     public static byte[]? ReadIcon(string name)
         => name == RuntimeModId ? RuntimeIconLazy.Value : Manager?.ReadIcon(name);
 
-    //Merge 真实模组后面缀上彩蛋条目
-    //它不占 mods 目录也不参与加载 排在末尾免得看着像模组列表的一员
+    //Merge: appends the easter-egg entry after the real mods
+    //It does not live in the mods directory or take part in loading, and is placed last so it does not look like a member of the mod list
     private static IReadOnlyList<ModInfo> Merge(IReadOnlyList<ModInfo>? mods)
     {
         var merged = new List<ModInfo>((mods?.Count ?? 0) + 1);
@@ -66,7 +66,7 @@ public static class ModHost
         return merged;
     }
 
-    //ReadRuntimeIcon 彩蛋图标从加载器自己的内嵌资源读
+    //ReadRuntimeIcon: reads the easter-egg icon from the loader's own embedded resources
     private static byte[]? ReadRuntimeIcon()
     {
         try

@@ -1,19 +1,19 @@
 using NetCraft.Nbt;
 using NetCraft.Primitives;
 using NetCraft.Registry;
-//Registry 层与 Game 层都有 StructurePieceType 名字 Game 层才是带还原逻辑的实际类型
+//Both the Registry layer and the Game layer have a StructurePieceType name; the Game layer is the real type carrying restoration logic
 using GamePieceType = NetCraft.Game.World.Level.LevelGen.Structure.StructurePieceType;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//StructurePiece 结构部件抽象基类对应原版 net.minecraft.world.level.levelgen.structure.StructurePiece
-//持片段类型 生成深度与包围盒 子类实现具体部件生成逻辑与自身字段的 NBT 读写
+//StructurePiece abstract base class for structure pieces, maps to vanilla net.minecraft.world.level.levelgen.structure.StructurePiece
+//Holds the piece type, generation depth and bounding box; subclasses implement the piece generation and their own NBT fields
 public abstract class StructurePiece
 {
-    //PieceType 片段类型 落盘写成 id 读档时靠它派发回具体子类
+    //PieceType piece type, written as id on save and used to dispatch back to the concrete subclass on load
     public GamePieceType? PieceType { get; }
 
-    //GenDepth 生成深度 拼图递归层级原版用它限制层数
+    //GenDepth generation depth, the jigsaw recursion level; vanilla uses it to cap the depth
     public int GenDepth { get; }
 
     public BoundingBoxInt BoundingBox { get; protected set; }
@@ -28,8 +28,8 @@ public abstract class StructurePiece
         BoundingBox = boundingBox;
     }
 
-    //从 NBT 还原通用字段 对应原版 StructurePiece(type, tag) 构造
-    //BB/O/GD 三个字段由基类消费 子类构造再读自己的字段
+    //Restores the common fields from NBT, maps to the vanilla StructurePiece(type, tag) constructor
+    //The BB/O/GD fields are consumed by the base class; the subclass constructor then reads its own fields
     protected StructurePiece(GamePieceType? pieceType, CompoundTag tag)
     {
         PieceType = pieceType;
@@ -37,20 +37,20 @@ public abstract class StructurePiece
         BoundingBox = ReadBoundingBox(tag);
     }
 
-    //Move 整体平移边界框对应原版 StructurePiece.move
-    //持自身位置的子类要覆盖它把位置一起挪动
+    //Move translates the whole bounding box, maps to vanilla StructurePiece.move
+    //Subclasses that hold their own position must override it to move the position too
     public virtual void Move(int dx, int dy, int dz)
         => BoundingBox = new BoundingBoxInt(
             BoundingBox.MinX + dx, BoundingBox.MinY + dy, BoundingBox.MinZ + dz,
             BoundingBox.MaxX + dx, BoundingBox.MaxY + dy, BoundingBox.MaxZ + dz);
 
-    //PostProcess 后处理对应原版 postProcess
-    //装饰阶段由 StructureStart.PlaceInChunk 逐区块调用 子类覆盖提供真实方块写入
-    //region 限定了写入半径 越界写入会被静默丢弃
+    //PostProcess post-processing, maps to vanilla postProcess
+    //Called per chunk by StructureStart.PlaceInChunk during decoration; subclasses override to write real blocks
+    //region limits the write radius and out-of-range writes are dropped silently
     public virtual void PostProcess(WorldGenRegion region, int chunkX, int chunkZ) { }
 
-    //IsCloseToChunk 片段是否落在目标区块扩展 distance 格之内 对应原版 isCloseToChunk
-    //地形适配按 12 格判定片段是否影响当前区块
+    //IsCloseToChunk whether the piece falls within distance blocks of the target chunk, maps to vanilla isCloseToChunk
+    //Terrain adaptation checks at 12 blocks whether a piece affects the current chunk
     public bool IsCloseToChunk(ChunkPos pos, int distance)
     {
         var minX = pos.X << 4;
@@ -59,12 +59,12 @@ public abstract class StructurePiece
             && BoundingBox.MaxZ >= minZ - distance && BoundingBox.MinZ <= minZ + 15 + distance;
     }
 
-    //AddAdditionalSaveData 写入额外数据到 CompoundTag 对应原版 addAdditionalSaveData
-    //默认空实现子类按需覆盖持久化自定义字段
+    //AddAdditionalSaveData writes extra data into the CompoundTag, maps to vanilla addAdditionalSaveData
+    //Empty by default; subclasses override to persist custom fields
     protected virtual void AddAdditionalSaveData(CompoundTag tag) { }
 
-    //WriteSaveData 序列化部件到 CompoundTag 对应原版 StructurePiece.createTag
-    //字段名与取值方式逐字对齐原版 id 是类型注册名 BB 是六个整数的包围盒
+    //WriteSaveData serialises the piece into a CompoundTag, maps to vanilla StructurePiece.createTag
+    //Field names and value forms match vanilla word for word; id is the type registry name and BB is a six-int bounding box
     public CompoundTag WriteSaveData()
     {
         var tag = new CompoundTag();
@@ -74,14 +74,14 @@ public abstract class StructurePiece
             BoundingBox.MinX, BoundingBox.MinY, BoundingBox.MinZ,
             BoundingBox.MaxX, BoundingBox.MaxY, BoundingBox.MaxZ,
         });
-        //朝向没有实现的载体 恒写 -1 与原版"无朝向"的取值一致
+        //No carrier for facing is implemented, so -1 is always written, matching vanilla's "no facing" value
         tag.PutInt("O", -1);
         tag.PutInt("GD", GenDepth);
         AddAdditionalSaveData(tag);
         return tag;
     }
 
-    //ReadBoundingBox 从 BB int 数组还原边界框 对应原版 BoundingBox.CODEC 的 int 流形态
+    //ReadBoundingBox restores the bounding box from the BB int array, maps to the int array form of vanilla BoundingBox.CODEC
     protected static BoundingBoxInt ReadBoundingBox(CompoundTag tag)
     {
         var array = tag.GetIntArray("BB")?.Value;
@@ -90,11 +90,11 @@ public abstract class StructurePiece
     }
 }
 
-//BoundingBoxInt 整数边界框对应原版 net.minecraft.world.level.levelgen.structure.BoundingBox
-//简化为 int 六元组持有 minX/maxX/minY/maxY/minZ/maxZ
+//BoundingBoxInt integer bounding box, maps to vanilla net.minecraft.world.level.levelgen.structure.BoundingBox
+//Simplified to an int 6-tuple holding minX/maxX/minY/maxY/minZ/maxZ
 public sealed record BoundingBoxInt(int MinX, int MinY, int MinZ, int MaxX, int MaxY, int MaxZ)
 {
-    //FromChunkPos 从 ChunkPos 构造 16x16x384 边界框对应原版 chunk 区域
+    //FromChunkPos builds a 16x16x384 bounding box from a ChunkPos, maps to the vanilla chunk region
     public static BoundingBoxInt FromChunkPos(ChunkPos pos, int minY = -64, int maxY = 320)
         => new(pos.X << 4, minY, pos.Z << 4, (pos.X << 4) + 15, maxY, (pos.Z << 4) + 15);
 
@@ -102,25 +102,25 @@ public sealed record BoundingBoxInt(int MinX, int MinY, int MinZ, int MaxX, int 
     public int LengthY => MaxY - MinY + 1;
     public int LengthZ => MaxZ - MinZ + 1;
 
-    //IsInside 坐标是否落在盒内 对应原版 BoundingBox.isInside
-    //地形适配核函数只对影响范围内的坐标求值
+    //IsInside whether a coordinate is inside the box, maps to vanilla BoundingBox.isInside
+    //The terrain adaptation kernel only evaluates coordinates in range
     public bool IsInside(int x, int y, int z)
         => x >= MinX && x <= MaxX && y >= MinY && y <= MaxY && z >= MinZ && z <= MaxZ;
 
-    //Intersects 检测两边界框是否相交对应原版 BoundingBox.intersects
+    //Intersects tests whether two bounding boxes intersect, maps to vanilla BoundingBox.intersects
     public bool Intersects(BoundingBoxInt other)
         => MaxX >= other.MinX && MinX <= other.MaxX
         && MaxY >= other.MinY && MinY <= other.MaxY
         && MaxZ >= other.MinZ && MinZ <= other.MaxZ;
 
-    //Encapsulate 合并两个边界框对应原版 BoundingBox.encapsulate
+    //Encapsulate merges two bounding boxes, maps to vanilla BoundingBox.encapsulate
     public BoundingBoxInt Encapsulate(BoundingBoxInt other)
         => new(
             Math.Min(MinX, other.MinX), Math.Min(MinY, other.MinY), Math.Min(MinZ, other.MinZ),
             Math.Max(MaxX, other.MaxX), Math.Max(MaxY, other.MaxY), Math.Max(MaxZ, other.MaxZ));
 
-    //InflatedBy 六面等量外扩 对应原版 BoundingBox.inflatedBy
-    //地形适配按 terrain_adaptation 外扩 12 格时用它
+    //InflatedBy equal expansion on all six faces, maps to vanilla BoundingBox.inflatedBy
+    //Terrain adaptation uses it to expand by 12 blocks per terrain_adaptation
     public BoundingBoxInt InflatedBy(int amount)
         => new(MinX - amount, MinY - amount, MinZ - amount, MaxX + amount, MaxY + amount, MaxZ + amount);
 }

@@ -5,31 +5,31 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//IntProvider 整数提供者体系对应原版 net.minecraft.util.valueproviders
-//IntProviders.Codec 裸整数或按 type 字段派发二选一 类型集合是封闭的 与 FloatProviders 一样手写派发
+//IntProvider int provider system, maps to vanilla net.minecraft.util.valueproviders
+//IntProviders.Codec is either a bare int or dispatch by the type field; the type set is closed, so dispatch is hand-written like FloatProviders
 public abstract class IntProvider : NetCraft.Registry.IntProvider
 {
-    //Sample 按随机源采样一个整数对应原版 sample
+    //Sample draws an int from the random source, maps to vanilla sample
     public abstract int Sample(RandomSource random);
 
-    //MinInclusive 取值下界对应原版 minInclusive
+    //MinInclusive lower bound, maps to vanilla minInclusive
     public abstract int MinInclusive { get; }
 
-    //MaxInclusive 取值上界对应原版 maxInclusive
+    //MaxInclusive upper bound, maps to vanilla maxInclusive
     public abstract int MaxInclusive { get; }
 }
 
-//ConstantInt 常量整数提供者对应原版 ConstantInt
+//ConstantInt constant int provider, maps to vanilla ConstantInt
 public sealed class ConstantInt : IntProvider
 {
-    //Zero 常量零单例对应原版 ZERO
+    //Zero constant-zero singleton, maps to vanilla ZERO
     public static readonly ConstantInt Zero = new(0);
 
     public int Value { get; }
 
     public ConstantInt(int value) => Value = value;
 
-    //Of 零值复用单例对应原版 of
+    //Of reuses the singleton for zero, maps to vanilla of
     public static ConstantInt Of(int value) => value == 0 ? Zero : new ConstantInt(value);
 
     public override int Sample(RandomSource random) => Value;
@@ -41,7 +41,7 @@ public sealed class ConstantInt : IntProvider
     public override string ToString() => Value.ToString();
 }
 
-//UniformInt 均匀分布整数提供者对应原版 UniformInt
+//UniformInt uniform distribution int provider, maps to vanilla UniformInt
 public sealed class UniformInt : IntProvider
 {
     public UniformInt(int minInclusive, int maxInclusive)
@@ -61,7 +61,7 @@ public sealed class UniformInt : IntProvider
     public override string ToString() => $"[{MinInclusive}-{MaxInclusive}]";
 }
 
-//BiasedToBottomInt 偏向低值分布的整数提供者对应原版 BiasedToBottomInt
+//BiasedToBottomInt bottom-biased distribution int provider, maps to vanilla BiasedToBottomInt
 public sealed class BiasedToBottomInt : IntProvider
 {
     public BiasedToBottomInt(int minInclusive, int maxInclusive)
@@ -76,14 +76,14 @@ public sealed class BiasedToBottomInt : IntProvider
 
     public override int MaxInclusive { get; }
 
-    //Sample 两次取随机构成偏向低值的分布对应原版 sample 调用顺序不能变
+    //Sample draws twice to bias toward lower values, maps to vanilla sample; the call order must not change
     public override int Sample(RandomSource random)
         => MinInclusive + random.NextInt(random.NextInt(MaxInclusive - MinInclusive + 1) + 1);
 
     public override string ToString() => $"[{MinInclusive}-{MaxInclusive}]";
 }
 
-//ClampedInt 截断包装的整数提供者对应原版 ClampedInt
+//ClampedInt clamped int provider, maps to vanilla ClampedInt
 public sealed class ClampedInt : IntProvider
 {
     public IntProvider Source { get; }
@@ -106,7 +106,7 @@ public sealed class ClampedInt : IntProvider
         => Mth.Clamp(Source.Sample(random), MinInclusive, MaxInclusive);
 }
 
-//ClampedNormalInt 正态分布再截断的整数提供者对应原版 ClampedNormalInt
+//ClampedNormalInt normal distribution then clamped int provider, maps to vanilla ClampedNormalInt
 public sealed class ClampedNormalInt : IntProvider
 {
     public float Mean { get; }
@@ -127,14 +127,14 @@ public sealed class ClampedNormalInt : IntProvider
 
     public override int MaxInclusive { get; }
 
-    //Sample 先按正态采样再截断最后取整 顺序与原版一致
+    //Sample samples normally, then clamps, then truncates; the order matches vanilla
     public override int Sample(RandomSource random)
         => (int)Mth.Clamp(Mth.Normal(random, Mean, Deviation), MinInclusive, MaxInclusive);
 
     public override string ToString() => $"normal({Mean}, {Deviation}) in [{MinInclusive}-{MaxInclusive}]";
 }
 
-//TrapezoidInt 梯形分布整数提供者对应原版 TrapezoidInt
+//TrapezoidInt trapezoid distribution int provider, maps to vanilla TrapezoidInt
 public sealed class TrapezoidInt : IntProvider
 {
     public int Plateau { get; }
@@ -156,7 +156,7 @@ public sealed class TrapezoidInt : IntProvider
 
     public override int Sample(RandomSource random)
     {
-        //对称无平台时退化成两个独立随机数相减 对应原版快路径
+        //With symmetry and no plateau it degenerates to subtracting two independent draws, matching the vanilla fast path
         if (Plateau == 0 && MaxInclusive == -MinInclusive)
             return random.NextInt(MaxInclusive + 1) - random.NextInt(MaxInclusive + 1);
         var range = MaxInclusive - MinInclusive;
@@ -170,7 +170,7 @@ public sealed class TrapezoidInt : IntProvider
     public override string ToString() => $"trapezoid({Plateau}) in [{MinInclusive}-{MaxInclusive}]";
 }
 
-//WeightedListInt 权重列表整数提供者对应原版 WeightedListInt
+//WeightedListInt weighted list int provider, maps to vanilla WeightedListInt
 public sealed class WeightedListInt : IntProvider
 {
     public WeightedList<IntProvider> Distribution { get; }
@@ -196,21 +196,21 @@ public sealed class WeightedListInt : IntProvider
     public override int Sample(RandomSource random) => Distribution.GetRandomOrThrow(random).Sample(random);
 }
 
-//IntProviders 整数提供者 codec 入口对应原版 IntProviders
+//IntProviders int provider codec entry point, maps to vanilla IntProviders
 public static class IntProviders
 {
-    //Codec 裸整数或带 type 对象二选一对应原版 CODEC
+    //Codec either a bare int or an object with type, maps to vanilla CODEC
     public static readonly Codec<IntProvider> Codec = new IntProviderCodec();
 
-    //NonNegativeCodec 要求整个取值范围非负对应原版 NON_NEGATIVE_CODEC
+    //NonNegativeCodec requires the whole range to be non-negative, maps to vanilla NON_NEGATIVE_CODEC
     public static readonly Codec<IntProvider> NonNegativeCodec = new RangeValidatedIntProviderCodec(Codec, 0, int.MaxValue);
 
-    //PositiveCodec 要求整个取值范围为正对应原版 POSITIVE_CODEC
+    //PositiveCodec requires the whole range to be positive, maps to vanilla POSITIVE_CODEC
     public static readonly Codec<IntProvider> PositiveCodec = new RangeValidatedIntProviderCodec(Codec, 1, int.MaxValue);
 }
 
-//RangeValidatedIntProviderCodec 给整数提供者加取值区间校验
-//count 这类字段不允许出现负值 提前报错比生成时算出负数好排查
+//RangeValidatedIntProviderCodec adds range validation to an int provider
+//Fields like count must not be negative; failing early beats computing a negative during generation and debugging that
 internal sealed class RangeValidatedIntProviderCodec : ScalarCodec<IntProvider>
 {
     private readonly Codec<IntProvider> _source;
@@ -229,10 +229,10 @@ internal sealed class RangeValidatedIntProviderCodec : ScalarCodec<IntProvider>
         {
             if (value.MinInclusive < _min)
                 return DataResult<IntProvider>.Error(() =>
-                    $"取值下界过小 应为 {_min} 实际 [{value.MinInclusive}-{value.MaxInclusive}]");
+                    $"Min value is too small, expected {_min} but got [{value.MinInclusive}-{value.MaxInclusive}]");
             if (value.MaxInclusive > _max)
                 return DataResult<IntProvider>.Error(() =>
-                    $"取值上界过大 应为 {_max} 实际 [{value.MinInclusive}-{value.MaxInclusive}]");
+                    $"Max value is too large, expected {_max} but got [{value.MinInclusive}-{value.MaxInclusive}]");
             return DataResult<IntProvider>.Success(value);
         });
 
@@ -240,7 +240,7 @@ internal sealed class RangeValidatedIntProviderCodec : ScalarCodec<IntProvider>
         => _source.EncodeStart(ops, value);
 }
 
-//IntProviderCodec 整数提供者编解码 裸数字解为 ConstantInt 对象按 type 字段派发
+//IntProviderCodec int provider codec; a bare number decodes to ConstantInt and an object dispatches by the type field
 internal sealed class IntProviderCodec : ScalarCodec<IntProvider>
 {
     public override DataResult<IntProvider> Parse<U>(DynamicOps<U> ops, U input)
@@ -254,14 +254,14 @@ internal sealed class IntProviderCodec : ScalarCodec<IntProvider>
     private static DataResult<IntProvider> DecodeProvider<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var type = ReadString(ops, input, "type");
-        if (type is null) return DataResult<IntProvider>.Error(() => "整数提供者缺 type 字段");
+        if (type is null) return DataResult<IntProvider>.Error(() => "IntProvider is missing the type field");
         switch (Identifier.TryParse(type)?.Path ?? type)
         {
             case "constant":
             {
                 var value = ReadInt(ops, input, "value");
                 return value is null
-                    ? DataResult<IntProvider>.Error(() => "constant 整数提供者缺 value 字段")
+                    ? DataResult<IntProvider>.Error(() => "constant int provider is missing the value field")
                     : DataResult<IntProvider>.Success(ConstantInt.Of(value.Value));
             }
             case "uniform":
@@ -269,9 +269,9 @@ internal sealed class IntProviderCodec : ScalarCodec<IntProvider>
                 var min = ReadInt(ops, input, "min_inclusive");
                 var max = ReadInt(ops, input, "max_inclusive");
                 if (min is null || max is null)
-                    return DataResult<IntProvider>.Error(() => "uniform 需要 min_inclusive 与 max_inclusive");
+                    return DataResult<IntProvider>.Error(() => "uniform requires min_inclusive and max_inclusive");
                 if (max < min)
-                    return DataResult<IntProvider>.Error(() => $"上界必须不小于下界 [{min}-{max}]");
+                    return DataResult<IntProvider>.Error(() => $"Max must not be less than min [{min}-{max}]");
                 return DataResult<IntProvider>.Success(new UniformInt(min.Value, max.Value));
             }
             case "biased_to_bottom":
@@ -279,25 +279,25 @@ internal sealed class IntProviderCodec : ScalarCodec<IntProvider>
                 var min = ReadInt(ops, input, "min_inclusive");
                 var max = ReadInt(ops, input, "max_inclusive");
                 if (min is null || max is null)
-                    return DataResult<IntProvider>.Error(() => "biased_to_bottom 需要 min_inclusive 与 max_inclusive");
+                    return DataResult<IntProvider>.Error(() => "biased_to_bottom requires min_inclusive and max_inclusive");
                 if (max < min)
-                    return DataResult<IntProvider>.Error(() => $"上界必须不小于下界 [{min}-{max}]");
+                    return DataResult<IntProvider>.Error(() => $"Max must not be less than min [{min}-{max}]");
                 return DataResult<IntProvider>.Success(new BiasedToBottomInt(min.Value, max.Value));
             }
             case "clamped":
             {
                 var sourceTag = input.Get("source");
                 if (!sourceTag.IsPresent)
-                    return DataResult<IntProvider>.Error(() => "clamped 缺 source 字段");
+                    return DataResult<IntProvider>.Error(() => "clamped is missing the source field");
                 var source = IntProviders.Codec.Parse(ops, sourceTag.Get());
                 if (!source.Result().IsPresent)
-                    return DataResult<IntProvider>.Error(() => "clamped 的 source 解析失败");
+                    return DataResult<IntProvider>.Error(() => "failed to parse clamped source");
                 var min = ReadInt(ops, input, "min_inclusive");
                 var max = ReadInt(ops, input, "max_inclusive");
                 if (min is null || max is null)
-                    return DataResult<IntProvider>.Error(() => "clamped 需要 min_inclusive 与 max_inclusive");
+                    return DataResult<IntProvider>.Error(() => "clamped requires min_inclusive and max_inclusive");
                 if (max < min)
-                    return DataResult<IntProvider>.Error(() => $"上界必须不小于下界 [{min}-{max}]");
+                    return DataResult<IntProvider>.Error(() => $"Max must not be less than min [{min}-{max}]");
                 return DataResult<IntProvider>.Success(new ClampedInt(source.GetOrThrow(), min.Value, max.Value));
             }
             case "clamped_normal":
@@ -307,9 +307,9 @@ internal sealed class IntProviderCodec : ScalarCodec<IntProvider>
                 var min = ReadInt(ops, input, "min_inclusive");
                 var max = ReadInt(ops, input, "max_inclusive");
                 if (mean is null || deviation is null || min is null || max is null)
-                    return DataResult<IntProvider>.Error(() => "clamped_normal 需要 mean/deviation/min_inclusive/max_inclusive");
+                    return DataResult<IntProvider>.Error(() => "clamped_normal requires mean/deviation/min_inclusive/max_inclusive");
                 if (max < min)
-                    return DataResult<IntProvider>.Error(() => $"上界必须不小于下界 [{min}-{max}]");
+                    return DataResult<IntProvider>.Error(() => $"Max must not be less than min [{min}-{max}]");
                 return DataResult<IntProvider>.Success(
                     new ClampedNormalInt(mean.Value, deviation.Value, min.Value, max.Value));
             }
@@ -319,49 +319,49 @@ internal sealed class IntProviderCodec : ScalarCodec<IntProvider>
                 var max = ReadInt(ops, input, "max");
                 var plateau = ReadInt(ops, input, "plateau");
                 if (min is null || max is null || plateau is null)
-                    return DataResult<IntProvider>.Error(() => "trapezoid 需要 min/max/plateau");
+                    return DataResult<IntProvider>.Error(() => "trapezoid requires min/max/plateau");
                 if (max < min)
-                    return DataResult<IntProvider>.Error(() => $"上界必须不小于下界 [{min}-{max}]");
+                    return DataResult<IntProvider>.Error(() => $"Max must not be less than min [{min}-{max}]");
                 if (plateau > max - min)
-                    return DataResult<IntProvider>.Error(() => $"平台宽度不能超过全跨度 [{min}-{max}]");
+                    return DataResult<IntProvider>.Error(() => $"Plateau can at most be the full span [{min}-{max}]");
                 return DataResult<IntProvider>.Success(new TrapezoidInt(min.Value, max.Value, plateau.Value));
             }
             case "weighted_list":
             {
                 var distributionTag = input.Get("distribution");
                 if (!distributionTag.IsPresent)
-                    return DataResult<IntProvider>.Error(() => "weighted_list 缺 distribution 字段");
+                    return DataResult<IntProvider>.Error(() => "weighted_list is missing the distribution field");
                 var stream = ops.GetStream(distributionTag.Get());
                 if (!stream.Result().IsPresent)
-                    return DataResult<IntProvider>.Error(() => "weighted_list 的 distribution 必须是数组");
+                    return DataResult<IntProvider>.Error(() => "weighted_list distribution must be a list");
                 var entries = new List<Weighted<IntProvider>>();
                 foreach (var element in stream.GetOrThrow())
                 {
                     var elementMap = ops.GetMap(element);
                     if (!elementMap.Result().IsPresent)
-                        return DataResult<IntProvider>.Error(() => "weighted_list 的元素必须是对象");
+                        return DataResult<IntProvider>.Error(() => "weighted_list element must be an object");
                     var map = elementMap.GetOrThrow();
                     var dataTag = map.Get("data");
                     if (!dataTag.IsPresent)
-                        return DataResult<IntProvider>.Error(() => "weighted_list 的元素缺 data 字段");
+                        return DataResult<IntProvider>.Error(() => "weighted_list element is missing the data field");
                     var data = IntProviders.Codec.Parse(ops, dataTag.Get());
                     if (!data.Result().IsPresent)
-                        return DataResult<IntProvider>.Error(() => "weighted_list 的 data 解析失败");
+                        return DataResult<IntProvider>.Error(() => "failed to parse weighted_list data");
                     var weight = ReadInt(ops, map, "weight") ?? 1;
                     entries.Add(new Weighted<IntProvider>(data.GetOrThrow(), weight));
                 }
                 if (entries.Count == 0)
-                    return DataResult<IntProvider>.Error(() => "weighted_list 至少需要一个元素");
+                    return DataResult<IntProvider>.Error(() => "weighted_list needs at least one element");
                 return DataResult<IntProvider>.Success(new WeightedListInt(WeightedList<IntProvider>.Of(entries)));
             }
             default:
-                return DataResult<IntProvider>.Error(() => $"未知的整数提供者类型: {type}");
+                return DataResult<IntProvider>.Error(() => $"unknown int provider type: {type}");
         }
     }
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, IntProvider value)
     {
-        //常量编码成裸整数保持与原版 either 的编码方向一致
+        //Constants encode as a bare int, keeping the same direction as vanilla either
         if (value is ConstantInt constant)
             return DataResult<U>.Success(ops.CreateInt(constant.Value));
         var builder = ops.MapBuilder();
@@ -401,12 +401,12 @@ internal sealed class IntProviderCodec : ScalarCodec<IntProvider>
                 break;
             }
             default:
-                return DataResult<U>.Error(() => $"暂不支持编码该整数提供者: {value.GetType().Name}");
+                return DataResult<U>.Error(() => $"encoding this int provider is not supported yet: {value.GetType().Name}");
         }
         return builder.Build(ops.Empty());
     }
 
-    //ReadString 读字符串字段缺失或非字符串返回 null
+    //ReadString reads a string field; missing or non-string returns null
     private static string? ReadString<U>(DynamicOps<U> ops, MapLike<U> input, string name)
     {
         var tag = input.Get(name);
@@ -415,7 +415,7 @@ internal sealed class IntProviderCodec : ScalarCodec<IntProvider>
         return text.Result().IsPresent ? text.GetOrThrow() : null;
     }
 
-    //ReadInt 读整数字段缺失或非数字返回 null
+    //ReadInt reads an int field; missing or non-number returns null
     private static int? ReadInt<U>(DynamicOps<U> ops, MapLike<U> input, string name)
     {
         var tag = input.Get(name);
@@ -424,7 +424,7 @@ internal sealed class IntProviderCodec : ScalarCodec<IntProvider>
         return value.Result().IsPresent ? (int)value.GetOrThrow() : null;
     }
 
-    //ReadFloat 读浮点字段缺失或非数字返回 null
+    //ReadFloat reads a float field; missing or non-number returns null
     private static float? ReadFloat<U>(DynamicOps<U> ops, MapLike<U> input, string name)
     {
         var tag = input.Get(name);

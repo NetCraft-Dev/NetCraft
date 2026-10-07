@@ -5,11 +5,11 @@ using NetCraft.Util;
 
 namespace NetCraft.DataFixer.Fixes;
 
-//属性修饰符UUID/Name转ID修复对应原版AttributeModifierIdFix
-//1.21把item_stack的attribute_modifiers和entity/player的Attributes中的UUID/Name替换为命名空间ID
+//attribute modifier UUID/Name to ID fix, maps to vanilla AttributeModifierIdFix
+//1.21 replaces the UUID/Name in item_stack's attribute_modifiers and entity/player's Attributes with namespaced IDs
 public class AttributeModifierIdFix : DataFix
 {
-    //34个原版硬编码UUID到命名空间ID的映射
+    //the 34 vanilla hardcoded UUID to namespaced ID mappings
     private static readonly Dictionary<Guid, string> IdMap = new()
     {
         { Guid.Parse("736565d2-e1a7-403d-a3f8-1aeb3e302542"), "minecraft:creative_mode_block_range" },
@@ -54,7 +54,7 @@ public class AttributeModifierIdFix : DataFix
         { Guid.Parse("FA233E1C-4180-4865-B01B-BCCE9785ACA3"), "minecraft:base_attack_speed" }
     };
 
-    //5个Name到命名空间ID的映射对应原版NAME_MAP
+    //the 5 Name to namespaced ID mappings, maps to vanilla NAME_MAP
     private static readonly Dictionary<string, string> NameMap = new()
     {
         { "Random spawn bonus", "minecraft:random_spawn_bonus" },
@@ -80,7 +80,7 @@ public class AttributeModifierIdFix : DataFix
                 GetInputSchema().GetType(References.Player), FixEntity));
     }
 
-    //fixModifiers按UUID或Name匹配后写入id字段移除uuid/name同名id累加amount
+    //fixModifiers matches by UUID or Name, then writes the id field and removes uuid/name; same ids accumulate amount
     private static IEnumerable<Dynamic<object>> FixModifiers(IEnumerable<Dynamic<object>> modifiers)
     {
         var result = new Dictionary<string, Dynamic<object>>();
@@ -120,7 +120,7 @@ public class AttributeModifierIdFix : DataFix
         return result.Values;
     }
 
-    //convertModifierForEntity把实体modifier字段名重命名并把operation枚举转字符串
+    //convertModifierForEntity renames the entity modifier field names and converts the operation enum to a string
     private static Dynamic<object> ConvertModifierForEntity(Dynamic<object> modifier)
         => modifier.RenameField(FixConstants.EntityUuid, "uuid")
             .RenameField(FixConstants.StateHolderName, FixConstants.JigsawBlockEntityName)
@@ -137,7 +137,7 @@ public class AttributeModifierIdFix : DataFix
                 return operation.CreateString(str);
             });
 
-    //fixItemStackComponents处理minecraft:attribute_modifiers.modifiers列表
+    //fixItemStackComponents handles the minecraft:attribute_modifiers.modifiers list
     private static Dynamic<object> FixItemStackComponents(Dynamic<object> components)
         => components.Update("minecraft:attribute_modifiers", attributeModifiers =>
             attributeModifiers.Update("modifiers", modifiers =>
@@ -147,7 +147,7 @@ public class AttributeModifierIdFix : DataFix
                 return modifiers.CreateList(FixModifiers(streamOpt.Get()));
             }));
 
-    //fixAttribute重命名单个attribute字段并把modifiers映射为convertModifierForEntity+fixModifiers
+    //fixAttribute renames a single attribute's fields and maps modifiers through convertModifierForEntity+fixModifiers
     private static Dynamic<object> FixAttribute(Dynamic<object> attribute)
         => attribute.RenameField(FixConstants.StateHolderName, "id")
             .RenameField("Base", "base")
@@ -159,7 +159,7 @@ public class AttributeModifierIdFix : DataFix
                 return attribute.CreateList(FixModifiers(mapped));
             });
 
-    //fixEntity处理实体Attributes列表中每个attribute
+    //fixEntity handles each attribute in the entity's Attributes list
     private static Typed<object> FixEntity(Typed<object> entity)
         => entity.Update(DSL.RemainderFinder(), tag =>
             tag.RenameAndFixField("Attributes", FixConstants.LivingEntityAttributes, attributeList =>
@@ -170,8 +170,8 @@ public class AttributeModifierIdFix : DataFix
                 return attributeList.CreateList(mapped);
             }));
 
-    //uuidFromIntArray按int[4]拼mostSigBits/leastSigBits后用hex字符串构造Guid
-    //保证与Java UUID.toString()输出格式一致对齐原版大端字节序
+    //uuidFromIntArray combines int[4] into mostSigBits/leastSigBits, then builds a Guid from the hex string
+    //ensures the output matches Java UUID.toString() format, aligning with vanilla big-endian byte order
     public static Guid? UuidFromIntArray(int[] intArray)
     {
         if (intArray.Length != 4) return null;

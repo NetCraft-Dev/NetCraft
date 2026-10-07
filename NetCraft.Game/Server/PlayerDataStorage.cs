@@ -10,12 +10,12 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Server;
 
-//PlayerDataStorage 玩家数据存档对应原版 PlayerDataStorage
-//路径 <世界目录>/playerdata/<uuid>.dat 根直接是玩家 NBT 无 Data 包装层与原版一致
-//当前持久化位置/朝向/血量/属性/游戏模式/经验/物品栏 状态效果待对应系统接入后补
+//PlayerDataStorage player data storage, maps to vanilla PlayerDataStorage
+//Path <world dir>/playerdata/<uuid>.dat; the root is directly the player NBT with no Data wrapper, matching vanilla
+//Currently persists position/facing/health/attributes/game type/xp/inventory; status effects are added once the matching system is wired up
 public sealed class PlayerDataStorage
 {
-    //OverworldDimension 玩家所在维度名 单维度阶段固定主世界
+    //OverworldDimension the player's dimension name; the single-dimension phase fixes it to the overworld
     private const string OverworldDimension = "minecraft:overworld";
 
     private readonly string _directory;
@@ -23,8 +23,8 @@ public sealed class PlayerDataStorage
     public PlayerDataStorage(string worldDir)
         => _directory = Path.Combine(worldDir, "playerdata");
 
-    //Save 写玩家存档 临时文件原子替换防写一半损坏
-    //写盘失败只记日志不抛出 避免单个玩家存档问题带停主循环
+    //Save writes the player save; a temp file atomic replace prevents a half write from corrupting it
+    //A disk write failure only logs without throwing, to avoid one player's save problem halting the main loop
     public void Save(ServerPlayer player)
     {
         try
@@ -41,8 +41,8 @@ public sealed class PlayerDataStorage
         }
     }
 
-    //LoadInto 读玩家存档并应用到玩家对象 返回是否命中存档
-    //无存档按新玩家处理 存档损坏同样按新玩家处理不阻断进入
+    //LoadInto reads the player save and applies it to the player object; returns whether a save was hit
+    //No save is handled as a new player; a corrupt save is likewise handled as a new player without blocking entry
     public bool LoadInto(ServerPlayer player)
     {
         var path = PathFor(player);
@@ -59,17 +59,17 @@ public sealed class PlayerDataStorage
         }
     }
 
-    //PathFor 玩家存档文件路径 uuid 用带连字符的标准形式对齐原版文件名
+    //PathFor the player save file path; uuid uses the standard hyphenated form aligned with the vanilla file name
     private string PathFor(ServerPlayer player)
         => Path.Combine(_directory, player.Profile.Id.ToString("D") + ".dat");
 
-    //CreateTag 生成玩家 NBT 字段名对齐原版 Entity/Player save
-    //公开供 /data get entity 取玩家实体数据 与写盘共用同一份序列化
+    //CreateTag builds the player NBT with field names aligned with vanilla Entity/Player save
+    //Exposed for /data get entity to read player entity data, sharing the same serialization as the save
     public static CompoundTag CreateTag(ServerPlayer player)
     {
         var tag = new CompoundTag();
         tag.PutInt("DataVersion", SharedConstants.WorldDataVersion);
-        //Pos 是 double 列表 Rotation 是 float 列表 对齐原版 Entity save
+        //Pos is a double list, Rotation a float list, aligned with vanilla Entity save
         tag.Put("Pos", new ListTag
         {
             new DoubleTag(player.Position.X),
@@ -82,9 +82,9 @@ public sealed class PlayerDataStorage
             new FloatTag(player.Pitch),
         });
         tag.PutFloat("Health", player.Health);
-        //属性与实体存档同一个字段名与结构 只写被改动过的属性
+        //Attributes share the same field name and structure as the entity save; only changed attributes are written
         player.Attributes.WriteTo(tag);
-        //能力状态要带上 flying 创造模式按出来的飞行重进后还在 对应原版 Player.addAdditionalSaveData 的 abilities
+        //The ability state must carry flying, so creative-toggled flight is still there on rejoin, maps to the abilities of vanilla Player.addAdditionalSaveData
         player.Abilities.WriteTo(tag);
         tag.PutInt("playerGameType", player.GameType.Id);
         tag.PutString("Dimension", OverworldDimension);
@@ -97,7 +97,7 @@ public sealed class PlayerDataStorage
         return tag;
     }
 
-    //Apply 从玩家 NBT 恢复状态 缺失字段保持默认值
+    //Apply restores state from player NBT; missing fields keep default values
     public static void Apply(CompoundTag tag, ServerPlayer player)
     {
         var pos = tag.GetList("Pos");
@@ -110,12 +110,12 @@ public sealed class PlayerDataStorage
             player.Yaw = rotation.GetFloat(0)!.Value;
             player.Pitch = rotation.GetFloat(1)!.Value;
         }
-        //属性先读回 血量上限要按恢复后的属性算
+        //Read attributes back first; the max health must be computed from the restored attributes
         player.Attributes.ReadFrom(tag);
         player.Health = tag.Contains("Health") ? tag.GetFloatValue("Health") : player.MaxHealth;
-        //先读回能力 再按存档里的游戏模式重算一次
-        //顺序对齐原版: Player 读 abilities 在前 ServerPlayer 设 gameMode 在后
-        //创造的推导分支不会动 flying 所以玩家按出来的飞行状态能留住
+        //Read abilities back first, then recompute once by the saved game type
+        //Order matches vanilla: Player reads abilities first, ServerPlayer sets gameMode after
+        //The creative derivation branch does not touch flying, so the player's toggled flight state is kept
         player.Abilities.ReadFrom(tag);
         var savedGameType = tag.Contains("playerGameType")
             ? GameType.ById(tag.GetIntValue("playerGameType"))
@@ -128,8 +128,8 @@ public sealed class PlayerDataStorage
         ApplyInventory(tag.GetList("Inventory"), player.Inventory);
     }
 
-    //InventoryToTag 玩家物品栏转原版 1.20.5+ 结构 id + count + Slot
-    //组件当前全为空 接入带组件物品后在此补 components 层
+    //InventoryToTag converts the player inventory to the vanilla 1.20.5+ structure id + count + Slot
+    //Components are all empty for now; add the components layer here once component-bearing items are wired up
     private static ListTag InventoryToTag(PlayerInventory inventory)
     {
         var list = new ListTag();
@@ -146,7 +146,7 @@ public sealed class PlayerDataStorage
         return list;
     }
 
-    //ApplyInventory 恢复物品栏 未注册物品名与非法数量直接跳过
+    //ApplyInventory restores the inventory; unregistered item names and invalid counts are skipped
     private static void ApplyInventory(ListTag? list, PlayerInventory inventory)
     {
         if (list is null) return;
@@ -158,7 +158,7 @@ public sealed class PlayerDataStorage
             var count = entry.GetIntValue("count");
             var slot = entry.GetByteValue("Slot");
             if (idText.Length == 0 || count <= 0) continue;
-            //物品名带命名空间 无冒号时 TryParse 补默认命名空间对齐原版 Identifier 解析
+            //The item name carries a namespace; without a colon TryParse adds the default namespace, aligned with vanilla Identifier parsing
             var itemId = Identifier.TryParse(idText);
             if (itemId is null) continue;
             var holder = BuiltInRegistries.ITEM.Get(itemId.Value);
@@ -171,8 +171,8 @@ public sealed class PlayerDataStorage
         }
     }
 
-    //UuidToIntArray UUID 拆 4 个 int 对齐原版 UUIDUtil 的 IntArray 结构
-    //字节序用 .NET 的 Guid 内存布局 与 Java 版不同 本地读写自洽 读取原版存档时需换算
+    //UuidToIntArray splits the UUID into 4 ints, aligned with the IntArray structure of vanilla UUIDUtil
+    //The byte order uses .NET Guid's memory layout, different from the Java version; local reads/writes are self-consistent, but reading a vanilla save needs conversion
     private static int[] UuidToIntArray(Guid uuid)
     {
         var bytes = uuid.ToByteArray();

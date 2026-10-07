@@ -9,8 +9,8 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//StructureTemplate 结构模板 对应原版 net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate
-//一份 NBT 模板 = 尺寸 + 若干调色板 + 实体表 放置时按镜像与旋转把方块写进世界
+//StructureTemplate structure template, maps to vanilla net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate
+//An NBT template = size + palettes + entity list; placement writes blocks into the world with mirror and rotation applied
 public sealed class StructureTemplate
 {
     public const string PaletteTag = "palette";
@@ -25,13 +25,13 @@ public sealed class StructureTemplate
     public const string EntityTagNbt = "nbt";
     public const string SizeTag = "size";
 
-    //JigsawBlockId 拼图方块的注册名 拼图收集按它筛方块
+    //JigsawBlockId jigsaw block registry name; jigsaw collection filters blocks by it
     public static readonly Identifier JigsawBlockId = Identifier.WithDefaultNamespace("jigsaw");
 
     private readonly List<StructureTemplatePalette> _palettes = new();
     private readonly List<StructureEntityInfo> _entityInfoList = new();
 
-    //BlockEntitySink 方块实体接收者 区块生成期由 Game 层注入 未注入时带 nbt 的方块只写状态
+    //BlockEntitySink block entity sink injected by the Game layer during chunk generation; without it a block with nbt writes only its state
     public Action<BlockPos, BlockState, CompoundTag>? BlockEntitySink { get; set; }
 
     public Vec3i Size { get; private set; } = Vec3i.Zero;
@@ -42,13 +42,13 @@ public sealed class StructureTemplate
 
     public IReadOnlyList<StructureEntityInfo> EntityInfoList => _entityInfoList;
 
-    //GetSize 旋转后的占用尺寸 90 度旋转会让 X 与 Z 互换
+    //GetSize footprint after rotation; a 90-degree rotation swaps X and Z
     public Vec3i GetSize(Rotation rotation)
         => rotation is Rotation.Clockwise90 or Rotation.Counterclockwise90
             ? new Vec3i(Size.Z, Size.Y, Size.X)
             : Size;
 
-    //Load 读取模板 NBT palettes 存在时优先 否则退回单个 palette
+    //Load reads the template NBT; prefer palettes when present, otherwise fall back to a single palette
     public void Load(CompoundTag tag)
     {
         _palettes.Clear();
@@ -69,7 +69,7 @@ public sealed class StructureTemplate
             LoadPalette(tag.GetListOrEmpty(PaletteTag), blockList);
         }
 
-        //实体表缺失 nbt 的整条丢弃 与原版一致
+        //An entity entry missing nbt is dropped entirely, matching vanilla
         foreach (var element in tag.GetListOrEmpty(EntitiesTag))
         {
             if (element is not CompoundTag entityTag) continue;
@@ -82,7 +82,7 @@ public sealed class StructureTemplate
         }
     }
 
-    //LoadPalette 解一个调色板与它对应的方块列表
+    //LoadPalette decodes one palette and its corresponding block list
     private void LoadPalette(ListTag paletteList, ListTag blockList)
     {
         var states = new List<BlockState>(paletteList.Count);
@@ -98,7 +98,7 @@ public sealed class StructureTemplate
             var posTag = blockTag.GetListOrEmpty(BlockTagPos);
             var pos = new BlockPos(ListInt(posTag, 0), ListInt(posTag, 1), ListInt(posTag, 2));
             var index = blockTag.GetIntOr(BlockTagState, 0);
-            //调色板索引越界按空气处理 与原版 stateFor 的越界分支一致
+            //An out-of-range palette index is treated as air, matching the out-of-range branch of vanilla stateFor
             var state = index >= 0 && index < states.Count ? states[index] : Blocks.AIR.DefaultBlockState;
             var info = new StructureBlockInfo(pos, state, blockTag.GetCompound(BlockTagNbt));
             if (info.Nbt is not null) blockEntities.Add(info);
@@ -108,7 +108,7 @@ public sealed class StructureTemplate
         _palettes.Add(new StructureTemplatePalette(BuildInfoList(fullBlocks, otherBlocks, blockEntities)));
     }
 
-    //BuildInfoList 三段各自按 y/x/z 排序后拼接 实体方块排最后避免方块实体先于支撑方块出现
+    //BuildInfoList sorts the three groups by y/x/z then concatenates; block entities go last so they appear after their supporting blocks
     private static List<StructureBlockInfo> BuildInfoList(List<StructureBlockInfo> fullBlocks,
         List<StructureBlockInfo> otherBlocks, List<StructureBlockInfo> blockEntities)
     {
@@ -129,8 +129,8 @@ public sealed class StructureTemplate
         return result;
     }
 
-    //ReadBlockState 读一个方块状态 NBT 块 对应原版 NbtUtils.readBlockState
-    //方块名未知返回空气 属性名或属性值非法时保留当前状态不报错
+    //ReadBlockState reads one block state NBT block, maps to vanilla NbtUtils.readBlockState
+    //An unknown block name returns air; an invalid property name or value keeps the current state without erroring
     public static BlockState ReadBlockState(CompoundTag tag)
     {
         var id = Identifier.TryParse(tag.GetStringValue("Name"));
@@ -154,8 +154,8 @@ public sealed class StructureTemplate
         return state;
     }
 
-    //Transform 把模板内坐标按镜像与旋转变到目标坐标 对应原版 StructureTemplate.transform
-    //恒为先镜像后旋转 顺序颠倒结果会错
+    //Transform maps in-template coordinates to target coordinates by mirror and rotation, maps to vanilla StructureTemplate.transform
+    //Always mirror then rotate; reversing the order gives wrong results
     public static BlockPos Transform(BlockPos pos, Mirror mirror, Rotation rotation, BlockPos pivot)
     {
         var x = pos.X;
@@ -185,12 +185,12 @@ public sealed class StructureTemplate
         };
     }
 
-    //CalculateRelativePosition 取模板内坐标变换后的相对坐标 对应原版 calculateRelativePosition
+    //CalculateRelativePosition returns the transformed relative position of an in-template coordinate, maps to vanilla calculateRelativePosition
     public static BlockPos CalculateRelativePosition(StructurePlaceSettings settings, BlockPos pos)
         => Transform(pos, settings.Mirror, settings.Rotation, settings.RotationPivot);
 
-    //GetZeroPositionWithTransform 求模板原点落在哪 对应原版 getZeroPositionWithTransform
-    //尺寸减一在镜像侧参与 少了它镜像后的结构会整体偏一格
+    //GetZeroPositionWithTransform finds where the template origin lands, maps to vanilla getZeroPositionWithTransform
+    //The size-minus-one participates on the mirrored side; without it a mirrored structure shifts by one block
     public static BlockPos GetZeroPositionWithTransform(BlockPos zeroPos, Mirror mirror, Rotation rotation,
         int sizeX, int sizeZ)
     {
@@ -205,7 +205,7 @@ public sealed class StructureTemplate
         };
     }
 
-    //GetBoundingBox 模板按设置放置后占据的整数包围盒 对应原版 getBoundingBox
+    //GetBoundingBox integer bounding box the template occupies after placing with the settings, maps to vanilla getBoundingBox
     public BoundingBoxInt GetBoundingBox(StructurePlaceSettings settings, BlockPos position)
     {
         var delta = Size.Offset(-1, -1, -1);
@@ -221,8 +221,8 @@ public sealed class StructureTemplate
         return new BoundingBoxInt(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
-    //FilterBlocks 按方块筛模板里的方块 对应原版 filterBlocks
-    //absolute 为假时坐标留在模板内 为真时按设置旋转平移到目标位置
+    //FilterBlocks filters the template blocks by block, maps to vanilla filterBlocks
+    //When absolute is false the coordinates stay in-template; when true they are rotated and translated to the target position
     public List<StructureBlockInfo> FilterBlocks(BlockPos position, StructurePlaceSettings settings, RegBlock block,
         bool absolute)
     {
@@ -242,11 +242,11 @@ public sealed class StructureTemplate
         return result;
     }
 
-    //FilterBlocks 只按方块筛 坐标按原版默认留在模板内
+    //FilterBlocks filters by block only, coordinates stay in-template by vanilla default
     public List<StructureBlockInfo> FilterBlocks(BlockPos position, StructurePlaceSettings settings, RegBlock block)
         => FilterBlocks(position, settings, block, true);
 
-    //GetJigsaws 取模板里的拼图方块 坐标按旋转平移到目标位置 对应原版 getJigsaws
+    //GetJigsaws returns the jigsaw blocks in the template, rotated and translated to the target position, maps to vanilla getJigsaws
     public List<JigsawBlockInfo> GetJigsaws(BlockPos position, Rotation rotation)
     {
         if (_palettes.Count == 0) return new List<JigsawBlockInfo>();
@@ -262,7 +262,7 @@ public sealed class StructureTemplate
         return result;
     }
 
-    //JigsawsOf 取调色板里的拼图方块 缺 nbt 的条目跳过 原版此处直接抛空指针
+    //JigsawsOf returns the jigsaw blocks in a palette, skipping entries without nbt; vanilla throws a null pointer right here
     private static List<JigsawBlockInfo> JigsawsOf(StructureTemplatePalette palette)
     {
         var result = new List<JigsawBlockInfo>();
@@ -274,7 +274,7 @@ public sealed class StructureTemplate
         return result;
     }
 
-    //GetJointType 读拼图方块的关节类型 缺 joint 字段时按方块朝向决定 对应原版 getJointType
+    //GetJointType reads the jigsaw block's joint type, falling back to the block facing when the joint field is missing, maps to vanilla getJointType
     public static JointType GetJointType(CompoundTag nbt, BlockState state)
     {
         var text = nbt.GetString("joint")?.Value;
@@ -282,7 +282,7 @@ public sealed class StructureTemplate
         return parsed ?? GetDefaultJointType(state);
     }
 
-    //GetDefaultJointType 朝向水平用对齐 竖直用可滚动 对应原版 JigsawBlock.getFrontFacing 的轴判定
+    //GetDefaultJointType horizontal facing means aligned, vertical means rollable, maps to the axis check of vanilla JigsawBlock.getFrontFacing
     public static JointType GetDefaultJointType(BlockState state)
     {
         foreach (var entry in state.GetValues())
@@ -293,8 +293,8 @@ public sealed class StructureTemplate
         return JointType.Rollable;
     }
 
-    //PlaceInWorld 把模板按设置写进世界 对应原版 placeInWorld
-    //返回 false 表示模板为空或尺寸非法
+    //PlaceInWorld writes the template into the world with the settings, maps to vanilla placeInWorld
+    //Returning false means the template is empty or the size is invalid
     public bool PlaceInWorld(WorldGenRegion level, BlockPos position, BlockPos referencePos,
         StructurePlaceSettings settings, RandomSource random)
     {
@@ -307,19 +307,19 @@ public sealed class StructureTemplate
         foreach (var info in processed)
         {
             if (boundingBox is not null && !Contains(boundingBox, info.Pos)) continue;
-            //状态变换恒为先镜像后旋转 与坐标变换同一顺序
+            //The state transform is always mirror then rotate, the same order as the coordinate transform
             var state = StructureBlockTransforms.ApplyRotation(
                 StructureBlockTransforms.ApplyMirror(info.State, settings.Mirror), settings.Rotation);
             level.SetBlockState(info.Pos.X, info.Pos.Y, info.Pos.Z, state);
             if (info.Nbt is null) continue;
             BlockEntitySink?.Invoke(info.Pos, state, info.Nbt);
         }
-        //实体生成要等实体工厂与刷怪接线就绪 模板已解析好实体表待阶段 4 接入
+        //Entity spawning waits for the entity factory and mob spawn wiring to be ready; the template already parsed its entity list, pending stage 4
         return true;
     }
 
-    //ProcessBlockInfos 逐块跑处理器链 对应原版 processBlockInfos
-    //处理器返回 null 即丢弃该格 全部处理完再依次做 finalizeProcessing
+    //ProcessBlockInfos runs the processor chain block by block, maps to vanilla processBlockInfos
+    //A null return from a processor drops the cell; finalizeProcessing runs in order after everything is processed
     public static List<StructureBlockInfo> ProcessBlockInfos(WorldGenRegion? level, BlockPos position,
         BlockPos referencePos, StructurePlaceSettings settings, IReadOnlyList<StructureBlockInfo> blockInfoList)
     {
@@ -358,18 +358,18 @@ public sealed class StructureTemplate
         return processedBlockInfoList;
     }
 
-    //Contains 闭区间判定 原版 BoundingBox.isInside 两端都含
+    //Contains inclusive containment test, matching vanilla BoundingBox.isInside with both ends included
     private static bool Contains(BoundingBoxInt box, BlockPos pos)
         => pos.X >= box.MinX && pos.X <= box.MaxX
             && pos.Y >= box.MinY && pos.Y <= box.MaxY
             && pos.Z >= box.MinZ && pos.Z <= box.MaxZ;
 
-    //JigsawBlockInfo 模板里一个拼图方块的信息 对应原版 StructureTemplate.JigsawBlockInfo
-    //name/target/pool 决定它能和谁连 两个优先级决定连接顺序
+    //JigsawBlockInfo info of one jigsaw block in a template, maps to vanilla StructureTemplate.JigsawBlockInfo
+    //name/target/pool decide what it can connect to; the two priorities decide connection order
     public sealed record JigsawBlockInfo(StructureBlockInfo Info, JointType JointType, Identifier Name,
         Identifier Pool, Identifier Target, int PlacementPriority, int SelectionPriority)
     {
-        //Of 从方块信息与它的 nbt 解出拼图信息 缺字段按原版默认值
+        //Of decodes jigsaw info from block info and its nbt, missing fields fall back to the vanilla defaults
         public static JigsawBlockInfo Of(StructureBlockInfo info)
         {
             var nbt = info.Nbt!;
@@ -378,10 +378,10 @@ public sealed class StructureTemplate
                 nbt.GetIntOr("placement_priority", 0), nbt.GetIntOr("selection_priority", 0));
         }
 
-        //WithInfo 换掉方块信息 其余字段保留
+        //WithInfo replaces the block info, keeping the other fields
         public JigsawBlockInfo WithInfo(StructureBlockInfo info) => this with { Info = info };
 
-        //ReadIdentifier 读一个标识符字段 缺省按 minecraft:empty
+        //ReadIdentifier reads an identifier field, defaulting to minecraft:empty
         private static Identifier ReadIdentifier(CompoundTag nbt, string key)
         {
             var text = nbt.GetString(key)?.Value;
@@ -390,30 +390,30 @@ public sealed class StructureTemplate
         }
     }
 
-    //ListInt 取整数列表第 index 项 缺项按 0
+    //ListInt returns the index-th item of an int list, defaulting to 0
     private static int ListInt(ListTag tag, int index)
         => index < tag.Count ? tag.GetInt(index)?.Value ?? 0 : 0;
 
-    //ListDouble 取浮点列表第 index 项 缺项按 0
+    //ListDouble returns the index-th item of a double list, defaulting to 0
     private static double ListDouble(ListTag tag, int index)
         => index < tag.Count ? tag.GetDouble(index)?.Value ?? 0.0 : 0.0;
 }
 
-//JointType 拼图关节类型 对应原版 JigsawBlockEntity.JointType
-//rollable 连接处能沿轴滚动对齐 aligned 固定对齐
+//JointType jigsaw joint type, maps to vanilla JigsawBlockEntity.JointType
+//rollable lets the joint slide along the axis to align; aligned fixes it in place
 public enum JointType
 {
     Rollable,
     Aligned,
 }
 
-//JointTypes 关节类型的名字映射与朝向判定
+//JointTypes joint type name mapping and facing checks
 public static class JointTypes
 {
-    //Name 取序列化名 对应原版 getSerializedName
+    //Name returns the serialization name, maps to vanilla getSerializedName
     public static string Name(JointType jointType) => jointType == JointType.Aligned ? "aligned" : "rollable";
 
-    //TryParse 按序列化名解析 非法返回 null
+    //TryParse parses by serialization name, returns null when invalid
     public static JointType? TryParse(string name) => name switch
     {
         "rollable" => JointType.Rollable,
@@ -421,7 +421,7 @@ public static class JointTypes
         _ => null,
     };
 
-    //IsVerticalFront 朝向朝上下的是竖直 其余四条边是水平 对应原版 front 方向的轴判定
+    //IsVerticalFront up/down facings are vertical, the other four sides are horizontal, maps to the axis check of the vanilla front direction
     public static bool IsVerticalFront(FrontAndTopEnum orientation) => orientation switch
     {
         FrontAndTopEnum.down_east or FrontAndTopEnum.down_north or FrontAndTopEnum.down_south

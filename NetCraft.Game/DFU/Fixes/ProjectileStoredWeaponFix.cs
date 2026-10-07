@@ -7,8 +7,8 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//投射物存储武器修复对应原版ProjectileStoredWeaponFix
-//1.21.4为arrow/spectral_arrow实体走write+fix+read流程应用identity修复类型转换
+//Projectile stored weapon fix, maps to vanilla ProjectileStoredWeaponFix
+//1.21.4 runs the write+fix+read flow for the arrow/spectral_arrow entities and applies an identity fix for the type conversion
 public class ProjectileStoredWeaponFix : DataFix
 {
     public ProjectileStoredWeaponFix(Schema outputSchema) : base(outputSchema, true) { }
@@ -21,7 +21,7 @@ public class ProjectileStoredWeaponFix : DataFix
             ExtraDataFixUtils.ChainAllFilters(FixChoice("minecraft:arrow"), FixChoice("minecraft:spectral_arrow")));
     }
 
-    //fixChoice按实体名构造命名选择查找走write+read类型转换
+    //fixChoice builds a named choice lookup by entity name and does the write+read type conversion
     private Func<Typed<object>, Typed<object>> FixChoice(string entityName)
     {
         var inputEntityChoiceType = GetInputSchema().GetChoiceType(References.Entity, entityName);

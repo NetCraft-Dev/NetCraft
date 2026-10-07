@@ -12,15 +12,15 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Commands;
 
-//ItemCommand /item 命令对应原版 net.minecraft.server.commands.ItemCommands
-//replace block <坐标> <槽位> with <物品> [数量] 把物品写进方块实体容器
-//replace ... from block <源坐标> <源槽位> 从另一个容器整栈搬过来
-//replace ... from entity <源实体> <源槽位> 从实体身上的槽整栈搬过来
-//replace entity <目标> <槽位> 同上三个分支 写的是实体身上的槽
-//modify 分支依赖 item_modifier 这个数据驱动注册表 本作还没接入 暂不注册
+//ItemCommand /item command, maps to vanilla net.minecraft.server.commands.ItemCommands
+//replace block <pos> <slot> with <item> [count] writes an item into a block entity container
+//replace ... from block <source pos> <source slot> moves a whole stack from another container
+//replace ... from entity <source entity> <source slot> moves a whole stack from a slot on an entity
+//replace entity <target> <slot> has the same three branches, writing to slots on the entity
+//The modify branch depends on the item_modifier data-driven registry, not wired up here, so it is not registered
 public static class ItemCommand
 {
-    //原版数量参数范围 1..99 对应 ItemInstance.FIELD_COUNT
+    //Vanilla count argument range 1..99, maps to ItemInstance.FIELD_COUNT
     private const int MaxCount = 99;
 
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -33,7 +33,7 @@ public static class ItemCommand
             .Then(replace));
     }
 
-    //RegisterBlockReplace item replace block <坐标> <槽位> 的 with 与 from 分支
+    //RegisterBlockReplace the with and from branches of item replace block <pos> <slot>
     private static void RegisterBlockReplace(LiteralArgumentBuilder<CommandSourceStack> replace)
     {
         var slot = RequiredArgumentBuilder<CommandSourceStack, int>.Argument("slot", SlotArgument.Slot());
@@ -56,7 +56,7 @@ public static class ItemCommand
                 .Then(slot)));
     }
 
-    //RegisterEntityReplace item replace entity <目标> <槽位> 的 with 与 from 分支
+    //RegisterEntityReplace the with and from branches of item replace entity <target> <slot>
     private static void RegisterEntityReplace(LiteralArgumentBuilder<CommandSourceStack> replace)
     {
         var slot = RequiredArgumentBuilder<CommandSourceStack, int>.Argument("slot", SlotArgument.Slot());
@@ -79,7 +79,7 @@ public static class ItemCommand
                 .Then(slot)));
     }
 
-    //BlockWithItem item replace block <坐标> <槽位> with <物品> [数量]
+    //BlockWithItem item replace block <pos> <slot> with <item> [count]
     private static int BlockWithItem(CommandContext<CommandSourceStack> context, int count)
     {
         var source = Source(context);
@@ -89,7 +89,7 @@ public static class ItemCommand
             new ItemStack(input.Item.BuiltInRegistryHolder, count, input.Components));
     }
 
-    //EntityWithItem item replace entity <目标> <槽位> with <物品> [数量]
+    //EntityWithItem item replace entity <target> <slot> with <item> [count]
     private static int EntityWithItem(CommandContext<CommandSourceStack> context, int count)
     {
         var source = Source(context);
@@ -99,7 +99,7 @@ public static class ItemCommand
             new ItemStack(input.Item.BuiltInRegistryHolder, count, input.Components));
     }
 
-    //BlockFromBlock 从源容器的槽位整栈搬进目标容器的槽位 对应原版 blockToBlock
+    //BlockFromBlock moves a whole stack from a source container slot into the target container slot, maps to vanilla blockToBlock
     private static int BlockFromBlock(CommandContext<CommandSourceStack> context)
     {
         var source = Source(context);
@@ -111,7 +111,7 @@ public static class ItemCommand
                 SlotArgument.GetSlot(context, "slot"), stack);
     }
 
-    //EntityFromBlock 从源容器的槽位整栈搬进实体槽位 对应原版 blockToEntities
+    //EntityFromBlock moves a whole stack from a source container slot into an entity slot, maps to vanilla blockToEntities
     private static int EntityFromBlock(CommandContext<CommandSourceStack> context)
     {
         var source = Source(context);
@@ -123,8 +123,8 @@ public static class ItemCommand
                 SlotArgument.GetSlot(context, "slot"), stack);
     }
 
-    //BlockFromEntity 从实体槽位整栈搬进目标容器的槽位 对应原版 entityToBlock
-    //本作实体槽位只实现了玩家 源实体按玩家取 非玩家按原版只允许玩家的报错处理
+    //BlockFromEntity moves a whole stack from an entity slot into the target container slot, maps to vanilla entityToBlock
+    //This project only implements player entity slots; the source entity is taken as a player, and a non-player is reported with vanilla's players-only error
     private static int BlockFromEntity(CommandContext<CommandSourceStack> context)
     {
         var source = Source(context);
@@ -136,7 +136,7 @@ public static class ItemCommand
                 SlotArgument.GetSlot(context, "slot"), stack);
     }
 
-    //EntityFromEntity 从实体槽位整栈搬进实体槽位 对应原版 entityToEntities
+    //EntityFromEntity moves a whole stack from an entity slot into an entity slot, maps to vanilla entityToEntities
     private static int EntityFromEntity(CommandContext<CommandSourceStack> context)
     {
         var source = Source(context);
@@ -148,49 +148,49 @@ public static class ItemCommand
                 SlotArgument.GetSlot(context, "slot"), stack);
     }
 
-    //ReadBlockStack 读方块实体槽位上的一份物品拷贝 对应原版 getBlockItem
-    //取不到容器或槽位不适用时已发回执 返回 null 表示失败
+    //ReadBlockStack reads a copy of the item in a block entity slot, maps to vanilla getBlockItem
+    //When the container cannot be fetched or the slot does not apply, a reply has already been sent and null is returned for failure
     private static ItemStack? ReadBlockStack(ServerCommandSource source, BlockPos pos, int slot)
     {
         if (GetContainer(source, pos) is not { } container)
         {
-            source.SendFailure($"位置 {pos.X} {pos.Y} {pos.Z} 处没有容器");
+            source.SendFailure($"there is no container at {pos.X} {pos.Y} {pos.Z}");
             return null;
         }
-        return ReadStack(source, SlotAccess.ForContainer(container, slot), $"位置 {pos.X} {pos.Y} {pos.Z}");
+        return ReadStack(source, SlotAccess.ForContainer(container, slot), $"position {pos.X} {pos.Y} {pos.Z}");
     }
 
-    //ReadEntityStack 读实体槽位上的一份物品拷贝 对应原版 getItemInSlot
+    //ReadEntityStack reads a copy of the item in an entity slot, maps to vanilla getItemInSlot
     private static ItemStack? ReadEntityStack(ServerCommandSource source, ServerPlayer player, int slot)
         => ReadStack(source, SlotAccess.ForPlayer(player, slot), player.Profile.Name);
 
-    //ReadStack 读槽位内容 空槽返回空栈 槽位不适用按原版报源槽位不存在
+    //ReadStack reads a slot's content; an empty slot returns an empty stack; an inapplicable slot reports source slot missing like vanilla
     private static ItemStack? ReadStack(ServerCommandSource source, SlotAccess access, string where)
     {
         if (ReferenceEquals(access, SlotAccess.Null))
         {
-            source.SendFailure($"{where} 上没有该槽位");
+            source.SendFailure($"there is no such slot on {where}");
             return null;
         }
         return access.Get().Copy();
     }
 
-    //SetBlockItem 把物品写进方块实体容器 对应原版 setBlockItem
+    //SetBlockItem writes an item into a block entity container, maps to vanilla setBlockItem
     private static int SetBlockItem(ServerCommandSource source, BlockPos pos, int slot, ItemStack stack)
     {
         if (GetContainer(source, pos) is not { } container)
         {
-            source.SendFailure($"位置 {pos.X} {pos.Y} {pos.Z} 处没有容器");
+            source.SendFailure($"there is no container at {pos.X} {pos.Y} {pos.Z}");
             return 0;
         }
-        var where = $"位置 {pos.X} {pos.Y} {pos.Z}";
+        var where = $"position {pos.X} {pos.Y} {pos.Z}";
         if (!SetSlot(source, SlotAccess.ForContainer(container, slot), slot, stack, where)) return 0;
-        source.SendSuccess($"已将 {where} 的槽位物品设置为 {Describe(stack)}");
+        source.SendSuccess($"set the slot item at {where} to {Describe(stack)}");
         return 1;
     }
 
-    //SetEntityItem 把物品写进目标玩家身上的槽 对应原版 setEntityItem
-    //原版对每个目标写一份 copy 一次成功的回执里只有单个目标时才带目标名
+    //SetEntityItem writes an item into a target player's slot, maps to vanilla setEntityItem
+    //Vanilla writes a copy per target; the success reply includes the target name only when there is a single target
     private static int SetEntityItem(ServerCommandSource source, IReadOnlyList<CommandTarget> targets, int slot, ItemStack stack)
     {
         List<string>? changed = null;
@@ -204,36 +204,36 @@ public static class ItemCommand
         }
         if (changed is null)
         {
-            source.SendFailure($"槽位 {slot} 上没有任何目标发生变化");
+            source.SendFailure($"no target changed at slot {slot}");
             return 0;
         }
         source.SendSuccess(changed.Count == 1
-            ? $"已将 {changed[0]} 的槽位物品设置为 {Describe(stack)}"
-            : $"已将 {changed.Count} 个目标的槽位物品设置为 {Describe(stack)}");
+            ? $"set the slot item of {changed[0]} to {Describe(stack)}"
+            : $"set the slot item of {changed.Count} targets to {Describe(stack)}");
         return changed.Count;
     }
 
-    //SetSlot 写槽位 成功返回 true 失败按原因发回执
-    //静默判错 写失败了不报 由调用方汇总后统一报 这里只在槽位不适用时报
+    //SetSlot writes a slot; returns true on success, reporting failure by reason otherwise
+    //Silently checks errors: a failed write is not reported here but summarized by the caller; only an inapplicable slot is reported here
     private static bool SetSlot(ServerCommandSource source, SlotAccess access, int slot, ItemStack stack, string where)
     {
         if (ReferenceEquals(access, SlotAccess.Null))
         {
-            source.SendFailure($"{where} 上没有槽位 {slot}");
+            source.SendFailure($"there is no slot {slot} on {where}");
             return false;
         }
         return access.Set(stack.Copy());
     }
 
-    //GetContainer 取方块实体容器 对应原版 getContainer
+    //GetContainer gets the block entity container, maps to vanilla getContainer
     private static Container? GetContainer(ServerCommandSource source, BlockPos pos)
         => source.PlayerOrThrow.Level is PersistentServerLevel level
             ? level.BlockUpdateSink?.GetBlockEntity(pos) as Container
             : null;
 
-    //Describe 取物品显示名 自定义名称组件接入前用标识符代替
+    //Describe gets the item display name; before the custom name component is wired up the identifier is used
     private static string Describe(ItemStack stack)
-        => stack.IsEmpty() ? "空气" : stack.GetItem().Id.ToShortString();
+        => stack.IsEmpty() ? "air" : stack.GetItem().Id.ToShortString();
 
     private static ServerCommandSource Source(CommandContext<CommandSourceStack> context)
         => (ServerCommandSource)context.GetSource();

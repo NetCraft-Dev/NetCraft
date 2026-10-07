@@ -3,14 +3,14 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//Coordinates 坐标参数解析结果接口对应原版 net.minecraft.commands.arguments.coordinates.Coordinates
-//按执行者当前位置求值绝对坐标或朝向 相对标志供 Relative 集合推导
+//Coordinates coordinate argument parse result interface, maps to vanilla net.minecraft.commands.arguments.coordinates.Coordinates
+//Resolves the absolute coordinate or rotation from the executor's current position; relative flags feed the Relative set
 public interface Coordinates
 {
-    //GetPosition 按执行者位置为基准求绝对坐标
+    //GetPosition resolves the absolute coordinate relative to the executor's position
     Vec3 GetPosition(ServerCommandSource source);
 
-    //GetRotation 按执行者朝向为基准求绝对朝向 返回(yaw,pitch)
+    //GetRotation resolves the absolute rotation relative to the executor's facing, returns (yaw,pitch)
     (float Yaw, float Pitch) GetRotation(ServerCommandSource source);
 
     bool IsXRelative { get; }

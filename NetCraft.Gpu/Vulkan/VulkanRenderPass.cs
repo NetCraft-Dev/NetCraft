@@ -5,16 +5,16 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace NetCraft.Gpu.Vulkan;
 
-//VulkanRenderPass Vulkan 后端渲染通道实现 IRenderPass
-//4.3 改造走 VK_KHR_dynamic_rendering 用 CmdBeginRenderingKHR/CmdEndRenderingKHR 替代传统 CmdBeginRenderPass
-//附件 ImageView 由 VulkanCommandEncoder.CreateRenderPass 传入不再依赖 framebuffer
+//VulkanRenderPass Vulkan backend render pass implementing IRenderPass
+//4.3 rework to VK_KHR_dynamic_rendering using CmdBeginRenderingKHR/CmdEndRenderingKHR instead of the traditional CmdBeginRenderPass
+//The attachment ImageView is passed by VulkanCommandEncoder.CreateRenderPass and no longer depends on a framebuffer
 public sealed unsafe class VulkanRenderPass : IRenderPass
 {
     private readonly Vk _vk;
-    //DynRenderingExt KHR_dynamic_rendering 扩展实例调 CmdBeginRendering/CmdEndRendering
+    //DynRenderingExt the KHR_dynamic_rendering extension instance calling CmdBeginRendering/CmdEndRendering
     private readonly KhrDynamicRendering _dynRenderingExt;
     private readonly CommandBuffer _cmd;
-    //_pipeline 随 SetPipeline 切换更新 BindDescriptorSet 用当前 pipeline 的 PipelineLayout
+    //_pipeline updates as SetPipeline switches; BindDescriptorSet uses the current pipeline's PipelineLayout
     private VulkanRenderPipeline _pipeline;
     private bool _closed;
     private bool _disposed;
@@ -26,7 +26,7 @@ public sealed unsafe class VulkanRenderPass : IRenderPass
     {
     }
 
-    //colorLoadOp 控制 color 附件加载策略 BeforeBlur/blur 用 Clear AfterBlur 用 Load 保留模糊背景
+    //colorLoadOp controls the color attachment load strategy; BeforeBlur/blur use Clear and AfterBlur uses Load to preserve the blurred background
     internal VulkanRenderPass(Vk vk, KhrDynamicRendering dynRenderingExt, CommandBuffer cmd,
         CompiledRenderPipeline pipeline, ImageView colorImageView, Vector4 clearColor,
         AttachmentLoadOp colorLoadOp, GpuImage? depthImage, float clearDepth)
@@ -35,10 +35,10 @@ public sealed unsafe class VulkanRenderPass : IRenderPass
         _dynRenderingExt = dynRenderingExt;
         _cmd = cmd;
         if (pipeline is not VulkanRenderPipeline vkPipeline)
-            throw new ArgumentException("pipeline 必须是 VulkanRenderPipeline", nameof(pipeline));
+            throw new ArgumentException("pipeline must be a VulkanRenderPipeline", nameof(pipeline));
         _pipeline = vkPipeline;
 
-        //颜色附件 LoadOp 由调用方指定 StoreOp=Store 写回 Layout=ColorAttachmentOptimal
+        //The color attachment LoadOp is specified by the caller; StoreOp=Store writes back Layout=ColorAttachmentOptimal
         var colorClear = new ClearValue
         {
             Color = new ClearColorValue
@@ -59,7 +59,7 @@ public sealed unsafe class VulkanRenderPass : IRenderPass
             ClearValue = colorClear
         };
 
-        //深度附件 depthImage 非 null 时附加 Layout=DepthStencilAttachmentOptimal
+        //Depth attachment attached with Layout=DepthStencilAttachmentOptimal when depthImage is non-null
         var hasDepth = depthImage is VulkanImage;
         var depthAttachment = hasDepth
             ? new RenderingAttachmentInfo
@@ -76,7 +76,7 @@ public sealed unsafe class VulkanRenderPass : IRenderPass
             }
             : default;
 
-        //RenderingInfo dynamic rendering 主结构 RenderArea=extent ColorAttachmentCount=1
+        //RenderingInfo dynamic rendering main struct RenderArea=extent ColorAttachmentCount=1
         var renderArea = new Rect2D { Offset = new Offset2D { X = 0, Y = 0 }, Extent = vkPipeline.Extent };
         RenderingAttachmentInfo* pColor = &colorAttachment;
         RenderingAttachmentInfo* pDepth = hasDepth ? &depthAttachment : null;
@@ -96,7 +96,7 @@ public sealed unsafe class VulkanRenderPass : IRenderPass
     public void SetPipeline(CompiledRenderPipeline pipeline)
     {
         if (pipeline is not VulkanRenderPipeline vkPipeline)
-            throw new ArgumentException("pipeline 必须是 VulkanRenderPipeline", nameof(pipeline));
+            throw new ArgumentException("pipeline must be a VulkanRenderPipeline", nameof(pipeline));
         _pipeline = vkPipeline;
         _vk.CmdBindPipeline(_cmd, PipelineBindPoint.Graphics, vkPipeline.Pipeline);
     }
@@ -104,7 +104,7 @@ public sealed unsafe class VulkanRenderPass : IRenderPass
     public void SetVertexBuffer(int slot, GpuBuffer buffer, ulong offset = 0)
     {
         if (buffer is not VulkanBuffer vkBuffer)
-            throw new ArgumentException("buffer 必须是 VulkanBuffer", nameof(buffer));
+            throw new ArgumentException("buffer must be a VulkanBuffer", nameof(buffer));
         var handles = stackalloc Buffer[1];
         handles[0] = vkBuffer.Handle;
         var offsets = stackalloc ulong[1];
@@ -115,14 +115,14 @@ public sealed unsafe class VulkanRenderPass : IRenderPass
     public void SetIndexBuffer(GpuBuffer buffer, GpuIndexType indexType, ulong offset = 0)
     {
         if (buffer is not VulkanBuffer vkBuffer)
-            throw new ArgumentException("buffer 必须是 VulkanBuffer", nameof(buffer));
+            throw new ArgumentException("buffer must be a VulkanBuffer", nameof(buffer));
         _vk.CmdBindIndexBuffer(_cmd, vkBuffer.Handle, offset, ToVkIndexType(indexType));
     }
 
     public void BindDescriptorSet(GpuDescriptorSet set, uint setIndex = 0)
     {
         if (set is not VulkanDescriptorSet vkSet)
-            throw new ArgumentException("set 必须是 VulkanDescriptorSet", nameof(set));
+            throw new ArgumentException("set must be a VulkanDescriptorSet", nameof(set));
         var handles = stackalloc DescriptorSet[1];
         handles[0] = vkSet.Handle;
         _vk.CmdBindDescriptorSets(_cmd, PipelineBindPoint.Graphics, _pipeline.PipelineLayout, setIndex, 1, handles, 0, null);
@@ -130,7 +130,7 @@ public sealed unsafe class VulkanRenderPass : IRenderPass
 
     public void EnableScissor(int x, int y, int width, int height)
     {
-        //clamp 到非负宽高避免 0x0 extent 驱动未定义行为
+        //Clamped to non-negative width/height to avoid undefined driver behavior with a 0x0 extent
         var rx = Math.Max(0, x);
         var ry = Math.Max(0, y);
         var rw = Math.Max(0, width);
@@ -145,7 +145,7 @@ public sealed unsafe class VulkanRenderPass : IRenderPass
 
     public void DisableScissor()
     {
-        //用 pipeline extent 作为全屏 scissor
+        //Uses the pipeline extent as the full-screen scissor
         var rect = new Rect2D { Offset = { X = 0, Y = 0 }, Extent = _pipeline.Extent };
         _vk.CmdSetScissor(_cmd, 0, 1, &rect);
     }

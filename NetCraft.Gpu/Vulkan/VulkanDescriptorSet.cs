@@ -2,8 +2,8 @@ using Silk.NET.Vulkan;
 
 namespace NetCraft.Gpu.Vulkan;
 
-//VulkanDescriptorLayout Vulkan 描述符集布局
-//包装 VkDescriptorSetLayout 供 PipelineLayout 创建和 DescriptorSet 分配使用
+//VulkanDescriptorLayout Vulkan descriptor set layout
+//Wraps VkDescriptorSetLayout for PipelineLayout creation and DescriptorSet allocation
 public sealed unsafe class VulkanDescriptorLayout : GpuDescriptorLayout
 {
     private readonly Vk _vk;
@@ -38,7 +38,7 @@ public sealed unsafe class VulkanDescriptorLayout : GpuDescriptorLayout
                 PBindings = bPtr
             };
             if (_vk.CreateDescriptorSetLayout(_device, &layoutInfo, null, out _handle) != Result.Success)
-                throw new InvalidOperationException("DescriptorSetLayout 创建失败");
+                throw new InvalidOperationException("DescriptorSetLayout creation failed");
         }
     }
 
@@ -66,8 +66,8 @@ public sealed unsafe class VulkanDescriptorLayout : GpuDescriptorLayout
     }
 }
 
-//VulkanDescriptorSet Vulkan 描述符集实例
-//WriteBuffer 绑定 uniform buffer WriteImage 绑定 combined image sampler
+//VulkanDescriptorSet Vulkan descriptor set instance
+//WriteBuffer binds a uniform buffer WriteImage binds a combined image sampler
 public sealed unsafe class VulkanDescriptorSet : GpuDescriptorSet
 {
     private readonly Vk _vk;
@@ -83,7 +83,7 @@ public sealed unsafe class VulkanDescriptorSet : GpuDescriptorSet
         _handle = handle;
     }
 
-    //WriteBuffer 绑定 uniform buffer range=-1 用整个 buffer 大小
+    //WriteBuffer binds a uniform buffer; range=-1 uses the whole buffer size
     public override void WriteBuffer(int binding, GpuBuffer buffer, int offset = 0, int range = -1)
     {
         var vkBuffer = (VulkanBuffer)buffer;
@@ -105,7 +105,7 @@ public sealed unsafe class VulkanDescriptorSet : GpuDescriptorSet
         _vk.UpdateDescriptorSets(_device, 1, &write, 0, null);
     }
 
-    //WriteImage 绑定 combined image sampler 图像需处于 ShaderReadOnlyOptimal 布局
+    //WriteImage binds a combined image sampler; the image must be in ShaderReadOnlyOptimal layout
     public override void WriteImage(int binding, GpuImage image, GpuSampler sampler)
     {
         var vkImage = (VulkanImage)image;
@@ -129,7 +129,7 @@ public sealed unsafe class VulkanDescriptorSet : GpuDescriptorSet
     }
 }
 
-//VulkanSampler Vulkan 纹理采样器
+//VulkanSampler Vulkan texture sampler
 public sealed unsafe class VulkanSampler : GpuSampler
 {
     private readonly Vk _vk;
@@ -159,7 +159,7 @@ public sealed unsafe class VulkanSampler : GpuSampler
             MipmapMode = SamplerMipmapMode.Linear
         };
         if (_vk.CreateSampler(_device, &info, null, out _handle) != Result.Success)
-            throw new InvalidOperationException("Sampler 创建失败");
+            throw new InvalidOperationException("Sampler creation failed");
     }
 
     public override void Dispose()

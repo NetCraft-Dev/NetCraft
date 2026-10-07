@@ -3,16 +3,16 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//LiquidSettings 放置时的液体处理方式 对应原版 LiquidSettings
-//ApplyWaterlogging 会把结构里的水按含水的方块铺开 IgnoreWaterlogging 直接忽略液体
+//LiquidSettings liquid handling during placement, maps to vanilla LiquidSettings
+//ApplyWaterlogging spreads water through waterloggable blocks in the structure; IgnoreWaterlogging ignores liquids entirely
 public enum LiquidSettings
 {
     ApplyWaterlogging,
     IgnoreWaterlogging,
 }
 
-//StructurePlaceSettings 结构放置设置 对应原版同名类
-//承载镜像/旋转/旋转中心/包围盒/处理器链等 放置时整份传给模板
+//StructurePlaceSettings structure placement settings, maps to the identically named vanilla class
+//Carries mirror / rotation / rotation pivot / bounding box / processor chain and more; passed wholesale to the template during placement
 public sealed class StructurePlaceSettings
 {
     private readonly List<StructureProcessor> _processors = new();
@@ -21,7 +21,7 @@ public sealed class StructurePlaceSettings
 
     public Rotation Rotation { get; private set; } = Rotation.None;
 
-    //RotationPivot 旋转与镜像的中心 默认原点
+    //RotationPivot center of rotation and mirroring, defaults to the origin
     public BlockPos RotationPivot { get; private set; } = BlockPos.Zero;
 
     public bool IgnoreEntities { get; private set; }
@@ -30,19 +30,19 @@ public sealed class StructurePlaceSettings
 
     public LiquidSettings LiquidSettings { get; private set; } = LiquidSettings.ApplyWaterlogging;
 
-    //Random 显式指定的随机源 为空时按放置坐标派生
+    //Random explicitly specified random source; when null it is derived from the placement position
     public RandomSource? Random { get; private set; }
 
     public int Palette { get; private set; }
 
-    //KnownShape 已知最终形状时跳过邻居形状回填
+    //KnownShape skips neighbor shape backfill when the final shape is known
     public bool KnownShape { get; private set; }
 
     public bool FinalizeEntities { get; private set; }
 
     public IReadOnlyList<StructureProcessor> Processors => _processors;
 
-    //Copy 复制一份设置 结构片段逐区块放置时每块都要独立的包围盒
+    //Copy duplicates the settings; each block needs its own bounding box when a piece is placed chunk by chunk
     public StructurePlaceSettings Copy()
     {
         var copy = new StructurePlaceSettings
@@ -140,10 +140,10 @@ public sealed class StructurePlaceSettings
         return this;
     }
 
-    //ShouldApplyWaterlogging 是否按含水方块铺液体
+    //ShouldApplyWaterlogging whether to spread liquid through waterloggable blocks
     public bool ShouldApplyWaterlogging() => LiquidSettings == LiquidSettings.ApplyWaterlogging;
 
-    //GetRandom 取随机源 显式指定优先 否则按放置坐标派生 坐标为 null 时退化到系统时间
+    //GetRandom returns the random source; explicit wins, otherwise derived from the placement position, degrading to system time when the position is null
     public RandomSource GetRandom(BlockPos? pos)
     {
         if (Random is not null) return Random;
@@ -151,14 +151,14 @@ public sealed class StructurePlaceSettings
         return RandomSource.Create(GetSeed(pos.Value));
     }
 
-    //GetRandomPalette 从多个调色板里按坐标派生的随机数挑一个 对应原版 getRandomPalette
+    //GetRandomPalette picks one of several palettes from a coordinate-derived random, maps to vanilla getRandomPalette
     public StructureTemplatePalette GetRandomPalette(IReadOnlyList<StructureTemplatePalette> palettes, BlockPos? pos)
     {
-        if (palettes.Count == 0) throw new InvalidOperationException("结构模板没有调色板");
+        if (palettes.Count == 0) throw new InvalidOperationException("structure template has no palette");
         return palettes[GetRandom(pos).NextInt(palettes.Count)];
     }
 
-    //GetSeed 坐标派生的种子 与 Mth.getSeed 同式 保证同一坐标每次挑同一个调色板
+    //GetSeed coordinate-derived seed, same formula as Mth.getSeed, so the same position always picks the same palette
     public static long GetSeed(BlockPos pos)
         => pos.X * 3129871L ^ pos.Z * 116129781L ^ pos.Y;
 }

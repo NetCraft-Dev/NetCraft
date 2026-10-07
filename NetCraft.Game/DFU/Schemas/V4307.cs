@@ -9,13 +9,13 @@ using System.Collections.Generic;
 using NetCraft.DataFixer.Fixes;
 using NetCraft.DataFixer.Types.Templates;
 
-//V4307对应原版net.minecraft.util.datafix.schemas.V4307
-//1.21.4覆写can_place_on/can_break改用adventureModePredicate支持单值或列表
+//V4307 maps to vanilla net.minecraft.util.datafix.schemas.V4307
+//1.21.4 overrides can_place_on/can_break to use adventureModePredicate, supporting a single value or a list
 public class V4307 : NamespacedSchema
 {
     public V4307(int versionKey, Schema? parent) : base(versionKey, parent) { }
 
-    //components复用V4059集替换can_place_on/can_break用冒险模式谓词
+    //components reuses the V4059 set, replacing can_place_on/can_break with the adventure mode predicate
     public static Dictionary<string, Func<TypeTemplate>> Components(Schema schema)
     {
         var components = V4059.Components(schema);
@@ -24,7 +24,7 @@ public class V4307 : NamespacedSchema
         return components;
     }
 
-    //adventureModePredicate构造单值或列表形式的方块谓词对齐原版adventureModePredicate
+    //adventureModePredicate builds the block predicate in single-value or list form, aligned with vanilla adventureModePredicate
     static TypeTemplate AdventureModePredicate(Schema schema)
     {
         var predicate = DSL.OptionalFields(FixConstants.StructureTemplateBlocks,

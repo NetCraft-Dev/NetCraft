@@ -2,11 +2,11 @@ using System.Reflection;
 
 namespace NetCraft.ModLoader;
 
-//ModManager 服务注入 把宿主登记的服务填进模组实例
+//ModManager service injection: fills services registered by the host into mod instances
 public sealed partial class ModManager
 {
-    //InjectServices 按类型把已登记的服务注入模组实例
-    //两种接法 public 属性 setter 与 SetServices 方法参数 都按类型匹配不需要额外特性
+    //InjectServices: injects registered services into a mod instance by type
+    //Two injection styles: public property setters and SetServices method parameters, both matched by type with no extra attributes needed
     private void InjectServices(object? instance)
     {
         if (instance is null)
@@ -34,8 +34,8 @@ public sealed partial class ModManager
             var service = ResolveService(parameters[i].ParameterType);
             if (service is null)
             {
-                OnError?.Invoke($"模组 {type.Name} 的 SetServices 参数 {parameters[i].Name} 没有对应服务",
-                    new InvalidOperationException("服务未登记"));
+                OnError?.Invoke($"SetServices parameter {parameters[i].Name} of mod {type.Name} has no matching service",
+                    new InvalidOperationException("service not registered"));
                 return;
             }
             args[i] = service;
@@ -43,7 +43,7 @@ public sealed partial class ModManager
         setter.Invoke(instance, args);
     }
 
-    //ResolveService 按类型取服务 未登记时返回 null
+    //ResolveService: gets a service by type, returns null if not registered
     private object? ResolveService(Type serviceType)
         => _services.TryGetValue(serviceType, out var service) ? service : null;
 }

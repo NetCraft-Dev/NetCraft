@@ -1,7 +1,7 @@
 namespace NetCraft.Gpu.Font;
 
-//FontOption 字体选项对标原版 FontOption
-//uniform/alt/illageralt 三种 filter 按激活选项匹配 provider
+//FontOption font option, maps to vanilla FontOption
+//The uniform/alt/illageralt filters match providers against the active options
 public sealed class FontOption
 {
     public string Name { get; }
@@ -16,9 +16,9 @@ public sealed class FontOption
     public override bool Equals(object? obj) => obj is FontOption o && o.Name == Name;
 }
 
-//FontOptionFilter 过滤条件对标原版 FontOption.Filter
-//持有 FontOption→required 映射 Apply 检查 options 集合是否满足所有条件
-//default.json 的 filter:{uniform:false} 表示 uniform 选项未激活时匹配
+//FontOptionFilter filter condition, maps to vanilla FontOption.Filter
+//Holds the FontOption→required mapping; Apply checks whether the options set satisfies all conditions
+//The filter:{uniform:false} in default.json matches when the uniform option is not active
 public sealed class FontOptionFilter
 {
     private readonly Dictionary<FontOption, bool> _conditions;
@@ -26,7 +26,7 @@ public sealed class FontOptionFilter
 
     public FontOptionFilter(Dictionary<FontOption, bool> conditions) => _conditions = conditions;
 
-    //Apply options 集合满足所有条件返回 true 空条件恒通过
+    //Apply returns true when the options set satisfies all conditions; an empty condition always passes
     public bool Apply(IReadOnlySet<FontOption> options)
     {
         foreach (var (option, required) in _conditions)

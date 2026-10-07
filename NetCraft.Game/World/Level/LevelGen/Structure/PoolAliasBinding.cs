@@ -5,23 +5,23 @@ using RegistryAliasBinding = NetCraft.Registry.PoolAliasBinding;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//PoolAliasBinding 池别名绑定 对应原版 net.minecraft.world.level.levelgen.structure.pools.alias.PoolAliasBinding
-//把一个池名改写成另一个池名 生成时先按种子与生成点解出别名映射再查池
-//record 才能被三个具体别名继承 原版这里是接口
+//PoolAliasBinding pool alias binding, maps to vanilla net.minecraft.world.level.levelgen.structure.pools.alias.PoolAliasBinding
+//Rewrites one pool name into another; generation first resolves the alias mapping from the seed and generation point, then looks up the pool
+//A record is needed for the three concrete aliases to inherit; vanilla uses an interface here
 public abstract record PoolAliasBinding : RegistryAliasBinding
 {
-    //Codec 别名多态 codec 按 type 字段派发 对应原版 PoolAliasBinding.CODEC
+    //Codec alias polymorphic codec, dispatches by the type field, maps to vanilla PoolAliasBinding.CODEC
     public static readonly Codec<PoolAliasBinding> Codec = new PoolAliasDispatchCodec();
 
-    //ForEachResolved 把本绑定解成一组别名到目标池的映射 对应原版 forEachResolved
+    //ForEachResolved resolves this binding into a set of alias-to-target-pool mappings, maps to vanilla forEachResolved
     public abstract void ForEachResolved(RandomSource random, Action<Identifier, Identifier> consumer);
 
-    //AllTargets 本绑定可能指到的全部目标池 对应原版 allTargets 供注册目标池占位
+    //AllTargets every target pool this binding can point to, maps to vanilla allTargets; used to register target pool placeholders
     public abstract IEnumerable<Identifier> AllTargets();
 }
 
-//DirectPoolAlias 直接别名 对应原版 DirectPoolAlias
-//别名恒指向同一个目标池 不参与随机
+//DirectPoolAlias direct alias, maps to vanilla DirectPoolAlias
+//The alias always points to the same target pool and does not involve randomness
 public sealed record DirectPoolAlias(Identifier Alias, Identifier Target) : PoolAliasBinding
 {
     public static new readonly Codec<DirectPoolAlias> Codec =
@@ -38,8 +38,8 @@ public sealed record DirectPoolAlias(Identifier Alias, Identifier Target) : Pool
     public override string ToString() => $"DirectPoolAlias[{Alias}->{Target}]";
 }
 
-//RandomPoolAlias 随机别名 对应原版 RandomPoolAlias
-//别名按权重表随机指到一个目标池 同一生成点解出的映射是固定的
+//RandomPoolAlias random alias, maps to vanilla RandomPoolAlias
+//The alias points to a target pool at random by weight; the mapping resolved for the same generation point is fixed
 public sealed record RandomPoolAlias(Identifier Alias, WeightedList<Identifier> Targets) : PoolAliasBinding
 {
     public static new readonly Codec<RandomPoolAlias> Codec =
@@ -55,11 +55,11 @@ public sealed record RandomPoolAlias(Identifier Alias, WeightedList<Identifier> 
     public override IEnumerable<Identifier> AllTargets()
         => Targets.Unwrap().Select(entry => entry.Value);
 
-    public override string ToString() => $"RandomPoolAlias[{Alias}->{Targets.Unwrap().Count} 个目标]";
+    public override string ToString() => $"RandomPoolAlias[{Alias}->{Targets.Unwrap().Count} targets]";
 }
 
-//RandomGroupPoolAlias 随机组别名 对应原版 RandomGroupPoolAlias
-//按权重挑一组别名整组生效 组内几条绑定共用同一个随机源 对应原版先挑组再逐条解析
+//RandomGroupPoolAlias random group alias, maps to vanilla RandomGroupPoolAlias
+//Picks a group of aliases by weight and applies the whole group; the bindings within a group share one random source, matching vanilla's pick-group-then-resolve-each
 public sealed record RandomGroupPoolAlias(WeightedList<List<PoolAliasBinding>> Groups) : PoolAliasBinding
 {
     public static new readonly Codec<RandomGroupPoolAlias> Codec =
@@ -77,13 +77,13 @@ public sealed record RandomGroupPoolAlias(WeightedList<List<PoolAliasBinding>> G
     public override IEnumerable<Identifier> AllTargets()
         => Groups.Unwrap().SelectMany(entry => entry.Value).SelectMany(binding => binding.AllTargets());
 
-    public override string ToString() => $"RandomGroupPoolAlias[{Groups.Unwrap().Count} 组]";
+    public override string ToString() => $"RandomGroupPoolAlias[{Groups.Unwrap().Count} groups]";
 }
 
-//PoolAliasBindings 别名的类型登记 对应原版 PoolAliasBindings.bootstrap
+//PoolAliasBindings alias type registration, maps to vanilla PoolAliasBindings.bootstrap
 public static class PoolAliasBindings
 {
-    //RegisterAll 把三种别名的 codec 登记进 POOL_ALIAS_BINDING_TYPE 幂等
+    //RegisterAll registers the three alias codecs into POOL_ALIAS_BINDING_TYPE, idempotently
     public static void RegisterAll()
     {
         Register("direct", DirectPoolAlias.Codec);
@@ -91,7 +91,7 @@ public static class PoolAliasBindings
         Register("random_group", RandomGroupPoolAlias.Codec);
     }
 
-    //Register 按短名登记一个别名 codec 具体类型要包一层适配注册表要求的接口形态
+    //Register registers an alias codec by short name; the concrete type is wrapped to adapt to the interface shape the registry requires
     private static void Register<T>(string path, MapCodec<T> codec) where T : PoolAliasBinding
     {
         var id = Identifier.WithDefaultNamespace(path);
@@ -101,8 +101,8 @@ public static class PoolAliasBindings
     }
 }
 
-//PoolAliasBindingMapCodec 把具体别名的 map codec 适配成注册表持有的接口形态
-//泛型 Decode 无法直接协变 只能包一层做类型转换
+//PoolAliasBindingMapCodec adapts a concrete alias's map codec to the interface shape the registry holds
+//Generic Decode cannot be variant directly, so a wrapper does the type conversion
 internal sealed class PoolAliasBindingMapCodec<T> : MapCodec<RegistryAliasBinding> where T : PoolAliasBinding
 {
     private readonly MapCodec<T> _inner;
@@ -115,7 +115,7 @@ internal sealed class PoolAliasBindingMapCodec<T> : MapCodec<RegistryAliasBindin
     public DataResult<U> EncodeStart<U>(DynamicOps<U> ops, RegistryAliasBinding value)
         => value is T binding
             ? _inner.EncodeStart<U>(ops, binding)
-            : DataResult<U>.Error(() => "别名类型与本 codec 不匹配");
+            : DataResult<U>.Error(() => "alias type does not match this codec");
 
     public RecordBuilder<U> EncodeTo<U>(DynamicOps<U> ops, RegistryAliasBinding value, RecordBuilder<U> builder)
         => value is T binding ? _inner.EncodeTo<U>(ops, binding, builder) : builder;
@@ -123,7 +123,7 @@ internal sealed class PoolAliasBindingMapCodec<T> : MapCodec<RegistryAliasBindin
     public RecordBuilder<U> Encoder<U>(DynamicOps<U> ops) => ops.MapBuilder();
 }
 
-//SingleFieldRecordCodec 单字段 record codec 原版 RecordCodecBuilder 至少两字段 只有一个字段的 record 走它
+//SingleFieldRecordCodec single-field record codec; vanilla RecordCodecBuilder needs at least two fields, so a one-field record uses this
 internal static class SingleFieldRecordCodec
 {
     public static Codec<T> Of<T, F>(FieldCodec<T, F> field, Func<F, T> ctor)
@@ -151,31 +151,31 @@ internal sealed class SingleFieldRecordCodecImpl<T, F> : AbstractMapCodec<T>
     }
 }
 
-//PoolAliasCodecs 别名子系统公用 codec 片段
+//PoolAliasCodecs shared codec pieces of the alias subsystem
 internal static class PoolAliasCodecs
 {
-    //WeightedIdentifierList 非空权重标识符列表 对应原版 WeightedList.nonEmptyCodec
+    //WeightedIdentifierList non-empty weighted identifier list, maps to vanilla WeightedList.nonEmptyCodec
     public static readonly Codec<WeightedList<Identifier>> WeightedIdentifierList =
         new WeightedListCodec<Identifier>(StructurePoolCodecs.TemplateLocation, true);
 
-    //WeightedAliasGroups 非空权重别名组列表 对应原版 WeightedList.nonEmptyCodec(Codec.list(PoolAliasBinding.CODEC))
+    //WeightedAliasGroups non-empty weighted alias group list, maps to vanilla WeightedList.nonEmptyCodec(Codec.list(PoolAliasBinding.CODEC))
     public static readonly Codec<WeightedList<List<PoolAliasBinding>>> WeightedAliasGroups =
         new WeightedListCodec<List<PoolAliasBinding>>(new PoolAliasListCodec(), true);
 }
 
-//PoolAliasListCodec 别名列表 codec 逐条解析失败即整体失败 不抛异常
+//PoolAliasListCodec alias list codec; a failure on any entry fails the whole thing without throwing
 internal sealed class PoolAliasListCodec : ScalarCodec<List<PoolAliasBinding>>
 {
     public override DataResult<List<PoolAliasBinding>> Parse<U>(DynamicOps<U> ops, U input)
     {
         var stream = ops.GetStream(input);
-        if (!stream.Result().IsPresent) return DataResult<List<PoolAliasBinding>>.Error(() => "别名组必须是数组");
+        if (!stream.Result().IsPresent) return DataResult<List<PoolAliasBinding>>.Error(() => "alias group must be an array");
         var result = new List<PoolAliasBinding>();
         foreach (var element in stream.GetOrThrow())
         {
             var parsed = PoolAliasBinding.Codec.Parse(ops, element);
             if (!parsed.Result().IsPresent)
-                return DataResult<List<PoolAliasBinding>>.Error(() => "别名组里的别名解析失败");
+                return DataResult<List<PoolAliasBinding>>.Error(() => "failed to parse an alias in the alias group");
             result.Add(parsed.GetOrThrow());
         }
         return DataResult<List<PoolAliasBinding>>.Success(result);
@@ -187,14 +187,14 @@ internal sealed class PoolAliasListCodec : ScalarCodec<List<PoolAliasBinding>>
         foreach (var binding in value)
         {
             var one = PoolAliasBinding.Codec.EncodeStart(ops, binding);
-            if (!one.Result().IsPresent) return DataResult<U>.Error(() => "别名编码失败");
+            if (!one.Result().IsPresent) return DataResult<U>.Error(() => "alias encoding failed");
             encoded.Add(one.GetOrThrow());
         }
         return DataResult<U>.Success(ops.CreateList(encoded));
     }
 }
 
-//WeightedListCodec 权重列表编解码 元素可以是裸值也可以是带 weight 的 data 对象
+//WeightedListCodec weighted list codec; an element can be a bare value or a data object carrying weight
 internal sealed class WeightedListCodec<E> : ScalarCodec<WeightedList<E>>
 {
     private readonly Codec<E> _elementCodec;
@@ -209,17 +209,17 @@ internal sealed class WeightedListCodec<E> : ScalarCodec<WeightedList<E>>
     public override DataResult<WeightedList<E>> Parse<U>(DynamicOps<U> ops, U input)
     {
         var stream = ops.GetStream(input);
-        if (!stream.Result().IsPresent) return DataResult<WeightedList<E>>.Error(() => "权重列表必须是数组");
+        if (!stream.Result().IsPresent) return DataResult<WeightedList<E>>.Error(() => "weighted list must be an array");
 
         var entries = new List<Weighted<E>>();
         foreach (var element in stream.GetOrThrow())
         {
             var entry = ReadEntry(ops, element);
-            if (!entry.Result().IsPresent) return DataResult<WeightedList<E>>.Error(() => "权重条目的 data 解析失败");
+            if (!entry.Result().IsPresent) return DataResult<WeightedList<E>>.Error(() => "failed to parse the data of a weighted entry");
             entries.Add(entry.GetOrThrow());
         }
         if (_nonEmpty && entries.Count == 0)
-            return DataResult<WeightedList<E>>.Error(() => "权重列表至少要有一个元素");
+            return DataResult<WeightedList<E>>.Error(() => "weighted list must have at least one element");
         return DataResult<WeightedList<E>>.Success(WeightedList<E>.Of(entries));
     }
 
@@ -229,18 +229,18 @@ internal sealed class WeightedListCodec<E> : ScalarCodec<WeightedList<E>>
         foreach (var entry in value.Unwrap())
         {
             var data = _elementCodec.EncodeStart(ops, entry.Value);
-            if (!data.Result().IsPresent) return DataResult<U>.Error(() => "权重条目的 data 编码失败");
+            if (!data.Result().IsPresent) return DataResult<U>.Error(() => "failed to encode the data of a weighted entry");
             var builder = ops.MapBuilder();
             builder.Add("data", data.GetOrThrow());
             builder.Add("weight", ops.CreateInt(entry.Weight));
             var built = builder.Build(ops.Empty());
-            if (!built.Result().IsPresent) return DataResult<U>.Error(() => "权重条目编码失败");
+            if (!built.Result().IsPresent) return DataResult<U>.Error(() => "weighted entry encoding failed");
             encoded.Add(built.GetOrThrow());
         }
         return DataResult<U>.Success(ops.CreateList(encoded));
     }
 
-    //ReadEntry 读一条权重条目 带 data 字段的按对象读 否则按裸值读 对应原版 either 的两侧
+    //ReadEntry reads one weighted entry; with a data field it reads as an object, otherwise as a bare value, maps to the two sides of vanilla either
     private DataResult<Weighted<E>> ReadEntry<U>(DynamicOps<U> ops, U element)
     {
         var mapResult = ops.GetMap(element);
@@ -252,9 +252,9 @@ internal sealed class WeightedListCodec<E> : ScalarCodec<WeightedList<E>>
             if (weightTag.IsPresent)
             {
                 var number = ops.GetNumberValue(weightTag.Get());
-                if (!number.Result().IsPresent) return DataResult<Weighted<E>>.Error(() => "weight 必须是数字");
+                if (!number.Result().IsPresent) return DataResult<Weighted<E>>.Error(() => "weight must be a number");
                 weight = (int)number.GetOrThrow();
-                if (weight <= 0) return DataResult<Weighted<E>>.Error(() => $"weight 必须为正 实际 {weight}");
+                if (weight <= 0) return DataResult<Weighted<E>>.Error(() => $"weight must be positive, got {weight}");
             }
             var dataTag = map.Get("data");
             return _elementCodec.Parse(ops, dataTag.Get()).Map(e => new Weighted<E>(e, weight));
@@ -263,28 +263,28 @@ internal sealed class WeightedListCodec<E> : ScalarCodec<WeightedList<E>>
     }
 }
 
-//PoolAliasDispatchCodec 按 type 字段查 POOL_ALIAS_BINDING_TYPE 再派发 对应原版 dispatch codec
+//PoolAliasDispatchCodec looks up POOL_ALIAS_BINDING_TYPE by the type field then dispatches, maps to vanilla dispatch codec
 internal sealed class PoolAliasDispatchCodec : ScalarCodec<PoolAliasBinding>
 {
     public override DataResult<PoolAliasBinding> Parse<U>(DynamicOps<U> ops, U input)
     {
         var mapResult = ops.GetMap(input);
-        if (!mapResult.Result().IsPresent) return DataResult<PoolAliasBinding>.Error(() => "池别名必须是对象");
+        if (!mapResult.Result().IsPresent) return DataResult<PoolAliasBinding>.Error(() => "pool alias must be an object");
         var map = mapResult.GetOrThrow();
 
         var typeTag = map.Get("type");
-        if (!typeTag.IsPresent) return DataResult<PoolAliasBinding>.Error(() => "池别名缺少 type 字段");
+        if (!typeTag.IsPresent) return DataResult<PoolAliasBinding>.Error(() => "pool alias is missing the type field");
         var typeText = ops.GetStringValue(typeTag.Get());
-        if (!typeText.Result().IsPresent) return DataResult<PoolAliasBinding>.Error(() => "池别名 type 必须是字符串");
+        if (!typeText.Result().IsPresent) return DataResult<PoolAliasBinding>.Error(() => "pool alias type must be a string");
         var typeId = Identifier.TryParse(typeText.GetOrThrow());
-        if (typeId is null) return DataResult<PoolAliasBinding>.Error(() => $"非法的池别名类型: {typeText.GetOrThrow()}");
+        if (typeId is null) return DataResult<PoolAliasBinding>.Error(() => $"invalid pool alias type: {typeText.GetOrThrow()}");
 
         var codec = BuiltInRegistries.POOL_ALIAS_BINDING_TYPE.GetValue(typeId.Value);
-        if (codec is null) return DataResult<PoolAliasBinding>.Error(() => $"未注册的池别名类型: {typeId}");
+        if (codec is null) return DataResult<PoolAliasBinding>.Error(() => $"unregistered pool alias type: {typeId}");
 
         return codec.Decode<U>(ops, map).FlatMap(binding => binding is PoolAliasBinding gameBinding
             ? DataResult<PoolAliasBinding>.Success(gameBinding)
-            : DataResult<PoolAliasBinding>.Error(() => $"池别名 {typeId} 不是 Game 层实现"));
+            : DataResult<PoolAliasBinding>.Error(() => $"pool alias {typeId} is not a Game layer implementation"));
     }
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, PoolAliasBinding value)
@@ -293,10 +293,10 @@ internal sealed class PoolAliasDispatchCodec : ScalarCodec<PoolAliasBinding>
             DirectPoolAlias direct => EncodeTyped(ops, "direct", DirectPoolAlias.Codec, direct),
             RandomPoolAlias random => EncodeTyped(ops, "random", RandomPoolAlias.Codec, random),
             RandomGroupPoolAlias group => EncodeTyped(ops, "random_group", RandomGroupPoolAlias.Codec, group),
-            _ => DataResult<U>.Error(() => $"不支持的池别名 {value.GetType().Name}"),
+            _ => DataResult<U>.Error(() => $"unsupported pool alias {value.GetType().Name}"),
         };
 
-    //EncodeTyped 按具体类型编码并补上 type 字段
+    //EncodeTyped encodes by concrete type and adds the type field
     private static DataResult<U> EncodeTyped<U, T>(DynamicOps<U> ops, string type, MapCodec<T> codec, T value)
         where T : PoolAliasBinding
     {

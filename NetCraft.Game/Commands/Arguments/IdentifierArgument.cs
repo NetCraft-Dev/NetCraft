@@ -7,8 +7,8 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//IdentifierArgument 标识符参数对应原版 IdentifierArgument
-//贪婪读标识符合法字符再按namespace:path规则解析
+//IdentifierArgument identifier argument, maps to vanilla IdentifierArgument
+//Greedily reads identifier-legal characters then parses by the namespace:path rule
 public sealed class IdentifierArgument : ArgumentType<Identifier>
 {
     private static readonly IReadOnlyList<string> ExamplesList = new[] { "foo", "foo:bar", "012" };
@@ -20,7 +20,7 @@ public sealed class IdentifierArgument : ArgumentType<Identifier>
 
     public Identifier Parse(StringReader reader) => ReadIdentifier(reader);
 
-    //ReadIdentifier 贪婪读标识符字符并解析 非法时回滚游标抛异常
+    //ReadIdentifier greedily reads identifier characters and parses; on failure rolls back the cursor and throws
     public static Identifier ReadIdentifier(StringReader reader)
     {
         var start = reader.Cursor;
@@ -38,7 +38,7 @@ public sealed class IdentifierArgument : ArgumentType<Identifier>
         }
     }
 
-    //GetId 取解析结果
+    //GetId gets the parse result
     public static Identifier GetId(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<Identifier>(name);
 

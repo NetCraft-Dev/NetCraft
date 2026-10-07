@@ -1,11 +1,11 @@
 namespace NetCraft.ModLoader;
 
-//ModDependencies 清单里依赖版本约束的判定
-//depends 没列到的依赖不查版本 依赖的模组不在当前端时也跳过 那种情况由程序集解析去报错
+//ModDependencies: evaluation of dependency version constraints in the manifest
+//Dependencies not listed in depends are not version-checked, and dependencies absent on the current side are skipped too, since assembly resolution reports those
 internal static class ModDependencies
 {
-    //Filter 挑出依赖版本不满足的模组 返回通过的那批
-    //skipped 收被剔掉的模组 id errors 收对应的原因
+    //Filter: picks out mods with unmet dependency versions and returns the ones that pass
+    //skipped collects the ids of dropped mods, errors collects the corresponding reasons
     public static List<ModManifest> Filter(
         IReadOnlyList<ModManifest> manifests,
         ICollection<string> skipped,
@@ -30,7 +30,7 @@ internal static class ModDependencies
         return kept;
     }
 
-    //UnmetReason 返回第一个不满足的依赖描述 全部满足返回 null
+    //UnmetReason: returns the description of the first unmet dependency, or null if all are met
     private static string? UnmetReason(ModManifest manifest, Dictionary<string, ModManifest> versions)
     {
         foreach (var (name, constraint) in manifest.Depends)
@@ -40,8 +40,8 @@ internal static class ModDependencies
             if (VersionConstraint.Matches(constraint, dependency.Version))
                 continue;
 
-            var actual = dependency.Version.Length > 0 ? dependency.Version : "未声明版本";
-            return $"模组 {manifest.Id} 要求依赖 {name} {constraint} 实际为 {actual}";
+            var actual = dependency.Version.Length > 0 ? dependency.Version : "version not declared";
+            return $"mod {manifest.Id} requires dependency {name} {constraint} but found {actual}";
         }
         return null;
     }

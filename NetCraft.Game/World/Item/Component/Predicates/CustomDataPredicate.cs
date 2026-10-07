@@ -5,11 +5,11 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items.Component.Predicates;
 
-//CustomDataPredicate 自定义数据谓词 判定 custom_data 是否包含期望标签
-//对应原版 net.minecraft.core.component.predicates.CustomDataPredicate
+//CustomDataPredicate custom data predicate, checks whether custom_data contains the expected tag
+//Maps to vanilla net.minecraft.core.component.predicates.CustomDataPredicate
 public sealed record CustomDataPredicate(CompoundTag Value) : SingleComponentItemPredicate<CustomData>
 {
-    //Codec 持久化编解码 宽松解析 SNBT 或结构化标签 对应原版 CODEC
+    //Codec persistence codec, leniently decodes SNBT or a structured tag, maps to vanilla CODEC
     public static readonly Codec<CustomDataPredicate> Codec = TagParser<Tag>.LenientCodec.ComapFlatMap(
         tag => DataResult<CustomDataPredicate>.Success(new CustomDataPredicate(tag)),
         predicate => predicate.Value);

@@ -5,12 +5,12 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items.Component.Predicates;
 
-//FireworkExplosionPredicate 烟花爆炸谓词 判定形状与拖尾与闪烁三项开关
-//对应原版 net.minecraft.core.component.predicates.FireworkExplosionPredicate
+//FireworkExplosionPredicate firework explosion predicate, checks the three toggles shape, trail and twinkle
+//Maps to vanilla net.minecraft.core.component.predicates.FireworkExplosionPredicate
 public sealed record FireworkExplosionPredicate(FireworkExplosionPredicate.FireworkPredicate Value)
     : SingleComponentItemPredicate<FireworkExplosion>
 {
-    //Codec 持久化编解码 本体就是三项开关 对应原版 CODEC
+    //Codec persistence codec, the payload is just the three toggles, maps to vanilla CODEC
     public static readonly Codec<FireworkExplosionPredicate> Codec = FireworkPredicate.Codec.ComapFlatMap(
         predicate => DataResult<FireworkExplosionPredicate>.Success(new FireworkExplosionPredicate(predicate)),
         explosion => explosion.Value);
@@ -19,7 +19,7 @@ public sealed record FireworkExplosionPredicate(FireworkExplosionPredicate.Firew
 
     public bool MatchesValue(FireworkExplosion value) => Value.Test(value);
 
-    //FireworkPredicate 三项开关谓词 缺省即不约束 对应原版 FireworkPredicate
+    //FireworkPredicate three-toggle predicate, absence means unconstrained, maps to vanilla FireworkPredicate
     public sealed record FireworkPredicate(
         Optional<bool> Shape,
         Optional<bool> Trail,

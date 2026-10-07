@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundPlayerLoadedPacket 数据包对应原版 ServerboundPlayerLoadedPacket
-//字段 
+//ServerboundPlayerLoadedPacket player loaded packet, maps to vanilla ServerboundPlayerLoadedPacket
+//Fields:
 public sealed record ServerboundPlayerLoadedPacket() : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundPlayerLoadedPacket> StreamCodec { get; } = new PlayerLoadedCodec();

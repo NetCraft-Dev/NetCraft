@@ -6,8 +6,8 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//MinMaxBounds 数值区间对应原版 net.minecraft.advancements.predicates.MinMaxBounds
-//[min..max]语法解析 单值视作min=max 全空非法 选择器distance/level/rotation选项共用
+//MinMaxBounds numeric range, maps to vanilla net.minecraft.advancements.predicates.MinMaxBounds
+//Parsed from [min..max] syntax; a single value is min=max; fully empty is invalid; shared by the selector distance/level/rotation options
 public static class MinMaxBounds
 {
     public static readonly SimpleCommandExceptionType ErrorEmpty =
@@ -15,7 +15,7 @@ public static class MinMaxBounds
     public static readonly SimpleCommandExceptionType ErrorSwapped =
         new(new TranslatableMessage("argument.range.swapped"));
 
-    //'.'后跟'.'表示区间分隔符停止读数 单独的'.'是数字小数点
+    //'.' followed by '.' means the range separator and stops reading; a lone '.' is a decimal point
     private static bool IsAllowedInputChar(StringReader reader)
     {
         var c = reader.Peek();
@@ -24,7 +24,7 @@ public static class MinMaxBounds
         return false;
     }
 
-    //ReadNumber 读一段数字文本转换失败抛对应解析异常 空串返回null
+    //ReadNumber reads a numeric text segment; a failed conversion throws the matching parse exception; an empty string returns null
     private static T? ReadNumber<T>(StringReader reader, Func<string, T> converter,
         DynamicCommandExceptionType parseError) where T : struct
     {
@@ -43,7 +43,7 @@ public static class MinMaxBounds
         }
     }
 
-    //ReadBounds 读区间读出min/max无'..'分隔时max=min 内部异常回滚游标后按start位置重抛
+    //ReadBounds reads the range into min/max; without a '..' separator max=min; an internal exception rolls back the cursor then rethrows at the start position
     private static (T? Min, T? Max) ReadBounds<T>(StringReader reader, Func<string, T> converter,
         DynamicCommandExceptionType parseError) where T : struct
     {
@@ -75,21 +75,21 @@ public static class MinMaxBounds
         }
     }
 
-    //Doubles 双精度区间 平方值预计算供距离平方匹配
+    //Doubles double-precision range; the squared value is precomputed for squared-distance matching
     public sealed class Doubles
     {
         public static readonly Doubles Any = new(null, null);
 
-        //SingleCodec 单浮点形态 上下界相等 对应原版 Doubles.CODEC 的浮点分支
+        //SingleCodec single float form, both bounds equal, maps to the float branch of vanilla Doubles.CODEC
         private static readonly Codec<Doubles> SingleCodec = new DoubleExactlyCodec();
 
-        //MinMaxCodec 复合标签形态 缺省一侧表示无界
+        //MinMaxCodec compound tag form; a missing side means unbounded
         private static readonly Codec<Doubles> MinMaxCodec = RecordCodecBuilder.Of2(
             Codecs.Double.OptionalFieldOf("min").ForGetter((Doubles range) => ToOptional(range.Min)),
             Codecs.Double.OptionalFieldOf("max").ForGetter((Doubles range) => ToOptional(range.Max)),
             (min, max) => new Doubles(min.IsPresent ? min.Get() : null, max.IsPresent ? max.Get() : null));
 
-        //CODEC 持久化编解码 先试单浮点再试 min/max 对应原版 Doubles.CODEC
+        //CODEC persistence codec, tries a single float then min/max, maps to vanilla Doubles.CODEC
         public static readonly Codec<Doubles> CODEC = Codecs.WithAlternative(SingleCodec, MinMaxCodec);
 
         private static Optional<double> ToOptional(double? value)
@@ -131,21 +131,21 @@ public static class MinMaxBounds
         }
     }
 
-    //Ints 整数区间 平方值用long承载防止溢出
+    //Ints integer range; the squared value uses long to avoid overflow
     public sealed class Ints
     {
         public static readonly Ints Any = new(null, null);
 
-        //SingleCodec 单整数形态 上下界相等 对应原版 Ints.CODEC 的整数分支
+        //SingleCodec single integer form, both bounds equal, maps to the integer branch of vanilla Ints.CODEC
         private static readonly Codec<Ints> SingleCodec = new IntExactlyCodec();
 
-        //MinMaxCodec 复合标签形态 缺省一侧表示无界
+        //MinMaxCodec compound tag form; a missing side means unbounded
         private static readonly Codec<Ints> MinMaxCodec = RecordCodecBuilder.Of2(
             Codecs.Int.OptionalFieldOf("min").ForGetter((Ints range) => ToOptional(range.Min)),
             Codecs.Int.OptionalFieldOf("max").ForGetter((Ints range) => ToOptional(range.Max)),
             (min, max) => new Ints(min.IsPresent ? min.Get() : null, max.IsPresent ? max.Get() : null));
 
-        //CODEC 持久化编解码 先试单整数再试 min/max 对应原版 Ints.CODEC
+        //CODEC persistence codec, tries a single integer then min/max, maps to vanilla Ints.CODEC
         public static readonly Codec<Ints> CODEC = Codecs.WithAlternative(SingleCodec, MinMaxCodec);
 
         private static Optional<int> ToOptional(int? value)
@@ -187,7 +187,7 @@ public static class MinMaxBounds
         }
     }
 
-    //FloatDegrees 角度区间 度数环绕无swapped校验
+    //FloatDegrees angle range; degrees wrap and there is no swapped validation
     public sealed class FloatDegrees
     {
         public static readonly FloatDegrees Any = new(null, null);
@@ -213,8 +213,8 @@ public static class MinMaxBounds
     }
 }
 
-//IntExactlyCodec 单整数形态的整数区间编解码
-//解析恒得到上下界相等 编码只在上下界相等时成立 否则交给候选链的下一项 对应原版 Ints.CODEC 的整数分支
+//IntExactlyCodec integer range codec for the single-integer form
+//Parsing always yields equal bounds; encoding only holds when the bounds are equal, otherwise the next candidate in the chain is used, maps to the integer branch of vanilla Ints.CODEC
 internal sealed class IntExactlyCodec : ScalarCodec<MinMaxBounds.Ints>
 {
     public override DataResult<MinMaxBounds.Ints> Parse<U>(DynamicOps<U> ops, U input)
@@ -223,11 +223,11 @@ internal sealed class IntExactlyCodec : ScalarCodec<MinMaxBounds.Ints>
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, MinMaxBounds.Ints value)
         => value.Min is { } min && min == value.Max
             ? Codecs.Int.EncodeStart(ops, min)
-            : DataResult<U>.Error(() => "区间不是单值 无法按整数编码");
+            : DataResult<U>.Error(() => "range is not a single value, cannot encode as an integer");
 }
 
-//DoubleExactlyCodec 单浮点形态的浮点区间编解码
-//解析恒得到上下界相等 编码只在上下界相等时成立 否则交给候选链的下一项 对应原版 Doubles.CODEC 的浮点分支
+//DoubleExactlyCodec double range codec for the single-float form
+//Parsing always yields equal bounds; encoding only holds when the bounds are equal, otherwise the next candidate in the chain is used, maps to the float branch of vanilla Doubles.CODEC
 internal sealed class DoubleExactlyCodec : ScalarCodec<MinMaxBounds.Doubles>
 {
     public override DataResult<MinMaxBounds.Doubles> Parse<U>(DynamicOps<U> ops, U input)
@@ -236,5 +236,5 @@ internal sealed class DoubleExactlyCodec : ScalarCodec<MinMaxBounds.Doubles>
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, MinMaxBounds.Doubles value)
         => value.Min is { } min && min == value.Max
             ? Codecs.Double.EncodeStart(ops, min)
-            : DataResult<U>.Error(() => "区间不是单值 无法按浮点编码");
+            : DataResult<U>.Error(() => "range is not a single value, cannot encode as a float");
 }

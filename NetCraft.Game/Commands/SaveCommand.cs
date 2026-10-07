@@ -4,8 +4,8 @@ using NetCraft.Commands.Context;
 
 namespace NetCraft.Game.Commands;
 
-//SaveCommand save-all/save-off/save-on 命令对应原版 net.minecraft.server.commands.SaveAllCommand 等三个类
-//save-all 立即全量刷盘 save-off/save-on 开关周期性自动刷盘
+//SaveCommand save-all/save-off/save-on commands, maps to vanilla net.minecraft.server.commands.SaveAllCommand etc.
+//save-all flushes everything immediately; save-off/save-on toggle periodic auto-flush
 public static class SaveCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -25,28 +25,28 @@ public static class SaveCommand
             .Executes(context => SetAuto(context, true)));
     }
 
-    //All 立刻刷盘 全量写会阻塞主线程故先回执
+    //All flushes immediately; a full write blocks the main thread so the reply is sent first
     private static int All(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
-        source.SendSuccess("正在保存世界");
+        source.SendSuccess("saving the world");
         source.Server.SaveAllNow();
-        source.SendSuccess("世界已保存");
+        source.SendSuccess("the world has been saved");
         return 1;
     }
 
-    //SetAuto 开关自动刷盘 已经处于目标状态时提示不重复设置
+    //SetAuto toggles auto-flush; it reports no duplicate setting when already in the target state
     private static int SetAuto(CommandContext<CommandSourceStack> context, bool enabled)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         if (source.Server.IsSavingEnabled == enabled)
         {
-            source.SendFailure(enabled ? "自动保存已处于开启状态" : "自动保存已处于关闭状态");
+            source.SendFailure(enabled ? "auto-save is already on" : "auto-save is already off");
             return 0;
         }
 
         source.Server.SetSavingEnabled(enabled);
-        source.SendSuccess(enabled ? "已开启自动保存" : "已关闭自动保存 记得用 save-all 手动刷盘");
+        source.SendSuccess(enabled ? "auto-save enabled" : "auto-save disabled; remember to flush manually with save-all");
         return 1;
     }
 }

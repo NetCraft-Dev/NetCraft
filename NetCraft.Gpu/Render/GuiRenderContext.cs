@@ -5,12 +5,12 @@ using NetCraft.Gpu.Sprite;
 
 namespace NetCraft.Gpu;
 
-//GuiRenderContext submission 层 IGuiRenderContext 实现
-//把控件 DrawQuad/DrawText/DrawImage 调用转换为 RenderState 提交到 GuiRenderState
-//坐标系统一用 actual 像素控件 scaled 坐标 *guiScale 转 actual
-//阶段 5b 替代 VulkanGuiRenderer 的 submission 职责 render phase 交给 GuiRenderer
-//F7 DrawText 优先用 GlyphFont 动态烘焙路径 FontAtlas 为 fallback
-//P0 DrawSprite 由 GuiSpriteManager 解析.mcmeta 后按 scaling 分派
+//GuiRenderContext submission-layer IGuiRenderContext implementation
+//Converts widget DrawQuad/DrawText/DrawImage calls into RenderStates submitted to GuiRenderState
+//The coordinate system is uniformly actual pixels; widget scaled coordinates are converted by *guiScale
+//Stage 5b replaces VulkanGuiRenderer's submission duty; the render phase is handed to GuiRenderer
+//F7 DrawText prefers the GlyphFont dynamic bake path with FontAtlas as fallback
+//P0 DrawSprite dispatched by scaling after GuiSpriteManager parses .mcmeta
 public sealed class GuiRenderContext : IGuiRenderContext
 {
     private readonly GuiRenderState _renderState;
@@ -22,14 +22,14 @@ public sealed class GuiRenderContext : IGuiRenderContext
     private readonly TextureSetup? _fontTexture;
     private readonly Func<int, TextureSetup?> _textureResolver;
     private readonly GuiSpriteManager? _spriteManager;
-    //_recordingStack 录制栈支持嵌套录制子控件 cache 和 window cache 同时活跃
-    //BeginRecording 压栈 EndRecording 弹栈 Submit 写入栈所有层 ReplayRange 写入栈顶
-    //空栈表示当前未录制 Submit 只进 GuiRenderState
+    //_recordingStack recording stack supporting nested child cache and window cache active at once
+    //BeginRecording pushes EndRecording pops Submit writes to all stack levels ReplayRange writes to the top
+    //An empty stack means not recording, and Submit only goes to GuiRenderState
     private readonly Stack<List<GuiElementRenderState>> _recordingStack = new();
 
-    //Pose 栈顶存 actual pose PushPose 的 scaled delta 转 actual 后压栈
+    //Pose the top stores the actual pose; PushPose's scaled delta is converted to actual then pushed
     private readonly Stack<Matrix3x2> _poseStack = new();
-    //Scissor 栈存 actual 像素 vkCmdSetScissor 直接用
+    //Scissor the stack stores actual pixels used directly by vkCmdSetScissor
     private readonly Stack<ScreenRectangle> _scissorStack = new();
 
     public GuiRenderContext(GuiRenderState renderState, int surfaceWidth, int surfaceHeight, int guiScale,
@@ -47,7 +47,7 @@ public sealed class GuiRenderContext : IGuiRenderContext
         _spriteManager = spriteManager;
     }
 
-    //BeginFrame 重置 Pose/Scissor 栈由调用方在每帧 GuiRenderState.Reset 之后调
+    //BeginFrame resets the Pose/Scissor stacks, called by the caller after GuiRenderState.Reset each frame
     public void BeginFrame()
     {
         _poseStack.Clear();
@@ -56,7 +56,7 @@ public sealed class GuiRenderContext : IGuiRenderContext
         _scissorStack.Push(new ScreenRectangle(0, 0, _surfaceWidth, _surfaceHeight));
     }
 
-    //DrawQuad 绘制纯色矩形提交 ColoredRectangleRenderState 到 GUI pipeline
+    //DrawQuad draws a solid rectangle, submitting a ColoredRectangleRenderState to the GUI pipeline
     public void DrawQuad(int x, int y, int width, int height, GuiColor color)
     {
         var (ax, ay, ax1, ay1) = ToActual(x, y, width, height);
@@ -67,7 +67,7 @@ public sealed class GuiRenderContext : IGuiRenderContext
         Submit(state);
     }
 
-    //DrawQuadInverted 绘制反色矩形提交 ColoredRectangleRenderState 到 GUI_INVERT pipeline
+    //DrawQuadInverted draws an inverted rectangle, submitting a ColoredRectangleRenderState to the GUI_INVERT pipeline
     public void DrawQuadInverted(int x, int y, int width, int height, GuiColor color)
     {
         var (ax, ay, ax1, ay1) = ToActual(x, y, width, height);
@@ -78,28 +78,28 @@ public sealed class GuiRenderContext : IGuiRenderContext
         Submit(state);
     }
 
-    //DrawText 渲染文本 F7 优先用 Font 动态烘焙路径 FontAtlas 为 fallback
-    //Font 路径调 Font.Draw 遍历文本 Bake+Render 提交 GlyphBlitRenderState
-    //FontAtlas 路径每个字形一个 BlitRenderState 提交到 GUI_TEXT pipeline
+    //DrawText renders text; F7 prefers the Font dynamic bake path with FontAtlas as fallback
+    //The Font path calls Font.Draw, iterating text Bake+Render and submitting GlyphBlitRenderState
+    //The FontAtlas path submits one BlitRenderState per glyph to the GUI_TEXT pipeline
     public void DrawText(int x, int y, string text, GuiColor color)
     {
         if (string.IsNullOrEmpty(text)) return;
         var intColor = ToIntColor(color);
 
-        //Font 动态烘焙路径 BakedGlyph.Render 调 DrawGlyphQuad 提交 GlyphBlitRenderState
+        //Font dynamic bake path: BakedGlyph.Render calls DrawGlyphQuad, submitting GlyphBlitRenderState
         if (_font is not null)
         {
-            //x/y 是 scaled 坐标转 actual penY = y*guiScale + Ascent*guiScale
+            //x/y are scaled coordinates converted to actual penY = y*guiScale + Ascent*guiScale
             float penX = x * _guiScale;
             float penY = y * _guiScale;
             _font.Draw(this, text, penX, penY, intColor, shadow: false);
             return;
         }
 
-        //FontAtlas fallback 路径
+        //FontAtlas fallback path
         if (_fontAtlas is null || _fontTexture is null) return;
 
-        //y 是顶部转基线用 Ascent 避免 -descent 导致中文错位
+        //y is the top; convert to baseline with Ascent to avoid the CJK misalignment caused by -descent
         float penX2 = x * _guiScale;
         float penY2 = y * _guiScale + _fontAtlas.Ascent * _guiScale;
         var pose = _poseStack.Peek();
@@ -131,9 +131,9 @@ public sealed class GuiRenderContext : IGuiRenderContext
         }
     }
 
-    //DrawGlyphQuad 提交字形 quad 到渲染上下文 4 浮点顶点支持 italic/bold 偏移
-    //由 SheetBakedGlyph.Render 调用提交 GlyphBlitRenderState 到 GuiRenderState
-    //pose/scissor 从栈顶读取 color 是 ARGB int
+    //DrawGlyphQuad submits a glyph quad to the render context; 4 float vertices support italic/bold offsets
+    //Called by SheetBakedGlyph.Render to submit a GlyphBlitRenderState to GuiRenderState
+    //pose/scissor are read from the stack top; color is an ARGB int
     public void DrawGlyphQuad(RenderPipeline pipeline, TextureSetup textureSetup,
         float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3,
         float u0, float v0, float u1, float v1, int color)
@@ -144,21 +144,21 @@ public sealed class GuiRenderContext : IGuiRenderContext
         Submit(state);
     }
 
-    //MeasureText 返回 scaled 像素宽度供控件布局用
-    //Font 优先返回 Font.MeasureText *guiScale 否则用 FontAtlas
+    //MeasureText returns the scaled pixel width for widget layout
+    //Font takes priority, returning Font.MeasureText *guiScale, otherwise uses FontAtlas
     public float MeasureText(string text)
     {
         if (_font is not null) return _font.MeasureText(text) * _guiScale;
         return _fontAtlas?.MeasureText(text) ?? 0;
     }
 
-    //LineHeight 返回 scaled 像素高度供控件计算多行换行间距
-    //Font 优先返回 Font.LineHeight *guiScale 否则用 FontAtlas
+    //LineHeight returns the scaled pixel height for widgets to compute multi-line spacing
+    //Font takes priority, returning Font.LineHeight *guiScale, otherwise uses FontAtlas
     public int LineHeight => (_font?.LineHeight ?? _fontAtlas?.LineHeight ?? 0) * _guiScale;
 
-    //DrawImage 绘制纹理子区域提交 BlitRenderState 到 GUI_TEXTURED pipeline
-    //UV 由 src 像素与 GpuImage 尺寸计算 textureId 通过 textureResolver 解析为 TextureSetup
-    //srcW/srcH<=0 表示用纹理全尺寸调用方不必预知纹理尺寸
+    //DrawImage draws a texture sub-region, submitting a BlitRenderState to the GUI_TEXTURED pipeline
+    //UVs are computed from src pixels and the GpuImage size; textureId is resolved to a TextureSetup via textureResolver
+    //srcW/srcH<=0 means the full texture size, so the caller need not know the texture size
     public void DrawImage(int textureId, int x, int y, int width, int height,
         int srcX, int srcY, int srcW, int srcH, GuiColor tint)
     {
@@ -184,9 +184,9 @@ public sealed class GuiRenderContext : IGuiRenderContext
         Submit(state);
     }
 
-    //DrawImageNinePatch 旧 API 单一 border 保留原九宫格实现不委托新 API
-    //四边统一 border 中心固定拉伸 stretchInner=true 等价行为
-    //目标/源尺寸不足 2*border 退化为 DrawImage 避免负区域兼容现有 button 行为
+    //DrawImageNinePatch legacy API with a single border keeps the original nine-slice implementation and does not delegate to the new API
+    //A uniform border on all sides with a fixed stretched center, equivalent to stretchInner=true
+    //When the target/source size is under 2*border it falls back to DrawImage to avoid negative regions, matching existing button behavior
     public void DrawImageNinePatch(int textureId, int x, int y, int width, int height,
         int srcX, int srcY, int srcW, int srcH, int border, GuiColor tint)
     {
@@ -218,25 +218,25 @@ public sealed class GuiRenderContext : IGuiRenderContext
         var syT = srcY;
         var syM = srcY + border;
         var syB = srcY + srcH - border;
-        //4 角固定
+        //4 corners fixed
         DrawImage(textureId, dxL, dyT, border, border, sxL, syT, border, border, tint);
         DrawImage(textureId, dxR, dyT, border, border, sxR, syT, border, border, tint);
         DrawImage(textureId, dxL, dyB, border, border, sxL, syB, border, border, tint);
         DrawImage(textureId, dxR, dyB, border, border, sxR, syB, border, border, tint);
-        //上下边 dw×border 横向拉伸
+        //Top/bottom edges dw×border stretched horizontally
         DrawImage(textureId, dxM, dyT, dw, border, sxM, syT, sw, border, tint);
         DrawImage(textureId, dxM, dyB, dw, border, sxM, syB, sw, border, tint);
-        //左右边 border×dh 纵向拉伸
+        //Left/right edges border×dh stretched vertically
         DrawImage(textureId, dxL, dyM, border, dh, sxL, syM, border, sh, tint);
         DrawImage(textureId, dxR, dyM, border, dh, sxR, syM, border, sh, tint);
-        //中心 dw×dh 双向拉伸
+        //Center dw×dh stretched both ways
         DrawImage(textureId, dxM, dyM, dw, dh, sxM, syM, sw, sh, tint);
     }
 
-    //DrawImageNinePatch per-side border + stretchInner 新 API 对标原版 blitNineSlicedSprite
-    //四边独立 border 支持 slider_handle/tab 等 per-side border 控件
-    //border 钳制到目标尺寸一半避免负区域对标原版 Math.min(border, width/2)
-    //stretchInner=true 中心拉伸 false 中心按 sw×sh 平铺对应原版 stretch_inner 字段
+    //DrawImageNinePatch per-side border + stretchInner new API, maps to vanilla blitNineSlicedSprite
+    //Independent borders per side supporting per-side border widgets like slider_handle/tab
+    //border is clamped to half the target size to avoid negative regions, maps to vanilla Math.min(border, width/2)
+    //stretchInner=true stretches the center, false tiles it at sw×sh, corresponding to the vanilla stretch_inner field
     public void DrawImageNinePatch(int textureId, int x, int y, int width, int height,
         int srcX, int srcY, int srcW, int srcH,
         int borderLeft, int borderTop, int borderRight, int borderBottom,
@@ -249,12 +249,12 @@ public sealed class GuiRenderContext : IGuiRenderContext
             if (srcW <= 0) srcW = full.Width;
             if (srcH <= 0) srcH = full.Height;
         }
-        //border 钳制对标原版 Math.min(border, width/2) 避免负区域不退化为 DrawImage
+        //Border clamping, maps to vanilla Math.min(border, width/2) to avoid negative regions without falling back to DrawImage
         int bl = Math.Min(borderLeft, width / 2);
         int bt = Math.Min(borderTop, height / 2);
         int br = Math.Min(borderRight, width / 2);
         int bb = Math.Min(borderBottom, height / 2);
-        //源尺寸不足 border 之和退化为 DrawImage
+        //When the source size is under the sum of borders it falls back to DrawImage
         if (srcW < bl + br || srcH < bt + bb)
         {
             DrawImage(textureId, x, y, width, height, srcX, srcY, srcW, srcH, tint);
@@ -264,7 +264,7 @@ public sealed class GuiRenderContext : IGuiRenderContext
         var dh = height - bt - bb;
         var sw = srcW - bl - br;
         var sh = srcH - bt - bb;
-        //4 角固定
+        //4 corners fixed
         DrawImage(textureId, x, y, bl, bt, srcX, srcY, bl, bt, tint);
         DrawImage(textureId, x + width - br, y, br, bt,
             srcX + srcW - br, srcY, br, bt, tint);
@@ -272,22 +272,22 @@ public sealed class GuiRenderContext : IGuiRenderContext
             srcX, srcY + srcH - bb, bl, bb, tint);
         DrawImage(textureId, x + width - br, y + height - bb, br, bb,
             srcX + srcW - br, srcY + srcH - bb, br, bb, tint);
-        //上下边固定拉伸 stretchInner 只影响中心
+        //Top/bottom edges fixed-stretched; stretchInner only affects the center
         DrawImage(textureId, x + bl, y, dw, bt, srcX + bl, srcY, sw, bt, tint);
         DrawImage(textureId, x + bl, y + height - bb, dw, bb,
             srcX + bl, srcY + srcH - bb, sw, bb, tint);
-        //左右边固定拉伸 stretchInner 只影响中心
+        //Left/right edges fixed-stretched; stretchInner only affects the center
         DrawImage(textureId, x, y + bt, bl, dh, srcX, srcY + bt, bl, sh, tint);
         DrawImage(textureId, x + width - br, y + bt, br, dh,
             srcX + srcW - br, srcY + bt, br, sh, tint);
-        //中心 stretchInner=true 拉伸 false 平铺对标原版 stretch_inner
+        //Center stretchInner=true stretches, false tiles, maps to vanilla stretch_inner
         BlitInnerSegment(textureId, x + bl, y + bt, dw, dh,
             srcX + bl, srcY + bt, sw, sh, stretchInner, tint);
     }
 
-    //DrawTiledSprite 按 tileWidth/tileHeight 平铺纹理提交 TiledBlitRenderState
-    //对标原版 blitTiledSprite 双层循环平铺边缘按比例截取 UV
-    //NineSlice stretchInner=false 中心平铺路径也走此方法
+    //DrawTiledSprite tiles the texture by tileWidth/tileHeight, submitting a TiledBlitRenderState
+    //maps to vanilla blitTiledSprite, a double loop tiling and cropping UVs proportionally at the edges
+    //The NineSlice stretchInner=false center-tile path also goes through this method
     public void DrawTiledSprite(int textureId, int srcW, int srcH,
         int x, int y, int width, int height, GuiColor tint)
     {
@@ -301,9 +301,9 @@ public sealed class GuiRenderContext : IGuiRenderContext
         Submit(state);
     }
 
-    //BlitInnerSegment 中心段拉伸或平铺对标原版 blitNineSliceInnerSegment
-    //stretchInner=true 走 DrawImage 拉伸 false 走 DrawTiledSprite 平铺
-    //dw/dh<=0 跳过避免提交空区域
+    //BlitInnerSegment center segment stretch or tile, maps to vanilla blitNineSliceInnerSegment
+    //stretchInner=true goes to DrawImage stretch, false to DrawTiledSprite tile
+    //dw/dh<=0 is skipped to avoid submitting an empty region
     private void BlitInnerSegment(int textureId, int dx, int dy, int dw, int dh,
         int sx, int sy, int sw, int sh, bool stretchInner, GuiColor tint)
     {
@@ -314,9 +314,9 @@ public sealed class GuiRenderContext : IGuiRenderContext
             DrawTiledSprite(textureId, sw, sh, dx, dy, dw, dh, tint);
     }
 
-    //DrawSprite 按 identifier 取 sprite 按 scaling 分派对标原版 blitSprite
-    //Stretch 走 DrawImage Tile 走 DrawTiledSprite NineSlice 走 DrawImageNinePatch
-    //sprite 未加载或 GuiSpriteManager 为 null 静默返回避免崩溃
+    //DrawSprite looks up a sprite by identifier and dispatches by scaling, maps to vanilla blitSprite
+    //Stretch goes to DrawImage Tile to DrawTiledSprite NineSlice to DrawImageNinePatch
+    //Returns silently when the sprite is not loaded or GuiSpriteManager is null, avoiding a crash
     public void DrawSprite(string identifier, int x, int y, int width, int height, GuiColor tint)
     {
         if (_spriteManager is null) return;
@@ -338,8 +338,8 @@ public sealed class GuiRenderContext : IGuiRenderContext
         }
     }
 
-    //PushPose 压入 scaled delta 转 actual 后与栈顶相乘子控件相对父容器定位
-    //translation *guiScale rotation/scale 不变保持旋转缩放比例
+    //PushPose converts the scaled delta to actual then multiplies with the top; child widgets position relative to the parent
+    //translation *guiScale rotation/scale unchanged keeping the rotation and scale ratio
     public void PushPose(Matrix3x2 delta)
     {
         var actualDelta = new Matrix3x2(delta.M11, delta.M12, delta.M21, delta.M22,
@@ -352,7 +352,7 @@ public sealed class GuiRenderContext : IGuiRenderContext
         if (_poseStack.Count > 1) _poseStack.Pop();
     }
 
-    //PushScissor scaled 像素 *guiScale 转 actual 与栈顶求交子容器裁剪不超出父容器
+    //PushScissor scaled pixels *guiScale to actual, intersected with the top so sub-containers clip within the parent
     public void PushScissor(int x, int y, int width, int height)
     {
         var ax = x * _guiScale;
@@ -374,17 +374,17 @@ public sealed class GuiRenderContext : IGuiRenderContext
         if (_scissorStack.Count > 1) _scissorStack.Pop();
     }
 
-    //BeginRecording 压入录制层 Submit 期间写入此 cache 子控件级 cache 嵌套压栈
+    //BeginRecording pushes a recording level; during Submit it writes into this cache, nesting child-level caches
     public void BeginRecording(List<GuiElementRenderState> cache)
         => _recordingStack.Push(cache);
 
-    //EndRecording 弹出栈顶录制层后续 Submit 不再写入该 cache
+    //EndRecording pops the top recording level; later Submits no longer write into that cache
     public void EndRecording()
         => _recordingStack.Pop();
 
-    //ReplayRange 把缓存的 RenderState 列表重新提交到当前帧 GuiRenderState
-    //未 dirty 控件跳过 Render 直接重放上一帧录制的结果
-    //录制活跃时同时写入栈顶 cache 让父级 cache 收集子控件 replay 的 RenderState
+    //ReplayRange re-submits the cached RenderState list into the current frame's GuiRenderState
+    //Non-dirty widgets skip Render and replay the previous frame's recorded result
+    //While recording it also writes to the top cache so the parent cache collects the child's replayed RenderStates
     public void ReplayRange(IReadOnlyList<GuiElementRenderState> cached)
     {
         var top = _recordingStack.Count > 0 ? _recordingStack.Peek() : null;
@@ -395,28 +395,28 @@ public sealed class GuiRenderContext : IGuiRenderContext
         }
     }
 
-    //Submit 提交 RenderState 到 GuiRenderState 录制期间写入栈所有活跃层
-    //子控件 dirty 时栈顶是 child cache 栈底是 window cache 两层都写
+    //Submit submits a RenderState to GuiRenderState; while recording it writes to all active stack levels
+    //When a child is dirty the top is the child cache and the bottom the window cache; both are written
     private void Submit(GuiElementRenderState state)
     {
         _renderState.AddGuiElement(state);
         foreach (var cache in _recordingStack) cache.Add(state);
     }
 
-    //BlurBeforeThisStratum 开新 stratum 并标记之前 strata 为 blur 前段
-    //不调 Submit 不录制到 cache blur 帧由 GuiWindow 强制不走 cache 确保每帧重新调
+    //BlurBeforeThisStratum opens a new stratum and marks prior strata as the pre-blur segment
+    //It does not call Submit or record to cache; GuiWindow forces blur frames to skip the cache so it is called every frame
     public void BlurBeforeThisStratum()
     {
         _renderState.NextStratum();
         _renderState.BlurBeforeThisStratum();
     }
 
-    //AddPictureInPicture 提交 PIP 状态到 GuiRenderState 供 GuiRenderer.Prepare 调 renderer.Prepare
-    //对标原版 addPicturesInPictureState 不录制到 cache PIP 每帧重新提交
+    //AddPictureInPicture submits PIP state to GuiRenderState for GuiRenderer.Prepare to call renderer.Prepare
+    //maps to vanilla addPicturesInPictureState, not recorded to cache; PIP is re-submitted every frame
     public void AddPictureInPicture(PictureInPictureRenderState pip)
         => _renderState.AddPictureInPicture(pip);
 
-    //ToActual scaled 像素转 actual 返回左上和右下坐标对
+    //ToActual converts scaled pixels to actual and returns the top-left and bottom-right coordinate pair
     private (int Ax, int Ay, int Ax1, int Ay1) ToActual(int x, int y, int width, int height)
     {
         var ax = x * _guiScale;
@@ -426,8 +426,8 @@ public sealed class GuiRenderContext : IGuiRenderContext
         return (ax, ay, ax1, ay1);
     }
 
-    //ToIntColor GuiColor 浮点 0-1 转 ARGB int 0xAARRGGBB
-    //StagedVertexBuffer 提取为 RGBA 字节顺序匹配 UByte4Norm 顶点格式
+    //ToIntColor converts GuiColor float 0-1 to an ARGB int 0xAARRGGBB
+    //StagedVertexBuffer extracts the RGBA byte order matching the UByte4Norm vertex format
     private static int ToIntColor(GuiColor c)
     {
         var r = (byte)Math.Clamp((int)(c.R * 255), 0, 255);

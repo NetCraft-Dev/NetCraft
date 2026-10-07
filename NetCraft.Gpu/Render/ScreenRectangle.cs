@@ -2,8 +2,8 @@ using System.Numerics;
 
 namespace NetCraft.Gpu;
 
-//ScreenRectangle 屏幕矩形对标原版 ScreenRectangle
-//用于 RenderState 的 ScissorArea 和 Bounds 层级相交判断
+//ScreenRectangle screen rectangle, maps to vanilla ScreenRectangle
+//Used for RenderState's ScissorArea and Bounds level intersection tests
 public readonly record struct ScreenRectangle(int X, int Y, int Width, int Height)
 {
     public int Left => X;
@@ -11,18 +11,18 @@ public readonly record struct ScreenRectangle(int X, int Y, int Width, int Heigh
     public int Right => X + Width;
     public int Bottom => Y + Height;
 
-    //Intersects 判断两矩形是否相交对标原版 intersects
+    //Intersects whether two rectangles intersect, maps to vanilla intersects
     public bool Intersects(ScreenRectangle other)
         => other.Left < Right && other.Right > Left && other.Top < Bottom && other.Bottom > Top;
 
-    //Encompasses 判断本矩形是否完全包含 other 对标原版 encompasses
+    //Encompasses whether this rectangle fully contains other, maps to vanilla encompasses
     public bool Encompasses(ScreenRectangle other)
         => other.Left >= Left && other.Top >= Top && other.Right <= Right && other.Bottom <= Bottom;
 
-    //Contains Encompasses 别名保留旧调用方兼容
+    //Contains an alias of Encompasses kept for legacy callers
     public bool Contains(ScreenRectangle other) => Encompasses(other);
 
-    //Intersect 求交集返回 null 表示不相交对标原版 intersection
+    //Intersect computes the intersection and returns null when disjoint, maps to vanilla intersection
     public ScreenRectangle? Intersect(ScreenRectangle other)
     {
         var left = Math.Max(Left, other.Left);
@@ -33,8 +33,8 @@ public readonly record struct ScreenRectangle(int X, int Y, int Width, int Heigh
         return new ScreenRectangle(left, top, right - left, bottom - top);
     }
 
-    //TransformMaxBounds 用 pose 变换四角取最大包围盒对标原版 transformMaxBounds
-    //用于 RenderState 构造时由几何矩形 + pose 推导 Bounds
+    //TransformMaxBounds transforms the four corners with the pose and takes the max bounding box, maps to vanilla transformMaxBounds
+    //Used to derive Bounds from the geometry rectangle + pose when constructing a RenderState
     public ScreenRectangle TransformMaxBounds(Matrix3x2 pose)
     {
         var topLeft = Vector2.Transform(new Vector2(Left, Top), pose);
@@ -54,6 +54,6 @@ public readonly record struct ScreenRectangle(int X, int Y, int Width, int Heigh
 
     public static readonly ScreenRectangle Empty = default;
 
-    //IsEmpty 宽高非正表示空矩形
+    //IsEmpty a non-positive width or height means an empty rectangle
     public bool IsEmpty => Width <= 0 || Height <= 0;
 }

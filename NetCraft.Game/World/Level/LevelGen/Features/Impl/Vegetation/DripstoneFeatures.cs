@@ -10,8 +10,8 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Vegetation;
 
-//ColumnScan 竖直方向上的一段柱体扫描结果 对应原版 Column
-//地面与天花板各自可有可无 只有两端都有时才构成一段区间
+//ColumnScan result of scanning one vertical column, maps to vanilla Column
+//Floor and ceiling are each optional; a range exists only when both ends are present
 internal sealed class ColumnScan
 {
     public int? Floor { get; }
@@ -23,21 +23,21 @@ internal sealed class ColumnScan
         Ceiling = ceiling;
     }
 
-    //IsRange 两端都有才算一段完整区间 对应原版 Column.Range
+    //IsRange a complete range requires both ends, maps to vanilla Column.Range
     public bool IsRange => Floor is not null && Ceiling is not null;
 
-    //Height 区间净高度 对应原版 Column.Range.height 只有区间才有
+    //Height net height of the range, maps to vanilla Column.Range.height; only present for a range
     public int? Height => IsRange ? Ceiling!.Value - Floor!.Value - 1 : null;
 
-    //WithFloor 换掉地面那一端 对应原版 withFloor
+    //WithFloor replace the floor end, maps to vanilla withFloor
     public ColumnScan WithFloor(int floor) => new(floor, Ceiling);
 }
 
-//Column 竖直扫描 对应原版 net.minecraft.world.level.levelgen.Column
-//从中心向外找第一格不满足内部条件的位置 再看它是否满足边界条件来决定地面或天花板
+//Column vertical scan, maps to vanilla net.minecraft.world.level.levelgen.Column
+//Searches outward from the center for the first cell that fails the inner condition, then checks whether it satisfies the boundary condition to decide floor or ceiling
 internal static class Column
 {
-    //Scan 自该位置上下各扫一次 对应原版 Column.scan
+    //Scan scan once upward and once downward from the position, maps to vanilla Column.scan
     public static ColumnScan? Scan(WorldGenRegion level, BlockPos pos, int searchRange,
         Func<BlockState, bool> insideColumn, Func<BlockState, bool> validEdge)
     {
@@ -47,7 +47,7 @@ internal static class Column
         return new ColumnScan(floor, ceiling);
     }
 
-    //ScanDirection 单向扫描 先沿方向推进到第一个非内部位置 再判它是否算边界 对应原版 scanDirection
+    //ScanDirection one-way scan: advance along the direction to the first non-inner position, then test whether it counts as a boundary, maps to vanilla scanDirection
     private static int? ScanDirection(WorldGenRegion level, int searchRange, Func<BlockState, bool> insideColumn,
         Func<BlockState, bool> validEdge, BlockPos pos, Direction direction)
     {
@@ -58,42 +58,42 @@ internal static class Column
     }
 }
 
-//SpeleothemUtils 钟乳石共用判定与生成 对应原版 SpeleothemUtils
+//SpeleothemUtils shared checks and generation for speleothems, maps to vanilla SpeleothemUtils
 internal static class SpeleothemUtils
 {
-    //BaseStoneOverworldTag 主世界岩类标签 对应原版 BlockTags.BASE_STONE_OVERWORLD
+    //BaseStoneOverworldTag overworld base stone tag, maps to vanilla BlockTags.BASE_STONE_OVERWORLD
     public static readonly TagKey<RegBlock> BaseStoneOverworldTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("base_stone_overworld"));
 
-    //IsEmptyOrWater 空气或水 对应原版 isEmptyOrWater
+    //IsEmptyOrWater air or water, maps to vanilla isEmptyOrWater
     public static bool IsEmptyOrWater(BlockState state)
         => state.Owner.IsAir || VegetationSupport.IsState(state, "water");
 
-    //IsNeitherEmptyNorWater 既不是空气也不是水 对应原版 isNeitherEmptyNorWater
+    //IsNeitherEmptyNorWater neither air nor water, maps to vanilla isNeitherEmptyNorWater
     public static bool IsNeitherEmptyNorWater(BlockState state) => !IsEmptyOrWater(state);
 
-    //IsEmptyOrWaterOrLava 空气水或岩浆 对应原版 isEmptyOrWaterOrLava
+    //IsEmptyOrWaterOrLava air, water or lava, maps to vanilla isEmptyOrWaterOrLava
     public static bool IsEmptyOrWaterOrLava(BlockState state)
         => state.Owner.IsAir || VegetationSupport.IsState(state, "water")
             || VegetationSupport.IsState(state, "lava");
 
-    //IsEmptyOrWater 位置版
+    //IsEmptyOrWater position-based overload
     public static bool IsEmptyOrWater(WorldGenRegion level, BlockPos pos)
         => IsEmptyOrWater(VegetationSupport.Get(level, pos));
 
-    //IsEmptyOrWaterOrLava 位置版
+    //IsEmptyOrWaterOrLava position-based overload
     public static bool IsEmptyOrWaterOrLava(WorldGenRegion level, BlockPos pos)
         => IsEmptyOrWaterOrLava(VegetationSupport.Get(level, pos));
 
-    //IsBase 该状态是基石方块或可替换方块 对应原版 isBase
+    //IsBase whether the state is base stone or replaceable, maps to vanilla isBase
     public static bool IsBase(BlockState state, RegBlock baseBlock, HolderSet<RegBlock> replaceableBlocks)
         => state.Owner == baseBlock || VegetationSupport.IsInSet(state, replaceableBlocks);
 
-    //IsBaseOrLava 基石或岩浆 对应原版 isBaseOrLava
+    //IsBaseOrLava base stone or lava, maps to vanilla isBaseOrLava
     public static bool IsBaseOrLava(BlockState state, RegBlock baseBlock, HolderSet<RegBlock> replaceableBlocks)
         => IsBase(state, baseBlock, replaceableBlocks) || VegetationSupport.IsState(state, "lava");
 
-    //PlaceBaseBlockIfPossible 可替换位置换成基石 对应原版 placeBaseBlockIfPossible
+    //PlaceBaseBlockIfPossible replace with base stone when possible, maps to vanilla placeBaseBlockIfPossible
     public static bool PlaceBaseBlockIfPossible(WorldGenRegion level, BlockPos pos, RegBlock baseBlock,
         HolderSet<RegBlock> replaceableBlocks)
     {
@@ -103,7 +103,7 @@ internal static class SpeleothemUtils
         return true;
     }
 
-    //GetSpeleothemHeight 由半径与距离算石笋高度 对应原版 getSpeleothemHeight
+    //GetSpeleothemHeight compute speleothem height from radius and distance, maps to vanilla getSpeleothemHeight
     public static double GetSpeleothemHeight(double xzDistanceFromCenter, double speleothemRadius, double scale,
         double bluntness)
     {
@@ -116,7 +116,7 @@ internal static class SpeleothemUtils
         return (Math.Max(heightRelativeToMaxRadius, 0.0d) / 0.384d) * speleothemRadius;
     }
 
-    //IsCircleMostlyEmbeddedInStone 圆周一圈都不在空腔里 对应原版 isCircleMostlyEmbeddedInStone
+    //IsCircleMostlyEmbeddedInStone whether the whole circle is outside cavities, maps to vanilla isCircleMostlyEmbeddedInStone
     public static bool IsCircleMostlyEmbeddedInStone(WorldGenRegion level, BlockPos center, int xzRadius)
     {
         if (IsEmptyOrWaterOrLava(level, center)) return false;
@@ -130,7 +130,7 @@ internal static class SpeleothemUtils
         return true;
     }
 
-    //GrowSpeleothem 从起点沿尖端方向长一根石笋 对应原版 growSpeleothem
+    //GrowSpeleothem grow one speleothem from the start along the tip direction, maps to vanilla growSpeleothem
     public static void GrowSpeleothem(WorldGenRegion level, BlockPos startPos, Direction tipDirection, int height,
         bool mergedTip, RegBlock baseBlock, RegBlock pointedBlock, HolderSet<RegBlock> replaceableBlocks)
     {
@@ -148,7 +148,7 @@ internal static class SpeleothemUtils
         });
     }
 
-    //BuildBaseToTipColumn 按长度从粗到细输出各段 对应原版 buildBaseToTipColumn
+    //BuildBaseToTipColumn emit segments from thick to thin along the length, maps to vanilla buildBaseToTipColumn
     private static void BuildBaseToTipColumn(Direction direction, int totalLength, bool mergedTip,
         Action<BlockState> consumer)
     {
@@ -161,7 +161,7 @@ internal static class SpeleothemUtils
         if (totalLength >= 1) consumer(CreatePointedBlock(direction, mergedTip ? "tip_merge" : "tip"));
     }
 
-    //CreatePointedBlock 造一段朝向与粗细都定好的钟乳石 对应原版 createPointedBlock
+    //CreatePointedBlock build one speleothem segment with a fixed orientation and thickness, maps to vanilla createPointedBlock
     private static BlockState CreatePointedBlock(Direction direction, string thickness)
         => VegetationSupport.WithProperty(
             VegetationSupport.WithProperty(VegetationSupport.StateOf("pointed_dripstone"), "vertical_direction",
@@ -169,8 +169,8 @@ internal static class SpeleothemUtils
             "thickness", thickness);
 }
 
-//ClampedNormalFloat 正态再截断的浮点提供者 对应原版 ClampedNormalFloat
-//项目的浮点提供者体系没有这个类型 钟乳石簇的湿度字段要用它
+//ClampedNormalFloat clamped normal float provider, maps to vanilla ClampedNormalFloat
+//The project's float provider system lacks this type; the speleothem cluster wetness field needs it
 public sealed class ClampedNormalFloat : FloatProvider
 {
     public float Mean { get; }
@@ -186,13 +186,13 @@ public sealed class ClampedNormalFloat : FloatProvider
         Max = max;
     }
 
-    //Sample 正态采样后截断 对应原版 sample
+    //Sample clamp after normal sampling, maps to vanilla sample
     public override float Sample(RandomSource random)
         => Mth.Clamp(Mth.Normal(random, Mean, Deviation), Min, Max);
 }
 
-//VegetationFloatProviderCodec 浮点提供者编解码 先走通用入口 再补 clamped_normal
-//钟乳石簇的 wetness 是 clamped_normal 通用入口认不出 这里兜住它
+//VegetationFloatProviderCodec float provider codec: try the generic entry first, then handle clamped_normal
+//The speleothem cluster wetness is clamped_normal, which the generic entry cannot recognize, so catch it here
 internal sealed class VegetationFloatProviderCodec : ScalarCodec<FloatProvider>
 {
     public static readonly VegetationFloatProviderCodec Instance = new();
@@ -215,8 +215,8 @@ internal sealed class VegetationFloatProviderCodec : ScalarCodec<FloatProvider>
         var min = ReadFloat(ops, map, "min");
         var max = ReadFloat(ops, map, "max");
         if (mean is null || deviation is null || min is null || max is null)
-            return DataResult<FloatProvider>.Error(() => "clamped_normal 需要 mean/deviation/min/max");
-        if (max < min) return DataResult<FloatProvider>.Error(() => "clamped_normal 的上界不能小于下界");
+            return DataResult<FloatProvider>.Error(() => "clamped_normal requires mean/deviation/min/max");
+        if (max < min) return DataResult<FloatProvider>.Error(() => "clamped_normal max must not be less than min");
         return DataResult<FloatProvider>.Success(
             new ClampedNormalFloat(mean.Value, deviation.Value, min.Value, max.Value));
     }
@@ -224,7 +224,7 @@ internal sealed class VegetationFloatProviderCodec : ScalarCodec<FloatProvider>
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, FloatProvider value)
         => FloatProviders.Codec.EncodeStart(ops, value);
 
-    //ReadFloat 读浮点字段缺失或非数字返回 null
+    //ReadFloat read a float field; returns null when missing or not a number
     private static float? ReadFloat<U>(DynamicOps<U> ops, MapLike<U> input, string name)
     {
         var tag = input.Get(name);
@@ -234,7 +234,7 @@ internal sealed class VegetationFloatProviderCodec : ScalarCodec<FloatProvider>
     }
 }
 
-//SpeleothemClusterConfiguration 钟乳石簇配置 对应原版 SpeleothemClusterConfiguration
+//SpeleothemClusterConfiguration speleothem cluster configuration, maps to vanilla SpeleothemClusterConfiguration
 public sealed class SpeleothemClusterConfiguration : FeatureConfiguration
 {
     public static readonly Codec<SpeleothemClusterConfiguration> Codec =
@@ -317,9 +317,9 @@ public sealed class SpeleothemClusterConfiguration : FeatureConfiguration
     }
 }
 
-//SpeleothemClusterFeature 钟乳石簇特征 对应原版 SpeleothemClusterFeature
-//按半径内每列扫出天花板与地面 逐列决定要不要水池 要石钟乳 要石笋以及各自长度
-//钟乳石簇的随机消耗与循环边界全部照原版 顺序错了同种子长出的洞顶就不同
+//SpeleothemClusterFeature speleothem cluster feature, maps to vanilla SpeleothemClusterFeature
+//Scans the ceiling and floor of each column within the radius, then per column decides whether to place a pool, stalactites or stalagmites and their lengths
+//Random consumption and loop bounds follow vanilla exactly; a wrong order yields different cave ceilings for the same seed
 public sealed class SpeleothemClusterFeature : Feature<SpeleothemClusterConfiguration>
 {
     private const string FeatureId = "speleothem_cluster";
@@ -354,7 +354,7 @@ public sealed class SpeleothemClusterFeature : Feature<SpeleothemClusterConfigur
         return true;
     }
 
-    //PlaceColumn 单列生成 对应原版 placeColumn
+    //PlaceColumn generate one column, maps to vanilla placeColumn
     private static void PlaceColumn(WorldGenRegion level, RandomSource random, BlockPos pos, int dx, int dz,
         float chanceOfWater, double chanceOfStalagmiteOrStalactite, int clusterHeight, float density,
         SpeleothemClusterConfiguration config)
@@ -437,7 +437,7 @@ public sealed class SpeleothemClusterFeature : Feature<SpeleothemClusterConfigur
                 mergeTips, config.BaseBlock.Owner, config.PointedBlock.Owner, config.ReplaceableBlocks);
     }
 
-    //GetSpeleothemHeight 按离中心距离偏置后采样长度 对应原版 getSpeleothemHeight
+    //GetSpeleothemHeight sample the length after biasing by distance from the center, maps to vanilla getSpeleothemHeight
     private static int GetSpeleothemHeight(RandomSource random, int dx, int dz, float density, int maxHeight,
         SpeleothemClusterConfiguration config)
     {
@@ -448,7 +448,7 @@ public sealed class SpeleothemClusterFeature : Feature<SpeleothemClusterConfigur
         return (int)Mth.Clamp(Mth.Normal(random, heightMean, config.HeightDeviation), 0.0f, maxHeight);
     }
 
-    //CanPlacePool 该格作为水池边沿要四周与下方都是岩石或水 对应原版 canPlacePool
+    //CanPlacePool a pool edge cell requires rock or water all around and below, maps to vanilla canPlacePool
     private static bool CanPlacePool(WorldGenRegion level, BlockPos pos, SpeleothemClusterConfiguration config)
     {
         var state = VegetationSupport.Get(level, pos);
@@ -462,7 +462,7 @@ public sealed class SpeleothemClusterFeature : Feature<SpeleothemClusterConfigur
         return CanBeAdjacentToWater(level, pos.Offset(Direction.Down));
     }
 
-    //CanBeAdjacentToWater 该格是主世界岩类或水 对应原版 canBeAdjacentToWater
+    //CanBeAdjacentToWater the cell is overworld base stone or water, maps to vanilla canBeAdjacentToWater
     private static bool CanBeAdjacentToWater(WorldGenRegion level, BlockPos pos)
     {
         var state = VegetationSupport.Get(level, pos);
@@ -470,7 +470,7 @@ public sealed class SpeleothemClusterFeature : Feature<SpeleothemClusterConfigur
             || VegetationSupport.IsState(state, "water");
     }
 
-    //ReplaceBlocksWithBaseBlocks 从起点沿方向连续换成基石 对应原版 replaceBlocksWithBaseBlocks
+    //ReplaceBlocksWithBaseBlocks replace with base stone continuously from the start along the direction, maps to vanilla replaceBlocksWithBaseBlocks
     private static void ReplaceBlocksWithBaseBlocks(WorldGenRegion level, BlockPos firstPos, int maxCount,
         Direction direction, SpeleothemClusterConfiguration config)
     {
@@ -481,7 +481,7 @@ public sealed class SpeleothemClusterFeature : Feature<SpeleothemClusterConfigur
              i++) pos = pos.Offset(direction);
     }
 
-    //GetChanceOfStalagmiteOrStalactite 离边沿越近概率越高 对应原版 getChanceOfStalagmiteOrStalactite
+    //GetChanceOfStalagmiteOrStalactite closer to the edge means higher chance, maps to vanilla getChanceOfStalagmiteOrStalactite
     private static double GetChanceOfStalagmiteOrStalactite(int xRadius, int zRadius, int dx, int dz,
         SpeleothemClusterConfiguration config)
     {
@@ -493,11 +493,11 @@ public sealed class SpeleothemClusterFeature : Feature<SpeleothemClusterConfigur
             config.ChanceOfSpeleothemAtMaxDistanceFromCenter, 1.0f);
     }
 
-    //AtY 换掉 Y 坐标
+    //AtY replace the Y coordinate
     private static BlockPos AtY(BlockPos pos, int y) => new(pos.X, y, pos.Z);
 }
 
-//LargeDripstoneConfiguration 大型石笋配置 对应原版 LargeDripstoneConfiguration
+//LargeDripstoneConfiguration large dripstone configuration, maps to vanilla LargeDripstoneConfiguration
 public sealed class LargeDripstoneConfiguration : FeatureConfiguration
 {
     public static readonly Codec<LargeDripstoneConfiguration> Codec =
@@ -558,8 +558,8 @@ public sealed class LargeDripstoneConfiguration : FeatureConfiguration
     }
 }
 
-//LargeDripstoneFeature 大型石笋特征 对应原版 LargeDripstoneFeature
-//扫出一段洞穴区间后按区间高度定半径 上下各造一根巨型石笋并按风偏移错开
+//LargeDripstoneFeature large dripstone feature, maps to vanilla LargeDripstoneFeature
+//Scans a cave range, picks a radius from its height, then grows one giant dripstone from each end offset by the wind
 public sealed class LargeDripstoneFeature : Feature<LargeDripstoneConfiguration>
 {
     private const string FeatureId = "large_dripstone";
@@ -602,7 +602,7 @@ public sealed class LargeDripstoneFeature : Feature<LargeDripstoneConfiguration>
         return true;
     }
 
-    //LargeDripstone 一根巨型石笋 对应原版 LargeDripstone
+    //LargeDripstone one giant dripstone, maps to vanilla LargeDripstone
     private sealed class LargeDripstone
     {
         private BlockPos _root;
@@ -623,10 +623,10 @@ public sealed class LargeDripstoneFeature : Feature<LargeDripstoneConfiguration>
         public static LargeDripstone Create(BlockPos root, bool pointingUp, int radius, double bluntness,
             double scale) => new(root, pointingUp, radius, bluntness, scale);
 
-        //GetHeight 中轴上的高度 对应原版 getHeight
+        //GetHeight height on the central axis, maps to vanilla getHeight
         private int GetHeight() => GetHeightAtRadius(0.0f);
 
-        //MoveBackUntilBaseIsInsideStoneAndShrinkRadiusIfNecessary 退回基部嵌入岩石 不行就减半半径 对应原版同名方法
+        //MoveBackUntilBaseIsInsideStoneAndShrinkRadiusIfNecessary move back until the base is inside stone, halving the radius if needed, maps to the vanilla method of the same name
         public bool MoveBackUntilBaseIsInsideStoneAndShrinkRadiusIfNecessary(WorldGenRegion level, WindOffsetter wind)
         {
             while (_radius > 1)
@@ -648,11 +648,11 @@ public sealed class LargeDripstoneFeature : Feature<LargeDripstoneConfiguration>
             return false;
         }
 
-        //GetHeightAtRadius 指定水平距离处的高度 对应原版 getHeightAtRadius
+        //GetHeightAtRadius height at the given horizontal distance, maps to vanilla getHeightAtRadius
         private int GetHeightAtRadius(float checkRadius)
             => (int)SpeleothemUtils.GetSpeleothemHeight(checkRadius, _radius, _scale, _bluntness);
 
-        //PlaceBlocks 逐列放石笋体 对应原版 placeBlocks
+        //PlaceBlocks place the dripstone body column by column, maps to vanilla placeBlocks
         public void PlaceBlocks(WorldGenRegion level, RandomSource random, WindOffsetter wind)
         {
             for (var dx = -_radius; dx <= _radius; dx++)
@@ -689,12 +689,12 @@ public sealed class LargeDripstoneFeature : Feature<LargeDripstoneConfiguration>
             }
         }
 
-        //IsSuitableForWind 半径与钝度都够大才吃风偏移 对应原版 isSuitableForWind
+        //IsSuitableForWind takes the wind offset only when the radius and bluntness are large enough, maps to vanilla isSuitableForWind
         public bool IsSuitableForWind(LargeDripstoneConfiguration config)
             => _radius >= config.MinRadiusForWind && _bluntness >= config.MinBluntnessForWind;
     }
 
-    //WindOffsetter 按高度线性错位的风偏移 对应原版 WindOffsetter
+    //WindOffsetter wind offset that shifts linearly with height, maps to vanilla WindOffsetter
     private sealed class WindOffsetter
     {
         private readonly int _originY;
@@ -721,7 +721,7 @@ public sealed class LargeDripstoneFeature : Feature<LargeDripstoneConfiguration>
 
         public static WindOffsetter NoWind() => new();
 
-        //Offset 离原点越远错位越大 对应原版 offset
+        //Offset the farther from the origin the larger the shift, maps to vanilla offset
         public BlockPos Offset(BlockPos pos)
         {
             if (!_hasWind) return pos;
@@ -733,8 +733,8 @@ public sealed class LargeDripstoneFeature : Feature<LargeDripstoneConfiguration>
     }
 }
 
-//VegetationBootstrap 地表植被类特征注册入口
-//触碰各静态 Instance 使静态注册生效
+//VegetationBootstrap surface vegetation feature registration entry
+//Touching each static Instance triggers static registration
 public static class VegetationBootstrap
 {
     public static void RegisterAll()

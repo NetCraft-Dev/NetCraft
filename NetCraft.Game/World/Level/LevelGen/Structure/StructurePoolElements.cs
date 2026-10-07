@@ -10,13 +10,13 @@ using RegistryProcessorList = NetCraft.Registry.StructureProcessorList;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//EmptyPoolElement 空元素 对应原版 EmptyPoolElement
-//什么都不放 拼图走到它就算结束 没有包围盒也不参与最大尺寸计算
+//EmptyPoolElement empty element, maps to vanilla EmptyPoolElement
+//Places nothing; reaching it ends the jigsaw, it has no bounding box and does not count toward the max size
 public sealed class EmptyPoolElement : StructurePoolElement
 {
     public static readonly EmptyPoolElement Instance = new();
 
-    //MapCodec 单位 codec 忽略一切字段 对应原版 MapCodec.unit
+    //MapCodec unit codec that ignores all fields, maps to vanilla MapCodec.unit
     public static readonly MapCodec<EmptyPoolElement> MapCodec = new StructureUnitMapCodec<EmptyPoolElement>(() => Instance);
 
     private EmptyPoolElement()
@@ -27,9 +27,9 @@ public sealed class EmptyPoolElement : StructurePoolElement
     public override List<StructureTemplate.JigsawBlockInfo> GetShuffledJigsawBlocks(StructureTemplateManager manager,
         BlockPos position, Rotation rotation, RandomSource random) => new();
 
-    //GetBoundingBox 空元素没有包围盒 原版这里直接抛异常
+    //GetBoundingBox an empty element has no bounding box; vanilla throws right here
     public override BoundingBoxInt GetBoundingBox(StructureTemplateManager manager, BlockPos position, Rotation rotation)
-        => throw new InvalidOperationException("空元素没有包围盒 调用前应先过滤");
+        => throw new InvalidOperationException("empty element has no bounding box, filter it out before calling");
 
     public override bool Place(StructureTemplateManager manager, WorldGenRegion level, StructureManager structureManager,
         ChunkGenerator generator, BlockPos position, BlockPos referencePos, Rotation rotation, BoundingBoxInt chunkBB,
@@ -40,8 +40,8 @@ public sealed class EmptyPoolElement : StructurePoolElement
     public override string ToString() => "Empty";
 }
 
-//SinglePoolElement 单模板元素 对应原版 SinglePoolElement
-//放置一个结构模板 处理器链 = 自带处理器 + 池元素声明的处理器 + 投影自带的处理器
+//SinglePoolElement single-template element, maps to vanilla SinglePoolElement
+//Places one structure template; the processor chain = built-in processors + processors declared by the pool element + processors built into the projection
 public class SinglePoolElement : StructurePoolElement
 {
     public static readonly MapCodec<SinglePoolElement> MapCodec =
@@ -67,12 +67,12 @@ public class SinglePoolElement : StructurePoolElement
         OverrideLiquidSettings = overrideLiquidSettings;
     }
 
-    //TemplateLocation 引用的结构模板 原版这里还能直接持运行时模板 JSON 里只有注册名
+    //TemplateLocation the referenced structure template; vanilla can also hold a runtime template here, but the JSON only has the registry name
     public Identifier TemplateLocation { get; }
 
     public Holder<RegistryProcessorList> Processors { get; }
 
-    //OverrideLiquidSettings 覆盖池元素入参的液体处理方式 未声明时用外层传的
+    //OverrideLiquidSettings overrides the liquid handling passed into the pool element; when absent the outer value is used
     public Optional<LiquidSettings> OverrideLiquidSettings { get; }
 
     public override Vec3i GetSize(StructureTemplateManager manager, Rotation rotation)
@@ -85,14 +85,14 @@ public class SinglePoolElement : StructurePoolElement
         if (template is null) return new List<StructureTemplate.JigsawBlockInfo>();
         var jigsaws = template.GetJigsaws(position, rotation);
         RandomCollections.Shuffle(jigsaws, random);
-        //原版 List.sort 是稳定排序 这里用稳定排序链式表达式对齐 选择优先级高的排前面
+        //Vanilla List.sort is stable; a stable chained ordering matches it here, putting higher selection priority first
         return jigsaws.OrderByDescending(jigsaw => jigsaw.SelectionPriority).ToList();
     }
 
     public override BoundingBoxInt GetBoundingBox(StructureTemplateManager manager, BlockPos position, Rotation rotation)
     {
         var template = GetTemplate(manager);
-        //模板缺失时给退化包围盒 原版这条路径上模板必定存在
+        //A degenerate bounding box when the template is missing; in vanilla the template always exists on this path
         if (template is null) return new BoundingBoxInt(position.X, position.Y, position.Z, position.X, position.Y, position.Z);
         return template.GetBoundingBox(new StructurePlaceSettings().SetRotation(rotation), position);
     }
@@ -112,7 +112,7 @@ public class SinglePoolElement : StructurePoolElement
         return true;
     }
 
-    //GetDataMarkers 取模板里 data 模式的结构方块 absolute 为真时保留模板内坐标
+    //GetDataMarkers returns the data-mode structure blocks in the template; when absolute is true the in-template coords are kept
     public List<StructureBlockInfo> GetDataMarkers(StructureTemplateManager manager, BlockPos position,
         Rotation rotation, bool absolute)
     {
@@ -125,14 +125,14 @@ public class SinglePoolElement : StructurePoolElement
         foreach (var info in blocks)
         {
             var mode = info.Nbt?.GetString("mode")?.Value;
-            //缺 mode 或 mode 非法的条目原版会抛异常 这里按不是数据标记处理
+            //Entries with a missing or invalid mode throw in vanilla; here they are treated as not data markers
             if (!Enum.TryParse<StructureMode>(mode, true, out var parsed) || parsed != StructureMode.data) continue;
             result.Add(info);
         }
         return result;
     }
 
-    //GetSettings 组装放置设置 对应原版 getSettings
+    //GetSettings assembles the placement settings, maps to vanilla getSettings
     protected virtual StructurePlaceSettings GetSettings(Rotation rotation, BoundingBoxInt chunkBB,
         LiquidSettings liquidSettings, bool keepJigsaws)
     {
@@ -153,7 +153,7 @@ public class SinglePoolElement : StructurePoolElement
         return settings;
     }
 
-    //GetTemplate 按注册名取模板 管理器读不到返回 null
+    //GetTemplate fetches the template by registry name, returns null when the manager cannot load it
     private StructureTemplate? GetTemplate(StructureTemplateManager manager) => manager.GetOrLoad(TemplateLocation);
 
     public override StructurePoolElementType GetType() => SinglePoolElementType.Instance;
@@ -161,8 +161,8 @@ public class SinglePoolElement : StructurePoolElement
     public override string ToString() => $"Single[{TemplateLocation}]";
 }
 
-//LegacySinglePoolElement 旧版单模板元素 对应原版 LegacySinglePoolElement
-//与单模板元素的差别只在处理器链 结构方块与空气都忽略
+//LegacySinglePoolElement legacy single-template element, maps to vanilla LegacySinglePoolElement
+//Differs from the single-template element only in the processor chain: both structure blocks and air are ignored
 public sealed class LegacySinglePoolElement : SinglePoolElement
 {
     public static new readonly MapCodec<LegacySinglePoolElement> MapCodec =
@@ -197,8 +197,8 @@ public sealed class LegacySinglePoolElement : SinglePoolElement
     public override string ToString() => $"LegacySingle[{TemplateLocation}]";
 }
 
-//ListPoolElement 模板列表元素 对应原版 ListPoolElement
-//尺寸取各元素最大值 包围盒取并集 放置要全部成功
+//ListPoolElement template list element, maps to vanilla ListPoolElement
+//Size takes the max across elements, the bounding box takes the union, and placement must succeed on all of them
 public sealed class ListPoolElement : StructurePoolElement
 {
     public static readonly MapCodec<ListPoolElement> MapCodec =
@@ -214,7 +214,7 @@ public sealed class ListPoolElement : StructurePoolElement
     public ListPoolElement(IReadOnlyList<StructurePoolElement> elements, StructureTemplatePool.Projection projection)
         : base(projection)
     {
-        if (elements.Count == 0) throw new ArgumentException("池元素列表不能为空");
+        if (elements.Count == 0) throw new ArgumentException("pool element list must not be empty");
         _elements = new List<StructurePoolElement>(elements);
         SetProjectionOnEachElement(projection);
     }
@@ -236,7 +236,7 @@ public sealed class ListPoolElement : StructurePoolElement
         return new Vec3i(sizeX, sizeY, sizeZ);
     }
 
-    //GetShuffledJigsawBlocks 列表元素只取第一个元素的拼图 对应原版行为
+    //GetShuffledJigsawBlocks a list element takes the jigsaws of only the first element, matching vanilla
     public override List<StructureTemplate.JigsawBlockInfo> GetShuffledJigsawBlocks(StructureTemplateManager manager,
         BlockPos position, Rotation rotation, RandomSource random)
         => _elements[0].GetShuffledJigsawBlocks(manager, position, rotation, random);
@@ -250,7 +250,7 @@ public sealed class ListPoolElement : StructurePoolElement
             var elementBox = element.GetBoundingBox(manager, position, rotation);
             box = box is null ? elementBox : box.Encapsulate(elementBox);
         }
-        return box ?? throw new InvalidOperationException("列表元素的包围盒算不出来");
+        return box ?? throw new InvalidOperationException("cannot compute the list element bounding box");
     }
 
     public override bool Place(StructureTemplateManager manager, WorldGenRegion level, StructureManager structureManager,
@@ -276,13 +276,13 @@ public sealed class ListPoolElement : StructurePoolElement
 
     public override string ToString() => $"List[{string.Join(", ", _elements)}]";
 
-    //SetProjectionOnEachElement 列表元素的投影恒等于外层投影
+    //SetProjectionOnEachElement the projection of a list element always equals the outer projection
     private void SetProjectionOnEachElement(StructureTemplatePool.Projection projection)
         => _elements.ForEach(element => element.SetProjection(projection));
 }
 
-//FeaturePoolElement 特征元素 对应原版 FeaturePoolElement
-//不放置模板而是放置一个已放置特征 自带一个指向下方的拼图方块供连接
+//FeaturePoolElement feature element, maps to vanilla FeaturePoolElement
+//Places a placed feature instead of a template; carries a downward-facing jigsaw block for connections
 public sealed class FeaturePoolElement : StructurePoolElement
 {
     public static readonly MapCodec<FeaturePoolElement> MapCodec =
@@ -295,7 +295,7 @@ public sealed class FeaturePoolElement : StructurePoolElement
 
     private const string DefaultFinalState = "minecraft:air";
 
-    //虚拟拼图方块的默认数据 对应原版 defaultJigsawNBT
+    //Default data of the virtual jigsaw block, maps to vanilla defaultJigsawNBT
     private readonly CompoundTag _defaultJigsawNbt;
 
     public FeaturePoolElement(Holder<NetCraft.Registry.PlacedFeature> feature, StructureTemplatePool.Projection projection)
@@ -313,7 +313,7 @@ public sealed class FeaturePoolElement : StructurePoolElement
         BlockPos position, Rotation rotation, RandomSource random)
     {
         var jigsawBlock = ProcessorBlockHelper.BlockOf("jigsaw");
-        //拼图方块没注册时连标记都造不出来 原版这里恒有方块
+        //Without the jigsaw block registered, not even the marker can be built; in vanilla the block always exists here
         if (jigsawBlock is null) return new List<StructureTemplate.JigsawBlockInfo>();
         var state = StructurePlacementState(jigsawBlock.DefaultBlockState);
         return new List<StructureTemplate.JigsawBlockInfo>
@@ -333,7 +333,7 @@ public sealed class FeaturePoolElement : StructurePoolElement
         ChunkGenerator generator, BlockPos position, BlockPos referencePos, Rotation rotation, BoundingBoxInt chunkBB,
         RandomSource random, LiquidSettings liquidSettings, bool keepJigsaws)
     {
-        //特征放置要走完整的修饰器链与生成器 缺生成器时保守返回未放置
+        //Feature placement needs the full modifier chain and generator; without a generator it conservatively reports not placed
         if (generator is null) return false;
         return Feature.Value is Placement.PlacedFeature placed
             && placed.Place(level, generator, random, position);
@@ -343,7 +343,7 @@ public sealed class FeaturePoolElement : StructurePoolElement
 
     public override string ToString() => $"Feature[{Feature.RegisteredName}]";
 
-    //FillDefaultJigsawNbt 拼一份默认拼图数据 对应原版 fillDefaultJigsawNBT
+    //FillDefaultJigsawNbt builds the default jigsaw data, maps to vanilla fillDefaultJigsawNBT
     private static CompoundTag FillDefaultJigsawNbt()
     {
         var tag = new CompoundTag();
@@ -355,7 +355,7 @@ public sealed class FeaturePoolElement : StructurePoolElement
         return tag;
     }
 
-    //StructurePlacementState 把默认状态的朝向改成朝下朝南 对应原版 FrontAndTop.DOWN_SOUTH
+    //StructurePlacementState changes the default orientation to down/south, maps to vanilla FrontAndTop.DOWN_SOUTH
     private static BlockState StructurePlacementState(BlockState state)
     {
         foreach (var property in state.GetProperties())

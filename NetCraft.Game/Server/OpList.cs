@@ -4,9 +4,9 @@ using NetCraft.Logging;
 
 namespace NetCraft.Game.Server;
 
-//OpList 管理员名单对应原版 net.minecraft.server.players.ServerOpList
-//落盘 ops.json 字段对齐原版 uuid/name/level/bypassesPlayerLimit
-//名字匹配作为回退: 离线模式 uuid 随名字生成 名单只写名字时也能命中
+//OpList operator list, maps to vanilla net.minecraft.server.players.ServerOpList
+//Persisted to ops.json with fields aligned with vanilla uuid/name/level/bypassesPlayerLimit
+//Name matching as a fallback: in offline mode the uuid is derived from the name, so a list with only the name still hits
 public sealed class OpList
 {
     private readonly string _path;
@@ -19,22 +19,22 @@ public sealed class OpList
         Load();
     }
 
-    //Path 名单文件路径
+    //Path the list file path
     public string Path => _path;
 
-    //Count 名单条目数
+    //Count the number of list entries
     public int Count => _byName.Count;
 
-    //Names 名单名字快照供诊断
+    //Names a snapshot of list names, for diagnostics
     public IReadOnlyList<string> Names => _byName.Values.Select(e => e.Name).ToList();
 
-    //GetPermissionLevel 取玩家权限等级 不在名单返回 0 对应原版 getProfilePermissions
+    //GetPermissionLevel gets a player's permission level; 0 when not on the list, maps to vanilla getProfilePermissions
     public int GetPermissionLevel(GameProfile profile) => Find(profile)?.Level ?? 0;
 
-    //IsOp 是否在名单内
+    //IsOp whether it is on the list
     public bool IsOp(GameProfile profile) => Find(profile) is not null;
 
-    //Add 写入或更新名单并落盘 返回是否新增条目
+    //Add writes or updates the list and persists it; returns whether an entry was added
     public bool Add(GameProfile profile, int level)
     {
         var added = Find(profile) is null;
@@ -44,7 +44,7 @@ public sealed class OpList
         return added;
     }
 
-    //Remove 从名单移除并落盘 返回是否命中条目
+    //Remove removes from the list and persists it; returns whether an entry was hit
     public bool Remove(GameProfile profile)
     {
         var existing = Find(profile);
@@ -55,14 +55,14 @@ public sealed class OpList
         return true;
     }
 
-    //Find 先按 uuid 再按名字查 两个索引可能指向同一玩家
+    //Find looks up by uuid then by name; the two indexes may point to the same player
     private OpEntry? Find(GameProfile profile)
     {
         if (_byId.TryGetValue(profile.Id, out var byId)) return byId;
         return _byName.TryGetValue(profile.Name, out var byName) ? byName : null;
     }
 
-    //Index 登记条目 同名旧条目先清掉避免两个 uuid 抢一个名字
+    //Index registers an entry; an old same-name entry is cleared first so two uuids do not fight over one name
     private void Index(OpEntry entry)
     {
         if (_byName.TryGetValue(entry.Name, out var previous))
@@ -71,7 +71,7 @@ public sealed class OpList
         _byName[entry.Name] = entry;
     }
 
-    //Load 读名单 文件缺失生成空名单 解析失败按空名单处理不阻断启动
+    //Load reads the list; a missing file creates an empty list, and a parse failure is treated as an empty list without blocking startup
     private void Load()
     {
         _byId.Clear();
@@ -106,7 +106,7 @@ public sealed class OpList
                 var bypasses = element.TryGetProperty("bypassesPlayerLimit", out var bypassNode)
                     && bypassNode.ValueKind == JsonValueKind.True;
                 var idText = element.TryGetProperty("uuid", out var idNode) ? idNode.GetString() : null;
-                //uuid 缺失或非法时只用名字索引 手写名单可以只填名字
+                //When the uuid is missing or invalid only the name index is used; a hand-written list may contain only names
                 var id = Guid.TryParse(idText, out var parsedId) ? parsedId : Guid.Empty;
                 var entry = new OpEntry(id, name, level, bypasses);
                 _byName[name] = entry;
@@ -120,7 +120,7 @@ public sealed class OpList
         }
     }
 
-    //Save 写名单 写盘失败只记日志不影响运行
+    //Save writes the list; a write failure only logs and does not affect running
     private void Save()
     {
         try
@@ -150,6 +150,6 @@ public sealed class OpList
         }
     }
 
-    //OpEntry 单条管理员记录
+    //OpEntry a single operator record
     private sealed record OpEntry(Guid Id, string Name, int Level, bool BypassesPlayerLimit);
 }

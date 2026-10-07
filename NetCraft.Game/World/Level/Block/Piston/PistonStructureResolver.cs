@@ -2,17 +2,17 @@ using NetCraft.Primitives;
 using NetCraft.Registry.Enums;
 using NetCraft.Registry.State;
 using NetCraft.Storage;
-//方向同时存在于 Primitives 与 Registry.Enums 这里取方块用的那套
+//Direction exists in both Primitives and Registry.Enums; the one used for blocks is taken here
 using Direction = NetCraft.Primitives.Direction;
 
 namespace NetCraft.Game.World.Level.Block.Piston;
 
-//PistonStructureResolver 一次推动的结构解析 对应原版同名类
-//从活塞前方开始沿推动方向逐格收集 要推走的进 toPush 要破坏的进 toDestroy
-//最多 12 格 超过就判定推不动 粘液块与蜂蜜块还会带出侧向分支
+//PistonStructureResolver structural resolution of one push, maps to the vanilla class of the same name
+//Collects cell by cell from in front of the piston along the push direction: pushable blocks go into toPush and breakable ones into toDestroy
+//At most 12 blocks, beyond that it counts as immovable; slime and honey blocks also bring out side branches
 internal sealed class PistonStructureResolver
 {
-    //MaxPushDepth 一次推动的方块数上限 对应原版 MAX_PUSH_DEPTH
+    //MaxPushDepth maximum block count of one push, maps to vanilla MAX_PUSH_DEPTH
     public const int MaxPushDepth = 12;
 
     private readonly ServerLevel _level;
@@ -37,7 +37,7 @@ internal sealed class PistonStructureResolver
         }
         else
         {
-            //收回时从活塞头后面两格那截开始搬
+            //On retract the move starts at the segment two cells behind the piston head
             _pushDirection = direction.Opposite;
             _startPos = pistonPos.Relative(direction, 2);
         }
@@ -49,7 +49,7 @@ internal sealed class PistonStructureResolver
 
     public Direction PushDirection => _pushDirection;
 
-    //Resolve 解析出完整推动结构 返回是否推得动
+    //Resolve resolves the complete push structure and returns whether it can move
     public bool Resolve()
     {
         _toPush.Clear();
@@ -57,7 +57,7 @@ internal sealed class PistonStructureResolver
         var nextState = StateAt(_startPos);
         if (!Blocks.PistonBaseBlock.IsPushable(nextState, _level, _startPos, _pushDirection, false, _pistonDirection))
         {
-            //伸出时遇到可破坏方块就地毁掉
+            //When extending it destroys breakable blocks on the spot
             if (_extending && PistonPushReactions.Of(nextState) == PushReaction.destroy)
             {
                 _toDestroy.Add(_startPos);
@@ -66,7 +66,7 @@ internal sealed class PistonStructureResolver
             return false;
         }
         if (!AddBlockLine(_startPos, _pushDirection)) return false;
-        //粘性方块要把侧向粘着的分支一起收集
+        //Sticky blocks collect their laterally stuck branches too
         for (var i = 0; i < _toPush.Count; i++)
         {
             var pos = _toPush[i];
@@ -76,11 +76,11 @@ internal sealed class PistonStructureResolver
         return true;
     }
 
-    //IsSticky 能粘住邻居的方块 对应原版 isSticky
+    //IsSticky whether the block can stick to neighbors, maps to vanilla isSticky
     private static bool IsSticky(BlockState state)
         => state.Owner.Id.Path is "slime_block" or "honey_block";
 
-    //CanStickToEachOther 两块之间粘不粘 蜂蜜块与粘液块互不粘 对应原版 canStickToEachOther
+    //CanStickToEachOther whether two blocks stick; honey and slime do not stick to each other, maps to vanilla canStickToEachOther
     private static bool CanStickToEachOther(BlockState first, BlockState second)
     {
         if (first.Owner.Id.Path == "honey_block" && second.Owner.Id.Path == "slime_block") return false;
@@ -88,7 +88,7 @@ internal sealed class PistonStructureResolver
         return IsSticky(first) || IsSticky(second);
     }
 
-    //AddBlockLine 沿 direction 收一条线上的方块 对应原版 addBlockLine
+    //AddBlockLine collects blocks along a line in direction, maps to vanilla addBlockLine
     private bool AddBlockLine(BlockPos start, Direction direction)
     {
         var nextState = StateAt(start);
@@ -98,7 +98,7 @@ internal sealed class PistonStructureResolver
         if (_toPush.Contains(start)) return true;
         var blockCount = 1;
         if (blockCount + _toPush.Count > MaxPushDepth) return false;
-        //粘液块串在一起会拖出身后一长条 先数清楚有多长
+        //Slime blocks strung together drag out a long line behind, so its length is counted first
         while (IsSticky(nextState))
         {
             var pos = start.Relative(_pushDirection.Opposite, blockCount);
@@ -125,7 +125,7 @@ internal sealed class PistonStructureResolver
             var collisionPos = _toPush.IndexOf(pos);
             if (collisionPos > -1)
             {
-                //撞上已经收进来的那一条 两条线要并成一条
+                //Running into an already collected line means the two lines merge into one
                 ReorderListAtCollision(blocksAdded, collisionPos);
                 for (var j = 0; j <= collisionPos + blocksAdded; j++)
                 {
@@ -152,7 +152,7 @@ internal sealed class PistonStructureResolver
         }
     }
 
-    //ReorderListAtCollision 两条线接上时把后加入的那条提到接点后面 对应原版 reorderListAtCollision
+    //ReorderListAtCollision moves the later line behind the junction when two lines meet, maps to vanilla reorderListAtCollision
     private void ReorderListAtCollision(int blocksAdded, int collisionPos)
     {
         var head = _toPush.GetRange(0, collisionPos);
@@ -164,13 +164,13 @@ internal sealed class PistonStructureResolver
         _toPush.AddRange(collisionToLine);
     }
 
-    //AddBranchingBlocks 收侧向粘着的分支 对应原版 addBranchingBlocks
+    //AddBranchingBlocks collects laterally stuck branches, maps to vanilla addBranchingBlocks
     private bool AddBranchingBlocks(BlockPos fromPos)
     {
         var fromState = StateAt(fromPos);
         foreach (var direction in Direction.Values)
         {
-            //轴向与本条线相同的那两格已经在线上 不用再看
+            //The two cells whose axis matches this line are already on it, so they are skipped
             if (direction.GetAxis() == _pushDirection.GetAxis()) continue;
             var neighbourPos = fromPos.Offset(direction);
             var neighbourState = StateAt(neighbourPos);
@@ -180,7 +180,7 @@ internal sealed class PistonStructureResolver
         return true;
     }
 
-    //StateAt 读方块状态 区块没加载按空气处理 对应原版 getBlockState 兜底
+    //StateAt reads the block state and treats an unloaded chunk as air, maps to the vanilla getBlockState fallback
     private BlockState StateAt(BlockPos pos)
         => _level.GetBlockState(pos) ?? Blocks.AIR.DefaultBlockState;
 }

@@ -7,22 +7,22 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//EnvironmentScanPlacement 环境扫描放置对应原版 EnvironmentScanPlacement
-//沿竖直方向逐步搜索 命中目标条件的位置才保留
+//EnvironmentScanPlacement environment scan placement, maps to vanilla EnvironmentScanPlacement
+//Searches step by step along the vertical direction, keeping only positions that meet the target condition
 public sealed class EnvironmentScanPlacement : PlacementModifier
 {
-    //VerticalDirection 竖直方向校验对应原版 Direction.VERTICAL_CODEC
+    //VerticalDirection vertical direction validation, maps to vanilla Direction.VERTICAL_CODEC
     private static readonly Codec<Direction> VerticalDirection = DirectionCodec.Instance.ComapFlatMap(
         direction => direction.StepY != 0
             ? DataResult<Direction>.Success(direction)
-            : DataResult<Direction>.Error(() => "direction_of_search 只能是 up 或 down"),
+            : DataResult<Direction>.Error(() => "direction_of_search must be up or down"),
         direction => direction);
 
-    //MaxSteps 步数范围校验对应原版 Codec.intRange(1, 32)
+    //MaxSteps step range validation, maps to vanilla Codec.intRange(1, 32)
     private static readonly Codec<int> MaxSteps = Codecs.Int.ComapFlatMap(
         value => value is >= 1 and <= 32
             ? DataResult<int>.Success(value)
-            : DataResult<int>.Error(() => $"max_steps 必须在 1..32: {value}"),
+            : DataResult<int>.Error(() => $"max_steps must be within 1..32: {value}"),
         value => value);
 
     public static readonly Codec<EnvironmentScanPlacement> Codec =
@@ -42,7 +42,7 @@ public sealed class EnvironmentScanPlacement : PlacementModifier
     public BlockPredicate TargetCondition { get; }
     public BlockPredicate AllowedSearchCondition { get; }
 
-    //MaxStepsCount 最大步数 属性名避开上面的 MaxSteps codec 字段
+    //MaxStepsCount max step count; the property name avoids the MaxSteps codec field above
     public int MaxStepsCount { get; }
 
     private EnvironmentScanPlacement(Direction directionOfSearch, BlockPredicate targetCondition,
@@ -54,7 +54,7 @@ public sealed class EnvironmentScanPlacement : PlacementModifier
         MaxStepsCount = maxSteps;
     }
 
-    //ScanningFor 构造入口对应原版 scanningFor
+    //ScanningFor construction entry, maps to vanilla scanningFor
     public static EnvironmentScanPlacement ScanningFor(Direction directionOfSearch, BlockPredicate targetCondition,
         BlockPredicate allowedSearchCondition, int maxSteps)
         => new(directionOfSearch, targetCondition, allowedSearchCondition, maxSteps);
@@ -83,7 +83,7 @@ public sealed class EnvironmentScanPlacement : PlacementModifier
     public override PlacementModifierType Type => EnvironmentScanPlacementType.Instance;
 }
 
-//EnvironmentScanPlacementType 对应原版 PlacementModifierType.ENVIRONMENT_SCAN
+//EnvironmentScanPlacementType, maps to vanilla PlacementModifierType.ENVIRONMENT_SCAN
 public sealed class EnvironmentScanPlacementType : PlacementModifierType<EnvironmentScanPlacement>
 {
     public static readonly EnvironmentScanPlacementType Instance = Register(

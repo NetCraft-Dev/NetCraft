@@ -8,8 +8,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Misc;
 
-//TemplateFeatureConfiguration 结构模板配置 对应原版 TemplateFeatureConfiguration
-//权重列表里每一项是一份模板 模板可自带允许的旋转集合
+//TemplateFeatureConfiguration structure template configuration, maps to vanilla TemplateFeatureConfiguration
+//Each weighted entry is one template; a template may carry its own set of allowed rotations
 public sealed class TemplateFeatureConfiguration : FeatureConfiguration
 {
     public static readonly Codec<TemplateFeatureConfiguration> Codec =
@@ -23,11 +23,11 @@ public sealed class TemplateFeatureConfiguration : FeatureConfiguration
     public TemplateFeatureConfiguration(WeightedList<TemplateEntry> templates) => Templates = templates;
 }
 
-//TemplateEntry 一条模板条目 对应原版 TemplateFeatureConfiguration.TemplateEntry
+//TemplateEntry a template entry, maps to vanilla TemplateFeatureConfiguration.TemplateEntry
 public sealed class TemplateEntry
 {
-    //DefaultRotations 四个旋转 声明序与 Rotation.values 一致
-    //必须先于 Codec 声明 静态字段按文本顺序初始化 否则构造 codec 时取到 null
+    //DefaultRotations the four rotations, declared in the same order as Rotation.values
+    //Must be declared before Codec: static fields initialize in textual order, otherwise the codec would see null
     private static readonly IReadOnlyList<Rotation> DefaultRotations =
         new[] { Rotation.None, Rotation.Clockwise90, Rotation.Clockwise180, Rotation.Counterclockwise90 };
 
@@ -48,8 +48,8 @@ public sealed class TemplateEntry
     }
 }
 
-//TemplateFeature 结构模板特征 对应原版 TemplateFeature
-//按权重取一份模板与一个旋转 把模板居中放到原点 供硫泉这类预置结构使用
+//TemplateFeature structure template feature, maps to vanilla TemplateFeature
+//Picks a weighted template and a rotation, centers the template on the origin; used by preset structures such as sulfur springs
 public sealed class TemplateFeature : Feature<TemplateFeatureConfiguration>
 {
     private const string FeatureId = "template";
@@ -57,8 +57,8 @@ public sealed class TemplateFeature : Feature<TemplateFeatureConfiguration>
     public static readonly TemplateFeature Instance = Register(
         Identifier.WithDefaultNamespace(FeatureId), new TemplateFeature());
 
-    //TemplateManager 结构模板管理器 由世界装配注入
-    //放置上下文只拿到 WorldGenRegion 拿不到资源包 没注入时读不出模板 与原版读服务端管理器等价
+    //TemplateManager structure template manager, injected by world assembly
+    //The placement context only gets a WorldGenRegion, not the resource pack, so without injection templates cannot be read; equivalent to vanilla reading the server manager
     public static StructureTemplateManager? TemplateManager { get; set; }
 
     private TemplateFeature()
@@ -70,7 +70,7 @@ public sealed class TemplateFeature : Feature<TemplateFeatureConfiguration>
         var level = context.Level;
         var entry = config.Templates.GetRandomOrThrow(random);
         var rotation = entry.Rotations[random.NextInt(entry.Rotations.Count)];
-        //管理器没注入时这两个随机数已经消耗掉 同种子的后续特征不会漂
+        //When the manager is not injected these two random values are already consumed, so later features do not drift for the same seed
         var manager = TemplateManager;
         if (manager is null) return false;
         var template = manager.GetOrLoad(entry.Template);
@@ -82,7 +82,7 @@ public sealed class TemplateFeature : Feature<TemplateFeatureConfiguration>
         return template.PlaceInWorld(level, pos, pos, settings, random);
     }
 
-    //GetRotatedOffset 模板按旋转居中时的偏移量 对应原版 getRotatedOffset
+    //GetRotatedOffset centering offset of the template for its rotation, maps to vanilla getRotatedOffset
     private static Vec3i GetRotatedOffset(Rotation rotation, Direction.Axis axis, StructureTemplate template)
     {
         var direction = rotation.Rotate(NegativeOf(axis));
@@ -90,7 +90,7 @@ public sealed class TemplateFeature : Feature<TemplateFeatureConfiguration>
         return new Vec3i(direction.StepX, direction.StepY, direction.StepZ).Multiply(size / 2);
     }
 
-    //NegativeOf 取该轴上的负方向 对应原版 Direction.Axis.getNegative
+    //NegativeOf the negative direction along the axis, maps to vanilla Direction.Axis.getNegative
     private static Direction NegativeOf(Direction.Axis axis) => axis switch
     {
         Direction.Axis.X => Direction.West,
@@ -99,8 +99,8 @@ public sealed class TemplateFeature : Feature<TemplateFeatureConfiguration>
     };
 }
 
-//RotationCodec 旋转编解码 对应原版 Rotation.CODEC
-//JSON 形态是 none/clockwise_90/180/counterclockwise_90
+//RotationCodec rotation codec, maps to vanilla Rotation.CODEC
+//JSON form is none/clockwise_90/180/counterclockwise_90
 internal sealed class RotationCodec : ScalarCodec<Rotation>
 {
     public static readonly RotationCodec Instance = new();
@@ -108,10 +108,10 @@ internal sealed class RotationCodec : ScalarCodec<Rotation>
     public override DataResult<Rotation> Parse<U>(DynamicOps<U> ops, U input)
     {
         var text = ops.GetStringValue(input);
-        if (!text.Result().IsPresent) return DataResult<Rotation>.Error(() => "旋转必须是字符串");
+        if (!text.Result().IsPresent) return DataResult<Rotation>.Error(() => "rotation must be a string");
         return StructureTransforms.TryParseRotation(text.GetOrThrow()) is { } rotation
             ? DataResult<Rotation>.Success(rotation)
-            : DataResult<Rotation>.Error(() => $"未知的旋转: {text.GetOrThrow()}");
+            : DataResult<Rotation>.Error(() => $"unknown rotation: {text.GetOrThrow()}");
     }
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, Rotation value)

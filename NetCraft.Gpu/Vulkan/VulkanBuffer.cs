@@ -4,10 +4,10 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace NetCraft.Gpu.Vulkan;
 
-//VulkanBuffer Vulkan 后端 GPU buffer
-//UniformBuffer/StagingBuffer 用 HostVisible+HostCoherent 内存直接 map 适合频繁更新
-//VertexBuffer/IndexBuffer 用 DeviceLocal 内存通过 staging buffer 中转上传性能更优
-//Download 仅 HostVisible 类型支持 DeviceLocal 类型抛 NotSupportedException
+//VulkanBuffer Vulkan backend GPU buffer
+//UniformBuffer/StagingBuffer use host-visible+host-coherent memory mapped directly, suited to frequent updates
+//VertexBuffer/IndexBuffer use device-local memory uploaded via a staging buffer for better performance
+//Download is only supported for host-visible types; device-local types throw NotSupportedException
 public sealed unsafe class VulkanBuffer : GpuBuffer
 {
     private readonly Vk _vk;
@@ -27,7 +27,7 @@ public sealed unsafe class VulkanBuffer : GpuBuffer
     {
     }
 
-    //hostVisible true 强制 HostVisible 内存适合每帧更新的 vertex buffer 避免 staging 中转
+    //hostVisible true forces host-visible memory, suited to per-frame vertex buffer updates without staging
     internal VulkanBuffer(Vk vk, Device device, VulkanGpuDevice gpuDevice, int size, GpuBufferUsage usage, bool hostVisible)
         : base(size, usage)
     {
@@ -47,19 +47,19 @@ public sealed unsafe class VulkanBuffer : GpuBuffer
     {
         var bytes = MemoryMarshal.AsBytes(data);
         if (bytes.Length > Size)
-            throw new InvalidOperationException($"Upload 数据 {bytes.Length} 超过 buffer 大小 {Size}");
+            throw new InvalidOperationException($"Upload data {bytes.Length} exceeds buffer size {Size}");
         if (_hostVisible)
         {
-            //HostVisible 直接 map+memcpy 适合 UniformBuffer 频繁更新
+            //Host-visible uses map+memcpy directly, suited to frequent UniformBuffer updates
             void* mapped;
             if (_vk.MapMemory(_device, _memory, 0, (ulong)bytes.Length, 0, &mapped) != Result.Success)
-                throw new InvalidOperationException("MapMemory 失败");
+                throw new InvalidOperationException("MapMemory failed");
             bytes.CopyTo(new Span<byte>(mapped, bytes.Length));
             _vk.UnmapMemory(_device, _memory);
         }
         else
         {
-            //DeviceLocal 通过 staging buffer 中转上传适合 VertexBuffer/IndexBuffer 一次性上传
+            //Device-local uploads via a staging buffer, suited to one-off VertexBuffer/IndexBuffer uploads
             var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(bytes.Length, GpuBufferUsage.StagingBuffer);
             try
             {
@@ -86,13 +86,13 @@ public sealed unsafe class VulkanBuffer : GpuBuffer
     public override void Download<T>(Span<T> data)
     {
         if (!_hostVisible)
-            throw new NotSupportedException("DeviceLocal buffer 不支持 Download 需用 staging 中转");
+            throw new NotSupportedException("Device-local buffers do not support Download; use staging");
         var bytes = MemoryMarshal.AsBytes(data);
         if (bytes.Length > Size)
-            throw new InvalidOperationException($"Download 数据 {bytes.Length} 超过 buffer 大小 {Size}");
+            throw new InvalidOperationException($"Download data {bytes.Length} exceeds buffer size {Size}");
         void* mapped;
         if (_vk.MapMemory(_device, _memory, 0, (ulong)bytes.Length, 0, &mapped) != Result.Success)
-            throw new InvalidOperationException("MapMemory 失败");
+            throw new InvalidOperationException("MapMemory failed");
         new Span<byte>(mapped, bytes.Length).CopyTo(bytes);
         _vk.UnmapMemory(_device, _memory);
     }
@@ -102,7 +102,7 @@ public sealed unsafe class VulkanBuffer : GpuBuffer
         GpuBufferUsage.VertexBuffer => BufferUsageFlags.VertexBufferBit | BufferUsageFlags.TransferDstBit,
         GpuBufferUsage.IndexBuffer => BufferUsageFlags.IndexBufferBit | BufferUsageFlags.TransferDstBit,
         GpuBufferUsage.UniformBuffer => BufferUsageFlags.UniformBufferBit,
-        //StagingBuffer 双向中转 Upload 时 TransferSrc（CPU→image）Readback 时 TransferDst（image→CPU）
+        //StagingBuffer is bidirectional: TransferSrc during Upload (CPU→image) and TransferDst during Readback (image→CPU)
         GpuBufferUsage.StagingBuffer => BufferUsageFlags.TransferSrcBit | BufferUsageFlags.TransferDstBit,
         _ => throw new ArgumentOutOfRangeException(nameof(usage))
     };

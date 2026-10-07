@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundEntityTagQueryPacket 数据包对应原版 ServerboundEntityTagQueryPacket
-//字段 TransactionId(int) EntityId(int)
+//ServerboundEntityTagQueryPacket entity tag query packet, maps to vanilla ServerboundEntityTagQueryPacket
+//Fields: TransactionId(int), EntityId(int)
 public sealed record ServerboundEntityTagQueryPacket(int TransactionId, int EntityId) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundEntityTagQueryPacket> StreamCodec { get; } = new EntityTagQueryCodec();
@@ -13,9 +13,9 @@ public sealed record ServerboundEntityTagQueryPacket(int TransactionId, int Enti
     private sealed class EntityTagQueryCodec : StreamCodec<FriendlyByteBuf, ServerboundEntityTagQueryPacket>
     {
         public ServerboundEntityTagQueryPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ServerboundEntityTagQueryPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

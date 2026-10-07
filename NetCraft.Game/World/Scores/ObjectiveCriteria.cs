@@ -2,37 +2,37 @@ using NetCraft.Codec;
 
 namespace NetCraft.Game.World.Scores;
 
-//ObjectiveCriteria 计分标准 对应原版 net.minecraft.world.scores.criteria.ObjectiveCriteria
-//内置标准在静态初始化里登记 带冒号的标准要查统计类型 本项目统计体系未接通 暂不支持
+//ObjectiveCriteria scoring criteria, maps to vanilla net.minecraft.world.scores.criteria.ObjectiveCriteria
+//Built-in criteria are registered in static initialization; criteria with a colon look up a statistic type, which is not wired up in this project, so they are unsupported
 public sealed class ObjectiveCriteria
 {
-    //RenderType 渲染类型 对应原版 RenderType
+    //RenderType render type, maps to vanilla RenderType
     public enum RenderType
     {
         INTEGER,
         HEARTS
     }
 
-    //Cache 全部标准 对应原版 CRITERIA_CACHE
+    //Cache all criteria, maps to vanilla CRITERIA_CACHE
     private static readonly Dictionary<string, ObjectiveCriteria> Cache = new();
 
-    //CustomNames 内置标准名 对应原版 CUSTOM_CRITERIA
+    //CustomNames built-in criteria names, maps to vanilla CUSTOM_CRITERIA
     private static readonly HashSet<string> CustomNames = new();
 
-    //Codec 持久化编解码 按名字 对应原版 CODEC
+    //Codec persistence codec, keyed by name, maps to vanilla CODEC
     public static readonly Codec<ObjectiveCriteria> Codec = Codecs.String.ComapFlatMap(
         name => ByName(name) is { } criteria
             ? DataResult<ObjectiveCriteria>.Success(criteria)
-            : DataResult<ObjectiveCriteria>.Error(() => $"没有名为 {name} 的计分标准"),
+            : DataResult<ObjectiveCriteria>.Error(() => $"no criteria named {name}"),
         criteria => criteria.Name);
 
-    //RenderTypeCodec 渲染类型编解码 按序列化名 对应原版 RenderType.CODEC
+    //RenderTypeCodec render type codec, keyed by serialized name, maps to vanilla RenderType.CODEC
     public static readonly Codec<RenderType> RenderTypeCodec = Codecs.String.ComapFlatMap(
         id => id switch
         {
             "integer" => DataResult<RenderType>.Success(RenderType.INTEGER),
             "hearts" => DataResult<RenderType>.Success(RenderType.HEARTS),
-            _ => DataResult<RenderType>.Error(() => $"未知渲染类型 {id}")
+            _ => DataResult<RenderType>.Error(() => $"unknown render type {id}")
         },
         type => type == RenderType.HEARTS ? "hearts" : "integer");
 
@@ -48,7 +48,7 @@ public sealed class ObjectiveCriteria
     public static readonly ObjectiveCriteria EXPERIENCE = RegisterCustom("xp", true, RenderType.INTEGER);
     public static readonly ObjectiveCriteria LEVEL = RegisterCustom("level", true, RenderType.INTEGER);
 
-    //TEAM_KILL 与 KILLED_BY_TEAM 按队伍颜色各十五个 对应原版同名两张表
+    //TEAM_KILL and KILLED_BY_TEAM each have fifteen entries, one per team color, maps to the two vanilla tables of the same names
     public static readonly Dictionary<TeamColor, ObjectiveCriteria> TEAM_KILL =
         RegisterForEveryTeamColor(color => "teamkill." + color.GetSerializedName());
 
@@ -67,23 +67,23 @@ public sealed class ObjectiveCriteria
         Cache[name] = this;
     }
 
-    //Name 标准名 对应原版 getName
+    //Name criteria name, maps to vanilla getName
     public string Name => _name;
 
-    //IsReadOnly 只读标准不接受命令改分 对应原版 isReadOnly
+    //IsReadOnly read-only criteria reject score changes from commands, maps to vanilla isReadOnly
     public bool IsReadOnly => _readOnly;
 
-    //DefaultRenderType 默认渲染类型 对应原版 getDefaultRenderType
+    //DefaultRenderType default render type, maps to vanilla getDefaultRenderType
     public RenderType DefaultRenderType => _renderType;
 
-    //GetCustomCriteriaNames 内置标准名集合 对应原版 getCustomCriteriaNames
+    //GetCustomCriteriaNames set of built-in criteria names, maps to vanilla getCustomCriteriaNames
     public static IReadOnlyCollection<string> GetCustomCriteriaNames() => CustomNames;
 
-    //ByName 按名字查标准 找不到给 null 对应原版 byName
-    //原版还支持冒号形式查统计类型 统计体系未接通故暂无该分支
+    //ByName looks up criteria by name, null when not found, maps to vanilla byName
+    //Vanilla also supports colon-prefixed lookup of statistic types; the statistics system is not wired up so that branch is absent
     public static ObjectiveCriteria? ByName(string name) => Cache.TryGetValue(name, out var criteria) ? criteria : null;
 
-    //RegisterCustom 登记一个内置标准 对应原版 registerCustom
+    //RegisterCustom registers a built-in criteria, maps to vanilla registerCustom
     private static ObjectiveCriteria RegisterCustom(string name, bool readOnly, RenderType renderType)
     {
         var criteria = new ObjectiveCriteria(name, readOnly, renderType);
@@ -93,7 +93,7 @@ public sealed class ObjectiveCriteria
 
     private static ObjectiveCriteria RegisterCustom(string name) => RegisterCustom(name, false, RenderType.INTEGER);
 
-    //RegisterForEveryTeamColor 按队伍颜色各登记一个标准 对应原版 registerForEveryTeamColor
+    //RegisterForEveryTeamColor registers one criteria per team color, maps to vanilla registerForEveryTeamColor
     private static Dictionary<TeamColor, ObjectiveCriteria> RegisterForEveryTeamColor(Func<TeamColor, string> idFactory)
     {
         var result = new Dictionary<TeamColor, ObjectiveCriteria>();

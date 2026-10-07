@@ -2,8 +2,8 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundPickItemFromBlockPacket 中键选方块包对应原版 ServerboundPickItemFromBlockPacket
-//字段 Pos(BlockPos) IncludeData(boolean 创造模式是否附带方块实体数据)
+//ServerboundPickItemFromBlockPacket middle-click pick block packet, maps to vanilla ServerboundPickItemFromBlockPacket
+//Fields: Pos(BlockPos), IncludeData(boolean, whether to include block entity data in creative mode)
 public sealed record ServerboundPickItemFromBlockPacket(BlockPos Pos, bool IncludeData) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundPickItemFromBlockPacket> StreamCodec { get; } = new PickItemFromBlockCodec();

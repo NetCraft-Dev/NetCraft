@@ -1,10 +1,10 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundCommandSuggestionPacket 补全请求包对应原版 ServerboundCommandSuggestionPacket
-//字段 Id(int) Command(String)
+//ServerboundCommandSuggestionPacket suggestion request packet, maps to vanilla ServerboundCommandSuggestionPacket
+//Fields: Id(int), Command(String)
 public sealed record ServerboundCommandSuggestionPacket(int Id, string Command) : Packet<ServerGamePacketListener>
 {
-    //MaxCommandLength 原版 readUtf(32500)
+    //MaxCommandLength vanilla readUtf(32500)
     public const int MaxCommandLength = 32500;
 
     public static StreamCodec<FriendlyByteBuf, ServerboundCommandSuggestionPacket> StreamCodec { get; } = new CommandSuggestionCodec();
@@ -15,7 +15,7 @@ public sealed record ServerboundCommandSuggestionPacket(int Id, string Command) 
 
     private sealed class CommandSuggestionCodec : StreamCodec<FriendlyByteBuf, ServerboundCommandSuggestionPacket>
     {
-        //原版 write 顺序: writeVarInt(id) writeUtf(command,32500)
+        //Vanilla write order: writeVarInt(id), writeUtf(command,32500)
         public ServerboundCommandSuggestionPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadVarInt(), buf.ReadString(MaxCommandLength));
 

@@ -1,9 +1,9 @@
 namespace NetCraft.Gpu.Font;
 
-//AssetsFontResourceAccessor IFontResourceAccessor 实现从 assets 目录加载资源
-//identifier 格式 namespace:path 如 minecraft:font/include/space.json
-//映射到 {assetsRoot}/{namespace}/{path} 文件路径
-//路径分隔符 / 转 Path.DirectorySeparatorChar 跨平台
+//AssetsFontResourceAccessor IFontResourceAccessor implementation that loads resources from the assets directory
+//identifier format is namespace:path, e.g. minecraft:font/include/space.json
+//Maps to the file path {assetsRoot}/{namespace}/{path}
+//Path separator / is converted to Path.DirectorySeparatorChar for cross-platform use
 public sealed class AssetsFontResourceAccessor : IFontResourceAccessor
 {
     private readonly string _assetsRoot;

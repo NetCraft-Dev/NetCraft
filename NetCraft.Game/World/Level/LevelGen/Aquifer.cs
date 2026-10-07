@@ -6,37 +6,37 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//Aquifer 含水层接口对应原版 net.minecraft.world.level.levelgen.Aquifer
-//根据 NoiseRouter 的 Barrier/FluidLevelFloodedness/FluidLevelSpread/Lava 与 globalFluidPicker 决定每格方块状态
-//两种实现 NoiseBasedAquifer 完整含水层 DisabledAquifer 简化版密度>0 返回 null 否则返回全局流体
+//Aquifer aquifer interface, maps to vanilla net.minecraft.world.level.levelgen.Aquifer
+//Decides the block state of each cell from the NoiseRouter's Barrier/FluidLevelFloodedness/FluidLevelSpread/Lava and a globalFluidPicker
+//Two implementations: NoiseBasedAquifer the full aquifer, and DisabledAquifer the simplified one returning null when density > 0 and the global fluid otherwise
 public interface Aquifer
 {
-    //FluidPicker 流体选择器按坐标返回 FluidStatus 对应原版 Aquifer.FluidPicker
+    //FluidPicker returns a FluidStatus by coordinate, maps to vanilla Aquifer.FluidPicker
     public interface FluidPicker
     {
         FluidStatus ComputeFluid(int blockX, int blockY, int blockZ);
     }
 
-    //ComputeSubstance 按上下文与密度值返回方块状态密度>0 通常返回 null 由上层用 DefaultBlock 兜底
+    //ComputeSubstance returns the block state from the context and density; density > 0 usually returns null and the caller falls back to DefaultBlock
     BlockState? ComputeSubstance(FunctionContext context, double density);
 
-    //ShouldScheduleFluidUpdate 是否需要调度流体更新对应原版 shouldScheduleFluidUpdate
+    //ShouldScheduleFluidUpdate whether a fluid update should be scheduled, maps to vanilla shouldScheduleFluidUpdate
     bool ShouldScheduleFluidUpdate();
 
-    //Create 完整含水层工厂对应原版 create
-    //P0 阶段 NoiseBasedAquifer 内部委托 DisabledAquifer 留好构造签名便于 P1 补全含水层网格算法
+    //Create full aquifer factory, maps to vanilla create
+    //In phase P0 NoiseBasedAquifer delegates to DisabledAquifer internally; the constructor signature is kept so P1 can complete the aquifer grid algorithm
     static Aquifer Create(NoiseChunk noiseChunk, ChunkPos pos, NoiseRouter router,
         PositionalRandomFactory positionalRandomFactory, int minBlockY, int yBlockSize,
         FluidPicker globalFluidPicker)
         => new NoiseBasedAquifer(noiseChunk, pos, router, positionalRandomFactory, minBlockY, yBlockSize, globalFluidPicker);
 
-    //CreateDisabled 禁用含水层工厂对应原版 createDisabled
-    //密度>0 返回 null 否则返回 globalFluidPicker 在该坐标的 FluidStatus.At(blockY)
+    //CreateDisabled disabled aquifer factory, maps to vanilla createDisabled
+    //Density > 0 returns null, otherwise returns globalFluidPicker's FluidStatus.At(blockY) at that coordinate
     static Aquifer CreateDisabled(FluidPicker fluidRule) => new DisabledAquifer(fluidRule);
 }
 
-//FluidStatus 流体状态记录流体液面高度与方块状态对应原版 Aquifer.FluidStatus
-//At(blockY) 当 blockY 小于 fluidLevel 返回 fluidType 否则返回 AIR
+//FluidStatus fluid status recording the fluid level and block state, maps to vanilla Aquifer.FluidStatus
+//At(blockY) returns fluidType when blockY is below fluidLevel and AIR otherwise
 public sealed class FluidStatus
 {
     public int FluidLevel { get; }
@@ -48,7 +48,7 @@ public sealed class FluidStatus
         FluidType = fluidType;
     }
 
-    //At 按坐标 y 决定返回 fluidType 还是 AIR 对应原版 at
+    //At decides between fluidType and AIR from the coordinate y, maps to vanilla at
     public BlockState At(int blockY)
         => blockY < FluidLevel ? FluidType : Blocks.AIR.DefaultBlockState;
 
@@ -63,9 +63,9 @@ public sealed class FluidStatus
     public static bool operator !=(FluidStatus a, FluidStatus b) => !(a == b);
 }
 
-//DisabledAquifer 禁用含水层对应原版 Aquifer.createDisabled 匿名实现
-//密度>0 返回 null 由 NoiseBasedChunkGenerator 用 Settings.DefaultBlock 兜底
-//密度<=0 返回 globalFluidPicker 的 FluidStatus.At(blockY)
+//DisabledAquifer disabled aquifer, maps to the anonymous implementation in vanilla Aquifer.createDisabled
+//Density > 0 returns null and NoiseBasedChunkGenerator falls back to Settings.DefaultBlock
+//Density <= 0 returns globalFluidPicker's FluidStatus.At(blockY)
 internal sealed class DisabledAquifer : Aquifer
 {
     private readonly Aquifer.FluidPicker _fluidRule;
@@ -84,17 +84,17 @@ internal sealed class DisabledAquifer : Aquifer
     public bool ShouldScheduleFluidUpdate() => false;
 }
 
-//NoiseBasedAquifer 噪声含水层对应原版 Aquifer.NoiseBasedAquifer
-//世界按 16x12x16 切网格每格随机一个中心点按到最近四个中心的距离与水压噪声决定该格是石头还是流体
+//NoiseBasedAquifer noise-based aquifer, maps to vanilla Aquifer.NoiseBasedAquifer
+//The world is divided into 16x12x16 cells, each with a random centre point; the distance to the nearest four centres and pressure noise decide whether a cell is stone or fluid
 public sealed class NoiseBasedAquifer : Aquifer
 {
-    //Source 位置缓存未填充标记对应原版 DynamicGraphMinFixedPoint.SOURCE
+    //Source location cache unfilled marker, maps to vanilla DynamicGraphMinFixedPoint.SOURCE
     private const long Source = long.MaxValue;
-    //WayBelowMinY 低于最低建筑高度的哨兵对应原版 DimensionType.WAY_BELOW_MIN_Y
+    //WayBelowMinY sentinel below the minimum build height, maps to vanilla DimensionType.WAY_BELOW_MIN_Y
     private const int WayBelowMinY = -2032;
-    //FlowingUpdateSimilarity 触发流体更新调度的相似度阈值对应原版同名常量
+    //FlowingUpdateSimilarity similarity threshold that triggers a fluid update schedule, maps to the vanilla constant of the same name
     private static readonly double FlowingUpdateSimilarity = Similarity(Mth.Square(10), Mth.Square(12));
-    //SurfaceSamplingOffsetsInChunks 采初步地表时的区块偏移对应原版同名常量
+    //SurfaceSamplingOffsetsInChunks chunk offsets used when sampling the preliminary surface, maps to the vanilla constant of the same name
     private static readonly int[][] SurfaceSamplingOffsetsInChunks =
     {
         new[] { 0, 0 }, new[] { -2, -1 }, new[] { -1, -1 }, new[] { 0, -1 }, new[] { 1, -1 },
@@ -114,9 +114,9 @@ public sealed class NoiseBasedAquifer : Aquifer
     private readonly long[] _aquiferLocationCache;
     private readonly Aquifer.FluidPicker _globalFluidPicker;
     private readonly int _skipSamplingAboveY;
-    //_reusableContext 逐格采样复用的单点上下文
-    //含水层实例每区块一个且由单个生成线程驱动 复用不会跨线程
-    //一个区块近十万格 逐格 At 一次是地形生成里最大的一处小对象分配
+    //_reusableContext per-cell reusable single-point context
+    //One aquifer instance per chunk, driven by a single generation thread, so reuse never crosses threads
+    //A chunk has nearly a hundred thousand cells; one At call per cell is the biggest small-object allocation in terrain generation
     private readonly SinglePointContext _reusableContext = new(0, 0, 0);
     private readonly int _minGridX;
     private readonly int _minGridY;
@@ -139,7 +139,7 @@ public sealed class NoiseBasedAquifer : Aquifer
         _positionalRandomFactory = positionalRandomFactory;
         _globalFluidPicker = globalFluidPicker;
 
-        //X/Z 网格向外各留一格 Y 也留一格保证跨区块查询邻居中心也在缓存内
+        //Leave one extra grid cell on each side in X/Z and one in Y, so neighbour centres queried across chunks are still cached
         _minGridX = GridX(pos.MinBlockX - 5);
         var maxGridX = GridX(pos.MaxBlockX - 5) + 1;
         _gridSizeX = maxGridX - _minGridX + 1;
@@ -155,14 +155,14 @@ public sealed class NoiseBasedAquifer : Aquifer
         _aquiferLocationCache = new long[totalGridSize];
         Array.Fill(_aquiferLocationCache, Source);
 
-        //高于该 y 的网格直接给全局流体不再做中心搜索
+        //Cells above this y get the global fluid directly without a centre search
         var maxAdjustedSurfaceLevel = AdjustSurfaceLevel(noiseChunk.MaxPreliminarySurfaceLevel(
             FromGridX(_minGridX, 0), FromGridZ(_minGridZ, 0), FromGridX(maxGridX, 9), FromGridZ(maxGridZ, 9)));
         var skipSamplingAboveGridY = GridY(maxAdjustedSurfaceLevel + 12) + 1;
         _skipSamplingAboveY = FromGridY(skipSamplingAboveGridY, 11) - 1;
     }
 
-    //ComputeSubstance 取最近四个网格中心的液面再做水压判定对应原版 computeSubstance
+    //ComputeSubstance takes the fluid levels of the nearest four grid centres then applies the pressure test, maps to vanilla computeSubstance
     public BlockState? ComputeSubstance(FunctionContext context, double density)
     {
         if (density > 0.0)
@@ -185,7 +185,7 @@ public sealed class NoiseBasedAquifer : Aquifer
             return Blocks.LAVA.DefaultBlockState;
         }
 
-        //在 2x3x2 个网格中心里挑距离最近的前四个
+        //Pick the four nearest among the 2x3x2 grid centres
         var xAnchor = GridX(posX - 5);
         var yAnchor = GridY(posY + 1);
         var zAnchor = GridZ(posZ - 5);
@@ -271,7 +271,7 @@ public sealed class NoiseBasedAquifer : Aquifer
                 && !closestStatus1.Equals(GetAquiferStatus(closestIndex2));
             return fluidState;
         }
-        //水盖在岩浆上时强制调度一次流体更新让水面回落
+        //When water sits on top of lava, force one fluid update so the water surface falls
         if (fluidState.Owner == Blocks.WATER
             && _globalFluidPicker.ComputeFluid(posX, posY - 1, posZ).At(posY - 1).Owner == Blocks.LAVA)
         {
@@ -325,11 +325,11 @@ public sealed class NoiseBasedAquifer : Aquifer
 
     public bool ShouldScheduleFluidUpdate() => _shouldScheduleFluidUpdate;
 
-    //Similarity 两个距离平方越接近值越大对应原版 similarity
+    //Similarity grows as two squared distances get closer, maps to vanilla similarity
     private static double Similarity(int distanceSqr1, int distanceSqr2)
         => 1.0 - (distanceSqr2 - distanceSqr1) / 25.0;
 
-    //CalculatePressure 两个中心液面差产生的压力用 barrierNoiseValue 缓存同一坐标的屏障噪声
+    //CalculatePressure pressure from the fluid-level difference of two centres; barrierNoiseValue caches the barrier noise for the same coordinate
     private double CalculatePressure(FunctionContext context, ref double barrierNoiseValue,
         FluidStatus statusClosest1, FluidStatus statusClosest2)
     {
@@ -375,29 +375,29 @@ public sealed class NoiseBasedAquifer : Aquifer
         return 2.0 * (noiseValue + gradient);
     }
 
-    //GridX 方块坐标到 X 网格坐标对应原版 gridX
+    //GridX block coordinate to X grid coordinate, maps to vanilla gridX
     private static int GridX(int blockCoord) => blockCoord >> 4;
 
-    //FromGridX 网格坐标还原方块坐标对应原版 fromGridX
+    //FromGridX grid coordinate back to block coordinate, maps to vanilla fromGridX
     private static int FromGridX(int gridCoord, int blockOffset) => (gridCoord << 4) + blockOffset;
 
-    //GridY 方块坐标到 Y 网格坐标对应原版 gridY
+    //GridY block coordinate to Y grid coordinate, maps to vanilla gridY
     private static int GridY(int blockCoord) => Mth.FloorDiv(blockCoord, 12);
 
-    //FromGridY 网格坐标还原方块坐标对应原版 fromGridY
+    //FromGridY grid coordinate back to block coordinate, maps to vanilla fromGridY
     private static int FromGridY(int gridCoord, int blockOffset) => gridCoord * 12 + blockOffset;
 
-    //GridZ 方块坐标到 Z 网格坐标对应原版 gridZ
+    //GridZ block coordinate to Z grid coordinate, maps to vanilla gridZ
     private static int GridZ(int blockCoord) => blockCoord >> 4;
 
-    //FromGridZ 网格坐标还原方块坐标对应原版 fromGridZ
+    //FromGridZ grid coordinate back to block coordinate, maps to vanilla fromGridZ
     private static int FromGridZ(int gridCoord, int blockOffset) => (gridCoord << 4) + blockOffset;
 
-    //GetIndex 三维网格坐标到一维下标
+    //GetIndex 3D grid coordinate to a 1D index
     private int GetIndex(int gridX, int gridY, int gridZ)
         => ((gridY - _minGridY) * _gridSizeZ + (gridZ - _minGridZ)) * _gridSizeX + (gridX - _minGridX);
 
-    //GetAquiferStatus 懒算网格中心的流体状态并缓存对应原版 getAquiferStatus
+    //GetAquiferStatus lazily computes and caches the fluid status of a grid centre, maps to vanilla getAquiferStatus
     private FluidStatus GetAquiferStatus(int index)
     {
         var oldStatus = _aquiferCache[index];
@@ -408,7 +408,7 @@ public sealed class NoiseBasedAquifer : Aquifer
         return status;
     }
 
-    //ComputeFluid 按中心点周围 13 个区块的地表高度决定该格液面与流体类型对应原版 computeFluid
+    //ComputeFluid decides the fluid level and type of a cell from the surface heights of the 13 chunks around the centre, maps to vanilla computeFluid
     private FluidStatus ComputeFluid(int x, int y, int z)
     {
         var globalFluid = _globalFluidPicker.ComputeFluid(x, y, z);
@@ -440,10 +440,10 @@ public sealed class NoiseBasedAquifer : Aquifer
         return new FluidStatus(fluidSurfaceLevel, ComputeFluidType(x, y, z, globalFluid, fluidSurfaceLevel));
     }
 
-    //AdjustSurfaceLevel 初步地表加 8 作为含水层参考高度对应原版 adjustSurfaceLevel
+    //AdjustSurfaceLevel adds 8 to the preliminary surface as the aquifer reference height, maps to vanilla adjustSurfaceLevel
     private static int AdjustSurfaceLevel(int preliminarySurfaceLevel) => preliminarySurfaceLevel + 8;
 
-    //ComputeSurfaceLevel 由淹没度噪声决定液面完全淹没取全局液面部分淹没取随机液面否则无流体
+    //ComputeSurfaceLevel: floodedness noise decides the fluid level; fully flooded takes the global level, partially flooded takes a random level, otherwise no fluid
     private int ComputeSurfaceLevel(int x, int y, int z, FluidStatus globalFluid, int lowestPreliminarySurface,
         bool surfaceAtCenterIsUnderGlobalFluidLevel)
     {
@@ -470,7 +470,7 @@ public sealed class NoiseBasedAquifer : Aquifer
         return WayBelowMinY;
     }
 
-    //ComputeRandomizedFluidSurfaceLevel 按 64x40x16 格上的展布噪声随机液面并压到最低地表以下
+    //ComputeRandomizedFluidSurfaceLevel randomises the fluid level from spread noise over 64x40x16 cells and clamps it below the lowest surface
     private int ComputeRandomizedFluidSurfaceLevel(int x, int y, int z, int lowestPreliminarySurface)
     {
         var fluidLevelCellX = Mth.FloorDiv(x, 16);
@@ -483,7 +483,7 @@ public sealed class NoiseBasedAquifer : Aquifer
         return Math.Min(lowestPreliminarySurface, targetFluidSurfaceLevel);
     }
 
-    //ComputeFluidType 液面够低且岩浆噪声够大时把水换成岩浆对应原版 computeFluidType
+    //ComputeFluidType swaps water for lava when the fluid level is low enough and the lava noise is large enough, maps to vanilla computeFluidType
     private BlockState ComputeFluidType(int x, int y, int z, FluidStatus globalFluid, int fluidSurfaceLevel)
     {
         var fluidType = globalFluid.FluidType;

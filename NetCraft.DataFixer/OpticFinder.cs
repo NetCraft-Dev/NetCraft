@@ -2,30 +2,30 @@ namespace NetCraft.DataFixer;
 
 using NetCraft.DataFixer.Types;
 
-//OpticFinder optic查找器对应原版com.mojang.datafixers.OpticFinder
-//在容器类型中查找指定焦点类型
+//OpticFinder optic finder maps to vanilla com.mojang.datafixers.OpticFinder
+//finds a given focus type within a container type
 public interface OpticFinder<FT>
 {
-    //type返回此查找器关注的类型
+    //type returns the type this finder focuses on
     Type<FT> Type();
 
-    //findType在容器类型中查找焦点optic
+    //findType finds the focus optic within the container type
     NetCraft.DataFixer.Util.Either<TypedOptic<object, object, FT, FR>, Type<object>.FieldNotFoundException> FindType<FR>(
         Type<object> containerType, Type<FR> resultType, bool recurse);
 
-    //findType重载默认resultType与自身类型相同
+    //findType overload; resultType defaults to the same as its own type
     NetCraft.DataFixer.Util.Either<TypedOptic<object, object, FT, FT>, Type<object>.FieldNotFoundException> FindType(
         Type<object> containerType, bool recurse)
         => FindType(containerType, Type(), recurse);
 
-    //inField在指定字段内嵌套查找对应原版OpticFinder.inField
-    //先按name+type在containerType中查找字段optic再组合外层查找焦点
+    //inField nests a lookup within the given field, maps to vanilla OpticFinder.inField
+    //first finds the field optic in containerType by name+type, then composes the outer focus lookup
     OpticFinder<FT> InField<GT>(string? name, Type<GT> type)
         => new InFieldOpticFinder<FT, GT>(this, name, type);
 }
 
-//InFieldOpticFinder嵌套字段查找器对应原版OpticFinder.inField的匿名类
-//cap先查外层secondOptic失败直传成功则用DSL.fieldFinder查字段后compose
+//InFieldOpticFinder nested field finder, maps to the anonymous class in vanilla OpticFinder.inField
+//cap first looks up the outer secondOptic; on failure it passes through, on success it looks up the field via DSL.fieldFinder and composes
 internal sealed class InFieldOpticFinder<FT, GT> : OpticFinder<FT>
 {
     private readonly OpticFinder<FT> _outer;

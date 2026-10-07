@@ -6,8 +6,8 @@ using NetCraft.Game.World.Level;
 
 namespace NetCraft.Game.Commands;
 
-//DefaultGameModeCommand defaultgamemode 命令对应原版 net.minecraft.server.commands.DefaultGameModeCommands
-//改写默认游戏模式只影响之后加入的玩家 在线的要自己用 gamemode 切
+//DefaultGameModeCommand defaultgamemode command, maps to vanilla net.minecraft.server.commands.DefaultGameModeCommands
+//Changing the default game mode only affects players joining later; online ones must switch with gamemode themselves
 public static class DefaultGameModeCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -18,7 +18,7 @@ public static class DefaultGameModeCommand
                 .Executes(Set)));
     }
 
-    //Set 改运行时默认模式并写回 server.properties
+    //Set changes the runtime default mode and writes it back to server.properties
     private static int Set(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -26,7 +26,7 @@ public static class DefaultGameModeCommand
         source.Server.SetDefaultGameType(gameType);
         source.Server.Settings.SetGamemode(gameType.Name);
         source.Server.Settings.SaveCurrent();
-        source.SendSuccess($"默认游戏模式已设为 {gameType.Name}");
+        source.SendSuccess($"the default game mode is now {gameType.Name}");
         return 1;
     }
 }

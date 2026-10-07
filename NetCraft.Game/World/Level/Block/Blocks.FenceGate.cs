@@ -11,16 +11,16 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//栅栏门 对应原版 net.minecraft.world.level.block.FenceGateBlock
-//朝向往外开 两侧夹在墙里时门板压低 红石按信号开合
-//原版开合会附带动画 本作只有方块状态与音效
+//Fence gates, maps to vanilla net.minecraft.world.level.block.FenceGateBlock
+//Opens outward along the facing, the panel is lowered when walled on both sides, redstone opens and closes by signal
+//Vanilla open and close come with an animation; here there are only block states and sounds
 public static partial class Blocks
 {
     public static readonly FenceGateBlock OAK_FENCE_GATE = new("oak_fence_gate", BlockSet.Wood);
     public static readonly FenceGateBlock CRIMSON_FENCE_GATE =
         new("crimson_fence_gate", BlockSet.NetherWood);
 
-    //RegisterFenceGates 栅栏门登记进真实方块表 注册名到木料档照原版 Blocks.java
+    //RegisterFenceGates registers fence gates into the real block table, registry name to wood tier follows vanilla Blocks.java
     private static void RegisterFenceGates(Dictionary<string, BlockBehaviour> real)
     {
         RegisterFenceGate(real, OAK_FENCE_GATE);
@@ -42,30 +42,30 @@ public static partial class Blocks
 
     public sealed class FenceGateBlock : BlockBehaviour
     {
-        //GateShapes 门板形状 十六格宽十六格高四格厚 对应原版 SHAPES
+        //GateShapes gate panel shapes, sixteen by sixteen by four, maps to vanilla SHAPES
         private static readonly Dictionary<Direction.Axis, VoxelShape> GateShapes =
             NetCraft.Primitives.Phys.Shapes.RotateHorizontalAxis(NetCraft.Registry.Block.Cube(16.0, 16.0, 4.0));
 
-        //GateShapesWall 夹在墙里时把门板压到十三格以下 对应原版 SHAPES_WALL
+        //GateShapesWall lowers the panel below thirteen when walled, maps to vanilla SHAPES_WALL
         private static readonly Dictionary<Direction.Axis, VoxelShape> GateShapesWall =
             MapValues(GateShapes, shape => NetCraft.Primitives.Phys.Shapes.Join(shape,
                 NetCraft.Registry.Block.Column(16.0, 13.0, 16.0), BooleanOps.OnlyFirst));
 
-        //GateCollision 关闭时的碰撞箱 高出一格半 对应原版 SHAPE_COLLISION
+        //GateCollision collision box when closed, one and a half blocks tall, maps to vanilla SHAPE_COLLISION
         private static readonly Dictionary<Direction.Axis, VoxelShape> GateCollision =
             NetCraft.Primitives.Phys.Shapes.RotateHorizontalAxis(NetCraft.Registry.Block.Column(16.0, 4.0, 0.0, 24.0));
 
-        //GateSupport 关闭时的依附形状 对应原版 SHAPE_SUPPORT
+        //GateSupport support shape when closed, maps to vanilla SHAPE_SUPPORT
         private static readonly Dictionary<Direction.Axis, VoxelShape> GateSupport =
             NetCraft.Primitives.Phys.Shapes.RotateHorizontalAxis(NetCraft.Registry.Block.Column(16.0, 4.0, 5.0, 24.0));
 
-        //GateOcclusion 两侧立柱的遮挡形状 对应原版 SHAPE_OCCLUSION
+        //GateOcclusion occlusion shape of the two posts, maps to vanilla SHAPE_OCCLUSION
         private static readonly Dictionary<Direction.Axis, VoxelShape> GateOcclusion =
             NetCraft.Primitives.Phys.Shapes.RotateHorizontalAxis(NetCraft.Primitives.Phys.Shapes.Or(
                 NetCraft.Registry.Block.Box(0.0, 5.0, 7.0, 2.0, 16.0, 9.0),
                 NetCraft.Registry.Block.Box(14.0, 5.0, 7.0, 16.0, 16.0, 9.0)));
 
-        //GateOcclusionWall 夹在墙里时遮挡形状整体下移三像素 对应原版 SHAPE_OCCLUSION_WALL
+        //GateOcclusionWall the occlusion shape shifts down three pixels when walled, maps to vanilla SHAPE_OCCLUSION_WALL
         private static readonly Dictionary<Direction.Axis, VoxelShape> GateOcclusionWall =
             MapValues(GateOcclusion, shape => shape.Move(0.0, -0.1875, 0.0).Optimize());
 
@@ -81,11 +81,11 @@ public static partial class Blocks
 
         public override Identifier Id => Identifier.WithDefaultNamespace(_name);
 
-        //原版栅栏门硬度 2 木质空手可挖
+        //Vanilla fence gate hardness 2, wood is mineable bare-handed
         public override float DestroySpeed => 2f;
 
-        //Properties 状态按 blocks.txt 的 facing|in_wall|open|powered 走
-        //表里那份是另建的属性实例 GetValue 取不到 必须自己声明 顺序变了全局状态 id 会错位
+        //Properties states follow facing|in_wall|open|powered in blocks.txt
+        //The one in the table is a separately built property instance that GetValue cannot find; it must be declared here, and changing the order shifts the global state ids
         public override IDictionary<string, PropertyBase> Properties => new Dictionary<string, PropertyBase>
         {
             ["facing"] = BlockStateProperties.HorizontalFacing,
@@ -94,25 +94,25 @@ public static partial class Blocks
             ["powered"] = BlockStateProperties.Powered,
         };
 
-        //GetShape 夹在墙里时用压低的那张表 对应原版 getShape
+        //GetShape uses the lowered table when walled, maps to vanilla getShape
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos,
             CollisionContext context)
             => (state.GetValue(BlockStateProperties.InWall) ? GateShapesWall : GateShapes)[AxisOf(state)];
 
-        //GetCollisionShape 开着时不挡路 对应原版 getCollisionShape
+        //GetCollisionShape does not block when open, maps to vanilla getCollisionShape
         public override VoxelShape GetCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
             CollisionContext context)
             => state.GetValue(BlockStateProperties.Open) ? Shapes.Empty() : GateCollision[AxisOf(state)];
 
-        //GetBlockSupportShape 关闭时上面能站人 对应原版 getBlockSupportShape
+        //GetBlockSupportShape you can stand on it when closed, maps to vanilla getBlockSupportShape
         public override VoxelShape GetBlockSupportShape(BlockState state, BlockGetter level, BlockPos pos)
             => state.GetValue(BlockStateProperties.Open) ? Shapes.Empty() : GateSupport[AxisOf(state)];
 
-        //GetOcclusionShape 只有两侧立柱挡光 对应原版 getOcclusionShape
+        //GetOcclusionShape only the two posts occlude light, maps to vanilla getOcclusionShape
         public override VoxelShape GetOcclusionShape(BlockState state)
             => (state.GetValue(BlockStateProperties.InWall) ? GateOcclusionWall : GateOcclusion)[AxisOf(state)];
 
-        //UpdateShape 垂直于朝向的那条轴上两侧有墙就把门板压下去 对应原版 updateShape
+        //UpdateShape lowers the panel when there are walls on both sides of the axis perpendicular to the facing, maps to vanilla updateShape
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
         {
@@ -122,8 +122,8 @@ public static partial class Blocks
             return state.SetValue(BlockStateProperties.InWall, inWall);
         }
 
-        //GetStateForPlacement 朝向取玩家朝向不取反 两侧有墙则直接落成夹墙态
-        //旁边已有信号时落成打开且通电 对应原版 getStateForPlacement
+        //GetStateForPlacement the facing is the player facing without inverting, walls on both sides place it directly in the walled state
+        //An existing signal beside places it already open and powered, maps to vanilla getStateForPlacement
         public override BlockState? GetStateForPlacement(ServerLevel level, BlockPos pos, Direction face,
             Direction horizontalFacing)
         {
@@ -135,7 +135,7 @@ public static partial class Blocks
             return state.SetValue(BlockStateProperties.InWall, HasWallSides(level, pos, horizontalFacing));
         }
 
-        //UseOn 右键开合 关着开的时候朝向与玩家相反就顺手转过来 对应原版 useWithoutItem
+        //UseOn right click to open and close; opening a closed gate turns the facing around when it faces against the player, maps to vanilla useWithoutItem
         public override bool UseOn(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state,
             Direction face)
         {
@@ -150,13 +150,13 @@ public static partial class Blocks
                     state = state.SetValue(BlockStateProperties.HorizontalFacing, ToPropertyFacing(facing));
                 state = state.SetValue(BlockStateProperties.Open, true);
             }
-            //原版只同步客户端不通知邻居 本作没有迟到队列 立即生效这一位不需要
+            //Vanilla only syncs the client without notifying neighbors; this project has no late queue so the immediate flag is unnecessary
             level.SetBlock(pos, state, BlockUpdateFlags.Clients);
             PlaySound(level, pos, state.GetValue(BlockStateProperties.Open));
             return true;
         }
 
-        //NeighborChanged 信号翻转时开合并记通电态 对应原版 neighborChanged
+        //NeighborChanged opens and closes on a signal flip and records the powered state, maps to vanilla neighborChanged
         public override void NeighborChanged(ServerLevel level, BlockPos pos, BlockState state,
             RegBlock changedBlock, bool movedByPiston)
         {
@@ -168,14 +168,14 @@ public static partial class Blocks
             if (wasOpen != signal) PlaySound(level, pos, signal);
         }
 
-        //PlaySound 开合音效 音高在 0.9 到 1.0 之间抖动 对应原版 useWithoutItem 里的 playSound
+        //PlaySound open and close sound, the pitch jitters between 0.9 and 1.0, maps to playSound in vanilla useWithoutItem
         private void PlaySound(ServerLevel level, BlockPos pos, bool opening)
         {
             var sound = opening ? _openSound : _closeSound;
             level.PlaySound(sound, SoundSource.Blocks, pos, 1f, Random.Shared.NextSingle() * 0.1f + 0.9f);
         }
 
-        //SoundsOf 木料档对应的开合音效 对应原版 WoodType 各档的 fenceGateOpen/fenceGateClose
+        //SoundsOf the open and close sounds for a wood tier, maps to fenceGateOpen/fenceGateClose of each vanilla WoodType tier
         private static (SoundEvent Open, SoundEvent Close) SoundsOf(BlockSet wood) => wood switch
         {
             BlockSet.Cherry =>
@@ -187,11 +187,11 @@ public static partial class Blocks
             _ => (SoundEvents.FenceGateOpen, SoundEvents.FenceGateClose),
         };
 
-        //IsWall 该状态是不是墙类方块 对应原版 isWall 走 walls 标签判定
+        //IsWall whether this state is a wall block, maps to vanilla isWall which checks the walls tag
         private static bool IsWall(BlockState? state)
             => state is { Owner: BlockBehaviour behaviour } && behaviour.IsInTag(BlockTags.Walls);
 
-        //HasWallSides 垂直于朝向的两侧有没有墙 对应原版 getStateForPlacement 里的 inWall 判定
+        //HasWallSides whether there are walls on both sides perpendicular to the facing, maps to the inWall check in vanilla getStateForPlacement
         private static bool HasWallSides(ServerLevel level, BlockPos pos, Direction facing)
         {
             if (facing == Direction.North || facing == Direction.South)
@@ -201,7 +201,7 @@ public static partial class Blocks
                 || IsWall(level.GetBlockState(pos.Offset(Direction.South)));
         }
 
-        //AxisOf 水平朝向落在哪条轴上 南北是 Z 东西是 X
+        //AxisOf which axis the horizontal facing lies on, north-south is Z and east-west is X
         private static Direction.Axis AxisOf(BlockState state)
             => state.GetValue(BlockStateProperties.HorizontalFacing) is NetCraft.Registry.Enums.Direction.north
                 or NetCraft.Registry.Enums.Direction.south
@@ -211,7 +211,7 @@ public static partial class Blocks
         private static Direction.Axis AxisOf(Direction direction)
             => direction == Direction.North || direction == Direction.South ? Direction.Axis.Z : Direction.Axis.X;
 
-        //ToPropertyFacing 几何方向折成方块属性用的枚举成员 栅栏门只会用到水平四个
+        //ToPropertyFacing converts a geometry direction into the enum member used by block properties, fence gates only use the four horizontal ones
         private static NetCraft.Registry.Enums.Direction ToPropertyFacing(Direction direction)
         {
             if (direction == Direction.North) return NetCraft.Registry.Enums.Direction.north;
@@ -220,7 +220,7 @@ public static partial class Blocks
             return NetCraft.Registry.Enums.Direction.east;
         }
 
-        //MapValues 把轴表里的形状逐个换一遍 对应原版 Util.mapValues
+        //MapValues replaces each shape in the axis table, maps to vanilla Util.mapValues
         private static Dictionary<Direction.Axis, VoxelShape> MapValues(
             Dictionary<Direction.Axis, VoxelShape> source, Func<VoxelShape, VoxelShape> transform)
         {

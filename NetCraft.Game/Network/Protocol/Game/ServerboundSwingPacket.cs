@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundSwingPacket 挥手包对应原版 ServerboundSwingPacket
-//字段 Hand(InteractionHand)
+//ServerboundSwingPacket swing packet, maps to vanilla ServerboundSwingPacket
+//Field: Hand(InteractionHand)
 public sealed record ServerboundSwingPacket(InteractionHand Hand) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundSwingPacket> StreamCodec { get; } = new SwingCodec();
@@ -12,7 +12,7 @@ public sealed record ServerboundSwingPacket(InteractionHand Hand) : Packet<Serve
 
     private sealed class SwingCodec : StreamCodec<FriendlyByteBuf, ServerboundSwingPacket>
     {
-        //原版 writeEnum(hand) 即 VarInt 枚举序号
+        //Vanilla writeEnum(hand), i.e. a VarInt enum ordinal
         public ServerboundSwingPacket Decode(FriendlyByteBuf buf)
             => new((InteractionHand)buf.ReadVarInt());
 
@@ -21,8 +21,8 @@ public sealed record ServerboundSwingPacket(InteractionHand Hand) : Packet<Serve
     }
 }
 
-//InteractionHand 交互手枚举对应原版 net.minecraft.world.InteractionHand
-//序号必须与原版一致 原版按枚举序号写 VarInt
+//InteractionHand interaction hand enum, maps to vanilla net.minecraft.world.InteractionHand
+//Ordinals must match vanilla; vanilla writes a VarInt enum ordinal
 public enum InteractionHand
 {
     MainHand,

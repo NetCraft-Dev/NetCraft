@@ -10,21 +10,21 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Carver;
 
-//WorldCarver 雕刻器抽象基类对应原版 net.minecraft.world.level.levelgen.carver.WorldCarver
-//去掉原版泛型 子类在 Carve/IsStartChunk 里用 is 模式匹配转成自己的配置类型
-//CarveEllipsoid 走椭球体素扫描 CarveBlock 决定每格能不能换 换什么
+//WorldCarver abstract carver base, maps to vanilla net.minecraft.world.level.levelgen.carver.WorldCarver
+//Generic parameter from vanilla is dropped; subclasses pattern-match to their config type in Carve/IsStartChunk
+//CarveEllipsoid sweeps voxels in an ellipsoid; CarveBlock decides whether each cell can be replaced and with what
 public abstract class WorldCarver : NetCraft.Registry.WorldCarver
 {
-    //Air 空气状态 雕刻挖空后的默认产物
+    //Air air state, the default result after carving out a cell
     protected static readonly BlockState Air = Blocks.AIR.DefaultBlockState;
 
-    //CaveAir 洞穴空气状态 缓存成静态字段避免每次访问注册表
+    //CaveAir cave air state, cached as a static field to avoid hitting the registry every time
     protected static readonly BlockState CaveAir = Blocks.CaveAir.DefaultBlockState;
 
-    //CarveSkipChecker 体素跳过判定对应原版 WorldCarver.CarveSkipChecker
+    //CarveSkipChecker voxel skip test, maps to vanilla WorldCarver.CarveSkipChecker
     protected delegate bool CarveSkipChecker(CarvingContext context, double xd, double yd, double zd, int y);
 
-    //CAVE 洞穴雕刻器 与 NETHER_CAVE/CANYON 一起在 Bootstrap 时注册进 CARVER 注册表
+    //CAVE cave carver; registered into the CARVER registry together with NETHER_CAVE/CANYON during bootstrap
     public static readonly CaveWorldCarver CAVE = new(Identifier.WithDefaultNamespace("cave"));
     public static readonly NetherWorldCarver NETHER_CAVE = new(Identifier.WithDefaultNamespace("nether_cave"));
     public static readonly CanyonWorldCarver CANYON = new(Identifier.WithDefaultNamespace("canyon"));
@@ -33,10 +33,10 @@ public abstract class WorldCarver : NetCraft.Registry.WorldCarver
 
     protected WorldCarver(Identifier id) => Id = id;
 
-    //Range 雕刻影响半径按区块数对应原版 getRange
+    //Range carving radius in chunks, maps to vanilla getRange
     public virtual int Range => 4;
 
-    //RegisterAll 把三个内置雕刻器注册进 CARVER 注册表
+    //RegisterAll register the three built-in carvers into the CARVER registry
     public static void RegisterAll()
     {
         Registry<NetCraft.Registry.WorldCarver>.Register(BuiltInRegistries.CARVER, CAVE.Id, CAVE);
@@ -44,15 +44,15 @@ public abstract class WorldCarver : NetCraft.Registry.WorldCarver
         Registry<NetCraft.Registry.WorldCarver>.Register(BuiltInRegistries.CARVER, CANYON.Id, CANYON);
     }
 
-    //IsStartChunk 该区块是否要起一条雕刻 对应原版 isStartChunk
+    //IsStartChunk whether this chunk should start a carve, maps to vanilla isStartChunk
     public abstract bool IsStartChunk(CarverConfiguration config, RandomSource random);
 
-    //Carve 在区块上执行一次雕刻对应原版 carve 起点与随机种子由调用方给定
+    //Carve run one carve over the chunk, maps to vanilla carve; start point and seed are supplied by the caller
     public abstract bool Carve(CarvingContext context, CarverConfiguration config, ChunkAccess chunk,
         Func<int, int, int, Biome> biomeGetter, RandomSource random, Aquifer aquifer, ChunkPos sourceChunkPos,
         CarvingMask mask);
 
-    //CarveEllipsoid 按椭球体扫一片体素对应原版 carveEllipsoid
+    //CarveEllipsoid sweep voxels inside an ellipsoid, maps to vanilla carveEllipsoid
     protected bool CarveEllipsoid(CarvingContext context, CarverConfiguration config, ChunkAccess chunk,
         Func<int, int, int, Biome> biomeGetter, Aquifer aquifer, double x, double y, double z,
         double horizontalRadius, double verticalRadius, CarvingMask mask, CarveSkipChecker skipChecker)
@@ -67,7 +67,7 @@ public abstract class WorldCarver : NetCraft.Registry.WorldCarver
         var minXIndex = Math.Max((Mth.Floor(x - horizontalRadius) - chunkMinX) - 1, 0);
         var maxXIndex = Math.Min(Mth.Floor(x + horizontalRadius) - chunkMinX, 15);
         var minY = Math.Max(Mth.Floor(y - verticalRadius) - 1, context.GetMinGenY() + 1);
-        //顶部留七格保护层 免得把基岩与地表挖穿
+        //Leave seven blocks at the top as a protective layer so bedrock and the surface are not carved through
         var maxY = Math.Min(Mth.Floor(y + verticalRadius) + 1,
             (context.GetMinGenY() + context.GetGenDepth() - 1) - 7);
         var minZIndex = Math.Max((Mth.Floor(z - horizontalRadius) - chunkMinZ) - 1, 0);
@@ -97,7 +97,7 @@ public abstract class WorldCarver : NetCraft.Registry.WorldCarver
         return carved;
     }
 
-    //CarveBlock 决定单格是否可换并写入雕刻产物对应原版 carveBlock
+    //CarveBlock decide whether a single cell is replaceable and write the carve result, maps to vanilla carveBlock
     protected virtual bool CarveBlock(CarvingContext context, CarverConfiguration config, ChunkAccess chunk,
         Func<int, int, int, Biome> biomeGetter, int x, int y, int z, Aquifer aquifer, ref bool hasGrass)
     {
@@ -110,7 +110,7 @@ public abstract class WorldCarver : NetCraft.Registry.WorldCarver
         if (aquifer.ShouldScheduleFluidUpdate() && !state.Value.FluidState.IsEmpty)
             chunk.MarkPosForPostProcessing(x, y, z);
         if (!hasGrass) return true;
-        //挖穿草方块后它下面那格要按地表规则重算顶面材质
+        //After carving through grass, the cell below it needs its top material recomputed by the surface rules
         var belowY = y - 1;
         if (chunk.GetBlockState(x, belowY, z).Owner != Blocks.DIRT) return true;
         var topMaterial = context.TopMaterial(biomeGetter, chunk, x, belowY, z, !state.Value.FluidState.IsEmpty);
@@ -120,7 +120,7 @@ public abstract class WorldCarver : NetCraft.Registry.WorldCarver
         return true;
     }
 
-    //GetCarveState 该格换成什么 岩浆层以下给岩浆 否则问含水层 对应原版 getCarveState
+    //GetCarveState what goes into this cell; lava below the lava level, otherwise ask the aquifer. maps to vanilla getCarveState
     private BlockState? GetCarveState(CarvingContext context, CarverConfiguration config, int x, int y, int z,
         Aquifer aquifer)
     {
@@ -130,7 +130,7 @@ public abstract class WorldCarver : NetCraft.Registry.WorldCarver
         return IsDebugEnabled(config) ? config.DebugSettings.BarrierState : null;
     }
 
-    //GetDebugState 调试模式下把空气/水/岩浆换成显眼的调试方块对应原版 getDebugState
+    //GetDebugState in debug mode swap air/water/lava for eye-catching debug blocks, maps to vanilla getDebugState
     private static BlockState GetDebugState(CarverConfiguration config, BlockState state)
     {
         if (state.Owner == Blocks.AIR) return config.DebugSettings.AirState;
@@ -139,15 +139,15 @@ public abstract class WorldCarver : NetCraft.Registry.WorldCarver
         return state;
     }
 
-    //CanReplaceBlock 该方块是否在配置的可替换集合里对应原版 canReplaceBlock
-    //标签还没绑定(数据未装载)时按不可替换处理 免得 Holder.Is 抛未绑定标签异常
+    //CanReplaceBlock whether the block is in the configured replaceable set, maps to vanilla canReplaceBlock
+    //While the tag is unbound (data not loaded) treat it as not replaceable, so Holder.Is does not throw on an unbound tag
     protected static bool CanReplaceBlock(CarverConfiguration config, BlockState state)
     {
         if (config.Replaceable is NamedHolderSet<NetCraft.Registry.Block> named && !named.IsBound) return false;
         return config.Replaceable.Contains(BuiltInRegistries.BLOCK.WrapAsHolder(state.Owner));
     }
 
-    //CanReach 隧道步进还没离开当前区块影响范围对应原版 canReach
+    //CanReach whether the tunnel step is still within this chunk's influence range, maps to vanilla canReach
     protected static bool CanReach(ChunkPos chunkPos, double x, double z, int currentStep, int totalSteps,
         float thickness)
     {
@@ -161,8 +161,8 @@ public abstract class WorldCarver : NetCraft.Registry.WorldCarver
     private static bool IsDebugEnabled(CarverConfiguration config) => config.DebugSettings.DebugMode;
 }
 
-//CaveWorldCarver 洞穴雕刻器对应原版 CaveWorldCarver
-//先随机撒若干洞穴原点 每个原点可能先挖一个房间再分叉出若干条隧道
+//CaveWorldCarver cave carver, maps to vanilla CaveWorldCarver
+//Scatter a few cave origins at random; each may first carve a room then branch into several tunnels
 public class CaveWorldCarver : WorldCarver
 {
     public CaveWorldCarver(Identifier id) : base(id) { }
@@ -175,7 +175,7 @@ public class CaveWorldCarver : WorldCarver
         CarvingMask mask)
     {
         if (config is not CaveCarverConfiguration caveConfig)
-            throw new ArgumentException($"洞穴雕刻器需要 {nameof(CaveCarverConfiguration)}: {config.GetType().Name}");
+            throw new ArgumentException($"cave carver requires {nameof(CaveCarverConfiguration)}: {config.GetType().Name}");
         var maxDistance = (Range * 2 - 1) * 16;
         var caveCount = random.NextInt(random.NextInt(random.NextInt(GetCaveBound()) + 1) + 1);
         for (var cave = 0; cave < caveCount; cave++)
@@ -210,10 +210,10 @@ public class CaveWorldCarver : WorldCarver
         return true;
     }
 
-    //GetCaveBound 每个区块最多几条洞穴对应原版 getCaveBound
+    //GetCaveBound max caves per chunk, maps to vanilla getCaveBound
     protected virtual int GetCaveBound() => 15;
 
-    //GetThickness 隧道粗细对应原版 getThickness
+    //GetThickness tunnel thickness, maps to vanilla getThickness
     protected virtual float GetThickness(RandomSource random)
     {
         var thickness = random.NextFloat() * 2.0f + random.NextFloat();
@@ -223,7 +223,7 @@ public class CaveWorldCarver : WorldCarver
 
     protected virtual double GetYScale() => 1.0;
 
-    //CreateRoom 洞穴原点挖一个球形房间对应原版 createRoom
+    //CreateRoom carve a spherical room at the cave origin, maps to vanilla createRoom
     protected virtual void CreateRoom(CarvingContext context, CaveCarverConfiguration config, ChunkAccess chunk,
         Func<int, int, int, Biome> biomeGetter, Aquifer aquifer, double x, double y, double z, float thickness,
         double yScale, CarvingMask mask, CarveSkipChecker skipChecker)
@@ -234,7 +234,7 @@ public class CaveWorldCarver : WorldCarver
             mask, skipChecker);
     }
 
-    //CreateTunnel 沿随机转向推进并逐段挖椭球对应原版 createTunnel
+    //CreateTunnel advance along random turns, carving an ellipsoid per step, maps to vanilla createTunnel
     protected virtual void CreateTunnel(CarvingContext context, CaveCarverConfiguration config, ChunkAccess chunk,
         Func<int, int, int, Biome> biomeGetter, long tunnelSeed, Aquifer aquifer, double x, double y, double z,
         double horizontalRadiusMultiplier, double verticalRadiusMultiplier, float thickness,
@@ -260,7 +260,7 @@ public class CaveWorldCarver : WorldCarver
             yRota = yRota * 0.75f + (random.NextFloat() - random.NextFloat()) * random.NextFloat() * 4.0f;
             if (currentStep == splitPoint && thickness > 1.0f)
             {
-                //到分叉点后原隧道结束 左右各起一条新隧道
+                //At the split point the original tunnel ends and two new ones branch left and right
                 CreateTunnel(context, config, chunk, biomeGetter, random.NextLong(), aquifer, x, y, z,
                     horizontalRadiusMultiplier, verticalRadiusMultiplier, random.NextFloat() * 0.5f + 0.5f,
                     horizontalRotation - 1.5707964f, verticalRotation / 3.0f, currentStep, dist, 1.0, mask,
@@ -279,13 +279,13 @@ public class CaveWorldCarver : WorldCarver
         }
     }
 
-    //ShouldSkip 椭球外或低于地层底面的体素跳过对应原版 shouldSkip
+    //ShouldSkip skip voxels outside the ellipsoid or below the floor level, maps to vanilla shouldSkip
     private static bool ShouldSkip(double xd, double yd, double zd, double floorLevel)
         => yd <= floorLevel || xd * xd + yd * yd + zd * zd >= 1.0;
 }
 
-//NetherWorldCarver 下界洞穴雕刻器对应原版 NetherWorldCarver
-//洞穴更粗更高 31 格以下直接灌岩浆 不做地表材质重算
+//NetherWorldCarver nether cave carver, maps to vanilla NetherWorldCarver
+//Caves are thicker and taller; below 31 blocks they fill with lava and surface material is not recomputed
 public sealed class NetherWorldCarver : CaveWorldCarver
 {
     public NetherWorldCarver(Identifier id) : base(id) { }
@@ -301,7 +301,7 @@ public sealed class NetherWorldCarver : CaveWorldCarver
         Func<int, int, int, Biome> biomeGetter, int x, int y, int z, Aquifer aquifer, ref bool hasGrass)
     {
         if (config is not CaveCarverConfiguration caveConfig)
-            throw new ArgumentException($"下界洞穴雕刻器需要 {nameof(CaveCarverConfiguration)}: {config.GetType().Name}");
+            throw new ArgumentException($"nether cave carver requires {nameof(CaveCarverConfiguration)}: {config.GetType().Name}");
         if (!CanReplaceBlock(caveConfig, chunk.GetBlockState(x, y, z))) return false;
         var state = y <= context.GetMinGenY() + 31 ? Blocks.LavaFluidState.CreateLegacyBlock() : CaveAir;
         chunk.SetBlockState(x, y, z, state);
@@ -309,8 +309,8 @@ public sealed class NetherWorldCarver : CaveWorldCarver
     }
 }
 
-//CanyonWorldCarver 峡谷雕刻器对应原版 CanyonWorldCarver
-//沿一条主轴推出一条又宽又长的裂谷 竖向粗细按高度因子随机变化
+//CanyonWorldCarver canyon carver, maps to vanilla CanyonWorldCarver
+//Push a wide, long ravine along a main axis; vertical thickness varies randomly with the height factor
 public sealed class CanyonWorldCarver : WorldCarver
 {
     public CanyonWorldCarver(Identifier id) : base(id) { }
@@ -323,7 +323,7 @@ public sealed class CanyonWorldCarver : WorldCarver
         CarvingMask mask)
     {
         if (config is not CanyonCarverConfiguration canyonConfig)
-            throw new ArgumentException($"峡谷雕刻器需要 {nameof(CanyonCarverConfiguration)}: {config.GetType().Name}");
+            throw new ArgumentException($"canyon carver requires {nameof(CanyonCarverConfiguration)}: {config.GetType().Name}");
         var maxDistance = (Range * 2 - 1) * 16;
         var x = (double)(sourceChunkPos.MinBlockX + random.NextInt(16));
         double y = canyonConfig.Y.Sample(random, context);
@@ -369,7 +369,7 @@ public sealed class CanyonWorldCarver : WorldCarver
         }
     }
 
-    //InitWidthFactors 逐高度随机一个宽度系数并平方 对应原版 initWidthFactors
+    //InitWidthFactors pick a random width factor per height and square it, maps to vanilla initWidthFactors
     private static float[] InitWidthFactors(CarvingContext context, CanyonCarverConfiguration config,
         RandomSource random)
     {
@@ -385,7 +385,7 @@ public sealed class CanyonWorldCarver : WorldCarver
         return widthFactorPerHeight;
     }
 
-    //UpdateVerticalRadius 峡谷中段更粗两端更细对应原版 updateVerticalRadius
+    //UpdateVerticalRadius canyon is thicker in the middle and thinner at both ends, maps to vanilla updateVerticalRadius
     private static double UpdateVerticalRadius(CanyonCarverConfiguration config, RandomSource random,
         double verticalRadius, int distance, int currentStep)
     {
@@ -395,7 +395,7 @@ public sealed class CanyonWorldCarver : WorldCarver
         return factor * verticalRadius * Mth.RandomBetween(random, 0.75f, 1.0f);
     }
 
-    //ShouldSkip 按高度宽度系数判椭球对应原版 shouldSkip
+    //ShouldSkip test the ellipsoid using the per-height width factor, maps to vanilla shouldSkip
     private static bool ShouldSkip(CarvingContext context, float[] widthFactorPerHeight, double xd, double yd,
         double zd, int y)
     {

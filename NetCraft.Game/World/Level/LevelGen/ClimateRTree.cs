@@ -1,27 +1,27 @@
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//ClimateRTree 气候参数空间最近邻搜索树对应原版 Climate.RTree
-//参数表有几千条 线性遍历会让每个采样点都扫全表 建树后查询只走少量子树
-//每个内部节点最多 6 个孩子 建树时挑总包围盒最小的维度分桶 查询时按孩子包围盒距离剪枝
+//ClimateRTree nearest-neighbour search tree over climate parameter space, maps to vanilla Climate.RTree
+//The parameter list has thousands of entries and a linear scan would walk the whole list on every sample; the tree only descends a few subtrees
+//Each internal node has at most 6 children; the tree picks the dimension with the smallest total bounding box to bucket, and the query prunes by child bounding-box distance
 internal sealed class ClimateRTree<T>
 {
-    //ChildrenPerNode 每个内部节点的孩子数对应原版 CHILDREN_PER_NODE
+    //ChildrenPerNode children per internal node, maps to vanilla CHILDREN_PER_NODE
     private const int ChildrenPerNode = 6;
 
-    //ParameterDimensions 参数空间维度数 6 个气候维度加 offset
+    //ParameterDimensions number of parameter-space dimensions, the 6 climate dimensions plus offset
     private const int ParameterDimensions = 7;
 
     private readonly Node _root;
 
-    //上次查询结果作为下次的初始候选 相邻采样点气候相近 命中率很高能省掉大量子树遍历
-    //必须每线程一份: 树是全局共享的 生成线程并发查询时共享一份会被互相覆盖
-    //候选被覆盖后剪枝起点落在别的线程的目标附近 子树几乎剪不掉 单次搜索从微秒级涨到几十微秒
-    //对应原版 RTree 里 lastResult 用 ThreadLocal 的写法
+    //The previous query result seeds the next candidate; neighbouring samples have similar climates so the hit rate is high and saves a lot of subtree traversal
+    //Must be per thread: the tree is shared globally, and concurrent generation queries sharing one would overwrite each other
+    //Once the candidate is clobbered the pruning start lands near another thread's target, almost no subtree is pruned and a search goes from microseconds to tens of microseconds
+    //Matches vanilla RTree's ThreadLocal lastResult
     private readonly ThreadLocal<Leaf?> _lastResult = new();
 
     private ClimateRTree(Node root) => _root = root;
 
-    //Create 用参数表条目建树 对应原版 RTree.create
+    //Create builds the tree from parameter list entries, maps to vanilla RTree.create
     public static ClimateRTree<T> Create(IReadOnlyList<(Climate.ParameterPoint Point, T Value)> values)
     {
         if (values.Count == 0)
@@ -32,7 +32,7 @@ internal sealed class ClimateRTree<T>
         return new ClimateRTree<T>(Build(ParameterDimensions, leaves));
     }
 
-    //Search 查最近邻 对应原版 RTree.search
+    //Search looks up the nearest neighbour, maps to vanilla RTree.search
     public T Search(Climate.ParameterPoint target)
     {
         var leaf = _root.Search(new ParameterTarget(target), _lastResult.Value);
@@ -40,9 +40,9 @@ internal sealed class ClimateRTree<T>
         return leaf.Value;
     }
 
-    //ParameterTarget 7 维查询值对应原版 RTree.search 里的 long[]
-    //做成值类型是为了让它留在栈上 原版靠 Java 逃逸分析消掉这个数组
-    //.NET 里它要传给虚方法 Search 逃逸分析用不上 只能显式换成值类型
+    //ParameterTarget 7-dimensional query value, maps to the long[] in vanilla RTree.search
+    //A value type so it stays on the stack; vanilla relies on Java escape analysis to elide the array
+    //In .NET it is passed to the virtual Search and escape analysis cannot help, so it is explicitly a value type
     private readonly struct ParameterTarget
     {
         public readonly long Temperature;
@@ -53,7 +53,7 @@ internal sealed class ClimateRTree<T>
         public readonly long Weirdness;
         public readonly long Offset;
 
-        //目标点各维都是单值 取 Min 即可
+        //Every dimension of the target point is a single value, so Min suffices
         public ParameterTarget(Climate.ParameterPoint point)
         {
             Temperature = point.Temperature.Min;
@@ -66,7 +66,7 @@ internal sealed class ClimateRTree<T>
         }
     }
 
-    //SpaceOf 参数点展开成 7 维包围盒 offset 按单值区间处理
+    //SpaceOf expands a parameter point into a 7-dimensional bounding box, treating offset as a single-value range
     private static Climate.Parameter[] SpaceOf(Climate.ParameterPoint point)
         => new[]
         {
@@ -74,16 +74,16 @@ internal sealed class ClimateRTree<T>
             point.Erosion, point.Depth, point.Weirdness, Climate.Parameter.Single(point.Offset)
         };
 
-    //Node 搜索树节点持 7 维包围盒对应原版 RTree.Node
+    //Node search tree node holding a 7-dimensional bounding box, maps to vanilla RTree.Node
     private abstract class Node
     {
-        //Space 用字段而不是属性 热路径每算一次 Distance 都要读它 属性调用在采样里能看见
+        //Space is a field rather than a property; the hot path reads it on every Distance computation and property calls show up in sampling
         public readonly Climate.Parameter[] Space;
 
         protected Node(IReadOnlyList<Climate.Parameter> space) => Space = space.ToArray();
 
-        //Distance 节点包围盒到目标值的距离 逐维取区间距离再求平方和
-        //展开成 7 个表达式而非循环 循环版超出 JIT 内联预算 内联不了就要每个节点付一次调用开销
+        //Distance distance from the node's bounding box to the target, per-dimension range distance then sum of squares
+        //Unrolled into 7 expressions rather than a loop; the loop exceeds the JIT inline budget and would cost one call per node if not inlined
         public long Distance(in ParameterTarget target)
         {
             return Delta2(target.Temperature, Space[0])
@@ -95,7 +95,7 @@ internal sealed class ClimateRTree<T>
                  + Delta2(target.Offset, Space[6]);
         }
 
-        //Delta2 单维区间距离的平方 取值落在区间内贡献 0 对应原版 Parameter.distance
+        //Delta2 squared single-dimension range distance; a value inside the range contributes 0, maps to vanilla Parameter.distance
         private static long Delta2(long target, in Climate.Parameter span)
         {
             var above = target - span.Max;
@@ -107,7 +107,7 @@ internal sealed class ClimateRTree<T>
         public abstract Leaf Search(in ParameterTarget target, Leaf? candidate);
     }
 
-    //Leaf 叶子节点持一个参数表条目对应原版 RTree.Leaf
+    //Leaf leaf node holding one parameter list entry, maps to vanilla RTree.Leaf
     private sealed class Leaf : Node
     {
         public T Value { get; }
@@ -117,10 +117,10 @@ internal sealed class ClimateRTree<T>
         public override Leaf Search(in ParameterTarget target, Leaf? candidate) => this;
     }
 
-    //SubTree 内部节点持若干孩子对应原版 RTree.SubTree
+    //SubTree internal node holding several children, maps to vanilla RTree.SubTree
     private sealed class SubTree : Node
     {
-        //Children 孩子数组 每次查询都要遍历 存数组才能走索引路径而不是装箱的接口枚举器
+        //Children child array traversed on every query; storing an array takes the indexed path instead of a boxed interface enumerator
         public Node[] Children { get; }
 
         public SubTree(IReadOnlyList<Node> children)
@@ -131,7 +131,7 @@ internal sealed class ClimateRTree<T>
         public SubTree(IReadOnlyList<Climate.Parameter> space, IReadOnlyList<Node> children)
             : base(space) => Children = children as Node[] ?? children.ToArray();
 
-        //Search 先算孩子包围盒距离 比当前最优还远的孩子整棵跳过
+        //Search computes the child bounding-box distance first and skips a whole child that is farther than the current best
         public override Leaf Search(in ParameterTarget target, Leaf? candidate)
         {
             var minDistance = candidate is null ? long.MaxValue : candidate.Distance(target);
@@ -150,8 +150,8 @@ internal sealed class ClimateRTree<T>
         }
     }
 
-    //Build 递归建树对应原版 RTree.build
-    //孩子数在一页以内按参数中心幅值和排序 否则逐维度试分桶取总包围盒最小的那个维度
+    //Build recursively builds the tree, maps to vanilla RTree.build
+    //With child count within one page it sorts by the sum of parameter-centre magnitudes; otherwise it tries bucketing per dimension and takes the one with the smallest total bounding box
     private static Node Build(int dimensions, List<Node> children)
     {
         if (children.Count == 0)
@@ -186,7 +186,7 @@ internal sealed class ClimateRTree<T>
         return new SubTree(built);
     }
 
-    //Sort 先按指定维度再从该维度起轮转依次比较 对应原版 RTree.sort
+    //Sort compares by the given dimension first then rotates from it, maps to vanilla RTree.sort
     private static void Sort<TNode>(List<TNode> children, int dimensions, int dimension, bool absolute)
         where TNode : Node
     {
@@ -202,7 +202,7 @@ internal sealed class ClimateRTree<T>
         });
     }
 
-    //Key 排序键 取该维参数中心 需要绝对值时先取绝对值对应原版 RTree.comparator
+    //Key sort key, the parameter centre of that dimension, taking the absolute value first when needed, maps to vanilla RTree.comparator
     private static long Key(Node node, int dimension, bool absolute)
     {
         var span = node.Space[dimension];
@@ -210,7 +210,7 @@ internal sealed class ClimateRTree<T>
         return absolute ? Math.Abs(centre) : centre;
     }
 
-    //Bucketize 按 6 的幂分组对应原版 RTree.bucketize
+    //Bucketize groups by powers of 6, maps to vanilla RTree.bucketize
     private static List<SubTree> Bucketize(List<Node> nodes)
     {
         var buckets = new List<SubTree>();
@@ -230,7 +230,7 @@ internal sealed class ClimateRTree<T>
         return buckets;
     }
 
-    //Cost 节点包围盒各维跨度之和 用于挑选分桶维度对应原版 RTree.cost
+    //Cost sum of the per-dimension spans of a node's bounding box, used to pick the bucketing dimension, maps to vanilla RTree.cost
     private static long Cost(IReadOnlyList<Climate.Parameter> space)
     {
         var result = 0L;
@@ -238,7 +238,7 @@ internal sealed class ClimateRTree<T>
         return result;
     }
 
-    //Magnitude 参数中心绝对值之和 叶子数不多时用它排序对应原版 RTree.build 的排序键
+    //Magnitude sum of absolute parameter centres, the sort key when there are few leaves, maps to the sort key of vanilla RTree.build
     private static long Magnitude(Node node)
     {
         var total = 0L;
@@ -246,7 +246,7 @@ internal sealed class ClimateRTree<T>
         return total;
     }
 
-    //BuildParameterSpace 逐维合并孩子包围盒对应原版 RTree.buildParameterSpace
+    //BuildParameterSpace merges the child bounding boxes per dimension, maps to vanilla RTree.buildParameterSpace
     private static Climate.Parameter[] BuildParameterSpace(IReadOnlyList<Node> children)
     {
         if (children.Count == 0)

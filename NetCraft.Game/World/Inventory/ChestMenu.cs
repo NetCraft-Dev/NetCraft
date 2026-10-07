@@ -5,8 +5,8 @@ using NetCraft.Network.Inventory;
 
 namespace NetCraft.Game.World.Inventory;
 
-//ChestMenu 箱式容器菜单对应原版 net.minecraft.world.inventory.ChestMenu
-//槽位布局前 rows*9 格是容器 其后是玩家主背包三行与快捷栏 与原版 addStandardInventorySlots 一致
+//ChestMenu chest container menu, maps to vanilla net.minecraft.world.inventory.ChestMenu
+//Slot layout: the first rows*9 slots are the container, followed by three rows of main inventory and the hotbar, same as vanilla addStandardInventorySlots
 public sealed class ChestMenu : AbstractContainerMenu
 {
     private readonly Container _container;
@@ -21,7 +21,7 @@ public sealed class ChestMenu : AbstractContainerMenu
         for (var row = 0; row < rows; row++)
             for (var column = 0; column < 9; column++)
                 AddSlot(new Slot(container, column + row * 9, 8 + column * 18, 18 + row * 18));
-        //玩家背包与箱子网格下沿留 13 像素 快捷栏在背包下方 58 像素
+        //13 pixels between the player inventory and the bottom of the chest grid, the hotbar sits 58 pixels below the inventory
         var inventoryTop = 18 + rows * 18 + 13;
         for (var i = 0; i < PlayerInventory.MainSlots; i++)
             AddSlot(new Slot(inventory, PlayerInventory.HotbarSlots + i,
@@ -30,15 +30,15 @@ public sealed class ChestMenu : AbstractContainerMenu
             AddSlot(new Slot(inventory, i, 8 + i * 18, inventoryTop + 58));
     }
 
-    //ThreeRows 三行箱式容器 箱子与木桶共用 对应原版 ChestMenu.threeRows
+    //ThreeRows three-row chest container, shared by chests and barrels, maps to vanilla ChestMenu.threeRows
     public static ChestMenu ThreeRows(int containerId, PlayerInventory inventory, Container container)
         => new(containerId, inventory, container, 3);
 
-    //SixRows 六行箱式容器 双箱用 对应原版 ChestMenu.sixRows
+    //SixRows six-row chest container used by double chests, maps to vanilla ChestMenu.sixRows
     public static ChestMenu SixRows(int containerId, PlayerInventory inventory, Container container)
         => new(containerId, inventory, container, 6);
 
-    //MenuTypeFor 行数到菜单类型 客户端按类型决定界面高度
+    //MenuTypeFor maps a row count to a menu type, the client uses the type to size the screen
     private static MenuType MenuTypeFor(int rows) => rows switch
     {
         1 => MenuTypes.GENERIC_9X1,
@@ -49,13 +49,13 @@ public sealed class ChestMenu : AbstractContainerMenu
         _ => MenuTypes.GENERIC_9X6,
     };
 
-    //Container 菜单打开的容器 供关闭流程与诊断取回
+    //Container container this menu opened, retrieved by the close path and diagnostics
     public Container Container => _container;
 
-    //RowCount 容器行数
+    //RowCount number of container rows
     public int RowCount => _rows;
 
-    //StillValid 容器方块还在且玩家没走远才有效 对应原版 ChestMenu.stillValid
+    //StillValid valid while the container block remains and the player is close enough, maps to vanilla ChestMenu.stillValid
     public override bool StillValid(ServerPlayer player) => _container switch
     {
         ChestBlockEntity chest => chest.StillValid(player),
@@ -63,7 +63,7 @@ public sealed class ChestMenu : AbstractContainerMenu
         _ => true,
     };
 
-    //QuickMoveStack 容器与背包之间对搬 对应原版 ChestMenu.quickMoveStack
+    //QuickMoveStack moves items between the container and the inventory, maps to vanilla ChestMenu.quickMoveStack
     public override ItemStack QuickMoveStack(ServerPlayer player, int slotIndex)
     {
         var slot = GetSlot(slotIndex);

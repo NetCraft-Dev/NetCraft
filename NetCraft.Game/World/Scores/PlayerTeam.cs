@@ -3,11 +3,11 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.World.Scores;
 
-//PlayerTeam 玩家队伍 对应原版 net.minecraft.world.scores.PlayerTeam
-//持成员名单前后缀显示名可见性与碰撞规则 每次改动通知计分板
+//PlayerTeam player team, maps to vanilla net.minecraft.world.scores.PlayerTeam
+//Holds the member list, prefix/suffix, display name, visibility and collision rules; every change notifies the scoreboard
 public sealed class PlayerTeam : Team
 {
-    //_players 成员名单 对应原版 players
+    //_players member list, maps to vanilla players
     private readonly HashSet<string> _players = new();
 
     private Component _displayName;
@@ -27,45 +27,45 @@ public sealed class PlayerTeam : Team
         _displayName = Component.Literal(name);
     }
 
-    //Scoreboard 所属计分板 对应原版 getScoreboard
+    //Scoreboard owning scoreboard, maps to vanilla getScoreboard
     public Scoreboard Scoreboard { get; }
 
-    //Name 队伍名
+    //Name team name
     public string Name { get; }
 
     public override string GetName() => Name;
 
-    //DisplayName 显示名 对应原版 getDisplayName
+    //DisplayName display name, maps to vanilla getDisplayName
     public Component DisplayName => _displayName;
 
-    //SetDisplayName 改显示名并通知计分板 对应原版 setDisplayName
+    //SetDisplayName changes the display name and notifies the scoreboard, maps to vanilla setDisplayName
     public void SetDisplayName(Component displayName)
     {
         _displayName = displayName;
         Scoreboard.OnTeamChanged(this);
     }
 
-    //PlayerPrefix 成员名前缀 对应原版 getPlayerPrefix
+    //PlayerPrefix member name prefix, maps to vanilla getPlayerPrefix
     public Component PlayerPrefix => _playerPrefix;
 
-    //SetPlayerPrefix 改成员名前缀并通知计分板 对应原版 setPlayerPrefix
+    //SetPlayerPrefix changes the member name prefix and notifies the scoreboard, maps to vanilla setPlayerPrefix
     public void SetPlayerPrefix(Component? prefix)
     {
         _playerPrefix = prefix ?? CommonComponents.Empty;
         Scoreboard.OnTeamChanged(this);
     }
 
-    //PlayerSuffix 成员名后缀 对应原版 getPlayerSuffix
+    //PlayerSuffix member name suffix, maps to vanilla getPlayerSuffix
     public Component PlayerSuffix => _playerSuffix;
 
-    //SetPlayerSuffix 改成员名后缀并通知计分板 对应原版 setPlayerSuffix
+    //SetPlayerSuffix changes the member name suffix and notifies the scoreboard, maps to vanilla setPlayerSuffix
     public void SetPlayerSuffix(Component? suffix)
     {
         _playerSuffix = suffix ?? CommonComponents.Empty;
         Scoreboard.OnTeamChanged(this);
     }
 
-    //GetFormattedName 给名字套上前后缀与队伍颜色 对应原版 getFormattedName
+    //GetFormattedName wraps a name with the prefix, suffix and team color, maps to vanilla getFormattedName
     public override Component GetFormattedName(Component component)
     {
         var result = Component.Empty().Append(_playerPrefix).Append(component).Append(_playerSuffix);
@@ -73,20 +73,20 @@ public sealed class PlayerTeam : Team
         return result;
     }
 
-    //IsAllowFriendlyFire 是否允许友伤 对应原版 isAllowFriendlyFire
+    //IsAllowFriendlyFire whether friendly fire is allowed, maps to vanilla isAllowFriendlyFire
     public override bool IsAllowFriendlyFire() => _allowFriendlyFire;
 
-    //SetAllowFriendlyFire 设置友伤并通知计分板 对应原版 setAllowFriendlyFire
+    //SetAllowFriendlyFire sets friendly fire and notifies the scoreboard, maps to vanilla setAllowFriendlyFire
     public void SetAllowFriendlyFire(bool allowFriendlyFire)
     {
         _allowFriendlyFire = allowFriendlyFire;
         Scoreboard.OnTeamChanged(this);
     }
 
-    //CanSeeFriendlyInvisibles 能否看见同队隐身单位 对应原版 canSeeFriendlyInvisibles
+    //CanSeeFriendlyInvisibles whether teammates can see invisible allies, maps to vanilla canSeeFriendlyInvisibles
     public override bool CanSeeFriendlyInvisibles() => _seeFriendlyInvisibles;
 
-    //SetSeeFriendlyInvisibles 设置并通知计分板 对应原版 setSeeFriendlyInvisibles
+    //SetSeeFriendlyInvisibles sets it and notifies the scoreboard, maps to vanilla setSeeFriendlyInvisibles
     public void SetSeeFriendlyInvisibles(bool seeFriendlyInvisibles)
     {
         _seeFriendlyInvisibles = seeFriendlyInvisibles;
@@ -95,7 +95,7 @@ public sealed class PlayerTeam : Team
 
     public override Team.Visibility GetNameTagVisibility() => _nameTagVisibility;
 
-    //SetNameTagVisibility 设置名牌可见性并通知计分板 对应原版 setNameTagVisibility
+    //SetNameTagVisibility sets name tag visibility and notifies the scoreboard, maps to vanilla setNameTagVisibility
     public void SetNameTagVisibility(Team.Visibility visibility)
     {
         _nameTagVisibility = visibility;
@@ -104,7 +104,7 @@ public sealed class PlayerTeam : Team
 
     public override Team.Visibility GetDeathMessageVisibility() => _deathMessageVisibility;
 
-    //SetDeathMessageVisibility 设置死亡消息可见性并通知计分板 对应原版 setDeathMessageVisibility
+    //SetDeathMessageVisibility sets death message visibility and notifies the scoreboard, maps to vanilla setDeathMessageVisibility
     public void SetDeathMessageVisibility(Team.Visibility visibility)
     {
         _deathMessageVisibility = visibility;
@@ -113,7 +113,7 @@ public sealed class PlayerTeam : Team
 
     public override Team.CollisionRule GetCollisionRule() => _collisionRule;
 
-    //SetCollisionRule 设置碰撞规则并通知计分板 对应原版 setCollisionRule
+    //SetCollisionRule sets the collision rule and notifies the scoreboard, maps to vanilla setCollisionRule
     public void SetCollisionRule(Team.CollisionRule collisionRule)
     {
         _collisionRule = collisionRule;
@@ -122,7 +122,7 @@ public sealed class PlayerTeam : Team
 
     public override TeamColor? GetColor() => _color;
 
-    //SetColor 设置队伍颜色并通知计分板 对应原版 setColor
+    //SetColor sets the team color and notifies the scoreboard, maps to vanilla setColor
     public void SetColor(TeamColor? color)
     {
         _color = color;
@@ -131,13 +131,13 @@ public sealed class PlayerTeam : Team
 
     public override IReadOnlyCollection<string> GetPlayers() => _players;
 
-    //AddPlayer 加成员 对应原版 getPlayers().add 那条路径
+    //AddPlayer adds a member, maps to the getPlayers().add path in vanilla
     internal bool AddPlayer(string player) => _players.Add(player);
 
-    //RemovePlayer 移出成员 对应原版 getPlayers().remove 那条路径
+    //RemovePlayer removes a member, maps to the getPlayers().remove path in vanilla
     internal bool RemovePlayer(string player) => _players.Remove(player);
 
-    //Packed 队伍的存档形态 对应原版 PlayerTeam.Packed
+    //Packed save form of the team, maps to vanilla PlayerTeam.Packed
     public sealed record Packed(
         string Name,
         Optional<Component> DisplayName,
@@ -151,7 +151,7 @@ public sealed class PlayerTeam : Team
         Team.CollisionRule CollisionRule,
         IReadOnlyList<string> Players)
     {
-        //Codec 持久化编解码 字段名对齐原版 CODEC
+        //Codec persistence codec, field names align with vanilla CODEC
         public static readonly Codec<Packed> Codec = RecordCodecBuilder.Of11(
             Codecs.String.FieldOf("Name").ForGetter((Packed packed) => packed.Name),
             ComponentSerialization.Codec.OptionalFieldOf("DisplayName")

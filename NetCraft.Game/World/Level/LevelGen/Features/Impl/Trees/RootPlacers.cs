@@ -8,7 +8,7 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Trees;
 
-//RootPlacerType 树根放置器类型基类 对应原版 RootPlacerType<P>
+//RootPlacerType root placer type base, maps to vanilla RootPlacerType<P>
 public abstract class RootPlacerType : NetCraft.Registry.RootPlacerType<object>
 {
     public Identifier Id { get; }
@@ -20,7 +20,7 @@ public abstract class RootPlacerType : NetCraft.Registry.RootPlacerType<object>
     public abstract void EncodeFields<U>(DynamicOps<U> ops, RootPlacer value, RecordBuilder<U> builder);
 }
 
-//RootPlacerType<P> 具体放置器类型的泛型中间层
+//RootPlacerType<P> generic middle layer for a concrete placer type
 public abstract class RootPlacerType<P> : RootPlacerType where P : RootPlacer
 {
     private readonly MapCodec<P> _codec;
@@ -42,7 +42,7 @@ internal sealed class SimpleRootPlacerType<P> : RootPlacerType<P> where P : Root
         : base(Identifier.WithDefaultNamespace(id), codec) { }
 }
 
-//RootPlacerTypes 内置树根放置器类型登记 对应原版 RootPlacerType 的静态字段
+//RootPlacerTypes built-in root placer type registration, maps to the static fields of vanilla RootPlacerType
 public static class RootPlacerTypes
 {
     public static readonly RootPlacerType<MangroveRootPlacer> Mangrove =
@@ -57,18 +57,18 @@ public static class RootPlacerTypes
     }
 }
 
-//RootPlacerParts 树根放置器共用字段 对应原版 rootPlacerParts
+//RootPlacerParts fields shared by root placers, maps to vanilla rootPlacerParts
 internal static class RootPlacerParts
 {
     public static readonly MapCodec<IntProvider> TrunkOffsetY = IntProviders.Codec.FieldOf("trunk_offset_y");
     public static readonly MapCodec<BlockStateProvider> RootProvider =
         BlockStateProvider.Codec.FieldOf("root_provider");
-    //字段名避开类型名 否则同名的静态字段会遮蔽 AboveRootPlacement 类型
+    //The field name avoids the type name, otherwise a static field of the same name would shadow the AboveRootPlacement type
     public static readonly MapCodec<Optional<AboveRootPlacement>> AboveRoot =
         AboveRootPlacement.Codec.OptionalFieldOf("above_root_placement");
 }
 
-//RootPlacer 树根放置器基类 对应原版 RootPlacer
+//RootPlacer root placer base, maps to vanilla RootPlacer
 public abstract class RootPlacer
 {
     public static readonly Codec<RootPlacer> Codec = new RootPlacerDispatchCodec();
@@ -90,10 +90,10 @@ public abstract class RootPlacer
     public abstract bool PlaceRoots(WorldGenRegion level, Action<BlockPos, BlockState> rootSetter,
         RandomSource random, BlockPos origin, BlockPos trunkOrigin, TreeConfiguration config);
 
-    //CanPlaceRoot 该位置可放根 对应原版 canPlaceRoot
+    //CanPlaceRoot whether a root can go here, maps to vanilla canPlaceRoot
     protected virtual bool CanPlaceRoot(WorldGenRegion level, BlockPos pos) => TreeUtil.ValidTreePos(level, pos);
 
-    //PlaceRoot 放一格根并按概率在其上方补一格 对应原版 placeRoot
+    //PlaceRoot place one root and by chance add one above it, maps to vanilla placeRoot
     protected virtual void PlaceRoot(WorldGenRegion level, Action<BlockPos, BlockState> rootSetter,
         RandomSource random, BlockPos pos, TreeConfiguration config)
     {
@@ -108,7 +108,7 @@ public abstract class RootPlacer
                 abovePlacement.AboveRootProvider.GetState(level, random, above)));
     }
 
-    //GetPotentiallyWaterloggedState 有 waterlogged 属性就按位置是否含水写上 对应原版同名方法
+    //GetPotentiallyWaterloggedState set waterlogged when the property exists based on whether the position holds water, maps to the vanilla method of the same name
     protected static BlockState GetPotentiallyWaterloggedState(WorldGenRegion level, BlockPos pos,
         BlockState state)
     {
@@ -116,12 +116,12 @@ public abstract class RootPlacer
         return state.SetValue(TreeUtil.Waterlogged, TreeUtil.IsWaterAt(level, pos));
     }
 
-    //GetTrunkOrigin 树干原点相对树根原点抬升一段 对应原版 getTrunkOrigin
+    //GetTrunkOrigin trunk origin lifted from the root origin, maps to vanilla getTrunkOrigin
     public BlockPos GetTrunkOrigin(BlockPos origin, RandomSource random)
         => origin.Offset(0, TrunkOffsetY.Sample(random), 0);
 }
 
-//RootPlacerDispatchCodec 按 type 字段查 ROOT_PLACER_TYPE 再委派给该类型
+//RootPlacerDispatchCodec look up ROOT_PLACER_TYPE by the type field then delegate to that type
 internal sealed class RootPlacerDispatchCodec : ScalarCodec<RootPlacer>
 {
     public override DataResult<RootPlacer> Parse<U>(DynamicOps<U> ops, U input)
@@ -130,15 +130,15 @@ internal sealed class RootPlacerDispatchCodec : ScalarCodec<RootPlacer>
     private static DataResult<RootPlacer> DecodePlacer<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var typeTag = input.Get("type");
-        if (!typeTag.IsPresent) return DataResult<RootPlacer>.Error(() => "树根放置器缺 type 字段");
+        if (!typeTag.IsPresent) return DataResult<RootPlacer>.Error(() => "root placer is missing the type field");
         var typeText = ops.GetStringValue(typeTag.Get());
         if (!typeText.Result().IsPresent)
-            return DataResult<RootPlacer>.Error(() => "树根放置器的 type 必须是字符串");
+            return DataResult<RootPlacer>.Error(() => "root placer type must be a string");
         var typeId = Identifier.TryParse(typeText.GetOrThrow());
         if (typeId is null)
-            return DataResult<RootPlacer>.Error(() => $"非法的放置器类型: {typeText.GetOrThrow()}");
+            return DataResult<RootPlacer>.Error(() => $"invalid placer type: {typeText.GetOrThrow()}");
         if (BuiltInRegistries.ROOT_PLACER_TYPE.GetValue(typeId.Value) is not RootPlacerType type)
-            return DataResult<RootPlacer>.Error(() => $"未知的树根放置器类型: {typeId}");
+            return DataResult<RootPlacer>.Error(() => $"unknown root placer type: {typeId}");
         return type.Decode(ops, input);
     }
 
@@ -151,7 +151,7 @@ internal sealed class RootPlacerDispatchCodec : ScalarCodec<RootPlacer>
     }
 }
 
-//AboveRootPlacement 根上方补放方块的设置 对应原版 AboveRootPlacement
+//AboveRootPlacement settings for extra blocks above the root, maps to vanilla AboveRootPlacement
 public sealed class AboveRootPlacement
 {
     public static readonly Codec<AboveRootPlacement> Codec =
@@ -172,7 +172,7 @@ public sealed class AboveRootPlacement
     }
 }
 
-//MangroveRootPlacement 红树根参数 对应原版 MangroveRootPlacement
+//MangroveRootPlacement mangrove root parameters, maps to vanilla MangroveRootPlacement
 public sealed class MangroveRootPlacement
 {
     public static readonly Codec<MangroveRootPlacement> Codec =
@@ -211,7 +211,7 @@ public sealed class MangroveRootPlacement
     }
 }
 
-//MangroveRootPlacer 红树根放置器 对应原版 MangroveRootPlacer
+//MangroveRootPlacer mangrove root placer, maps to vanilla MangroveRootPlacer
 public sealed class MangroveRootPlacer : RootPlacer
 {
     public static readonly MapCodec<MangroveRootPlacer> Codec =
@@ -259,7 +259,7 @@ public sealed class MangroveRootPlacer : RootPlacer
         return true;
     }
 
-    //SimulateRoots 递归铺开四个方向上的根 对应原版 simulateRoots
+    //SimulateRoots recursively spread roots in four directions, maps to vanilla simulateRoots
     private bool SimulateRoots(WorldGenRegion level, RandomSource random, BlockPos rootPos,
         PrimDirection dir, BlockPos rootOrigin, List<BlockPos> rootPositions, int layer)
     {
@@ -275,7 +275,7 @@ public sealed class MangroveRootPlacer : RootPlacer
         return true;
     }
 
-    //PotentialRootPositions 下一步可能的根位置 对应原版 potentialRootPositions
+    //PotentialRootPositions possible root positions for the next step, maps to vanilla potentialRootPositions
     protected List<BlockPos> PotentialRootPositions(BlockPos pos, PrimDirection prevDir, RandomSource random,
         BlockPos rootOrigin)
     {

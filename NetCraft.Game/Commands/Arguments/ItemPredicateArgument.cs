@@ -14,43 +14,43 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//ItemPredicateArgument 物品谓词参数 对应原版 net.minecraft.commands.arguments.item.ItemPredicateArgument
-//语法 <物品> | #<标签> | * 之后可接 [条件,条件...]
-//条件之间是且 条件内用 | 表示或 用 ! 取反
-//条件三种写法 <组件>=<SNBT值> 值匹配 / <组件> 单独出现是存在性 / <谓词>~<SNBT值>
-//原版走 packrat 语法树 本作没有该框架 用等价的递归下降实现 分支顺序与原版一致
+//ItemPredicateArgument item predicate argument, maps to vanilla net.minecraft.commands.arguments.item.ItemPredicateArgument
+//Syntax: <item> | #<tag> | *, optionally followed by [condition,condition...]
+//Conditions are ANDed; within a condition | means OR and ! negates
+//Three condition forms: <component>=<SNBT value> value match / <component> alone means existence / <predicate>~<SNBT value>
+//Vanilla uses a packrat syntax tree; this project has no such framework and uses an equivalent recursive descent with the same branch order as vanilla
 public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
 {
-    //CountId 数量伪组件标识 对应原版 ItemPredicateArgument.COUNT_ID
-    //count 不在组件注册表里 单独按数量区间判定
+    //CountId count pseudo-component id, maps to vanilla ItemPredicateArgument.COUNT_ID
+    //count is not in the component registry and is judged by a count range on its own
     private static readonly Identifier CountId = Identifier.WithDefaultNamespace("count");
 
     private static readonly IReadOnlyList<string> ExamplesList =
         new[] { "stick", "minecraft:stick", "#stick", "#stick[foo='bar']" };
 
     public static readonly DynamicCommandExceptionType ErrorUnknownItem =
-        new(id => new LiteralMessage($"未知物品 {id}"));
+        new(id => new LiteralMessage($"unknown item {id}"));
 
     public static readonly DynamicCommandExceptionType ErrorUnknownTag =
-        new(id => new LiteralMessage($"未知物品标签 {id}"));
+        new(id => new LiteralMessage($"unknown item tag {id}"));
 
     public static readonly DynamicCommandExceptionType ErrorUnknownComponent =
-        new(id => new LiteralMessage($"未知组件 {id}"));
+        new(id => new LiteralMessage($"unknown component {id}"));
 
     public static readonly Dynamic2CommandExceptionType ErrorMalformedComponent =
-        new((type, message) => new LiteralMessage($"组件 {type} 格式错误 {message}"));
+        new((type, message) => new LiteralMessage($"component {type} malformed: {message}"));
 
     private static RegistryOps<Tag>? _registryOps;
     private static TagParser<Tag>? _componentTagParser;
 
-    //RegistryOpsForCommands 惰性构造 组件值解析时才需要注册表
+    //RegistryOpsForCommands lazily constructed; the registry is only needed when parsing component values
     private static RegistryOps<Tag> RegistryOpsForCommands
         => _registryOps ??= new RegistryOps<Tag>(NbtOps.Instance, BuiltInRegistries.CreateRegistryAccess());
 
     private static TagParser<Tag> ComponentTagParser
         => _componentTagParser ??= TagParser<Tag>.Create(RegistryOpsForCommands);
 
-    //ItemPredicate 新建谓词参数实例 命令树注册用
+    //ItemPredicate creates a predicate argument instance, used for command tree registration
     public static ItemPredicateArgument ItemPredicate() => new();
 
     public Predicate<ItemStack> Parse(StringReader reader)
@@ -67,11 +67,11 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
         }
     }
 
-    //ParseTop 基础类型加可选条件列表 对应原版 top 规则
+    //ParseTop base type plus an optional condition list, maps to vanilla top rule
     private static Predicate<ItemStack> ParseTop(StringReader reader)
     {
         var basePredicate = ParseAnyType(reader);
-        //没有条件列表时通配与物品标签自身就是完整谓词 对应原版 top 的第二条分支
+        //Without a condition list, the wildcard and an item tag are themselves a complete predicate, maps to the second branch of vanilla top
         if (!reader.CanRead() || reader.Peek() != '[') return basePredicate;
         reader.Skip();
         Predicate<ItemStack>? conditions = null;
@@ -79,17 +79,17 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
             conditions = ParseConditions(reader);
         reader.Expect(']');
         if (conditions is null) return basePredicate;
-        //基础类型与条件列表是且的关系 对应原版 Util.allOf
+        //The base type and the condition list are ANDed, maps to vanilla Util.allOf
         var rest = conditions;
         return stack => basePredicate(stack) && rest(stack);
     }
 
-    //ParseAnyType 物品标识符 #标签 或 * 通配 对应原版 any_type 规则
+    //ParseAnyType item identifier, #tag or * wildcard, maps to vanilla any_type rule
     private static Predicate<ItemStack> ParseAnyType(StringReader reader)
     {
         if (!reader.CanRead())
             throw ErrorUnknownItem.CreateWithContext(reader, "");
-        //* 匹配任意物品 对应原版 all_type
+        //* matches any item, maps to vanilla all_type
         if (reader.Peek() == '*')
         {
             reader.Skip();
@@ -111,7 +111,7 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
         }
         var itemStart = reader.Cursor;
         var itemId = IdentifierArgument.ReadIdentifier(reader);
-        //注册表带默认值 必须按 ResourceKey 查 否则未知物品会静默落到默认项
+        //The registry is defaulted, so look up by ResourceKey; otherwise an unknown item silently falls back to the default
         var item = BuiltInRegistries.ITEM.GetValue(ResourceKey<Item>.Create(Registries.ITEM, itemId));
         if (item is null)
         {
@@ -121,7 +121,7 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
         return stack => !stack.IsEmpty() && ReferenceEquals(stack.GetItem(), item);
     }
 
-    //ParseConditions 逗号分隔的条件全部满足 对应原版 conditions 规则
+    //ParseConditions all comma-separated conditions must hold, maps to vanilla conditions rule
     private static Predicate<ItemStack> ParseConditions(StringReader reader)
     {
         var first = ParseAlternatives(reader);
@@ -131,7 +131,7 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
         return stack => first(stack) && rest(stack);
     }
 
-    //ParseAlternatives 竖线分隔的候选任一满足 对应原版 alternatives 规则
+    //ParseAlternatives any of the pipe-separated candidates must hold, maps to vanilla alternatives rule
     private static Predicate<ItemStack> ParseAlternatives(StringReader reader)
     {
         var first = ParseTerm(reader);
@@ -141,7 +141,7 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
         return stack => first(stack) || rest(stack);
     }
 
-    //ParseTerm 取反前缀后接单个条件 对应原版 term 规则 感叹号不可连用
+    //ParseTerm a negation prefix followed by a single condition, maps to vanilla term rule; ! cannot be chained
     private static Predicate<ItemStack> ParseTerm(StringReader reader)
     {
         if (reader.CanRead() && reader.Peek() == '!')
@@ -153,14 +153,14 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
         return ParseTest(reader);
     }
 
-    //ParseTest 组件值匹配 谓词匹配 组件存在性 对应原版 test 规则的三条分支
-    //原版三条分支的原子顺序是 component_type '=' tag / predicate_type '~' tag / component_type
-    //组件类型解析优先于谓词类型 因为前两条分支都要求组件类型先匹配上
+    //ParseTest component value match, predicate match, component existence, maps to the three branches of vanilla test rule
+    //The vanilla atomic order of the three branches is component_type '=' tag / predicate_type '~' tag / component_type
+    //Component type parsing takes precedence over predicate type, because the first two branches both require the component type to match first
     private static Predicate<ItemStack> ParseTest(StringReader reader)
     {
         var start = reader.Cursor;
         var id = IdentifierArgument.ReadIdentifier(reader);
-        //数量伪组件 值是一个整数区间 单独出现时恒真 对应原版 PSEUDO_COMPONENTS 的 count
+        //Count pseudo-component; the value is an integer range and is always true when present alone, maps to count in vanilla PSEUDO_COMPONENTS
         if (id == CountId)
         {
             if (reader.CanRead() && reader.Peek() == '=')
@@ -177,13 +177,13 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
             {
                 reader.Skip();
                 var expected = ReadComponentValue(reader, componentType, start);
-                //值匹配的语义就是精确谓词 对应原版 DataComponentExactPredicate.expect(type, value)
+                //Value match semantics are an exact predicate, maps to vanilla DataComponentExactPredicate.expect(type, value)
                 var exact = DataComponentExactPredicate.Expect(componentType, expected);
                 return stack => !stack.IsEmpty() && exact.Test(stack.GetComponents());
             }
             return stack => !stack.IsEmpty() && stack.GetComponents().Get(componentType) is not null;
         }
-        //谓词分支 谓词类型经注册表分派 值按该类型的 codec 从 SNBT 解出 对应原版 predicate_type '~' tag
+        //Predicate branch; the predicate type is dispatched through the registry and the value is decoded from SNBT by that type's codec, maps to vanilla predicate_type '~' tag
         if (LookupPredicateType(id) is { } predicateType
             && reader.CanRead() && reader.Peek() == '~')
         {
@@ -193,7 +193,7 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
             if (!parsed.Result().IsPresent)
             {
                 reader.SetCursor(start);
-                throw ErrorMalformedComponent.CreateWithContext(reader, id.ToString()!, "谓词值解析失败");
+                throw ErrorMalformedComponent.CreateWithContext(reader, id.ToString()!, "invalid predicate value");
             }
             var predicateValue = parsed.GetOrThrow();
             return stack => !stack.IsEmpty() && predicateType.Matches(stack.GetComponents(), predicateValue);
@@ -202,18 +202,18 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
         throw ErrorUnknownComponent.CreateWithContext(reader, id.ToString());
     }
 
-    //LookupComponentType 按标识符查持久化组件类型 非持久化组件按原版报未知
+    //LookupComponentType looks up a persistent component type by identifier; a non-persistent component is reported unknown like vanilla
     private static DataComponentType<object>? LookupComponentType(Identifier id)
         => BuiltInRegistries.DATA_COMPONENT_TYPE.GetValue(id) is DataComponentType<object> type && !type.IsTransient
             ? type
             : null;
 
-    //LookupPredicateType 按标识符查谓词类型 对应原版 lookupPredicateType
-    //组件类型侧不走这里 组件存在性与值匹配在前面两个分支已处理
+    //LookupPredicateType looks up the predicate type by identifier, maps to vanilla lookupPredicateType
+    //The component type side does not go through here; component existence and value matching are handled in the first two branches
     private static DataComponentPredicate.Type? LookupPredicateType(Identifier id)
         => BuiltInRegistries.DATA_COMPONENT_PREDICATE_TYPE.GetValue(id) as DataComponentPredicate.Type;
 
-    //ReadComponentValue 组件值先按 SNBT 读成 Tag 再交给组件 Codec 解析
+    //ReadComponentValue reads the component value as SNBT into a Tag then hands it to the component Codec
     private static object ReadComponentValue(StringReader reader, DataComponentType<object> type, int errorStart)
     {
         var tag = ReadNbt(reader);
@@ -227,17 +227,17 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
             });
     }
 
-    //ReadCountRange 数量伪组件的值 单个整数视为上下界相等 复合标签读 min/max
+    //ReadCountRange the value of the count pseudo-component; a single integer treats both bounds as equal, a compound tag reads min/max
     private static MinMaxBounds.Ints ReadCountRange(StringReader reader, Tag tag)
     {
         if (tag is IntTag intTag)
             return new MinMaxBounds.Ints(intTag.Value, intTag.Value);
         if (tag is CompoundTag compound && (compound.Contains("min") || compound.Contains("max")))
             return new MinMaxBounds.Ints(compound.GetInt("min")?.Value, compound.GetInt("max")?.Value);
-        throw ErrorMalformedComponent.CreateWithContext(reader, CountId.ToString(), "应为整数或 min/max 区间");
+        throw ErrorMalformedComponent.CreateWithContext(reader, CountId.ToString(), "expected an integer or a min/max range");
     }
 
-    //ReadNbt 用独立读取器解析 SNBT 解析后把游标同步回命令读取器
+    //ReadNbt parses SNBT with a separate reader and syncs the cursor back to the command reader
     private static Tag ReadNbt(StringReader reader)
     {
         var nbtReader = new CommandStringReader(reader.String) { Cursor = reader.Cursor };
@@ -246,11 +246,11 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
         return tag;
     }
 
-    //GetItemPredicate 取解析出的谓词
+    //GetItemPredicate gets the parsed predicate
     public static Predicate<ItemStack> GetItemPredicate(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<Predicate<ItemStack>>(name);
 
-    //ListSuggestions 按当前游标位置给物品或标签候选 对应原版 ResourceLookupRule 的建议
+    //ListSuggestions suggests items or tags for the current cursor position, maps to vanilla ResourceLookupRule suggestions
     public Task<Suggestions> ListSuggestions<S>(CommandContext<S> context, SuggestionsBuilder builder)
     {
         var remaining = builder.Remaining;
@@ -271,7 +271,7 @@ public sealed class ItemPredicateArgument : ArgumentType<Predicate<ItemStack>>
                 if (text.StartsWith(remaining, StringComparison.Ordinal))
                     builder.Add(text);
             }
-            //标签与通配也作为候选给出 对应原版 listTagTypes 与 all_type
+            //Tags and the wildcard are also suggested, maps to vanilla listTagTypes and all_type
             if ("#".StartsWith(remaining, StringComparison.Ordinal)) builder.Add("#");
             if ("*".StartsWith(remaining, StringComparison.Ordinal)) builder.Add("*");
         }

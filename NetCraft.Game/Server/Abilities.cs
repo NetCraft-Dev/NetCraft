@@ -3,33 +3,33 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Game.Server;
 
-//Abilities 玩家能力状态对应原版 net.minecraft.world.entity.player.Abilities
-//创造可飞行可秒建 旁观无敌且强制飞行 生存冒险一律收回 对应原版 GameType.updatePlayerAbilities
-//mayfly 是模式给的许可 flying 是玩家自己按出来的状态 两者不是一回事
-//创造切模式时不动 flying 存档里也得带着它 否则重进就掉下来
+//Abilities player ability state, maps to vanilla net.minecraft.world.entity.player.Abilities
+//Creative can fly and instabuild, spectator is invulnerable and forced to fly, survival/adventure revoke everything, maps to vanilla GameType.updatePlayerAbilities
+//mayfly is the permission from the mode; flying is the state the player toggled; the two are not the same
+//Switching to creative does not touch flying; the save must carry it too or the player falls on rejoin
 public sealed class Abilities
 {
-    //Invulnerable 无敌 创造与旁观为真 对应原版 abilities.invulnerable
+    //Invulnerable invulnerable, true for creative and spectator, maps to vanilla abilities.invulnerable
     public bool Invulnerable { get; set; }
 
-    //Flying 正在飞行 由客户端 player_abilities 包上报 对应原版 abilities.flying
+    //Flying currently flying, reported by the client player_abilities packet, maps to vanilla abilities.flying
     public bool Flying { get; set; }
 
-    //MayFly 允许飞行 创造与旁观为真 对应原版 abilities.mayfly
+    //MayFly allowed to fly, true for creative and spectator, maps to vanilla abilities.mayfly
     public bool MayFly { get; set; }
 
-    //Instabuild 秒建 仅创造为真 对应原版 abilities.instabuild
+    //Instabuild instabuild, true only for creative, maps to vanilla abilities.instabuild
     public bool Instabuild { get; set; }
 
-    //MayBuild 允许改动方块 冒险与旁观为假 对应原版 abilities.mayBuild
+    //MayBuild allowed to change blocks, false for adventure and spectator, maps to vanilla abilities.mayBuild
     public bool MayBuild { get; set; } = true;
 
-    //FlyingSpeed/WalkingSpeed 原版默认值 本作未接入速度修饰符
+    //FlyingSpeed/WalkingSpeed vanilla defaults; speed modifiers are not wired up here
     public float FlyingSpeed { get; set; } = 0.05f;
     public float WalkingSpeed { get; set; } = 0.1f;
 
-    //ApplyGameType 按游戏模式推导能力 对应原版 GameType.updatePlayerAbilities
-    //创造分支不动 Flying 玩家自己按出来的飞行状态要留着 其余分支一律收回
+    //ApplyGameType derives the abilities from the game type, maps to vanilla GameType.updatePlayerAbilities
+    //The creative branch does not touch Flying, the flight state the player toggled must be kept; other branches revoke everything
     public void ApplyGameType(GameType gameType)
     {
         if (gameType == GameType.Creative)
@@ -55,8 +55,8 @@ public sealed class Abilities
         MayBuild = !gameType.IsBlockPlacingRestricted;
     }
 
-    //WriteTo 写进玩家 NBT 的 abilities 子标签 字段名对齐原版 Abilities.Packed 的 codec
-    //原版这些字段是 optionalAlwaysPresent 一律写出
+    //WriteTo writes into the player NBT's abilities sub-tag; field names align with the codec of vanilla Abilities.Packed
+    //Vanilla marks these fields optionalAlwaysPresent and always writes them
     public void WriteTo(CompoundTag parent)
     {
         var tag = new CompoundTag();
@@ -70,7 +70,7 @@ public sealed class Abilities
         parent.Put("abilities", tag);
     }
 
-    //ReadFrom 从玩家 NBT 读回 缺字段保持当前值
+    //ReadFrom reads back from player NBT; missing fields keep the current value
     public void ReadFrom(CompoundTag parent)
     {
         if (parent.GetCompound("abilities") is not { } tag) return;

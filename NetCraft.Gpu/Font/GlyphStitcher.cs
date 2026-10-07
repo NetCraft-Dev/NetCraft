@@ -1,10 +1,10 @@
 namespace NetCraft.Gpu.Font;
 
-//GlyphStitcher 字形缝合器对标原版 GlyphStitcher
-//管理多个 FontTexture 图集按需新建首个装不下时新建下一张
-//Stitch 把 IGlyphInfo+IGlyphBitmap 缝到图集返回 BakedGlyph
-//colored 字形走 RGBA8 图集 grayscale 字形走 R8 图集两类图集独立分配
-//F7 接入 GuiResourceManager 创建 FontTexture 时注册图集获得 TextureSetup + 按 colored 创建 GlyphRenderTypes
+//GlyphStitcher glyph stitcher, maps to vanilla GlyphStitcher
+//Manages multiple FontTexture atlases, creating new ones on demand when the first does not fit
+//Stitch stitches IGlyphInfo+IGlyphBitmap into the atlas and returns a BakedGlyph
+//colored glyphs use RGBA8 atlases, grayscale glyphs use R8 atlases; the two kinds are allocated independently
+//F7 wires into GuiResourceManager: when creating a FontTexture it registers the atlas to get a TextureSetup and creates GlyphRenderTypes based on colored
 public sealed class GlyphStitcher : IUnbakedGlyph.Stitcher, IDisposable
 {
     private readonly GpuDevice _device;
@@ -17,8 +17,8 @@ public sealed class GlyphStitcher : IUnbakedGlyph.Stitcher, IDisposable
         _resourceManager = resourceManager;
     }
 
-    //Stitch 遍历已有图集找首个能装下的装不下则新建图集
-    //对标原版 GlyphStitcher.stitch 遍历 textures 调 add 失败则新建
+    //Stitch walks the existing atlases for the first that fits, creating a new one if none do
+    //maps to vanilla GlyphStitcher.stitch: walk textures, call add, create a new one on failure
     public BakedGlyph Stitch(IGlyphInfo info, IGlyphBitmap bitmap)
     {
         foreach (var texture in _textures)
@@ -29,11 +29,11 @@ public sealed class GlyphStitcher : IUnbakedGlyph.Stitcher, IDisposable
         var newTexture = CreateTexture(bitmap.IsColored);
         _textures.Add(newTexture);
         return newTexture.Add(info, bitmap) ?? throw new InvalidOperationException(
-            $"字形 {info.Advance} 装不下新建的 256×256 图集 pixelSize={bitmap.PixelWidth}x{bitmap.PixelHeight}");
+            $"glyph {info.Advance} does not fit the new 256×256 atlas pixelSize={bitmap.PixelWidth}x{bitmap.PixelHeight}");
     }
 
-    //CreateTexture 创建新图集 GpuImage 注册到 GuiResourceManager 获得 TextureSetup + 创建 GlyphRenderTypes
-    //colored=true 用 RGBA8 图集 + CreateForColorTexture colored=false 用 R8 图集 + CreateForGrayscaleTexture
+    //CreateTexture creates a new atlas GpuImage, registers it with GuiResourceManager to get a TextureSetup and creates GlyphRenderTypes
+    //colored=true uses an RGBA8 atlas + CreateForColorTexture, colored=false uses an R8 atlas + CreateForGrayscaleTexture
     private FontTexture CreateTexture(bool colored)
     {
         var desc = new GpuImageDescription
@@ -52,12 +52,12 @@ public sealed class GlyphStitcher : IUnbakedGlyph.Stitcher, IDisposable
         return new FontTexture(image, colored, textureSetup, renderTypes);
     }
 
-    //GetMissing 返回缺失字形占位对标原版 AllMissingGlyphProvider 返回 SpecialGlyphs.MISSING
-    //SpecialGlyphs.Missing 5x8 白色边框 Bake 调 Stitch 缝到 RGBA8 图集返回 SheetBakedGlyph
-    //渲染时由调用方 color 着色显示为紫色方块是着色效果
+    //GetMissing returns the missing-glyph placeholder, maps to vanilla AllMissingGlyphProvider returning SpecialGlyphs.MISSING
+    //SpecialGlyphs.Missing is a 5x8 white border; Bake calls Stitch to stitch it into an RGBA8 atlas and returns a SheetBakedGlyph
+    //At render time the caller's color tints it; the purple square is a tinting effect
     public BakedGlyph GetMissing() => SpecialGlyphs.Missing.Bake(this);
 
-    //Reset 释放所有图集纹理对标原版 GlyphStitcher.reset
+    //Reset releases all atlas textures, maps to vanilla GlyphStitcher.reset
     public void Reset()
     {
         foreach (var texture in _textures)

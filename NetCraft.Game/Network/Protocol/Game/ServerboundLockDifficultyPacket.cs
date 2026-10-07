@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundLockDifficultyPacket 数据包对应原版 ServerboundLockDifficultyPacket
-//字段 Locked(boolean)
+//ServerboundLockDifficultyPacket lock difficulty packet, maps to vanilla ServerboundLockDifficultyPacket
+//Field: Locked(boolean)
 public sealed record ServerboundLockDifficultyPacket(bool Locked) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundLockDifficultyPacket> StreamCodec { get; } = new LockDifficultyCodec();
@@ -12,7 +12,7 @@ public sealed record ServerboundLockDifficultyPacket(bool Locked) : Packet<Serve
 
     private sealed class LockDifficultyCodec : StreamCodec<FriendlyByteBuf, ServerboundLockDifficultyPacket>
     {
-        //难度锁定开关切换时发送 表示是否锁定整个世界难度
+        //Sent when toggling the difficulty lock, indicating whether the whole world difficulty is locked
         public ServerboundLockDifficultyPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadBoolean());
 

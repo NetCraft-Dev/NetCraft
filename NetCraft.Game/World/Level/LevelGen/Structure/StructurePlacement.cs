@@ -4,30 +4,30 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//StructurePlacement 结构放置抽象 对应原版 net.minecraft.world.level.levelgen.structure.placement.StructurePlacement
-//决定结构落在哪些区块 以及频率削减与其他结构集合之间的排斥
-//子类只实现 IsPlacementChunk 给出网格判定 其余判定由基类组合
+//StructurePlacement structure placement abstraction, maps to vanilla net.minecraft.world.level.levelgen.structure.placement.StructurePlacement
+//Decides which chunks a structure lands in, plus frequency reduction and exclusion against other structure sets
+//Subclasses only implement IsPlacementChunk for the grid check; the base class combines the rest
 public abstract class StructurePlacement
 {
-    //HighlyArbitraryRandomSalt 遗留盐值 对应原版 HIGHLY_ARBITRARY_RANDOM_SALT
-    //只有 LEGACY_TYPE_2 用它 换别的值会让老存档的结构位置整体偏移
+    //HighlyArbitraryRandomSalt legacy salt, maps to vanilla HIGHLY_ARBITRARY_RANDOM_SALT
+    //Only LEGACY_TYPE_2 uses it; any other value would shift structure positions across old saves
     public const int HighlyArbitraryRandomSalt = 10387320;
 
-    //LocateOffset 定位点偏移 对应原版 locate_offset
-    //只影响 /locate 报出的坐标 不参与区块判定
+    //LocateOffset locate offset, maps to vanilla locate_offset
+    //Only affects the coordinates reported by /locate; not part of chunk judging
     public Vec3i LocateOffset { get; }
 
-    //ReductionMethod 频率削减算法 对应原版 frequency_reduction_method
+    //ReductionMethod frequency reduction algorithm, maps to vanilla frequency_reduction_method
     public FrequencyReductionMethod ReductionMethod { get; }
 
-    //Frequency 命中概率 默认 1.0 表示不做削减
+    //Frequency hit probability; the default 1.0 means no reduction
     public float Frequency { get; }
 
-    //Salt 盐值 参与种子派生
+    //Salt salt value, part of seed derivation
     public int Salt { get; }
 
-    //Exclusion 排斥区 附近存在另一个集合的结构时本结构不生成
-    //属性不能与嵌套类型 ExclusionZone 同名 故这里用短名
+    //Exclusion exclusion zone; a structure in another set nearby prevents this one from generating
+    //The property cannot share the name with the nested type ExclusionZone, so a short name is used
     public ExclusionZone? Exclusion { get; }
 
     protected StructurePlacement(Vec3i locateOffset, FrequencyReductionMethod reductionMethod, float frequency,
@@ -40,42 +40,42 @@ public abstract class StructurePlacement
         Exclusion = exclusionZone;
     }
 
-    //IsPlacementChunk 基础网格判定 由子类实现
+    //IsPlacementChunk base grid check, implemented by subclasses
     protected abstract bool IsPlacementChunk(ChunkGeneratorStructureState state, int sourceX, int sourceZ);
 
-    //IsStructureChunk 最终判定 对应原版 isStructureChunk
-    //三段与关系 基础网格 频率削减 排斥区 顺序不能颠倒因频率削减会消耗随机数
+    //IsStructureChunk final check, maps to vanilla isStructureChunk
+    //Three-way AND: base grid, frequency reduction, exclusion zone; the order cannot be swapped since frequency reduction consumes randoms
     public bool IsStructureChunk(ChunkGeneratorStructureState state, int sourceX, int sourceZ)
         => IsPlacementChunk(state, sourceX, sourceZ)
             && ApplyAdditionalChunkRestrictions(sourceX, sourceZ, state.LevelSeed)
             && ApplyInteractionsWithOtherStructures(state, sourceX, sourceZ);
 
-    //ApplyAdditionalChunkRestrictions 频率削减 对应原版 applyAdditionalChunkRestrictions
-    //Frequency 为 1 时整段跳过 连一次随机数都不消耗 这点影响后续判定结果
+    //ApplyAdditionalChunkRestrictions frequency reduction, maps to vanilla applyAdditionalChunkRestrictions
+    //When Frequency is 1 the whole thing is skipped without consuming a single random; this affects later judge results
     public bool ApplyAdditionalChunkRestrictions(int sourceX, int sourceZ, long levelSeed)
         => Frequency >= 1.0f || ReductionMethod.ShouldGenerate(levelSeed, Salt, sourceX, sourceZ, Frequency);
 
-    //ApplyInteractionsWithOtherStructures 排斥区判定 对应原版 applyInteractionsWithOtherStructures
+    //ApplyInteractionsWithOtherStructures exclusion zone check, maps to vanilla applyInteractionsWithOtherStructures
     public bool ApplyInteractionsWithOtherStructures(ChunkGeneratorStructureState state, int sourceX, int sourceZ)
         => Exclusion is null || !Exclusion.IsPlacementForbidden(state, sourceX, sourceZ);
 
-    //GetLocatePos 定位坐标 对应原版 getLocatePos
+    //GetLocatePos locate position, maps to vanilla getLocatePos
     public BlockPos GetLocatePos(ChunkPos chunkPos)
         => new(chunkPos.X << 4, LocateOffset.Y, chunkPos.Z << 4);
 
-    //ExclusionZone 排斥区 对应原版 StructurePlacement.ExclusionZone
-    //OtherSet 是另一个结构集合 ChunkCount 是检查半径 1..16
+    //ExclusionZone exclusion zone, maps to vanilla StructurePlacement.ExclusionZone
+    //OtherSet is another structure set, ChunkCount is the check radius, 1..16
     public sealed record ExclusionZone(Holder<NetCraft.Registry.StructureSet> OtherSet, int ChunkCount)
     {
-        //IsPlacementForbidden 该范围内命中了排斥集合的结构则禁止生成
-        //私有成员对包含类可见 外层直接调用即可
+        //IsPlacementForbidden forbids generation when a structure of the excluded set hits within range
+        //Private members are visible to the containing class, so the outer class can call it directly
         internal bool IsPlacementForbidden(ChunkGeneratorStructureState state, int sourceX, int sourceZ)
             => state.HasStructureChunkInRange(OtherSet, sourceX, sourceZ, ChunkCount);
     }
 }
 
-//FrequencyReductionMethod 频率削减算法 对应原版 StructurePlacement.FrequencyReductionMethod
-//四种算法的随机源与比较精度都不同 数值必须逐字对齐 否则结构分布会与原版不同
+//FrequencyReductionMethod frequency reduction algorithm, maps to vanilla StructurePlacement.FrequencyReductionMethod
+//The four algorithms differ in random source and comparison precision; the values must match verbatim or structure distribution diverges from vanilla
 public enum FrequencyReductionMethod
 {
     Default,
@@ -84,11 +84,11 @@ public enum FrequencyReductionMethod
     LegacyType3,
 }
 
-//FrequencyReductionMethods 削减算法的实现与名字映射
+//FrequencyReductionMethods reduction algorithm implementation and name mapping
 public static class FrequencyReductionMethods
 {
-    //ShouldGenerate 判定该区块是否通过频率削减 对应原版各 reducer
-    //四种都新建 LegacyRandomSource(0) 再重播种子 保证与调用顺序无关
+    //ShouldGenerate whether the chunk passes frequency reduction, maps to the vanilla reducers
+    //All four create a fresh LegacyRandomSource(0) then replay the seed, keeping them independent of call order
     public static bool ShouldGenerate(this FrequencyReductionMethod method, long seed, int salt,
         int sourceX, int sourceZ, float probability)
     {
@@ -96,29 +96,29 @@ public static class FrequencyReductionMethods
         switch (method)
         {
             case FrequencyReductionMethod.LegacyType1:
-                //前哨站用 按区块坐标异或后取倒数区间命中 概率语义是 1/probability 分之一
+                //Used by outposts; XORs the chunk coords and hits one slot out of the reciprocal, so the probability means 1 in 1/probability
                 var chunkX = sourceX >> 4;
                 var chunkZ = sourceZ >> 4;
                 random.SetSeed((chunkX ^ (chunkZ << 4)) ^ seed);
                 random.NextInt();
                 return random.NextInt((int)(1.0f / probability)) == 0;
             case FrequencyReductionMethod.LegacyType2:
-                //带遗留盐值 比较用 float
+                //With the legacy salt; comparison uses float
                 WorldgenRandom.SetLargeFeatureWithSalt(random, seed, sourceX, sourceZ,
                     StructurePlacement.HighlyArbitraryRandomSalt);
                 return random.NextFloat() < probability;
             case FrequencyReductionMethod.LegacyType3:
-                //按区块坐标派生 比较用 double 精度比 float 高
+                //Derived from the chunk coords; comparison uses double, more precise than float
                 WorldgenRandom.SetLargeFeatureSeed(random, seed, sourceX, sourceZ);
                 return random.NextDouble() < probability;
             default:
-                //带普通盐值 比较用 float
+                //With the regular salt; comparison uses float
                 WorldgenRandom.SetLargeFeatureWithSalt(random, seed, salt, sourceX, sourceZ);
                 return random.NextFloat() < probability;
         }
     }
 
-    //Name 取 JSON 名 对应原版 getSerializedName
+    //Name returns the JSON name, maps to vanilla getSerializedName
     public static string Name(this FrequencyReductionMethod method) => method switch
     {
         FrequencyReductionMethod.LegacyType1 => "legacy_type_1",
@@ -127,7 +127,7 @@ public static class FrequencyReductionMethods
         _ => "default",
     };
 
-    //TryParse 按 JSON 名解析 名字非法返回 null
+    //TryParse parses by JSON name, returns null on an invalid name
     public static FrequencyReductionMethod? TryParse(string name) => name switch
     {
         "default" => FrequencyReductionMethod.Default,

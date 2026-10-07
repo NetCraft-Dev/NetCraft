@@ -7,32 +7,32 @@ using NetCraft.Resources;
 
 namespace NetCraft.Game.World.Crafting;
 
-//RecipeManager 配方管理器对应原版 RecipeManager
-//负责把数据包 recipe 目录读成内存表并提供合成与切石机查询
-//配方书下发与玩家解锁留到配方书阶段
+//RecipeManager recipe manager, maps to vanilla RecipeManager
+//Reads the datapack recipe directory into in-memory tables and serves crafting and stonecutter queries
+//Recipe book delivery and player unlocks are left to the recipe book stage
 public sealed class RecipeManager
 {
-    //Active 当前生效的配方管理器 服务端装配时设置 菜单取它算合成结果
+    //Active the currently active recipe manager, set when the server wires up, menus read it to compute crafting results
     public static RecipeManager? Active { get; set; }
 
-    //RecipeFolder 配方数据目录 对应原版 FileToIdConverter.registry(Registries.RECIPE)
+    //RecipeFolder recipe data directory, maps to vanilla FileToIdConverter.registry(Registries.RECIPE)
     private const string RecipeFolder = "recipe";
 
     private readonly Dictionary<Identifier, RecipeHolder> _byId = new();
-    //只装合成配方 网格每次变化都要扫一遍 不把熔炼切石那类掺进来
+    //Holds only crafting recipes, the grid rescans on every change, cooking and stonecutting are kept out
     private readonly List<CraftingRecipe> _crafting = new();
-    //切石机配方按输入物品查 数量比合成少 同样线性扫
+    //Stonecutter recipes are queried by input item; there are fewer than crafting recipes and they are also scanned linearly
     private readonly List<StonecutterRecipe> _stonecutting = new();
-    //烹饪配方按类型分桶 熔炼四件套各查各的 对应原版按 RecipeType 索引的配方表
+    //Cooking recipes are bucketed by type, the four variants each look up their own, maps to the recipe table indexed by RecipeType in vanilla
     private readonly Dictionary<string, List<AbstractCookingRecipe>> _cooking = new();
 
-    //Count 已加载的合成配方数
+    //Count number of loaded crafting recipes
     public int Count => _byId.Count;
 
-    //StonecutterRecipeCount 已加载的切石机配方数
+    //StonecutterRecipeCount number of loaded stonecutter recipes
     public int StonecutterRecipeCount => _stonecutting.Count;
 
-    //CookingRecipeCount 已加载的烹饪配方数(熔炼四件套合计)
+    //CookingRecipeCount number of loaded cooking recipes (all four variants combined)
     public int CookingRecipeCount
     {
         get
@@ -43,7 +43,7 @@ public sealed class RecipeManager
         }
     }
 
-    //Load 扫描所有数据包的 recipe 目录 单个文件失败只记错误不中断整体
+    //Load scans the recipe directory of all datapacks; a single file failure only logs an error and does not stop the rest
     public LoadResult Load(ResourceManager resourceManager)
     {
         _byId.Clear();
@@ -67,8 +67,8 @@ public sealed class RecipeManager
         return new LoadResult(_byId.Count, errors);
     }
 
-    //GetCraftingResult 按合成网格算产出 没有命中返回空栈
-    //配方数量不大直接线性扫 原版那套按类型索引与上次命中缓存等有需要再加
+    //GetCraftingResult computes the output from the crafting grid, returns an empty stack when nothing hits
+    //With few recipes a linear scan is fine; vanilla's type indexing and last-hit cache can be added if needed
     public ItemStack GetCraftingResult(CraftingInput input)
     {
         if (input.IsEmpty) return ItemStack.Empty;
@@ -78,8 +78,8 @@ public sealed class RecipeManager
         return ItemStack.Empty;
     }
 
-    //GetStonecutterRecipes 取该输入能用的全部切石机配方 对应原版 stonecutterRecipes().selectByInput
-    //客户端选择列表按返回顺序展示 顺序即数据包加载顺序
+    //GetStonecutterRecipes returns all stonecutter recipes usable for the input, maps to vanilla stonecutterRecipes().selectByInput
+    //The client selection list shows them in the returned order, which is the datapack load order
     public IReadOnlyList<StonecutterRecipe> GetStonecutterRecipes(ItemStack input)
     {
         if (input.IsEmpty()) return Array.Empty<StonecutterRecipe>();
@@ -90,12 +90,12 @@ public sealed class RecipeManager
         return matches;
     }
 
-    //GetRecipe 按 id 取配方
+    //GetRecipe returns a recipe by id
     public RecipeHolder? GetRecipe(Identifier id)
         => _byId.TryGetValue(id, out var holder) ? holder : null;
 
-    //GetCookingRecipe 按烹饪类型与输入物品查配方 对应原版 RecipeManager.CachedCheck.getRecipeFor
-    //没命中返回 null 熔炉据此决定烧不烧 输入为空直接不查
+    //GetCookingRecipe looks up a recipe by cooking type and input item, maps to vanilla RecipeManager.CachedCheck.getRecipeFor
+    //Returns null when nothing hits, the furnace uses it to decide whether to burn, an empty input skips the lookup
     public AbstractCookingRecipe? GetCookingRecipe(string type, ItemStack input)
     {
         if (input.IsEmpty()) return null;
@@ -106,8 +106,8 @@ public sealed class RecipeManager
         return null;
     }
 
-    //TryLoadOne 读单个配方文件并按 type 分派解析 成功才写进内存表
-    //对应原版按 RecipeSerializer 建表的分派 不认识的类型只记错误
+    //TryLoadOne reads a single recipe file and dispatches parsing by type, only writes to the in-memory table on success
+    //Maps to the dispatch-by-RecipeSerializer table in vanilla, unknown types only log an error
     private bool TryLoadOne(Resource resource, Identifier id, out string? error)
     {
         error = null;
@@ -117,7 +117,7 @@ public sealed class RecipeManager
             var json = JsonOps.Parse(stream);
             if (!json.Result().IsPresent)
             {
-                error = $"{id}: JSON 解析失败 {Describe(json)}";
+                error = $"{id}: JSON parse failed {Describe(json)}";
                 return false;
             }
             var node = json.GetOrThrow();
@@ -151,7 +151,7 @@ public sealed class RecipeManager
         }
     }
 
-    //TryLoadCrafting 读合成配方
+    //TryLoadCrafting reads a crafting recipe
     private bool TryLoadCrafting(JsonNode? node, Identifier id, out string? error)
     {
         var parsed = RecipeCodec.Instance.Parse(JsonOps.Instance, node);
@@ -167,7 +167,7 @@ public sealed class RecipeManager
         return true;
     }
 
-    //TryLoadStonecutter 读切石机配方
+    //TryLoadStonecutter reads a stonecutter recipe
     private bool TryLoadStonecutter(JsonNode? node, Identifier id, out string? error)
     {
         var parsed = StonecutterRecipeCodec.Instance.Parse(JsonOps.Instance, node);
@@ -181,7 +181,7 @@ public sealed class RecipeManager
         return true;
     }
 
-    //TryLoadCooking 读烹饪配方 按 type 落到对应桶
+    //TryLoadCooking reads a cooking recipe and files it into the bucket matching its type
     private bool TryLoadCooking(JsonNode? node, Identifier id, string type, out string? error)
     {
         var parsed = CookingRecipeCodec.Instance.Parse(JsonOps.Instance, node, type);
@@ -197,10 +197,10 @@ public sealed class RecipeManager
         return true;
     }
 
-    //Describe 取 codec 失败消息
+    //Describe returns the codec failure message
     private static string Describe<T>(DataResult<T> result)
     {
-        var message = "未知错误";
+        var message = "unknown error";
         result.ResultOrPartial(m => message = m);
         return message;
     }

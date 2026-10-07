@@ -4,10 +4,10 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace NetCraft.Gpu.Vulkan;
 
-//VulkanCommandBuffer Vulkan 后端命令缓冲
-//包装 VkCommandBuffer 提供 Begin/End/BindVertex/BindIndex/BindDescriptorSet/Draw/DrawIndexed 录制入口
-//Submit 内部用 fence 同步等待完成适合单线程串行提交资源初始化场景
-//4.3 改造 BeginRenderPass/EndRenderPass 走 CmdBeginRendering/CmdEndRendering dynamic rendering
+//VulkanCommandBuffer Vulkan backend command buffer
+//Wraps VkCommandBuffer providing Begin/End/BindVertex/BindIndex/BindDescriptorSet/Draw/DrawIndexed recording entry points
+//Submit internally uses a fence to wait synchronously, suited to single-threaded serial submission during resource initialization
+//4.3 rework makes BeginRenderPass/EndRenderPass use CmdBeginRendering/CmdEndRendering dynamic rendering
 public sealed unsafe class VulkanCommandBuffer : GpuCommandBuffer
 {
     private readonly Vk _vk;
@@ -15,7 +15,7 @@ public sealed unsafe class VulkanCommandBuffer : GpuCommandBuffer
     private readonly CommandPool _commandPool;
     private readonly CommandBuffer _handle;
     private readonly Queue _graphicsQueue;
-    //DynRenderingExt KHR_dynamic_rendering 扩展实例调 CmdBeginRendering/CmdEndRendering
+    //DynRenderingExt the KHR_dynamic_rendering extension instance calling CmdBeginRendering/CmdEndRendering
     private readonly KhrDynamicRendering _dynRenderingExt;
     private readonly Fence _submitFence;
     private VulkanRenderPipeline? _currentPipeline;
@@ -33,10 +33,10 @@ public sealed unsafe class VulkanCommandBuffer : GpuCommandBuffer
         _dynRenderingExt = dynRenderingExt;
         var fenceInfo = new FenceCreateInfo { SType = StructureType.FenceCreateInfo };
         if (_vk.CreateFence(_device, &fenceInfo, null, out _submitFence) != Result.Success)
-            throw new InvalidOperationException("Submit fence 创建失败");
+            throw new InvalidOperationException("Submit fence creation failed");
     }
 
-    //BeginRecording 开始命令缓冲录制
+    //BeginRecording starts command buffer recording
     public override void BeginRecording()
     {
         var beginInfo = new CommandBufferBeginInfo
@@ -45,27 +45,27 @@ public sealed unsafe class VulkanCommandBuffer : GpuCommandBuffer
         };
         if (_vk.BeginCommandBuffer(_handle, &beginInfo) != Result.Success)
         {
-            throw new InvalidOperationException("命令缓冲开始录制失败");
+            throw new InvalidOperationException("Failed to begin command buffer recording");
         }
         _currentPipeline = null;
     }
 
-    //BeginRenderPass 单参数版本 GpuCommandBuffer 抽象层兼容无 ImageView 无法 dynamic rendering
-    //Vulkan 后端走多参数重载传入 swapchain ImageView
+    //BeginRenderPass single-arg version for GpuCommandBuffer abstraction compatibility; without an ImageView dynamic rendering is impossible
+    //The Vulkan backend uses the multi-arg overload passing the swapchain ImageView
     public override void BeginRenderPass(CompiledRenderPipeline pipeline)
-        => throw new NotSupportedException("dynamic rendering 需要 ImageView 用 BeginRenderPass(pipeline, colorImageView) 重载");
+        => throw new NotSupportedException("dynamic rendering needs an ImageView; use the BeginRenderPass(pipeline, colorImageView) overload");
 
-    //BeginRenderPass 4.3 改造走 dynamic rendering 用 CmdBeginRendering 替代 CmdBeginRenderPass
-    //colorImageView 由调用方传 swapchain image view depthImage 可选传深度附件
+    //BeginRenderPass 4.3 rework to dynamic rendering using CmdBeginRendering instead of CmdBeginRenderPass
+    //colorImageView is the swapchain image view passed by the caller; depthImage optionally passes a depth attachment
     public void BeginRenderPass(CompiledRenderPipeline pipeline, ImageView colorImageView, GpuImage? depthImage = null, float clearDepth = 0f)
     {
         if (pipeline is not VulkanRenderPipeline vkPipeline)
         {
-            throw new ArgumentException("pipeline 必须是 VulkanRenderPipeline", nameof(pipeline));
+            throw new ArgumentException("pipeline must be a VulkanRenderPipeline", nameof(pipeline));
         }
         _currentPipeline = vkPipeline;
 
-        //颜色附件 LoadOp=Clear 用 pipeline.ClearColor StoreOp=Store Layout=ColorAttachmentOptimal
+        //Color attachment LoadOp=Clear using pipeline.ClearColor StoreOp=Store Layout=ColorAttachmentOptimal
         var colorClear = new ClearValue
         {
             Color = new ClearColorValue
@@ -86,7 +86,7 @@ public sealed unsafe class VulkanCommandBuffer : GpuCommandBuffer
             ClearValue = colorClear
         };
 
-        //深度附件 depthImage 非 null 时附加 Layout=DepthStencilAttachmentOptimal
+        //Depth attachment attached with Layout=DepthStencilAttachmentOptimal when depthImage is non-null
         var hasDepth = depthImage is VulkanImage;
         var depthAttachment = hasDepth
             ? new RenderingAttachmentInfo
@@ -103,7 +103,7 @@ public sealed unsafe class VulkanCommandBuffer : GpuCommandBuffer
             }
             : default;
 
-        //RenderingInfo dynamic rendering 主结构 RenderArea=extent ColorAttachmentCount=1
+        //RenderingInfo dynamic rendering main struct RenderArea=extent ColorAttachmentCount=1
         var renderArea = new Rect2D { Offset = new Offset2D { X = 0, Y = 0 }, Extent = vkPipeline.Extent };
         RenderingAttachmentInfo* pColor = &colorAttachment;
         RenderingAttachmentInfo* pDepth = hasDepth ? &depthAttachment : null;
@@ -120,21 +120,21 @@ public sealed unsafe class VulkanCommandBuffer : GpuCommandBuffer
         _vk.CmdBindPipeline(_handle, PipelineBindPoint.Graphics, vkPipeline.Pipeline);
     }
 
-    //BindPipeline 在同一 RenderPass 内切换 graphics pipeline
-    //用于矩形管线和文本管线之间切换不重新 BeginRenderPass
+    //BindPipeline switches the graphics pipeline within the same RenderPass
+    //Used to switch between the rectangle and text pipelines without a new BeginRenderPass
     public override void BindPipeline(CompiledRenderPipeline pipeline)
     {
         if (pipeline is not VulkanRenderPipeline vkPipeline)
-            throw new ArgumentException("pipeline 必须是 VulkanRenderPipeline", nameof(pipeline));
+            throw new ArgumentException("pipeline must be a VulkanRenderPipeline", nameof(pipeline));
         _currentPipeline = vkPipeline;
         _vk.CmdBindPipeline(_handle, PipelineBindPoint.Graphics, vkPipeline.Pipeline);
     }
 
-    //BindVertexBuffer 绑定顶点缓冲到指定 binding 槽
+    //BindVertexBuffer binds a vertex buffer to the given binding slot
     public override void BindVertexBuffer(GpuBuffer buffer, int binding = 0, ulong offset = 0)
     {
         if (buffer is not VulkanBuffer vkBuffer)
-            throw new ArgumentException("buffer 必须是 VulkanBuffer", nameof(buffer));
+            throw new ArgumentException("buffer must be a VulkanBuffer", nameof(buffer));
         var handles = stackalloc Buffer[1];
         handles[0] = vkBuffer.Handle;
         var offsets = stackalloc ulong[1];
@@ -142,40 +142,40 @@ public sealed unsafe class VulkanCommandBuffer : GpuCommandBuffer
         _vk.CmdBindVertexBuffers(_handle, (uint)binding, 1, handles, offsets);
     }
 
-    //BindIndexBuffer 绑定索引缓冲
+    //BindIndexBuffer binds an index buffer
     public override void BindIndexBuffer(GpuBuffer buffer, GpuIndexType indexType, ulong offset = 0)
     {
         if (buffer is not VulkanBuffer vkBuffer)
-            throw new ArgumentException("buffer 必须是 VulkanBuffer", nameof(buffer));
+            throw new ArgumentException("buffer must be a VulkanBuffer", nameof(buffer));
         _vk.CmdBindIndexBuffer(_handle, vkBuffer.Handle, offset, ToVkIndexType(indexType));
     }
 
-    //BindDescriptorSet 绑定描述符集到当前管线 PipelineLayout 的 setIndex 槽
+    //BindDescriptorSet binds a descriptor set to the setIndex slot of the current pipeline's PipelineLayout
     public override void BindDescriptorSet(GpuDescriptorSet set, uint setIndex = 0)
     {
         if (_currentPipeline is null)
-            throw new InvalidOperationException("BindDescriptorSet 必须在 BeginRenderPass 之后调用");
+            throw new InvalidOperationException("BindDescriptorSet must be called after BeginRenderPass");
         if (set is not VulkanDescriptorSet vkSet)
-            throw new ArgumentException("set 必须是 VulkanDescriptorSet", nameof(set));
+            throw new ArgumentException("set must be a VulkanDescriptorSet", nameof(set));
         var handles = stackalloc DescriptorSet[1];
         handles[0] = vkSet.Handle;
         _vk.CmdBindDescriptorSets(_handle, PipelineBindPoint.Graphics, _currentPipeline.PipelineLayout, setIndex, 1, handles, 0, null);
     }
 
-    //Draw 发起非索引绘制
+    //Draw issues a non-indexed draw
     public override void Draw(int vertexCount, int instanceCount = 1, int firstVertex = 0, int firstInstance = 0)
     {
         _vk.CmdDraw(_handle, (uint)vertexCount, (uint)instanceCount, (uint)firstVertex, (uint)firstInstance);
     }
 
-    //DrawIndexed 发起索引绘制 vertexOffset 是基础顶点偏移
+    //DrawIndexed issues an indexed draw; vertexOffset is the base vertex offset
     public override void DrawIndexed(int indexCount, int instanceCount = 1, int firstIndex = 0, int vertexOffset = 0, int firstInstance = 0)
     {
         _vk.CmdDrawIndexed(_handle, (uint)indexCount, (uint)instanceCount, (uint)firstIndex, (int)vertexOffset, (uint)firstInstance);
     }
 
-    //SetScissor 设置动态裁剪矩形像素坐标左上原点 y 向下
-    //clamp 到非负宽高避免 0x0 extent 驱动未定义行为
+    //SetScissor sets the dynamic scissor rectangle, pixel coordinates with the top-left origin and y downward
+    //Clamped to non-negative width/height to avoid undefined driver behavior with a 0x0 extent
     public override void SetScissor(int x, int y, int width, int height)
     {
         var rx = Math.Max(0, x);
@@ -190,25 +190,25 @@ public sealed unsafe class VulkanCommandBuffer : GpuCommandBuffer
         _vk.CmdSetScissor(_handle, 0, 1, &rect);
     }
 
-    //EndRenderPass 4.3 改造走 CmdEndRendering 结束 dynamic rendering
+    //EndRenderPass 4.3 rework uses CmdEndRendering to end dynamic rendering
     public override void EndRenderPass()
     {
         _dynRenderingExt.CmdEndRendering(_handle);
         _currentPipeline = null;
     }
 
-    //EndRecording 结束命令缓冲录制
+    //EndRecording ends command buffer recording
     public override void EndRecording()
     {
         if (_vk.EndCommandBuffer(_handle) != Result.Success)
         {
-            throw new InvalidOperationException("命令缓冲结束录制失败");
+            throw new InvalidOperationException("Failed to end command buffer recording");
         }
     }
 
-    //Submit 提交到 graphics queue 并等待 fence 完成
-    //单线程串行语义无信号量适合资源初始化和简单测试场景
-    //渲染循环需要 GPU/CPU 并行时应由调用者直接 QueueSubmit
+    //Submit submits to the graphics queue and waits for the fence
+    //Single-threaded serial semantics without semaphores, suited to resource initialization and simple test scenarios
+    //When the render loop needs GPU/CPU parallelism the caller should QueueSubmit directly
     public override void Submit()
     {
         var cmd = _handle;
@@ -220,12 +220,12 @@ public sealed unsafe class VulkanCommandBuffer : GpuCommandBuffer
         };
         submitInfo.PCommandBuffers = &cmd;
         if (_vk.QueueSubmit(_graphicsQueue, 1, &submitInfo, fence) != Result.Success)
-            throw new InvalidOperationException("QueueSubmit 失败");
+            throw new InvalidOperationException("QueueSubmit failed");
         _vk.WaitForFences(_device, 1, &fence, Vk.True, ulong.MaxValue);
         _vk.ResetFences(_device, 1, &fence);
     }
 
-    //Reset 重置命令缓冲以便重新录制
+    //Reset resets the command buffer for re-recording
     public void Reset()
     {
         _vk.ResetCommandBuffer(_handle, CommandBufferResetFlags.ReleaseResourcesBit);

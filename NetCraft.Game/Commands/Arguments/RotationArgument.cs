@@ -6,8 +6,8 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//RotationArgument 朝向参数对应原版 RotationArgument
-//两段 yaw pitch 各自支持 ~ 相对 z 段固定相对 0
+//RotationArgument rotation argument, maps to vanilla RotationArgument
+//Two segments yaw pitch, each supporting ~ relative; the z segment is fixed relative 0
 public sealed class RotationArgument : ArgumentType<Coordinates>
 {
     public static readonly SimpleCommandExceptionType ErrorNotComplete =
@@ -20,7 +20,7 @@ public sealed class RotationArgument : ArgumentType<Coordinates>
         var start = reader.Cursor;
         if (!reader.CanRead())
             throw ErrorNotComplete.CreateWithContext(reader);
-        //第一段输入作用 yaw 第二段作用 pitch 构造时 x 段装 pitch y 段装 yaw 对齐原版 Vec2(x=pitch,y=yaw)
+        //The first input segment drives yaw, the second pitch; at construction the x segment holds pitch and the y segment holds yaw, aligned with vanilla Vec2(x=pitch,y=yaw)
         var yaw = WorldCoordinate.ParseDouble(reader, false);
         if (!reader.CanRead() || reader.Peek() != ' ')
         {
@@ -32,7 +32,7 @@ public sealed class RotationArgument : ArgumentType<Coordinates>
         return new WorldCoordinates(pitch, yaw, new WorldCoordinate(true, 0.0));
     }
 
-    //GetRotation 取解析结果
+    //GetRotation gets the parse result
     public static Coordinates GetRotation(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<Coordinates>(name);
 

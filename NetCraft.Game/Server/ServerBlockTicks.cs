@@ -5,17 +5,17 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.Server;
 
-//ServerBlockTicks 随机刻调度对应原版 ServerLevel.tickChunk 里的方块随机刻部分
-//按区段抽样随机位置 只对 RandomTicks 为 true 的方块回调 抽样次数等于 randomTickSpeed
-//原版按 ticket 分级只 tick 实体 ticking 区块 本作按调用方给的候选区块收窄 见 tickingChunks
+//ServerBlockTicks random tick scheduling, maps to the block random tick part of vanilla ServerLevel.tickChunk
+//Samples random positions per section, calling back only blocks with RandomTicks true; the sample count equals randomTickSpeed
+//Vanilla ticks only entity-ticking chunks by ticket level; this narrows by the caller-provided candidate chunks, see tickingChunks
 public static class ServerBlockTicks
 {
-    //DefaultRandomTickSpeed 对应原版 randomTickSpeed 游戏规则默认值
+    //DefaultRandomTickSpeed maps to the vanilla randomTickSpeed gamerule default
     public const int DefaultRandomTickSpeed = 3;
 
-    //RandomTick 推进一帧随机刻 返回实际触发的方块数
-    //tickingChunks 为 null 表示不收窄（无玩家场景与测试走全量）非 null 时只抽样集合内的区块
-    //不收窄等于每 tick 遍历全部已加载区块的每个区段各抽 speed 次 抽样量随加载量线性涨
+    //RandomTick advances one frame of random ticks and returns the number of blocks actually triggered
+    //tickingChunks null means no narrowing (no-player scenarios and tests use the full set); non-null samples only chunks in the set
+    //Without narrowing it traverses every section of every loaded chunk each tick sampling speed times; the sample volume grows linearly with load
     public static int RandomTick(PersistentServerLevel level, RandomSource random,
         int speed = DefaultRandomTickSpeed, IReadOnlySet<long>? tickingChunks = null)
     {

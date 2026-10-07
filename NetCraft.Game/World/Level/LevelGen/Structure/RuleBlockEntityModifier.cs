@@ -6,34 +6,34 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//RuleBlockEntityModifier 处理器规则的方块实体数据修改器 对应原版 RuleBlockEntityModifier
-//规则命中后决定这一格带什么方块实体数据 传 null 表示不带
+//RuleBlockEntityModifier block entity data modifier of a processor rule, maps to vanilla RuleBlockEntityModifier
+//After a rule hit it decides what block entity data the cell carries; null means none
 public abstract class RuleBlockEntityModifier
 {
-    //Codec 多态入口 按 type 派发到 RULE_BLOCK_ENTITY_MODIFIER 注册表里的具体类型
+    //Codec polymorphic entry, dispatches by type to a concrete type in the RULE_BLOCK_ENTITY_MODIFIER registry
     public static readonly Codec<RuleBlockEntityModifier> Codec = new RuleBlockEntityModifierDispatchCodec();
 
-    //Apply 产出修改后的方块实体数据 对应原版 apply
+    //Apply produces the modified block entity data, maps to vanilla apply
     public abstract CompoundTag? Apply(RandomSource random, CompoundTag? existingTag);
 
-    //Type 所属类型单例
+    //Type the owning type singleton
     public abstract RuleBlockEntityModifierType Type { get; }
 }
 
-//RuleBlockEntityModifierType 修改器类型 对应原版 RuleBlockEntityModifierType
+//RuleBlockEntityModifierType modifier type, maps to vanilla RuleBlockEntityModifierType
 public abstract class RuleBlockEntityModifierType : NetCraft.Registry.RuleBlockEntityModifierType<object>
 {
     public Identifier Id { get; }
 
     protected RuleBlockEntityModifierType(Identifier id) => Id = id;
 
-    //DecodeModifier 从 map 解出一个修改器
+    //DecodeModifier decodes a modifier from a map
     public abstract DataResult<RuleBlockEntityModifier> DecodeModifier<U>(DynamicOps<U> ops, MapLike<U> input);
 
     public override string ToString() => $"RuleBlockEntityModifierType[{Id}]";
 }
 
-//RuleBlockEntityModifierType<T> 强类型修改器类型
+//RuleBlockEntityModifierType<T> strongly typed modifier type
 public sealed class RuleBlockEntityModifierType<T> : RuleBlockEntityModifierType where T : RuleBlockEntityModifier
 {
     private readonly MapCodec<T> _codec;
@@ -44,7 +44,7 @@ public sealed class RuleBlockEntityModifierType<T> : RuleBlockEntityModifierType
         => _codec.Decode(ops, input).Map(v => (RuleBlockEntityModifier)v);
 }
 
-//RuleBlockEntityModifierTypes 修改器类型登记 对应原版 RuleBlockEntityModifierType 的静态字段
+//RuleBlockEntityModifierTypes modifier type registration, maps to the static fields of vanilla RuleBlockEntityModifierType
 public static class RuleBlockEntityModifierTypes
 {
     public static readonly RuleBlockEntityModifierType<PassthroughModifier> Passthrough =
@@ -59,7 +59,7 @@ public static class RuleBlockEntityModifierTypes
     public static readonly RuleBlockEntityModifierType<AppendLootModifier> AppendLoot =
         Register("append_loot", AppendLootModifier.MapCodec);
 
-    //Register 登记进 RULE_BLOCK_ENTITY_MODIFIER 并返回类型实例
+    //Register registers into RULE_BLOCK_ENTITY_MODIFIER and returns the type instance
     private static RuleBlockEntityModifierType<T> Register<T>(string path, MapCodec<T> codec)
         where T : RuleBlockEntityModifier
     {
@@ -70,7 +70,7 @@ public static class RuleBlockEntityModifierTypes
     }
 }
 
-//PassthroughModifier 原样透传 对应原版 Passthrough
+//PassthroughModifier passes data through unchanged, maps to vanilla Passthrough
 public sealed class PassthroughModifier : RuleBlockEntityModifier
 {
     public static readonly PassthroughModifier Instance = new();
@@ -85,7 +85,7 @@ public sealed class PassthroughModifier : RuleBlockEntityModifier
     public override RuleBlockEntityModifierType Type => RuleBlockEntityModifierTypes.Passthrough;
 }
 
-//ClearModifier 清空方块实体数据 对应原版 Clear
+//ClearModifier clears the block entity data, maps to vanilla Clear
 public sealed class ClearModifier : RuleBlockEntityModifier
 {
     public static readonly ClearModifier Instance = new();
@@ -100,7 +100,7 @@ public sealed class ClearModifier : RuleBlockEntityModifier
     public override RuleBlockEntityModifierType Type => RuleBlockEntityModifierTypes.Clear;
 }
 
-//AppendStaticModifier 合并固定方块实体数据 对应原版 AppendStatic
+//AppendStaticModifier merges fixed block entity data, maps to vanilla AppendStatic
 public sealed class AppendStaticModifier : RuleBlockEntityModifier
 {
     public static readonly MapCodec<AppendStaticModifier> MapCodec =
@@ -121,8 +121,8 @@ public sealed class AppendStaticModifier : RuleBlockEntityModifier
     public override RuleBlockEntityModifierType Type => RuleBlockEntityModifierTypes.AppendStatic;
 }
 
-//AppendLootModifier 写入战利品表引用与随机种子 对应原版 AppendLoot
-//只写 LootTable 与 LootTableSeed 两个键 战利品内容由掉落系统另行处理
+//AppendLootModifier writes the loot table reference and random seed, maps to vanilla AppendLoot
+//Writes only the LootTable and LootTableSeed keys; loot content is handled separately by the drop system
 public sealed class AppendLootModifier : RuleBlockEntityModifier
 {
     public static readonly MapCodec<AppendLootModifier> MapCodec =
@@ -144,29 +144,29 @@ public sealed class AppendLootModifier : RuleBlockEntityModifier
     public override RuleBlockEntityModifierType Type => RuleBlockEntityModifierTypes.AppendLoot;
 }
 
-//RuleBlockEntityModifierDispatchCodec 修改器多态 codec 对应原版 RuleBlockEntityModifier.CODEC 的 dispatch
+//RuleBlockEntityModifierDispatchCodec modifier polymorphic codec, maps to the dispatch of vanilla RuleBlockEntityModifier.CODEC
 internal sealed class RuleBlockEntityModifierDispatchCodec : ScalarCodec<RuleBlockEntityModifier>
 {
     public override DataResult<RuleBlockEntityModifier> Parse<U>(DynamicOps<U> ops, U input)
         => ops.GetMap(input).FlatMap(map => DecodeModifier(ops, map));
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, RuleBlockEntityModifier value)
-        => DataResult<U>.Error(() => "方块实体修改器编码暂未实现");
+        => DataResult<U>.Error(() => "block entity modifier encoding not implemented yet");
 
-    //DecodeModifier 读 type 字段查表再交给该类型的 codec
+    //DecodeModifier reads the type field, looks it up, then hands off to that type's codec
     internal static DataResult<RuleBlockEntityModifier> DecodeModifier<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var typeTag = input.Get("type");
-        if (!typeTag.IsPresent) return DataResult<RuleBlockEntityModifier>.Error(() => "方块实体修改器缺少 type");
+        if (!typeTag.IsPresent) return DataResult<RuleBlockEntityModifier>.Error(() => "block entity modifier is missing type");
         var text = ops.GetStringValue(typeTag.Get());
-        if (!text.Result().IsPresent) return DataResult<RuleBlockEntityModifier>.Error(() => "type 必须是字符串");
+        if (!text.Result().IsPresent) return DataResult<RuleBlockEntityModifier>.Error(() => "type must be a string");
         var id = Identifier.TryParse(text.GetOrThrow());
-        if (id is null) return DataResult<RuleBlockEntityModifier>.Error(() => $"非法的修改器类型: {text.GetOrThrow()}");
+        if (id is null) return DataResult<RuleBlockEntityModifier>.Error(() => $"invalid modifier type: {text.GetOrThrow()}");
         if (!BuiltInRegistries.RULE_BLOCK_ENTITY_MODIFIER.ContainsKey(id.Value))
-            return DataResult<RuleBlockEntityModifier>.Error(() => $"未注册的修改器类型: {id}");
+            return DataResult<RuleBlockEntityModifier>.Error(() => $"unregistered modifier type: {id}");
         var type = BuiltInRegistries.RULE_BLOCK_ENTITY_MODIFIER.GetValue(id.Value) as RuleBlockEntityModifierType;
         return type is null
-            ? DataResult<RuleBlockEntityModifier>.Error(() => $"修改器类型 {id} 无法解析")
+            ? DataResult<RuleBlockEntityModifier>.Error(() => $"modifier type {id} cannot be parsed")
             : type.DecodeModifier(ops, input);
     }
 }

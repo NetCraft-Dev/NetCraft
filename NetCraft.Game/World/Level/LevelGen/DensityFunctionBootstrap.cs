@@ -2,10 +2,10 @@ using NetCraft.Codec;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//ObjectMapCodecAdapter MapCodec<T> 到 MapCodec<object> 的适配器
-//解决 C# MapCodec<T> 不支持协变无法直接 cast 为 MapCodec<object> 的问题
-//通过包装内层 MapCodec<T> 把 object cast 为 T 调用真实 DecodeEncodeTo 再 cast 回 object
-//用于把 DensityFunction 子类 MapCodec<DensityFunction> 注册到 Registry<MapCodec<object>>
+//ObjectMapCodecAdapter adapter from MapCodec<T> to MapCodec<object>
+//Works around C# MapCodec<T> having no covariance so it cannot be cast to MapCodec<object> directly
+//Wraps the inner MapCodec<T>, casts object to T to call the real DecodeEncodeTo and casts back to object
+//Used to register the DensityFunction subclass MapCodec<DensityFunction> into Registry<MapCodec<object>>
 public sealed class ObjectMapCodecAdapter<T> : AbstractMapCodec<object> where T : class
 {
     private readonly MapCodec<T> _inner;
@@ -25,16 +25,16 @@ public sealed class ObjectMapCodecAdapter<T> : AbstractMapCodec<object> where T 
     }
 }
 
-//DensityFunctionBootstrap 密度函数引导注册对应原版 DensityFunctions.BOOTSTRAP
-//把 DensityFunctionCodecs.AllCodecs 里的全部子类 MapCodec 注册到 DENSITY_FUNCTION_TYPE 注册表
-//dispatch codec 按 type 名查此注册表 新增 type 只需往 AllCodecs 加一项
-//必须在 BuiltInRegistries.BootStrap 之前调用否则 Freeze 后无法注册
+//DensityFunctionBootstrap density function bootstrap registration, maps to vanilla DensityFunctions.BOOTSTRAP
+//Registers every subclass MapCodec in DensityFunctionCodecs.AllCodecs into the DENSITY_FUNCTION_TYPE registry
+//The dispatch codec looks this registry up by type name; adding a type only needs one entry in AllCodecs
+//Must be called before BuiltInRegistries.BootStrap or registration fails after Freeze
 public static class DensityFunctionBootstrap
 {
     private static bool _registered;
 
-    //RegisterAll 注册所有 DensityFunction 子类 MapCodec 到 DENSITY_FUNCTION_TYPE
-    //重复调用幂等返回避免重复注册
+    //RegisterAll registers all DensityFunction subclass MapCodecs into DENSITY_FUNCTION_TYPE
+    //Idempotent on repeated calls to avoid double registration
     public static void RegisterAll()
     {
         if (_registered) return;
@@ -44,7 +44,7 @@ public static class DensityFunctionBootstrap
         _registered = true;
     }
 
-    //Register 把 MapCodec<DensityFunction> 包装为 MapCodec<object> 注册到 DENSITY_FUNCTION_TYPE
+    //Register wraps MapCodec<DensityFunction> as MapCodec<object> and registers it into DENSITY_FUNCTION_TYPE
     private static void Register(NetCraft.Registry.Registry<NetCraft.Codec.MapCodec<object>> registry, string name, MapCodec<DensityFunction> codec)
     {
         var adapter = new ObjectMapCodecAdapter<DensityFunction>(codec);

@@ -5,8 +5,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//HeightRangePlacement 高度区间放置对应原版 HeightRangePlacement
-//按高度提供者采样新的 y
+//HeightRangePlacement height range placement, maps to vanilla HeightRangePlacement
+//Samples a new y from the height provider
 public sealed class HeightRangePlacement : PlacementModifier
 {
     public static readonly Codec<HeightRangePlacement> Codec =
@@ -19,7 +19,7 @@ public sealed class HeightRangePlacement : PlacementModifier
 
     private HeightRangePlacement(HeightProvider height) => Height = height;
 
-    //Of 构造入口对应原版 of
+    //Of construction entry, maps to vanilla of
     public static HeightRangePlacement Of(HeightProvider height) => new(height);
 
     public static HeightRangePlacement Uniform(VerticalAnchor minInclusive, VerticalAnchor maxInclusive)
@@ -31,7 +31,7 @@ public sealed class HeightRangePlacement : PlacementModifier
     public override PlacementModifierType Type => HeightRangePlacementType.Instance;
 }
 
-//HeightRangePlacementType 对应原版 PlacementModifierType.HEIGHT_RANGE
+//HeightRangePlacementType, maps to vanilla PlacementModifierType.HEIGHT_RANGE
 public sealed class HeightRangePlacementType : PlacementModifierType<HeightRangePlacement>
 {
     public static readonly HeightRangePlacementType Instance = Register(

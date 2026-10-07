@@ -2,33 +2,33 @@ using System.Numerics;
 
 namespace NetCraft.Gpu;
 
-//PictureInPictureRenderState PIP 渲染状态接口对标原版 pip.PictureInPictureRenderState
-//GUI 嵌 3D 内容（玩家皮肤/旗帜/实体预览）的渲染状态值对象
-//submission 阶段由 Screen 构造提交到 GuiRenderState.AddPictureInPicture
-//render 阶段由 PictureInPictureRenderer<T> 子类 offscreen 渲染 3D 内容后 blit 到 GUI
+//PictureInPictureRenderState PIP render state interface, maps to vanilla pip.PictureInPictureRenderState
+//Render state value object for 3D content embedded in the GUI (player skins/banners/entity previews)
+//Built and submitted by Screen during the submission phase into GuiRenderState.AddPictureInPicture
+//During the render phase the PictureInPictureRenderer<T> subclass renders 3D content offscreen then blits it to the GUI
 public interface PictureInPictureRenderState
 {
-    //X0/Y0/X1/Y1 PIP 区域在 GUI 坐标系的矩形左上右下对标原版 x0/y0/x1/y1
+    //X0/Y0/X1/Y1 the PIP area rectangle in GUI coordinates, top-left/bottom-right, maps to vanilla x0/y0/x1/y1
     int X0 { get; }
     int Y0 { get; }
     int X1 { get; }
     int Y1 { get; }
 
-    //Scale 3D 内容缩放倍率对标原版 scale 由子类按模型尺寸设定
+    //Scale 3D content scale factor, maps to vanilla scale, set by the subclass per model size
     float Scale { get; }
 
-    //ScissorArea 裁剪矩形空表示不裁剪
+    //ScissorArea scissor rectangle; empty means no clipping
     ScreenRectangle ScissorArea { get; }
 
-    //Pose 2D 变换矩阵默认单位矩阵对标原版 pose() default IDENTITY_POSE
-    //PIP 区域通常无 pose 变换 blit 时直接用 X0/Y0/X1/Y1
+    //Pose 2D transform matrix, identity by default, maps to vanilla pose() default IDENTITY_POSE
+    //The PIP area usually has no pose transform; blit uses X0/Y0/X1/Y1 directly
     Matrix3x2 Pose { get; }
 
-    //Bounds 用于层级相交判断由几何矩形与 scissor 求交得出
+    //Bounds used for level intersection tests, derived from intersecting the geometry rectangle with the scissor
     ScreenRectangle Bounds { get; }
 
-    //GetBounds 由几何矩形与 scissor 求交计算 Bounds 对标原版 getBounds
-    //scissor 为空时直接用几何矩形否则取交集
+    //GetBounds computes the bounds by intersecting the geometry rectangle with the scissor, maps to vanilla getBounds
+    //Uses the geometry rectangle directly when the scissor is empty, otherwise the intersection
     public static ScreenRectangle GetBounds(int x0, int y0, int x1, int y1, ScreenRectangle scissorArea)
     {
         var raw = new ScreenRectangle(x0, y0, x1 - x0, y1 - y0);

@@ -13,8 +13,8 @@ using RegistryPlacedFeature = NetCraft.Registry.PlacedFeature;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl;
 
-//OreTargetState 替换目标 对应原版 OreConfiguration.TargetBlockState
-//一条「规则测试 + 目标状态」的替换项 ore 与 replace_single_block 共用
+//OreTargetState replacement target, maps to vanilla OreConfiguration.TargetBlockState
+//A replacement entry of one rule test plus a target state, shared by ore and replace_single_block
 public sealed class OreTargetState
 {
     public static readonly Codec<OreTargetState> Codec =
@@ -35,7 +35,7 @@ public sealed class OreTargetState
     }
 }
 
-//OreConfiguration 矿石配置 对应原版 OreConfiguration
+//OreConfiguration ore configuration, maps to vanilla OreConfiguration
 public sealed class OreConfiguration : FeatureConfiguration
 {
     public static readonly Codec<OreConfiguration> Codec =
@@ -59,7 +59,7 @@ public sealed class OreConfiguration : FeatureConfiguration
     }
 }
 
-//OreFeature 矿脉特征 对应原版 OreFeature
+//OreFeature ore feature, maps to vanilla OreFeature
 public sealed class OreFeature : Feature<OreConfiguration>
 {
     private const string FeatureId = "ore";
@@ -101,7 +101,7 @@ public sealed class OreFeature : Feature<OreConfiguration>
         return false;
     }
 
-    //DoPlace 按一段线段上的球形相交推算矿脉体 对应原版 doPlace
+    //DoPlace derive the ore body from sphere intersections along a line segment, maps to vanilla doPlace
     private static bool DoPlace(WorldGenRegion level, RandomSource random, OreConfiguration config,
         double x0, double x1, double z0, double z1, double y0, double y1,
         int xStart, int yStart, int zStart, int sizeXZ, int sizeY)
@@ -182,7 +182,7 @@ public sealed class OreFeature : Feature<OreConfiguration>
         return placed > 0;
     }
 
-    //CanPlaceOre 判定该位置能否被替换成目标状态 对应原版 canPlaceOre
+    //CanPlaceOre whether the position can be replaced with the target state, maps to vanilla canPlaceOre
     public static bool CanPlaceOre(BlockState state, WorldGenRegion level, RandomSource random,
         OreConfiguration config, OreTargetState target, BlockPos pos)
     {
@@ -191,7 +191,7 @@ public sealed class OreFeature : Feature<OreConfiguration>
         return !IsAdjacentToAir(level, pos);
     }
 
-    //ShouldSkipAirCheck 按暴露比例决定是否跳过邻空判定 对应原版 shouldSkipAirCheck
+    //ShouldSkipAirCheck decide from the exposure ratio whether to skip the adjacent-air check, maps to vanilla shouldSkipAirCheck
     protected static bool ShouldSkipAirCheck(RandomSource random, float discardChanceOnAirExposure)
     {
         if (discardChanceOnAirExposure <= 0.0f) return true;
@@ -199,7 +199,7 @@ public sealed class OreFeature : Feature<OreConfiguration>
         return random.NextFloat() >= discardChanceOnAirExposure;
     }
 
-    //IsAdjacentToAir 六向邻居里有空气即为暴露 对应原版 isAdjacentToAir
+    //IsAdjacentToAir exposed when any of the six neighbors is air, maps to vanilla isAdjacentToAir
     public static bool IsAdjacentToAir(WorldGenRegion level, BlockPos pos)
     {
         foreach (var direction in Direction.Values)
@@ -211,7 +211,7 @@ public sealed class OreFeature : Feature<OreConfiguration>
     }
 }
 
-//ScatteredOreFeature 散状矿石特征 对应原版 ScatteredOreFeature
+//ScatteredOreFeature scattered ore feature, maps to vanilla ScatteredOreFeature
 public sealed class ScatteredOreFeature : Feature<OreConfiguration>
 {
     private const string FeatureId = "scattered_ore";
@@ -246,12 +246,12 @@ public sealed class ScatteredOreFeature : Feature<OreConfiguration>
         return true;
     }
 
-    //RandomOffset 单轴偏移取两次随机数之差 对应原版 getRandomPlacementInOneAxisRelativeToOrigin
+    //RandomOffset single-axis offset as the difference of two random draws, maps to vanilla getRandomPlacementInOneAxisRelativeToOrigin
     private static int RandomOffset(RandomSource random, int maxDistance)
         => (int)Math.Floor(((random.NextFloat() - random.NextFloat()) * maxDistance) + 0.5f);
 }
 
-//LayerConfiguration 填充层配置 对应原版 LayerConfiguration
+//LayerConfiguration fill layer configuration, maps to vanilla LayerConfiguration
 public sealed class LayerConfiguration : FeatureConfiguration
 {
     public static readonly Codec<LayerConfiguration> Codec =
@@ -270,8 +270,8 @@ public sealed class LayerConfiguration : FeatureConfiguration
     }
 }
 
-//FillLayerFeature 单层填充特征 对应原版 FillLayerFeature
-//超平坦世界用来铺一层方块 只填空气
+//FillLayerFeature single-layer fill feature, maps to vanilla FillLayerFeature
+//Used by superflat worlds to lay one layer of blocks, filling only air
 public sealed class FillLayerFeature : Feature<LayerConfiguration>
 {
     private const string FeatureId = "fill_layer";
@@ -301,7 +301,7 @@ public sealed class FillLayerFeature : Feature<LayerConfiguration>
     }
 }
 
-//DiskConfiguration 圆盘配置 对应原版 DiskConfiguration
+//DiskConfiguration disk configuration, maps to vanilla DiskConfiguration
 public sealed class DiskConfiguration : FeatureConfiguration
 {
     public static readonly Codec<DiskConfiguration> Codec =
@@ -329,7 +329,7 @@ public sealed class DiskConfiguration : FeatureConfiguration
     }
 }
 
-//DiskFeature 圆盘特征 对应原版 DiskFeature
+//DiskFeature disk feature, maps to vanilla DiskFeature
 public sealed class DiskFeature : Feature<DiskConfiguration>
 {
     private const string FeatureId = "disk";
@@ -362,7 +362,7 @@ public sealed class DiskFeature : Feature<DiskConfiguration>
         return placedAny;
     }
 
-    //PlaceColumn 从上往下逐格替换 对应原版 placeColumn
+    //PlaceColumn replace cell by cell from the top down, maps to vanilla placeColumn
     private static bool PlaceColumn(DiskConfiguration config, WorldGenRegion level, RandomSource random,
         int top, int bottom, int x, int z)
     {
@@ -380,7 +380,7 @@ public sealed class DiskFeature : Feature<DiskConfiguration>
     }
 }
 
-//BlockBlobConfiguration 方块团配置 对应原版 BlockBlobConfiguration
+//BlockBlobConfiguration block blob configuration, maps to vanilla BlockBlobConfiguration
 public sealed class BlockBlobConfiguration : FeatureConfiguration
 {
     public static readonly Codec<BlockBlobConfiguration> Codec =
@@ -401,7 +401,7 @@ public sealed class BlockBlobConfiguration : FeatureConfiguration
     }
 }
 
-//BlockBlobFeature 方块团特征 对应原版 BlockBlobFeature
+//BlockBlobFeature block blob feature, maps to vanilla BlockBlobFeature
 public sealed class BlockBlobFeature : Feature<BlockBlobConfiguration>
 {
     private const string FeatureId = "block_blob";
@@ -446,7 +446,7 @@ public sealed class BlockBlobFeature : Feature<BlockBlobConfiguration>
     }
 }
 
-//BlockPileConfiguration 方块堆配置 对应原版 BlockPileConfiguration
+//BlockPileConfiguration block pile configuration, maps to vanilla BlockPileConfiguration
 public sealed class BlockPileConfiguration : FeatureConfiguration
 {
     public static readonly Codec<BlockPileConfiguration> Codec =
@@ -460,7 +460,7 @@ public sealed class BlockPileConfiguration : FeatureConfiguration
     public BlockPileConfiguration(BlockStateProvider stateProvider) => StateProvider = stateProvider;
 }
 
-//BlockPileFeature 方块堆特征 对应原版 BlockPileFeature
+//BlockPileFeature block pile feature, maps to vanilla BlockPileFeature
 public sealed class BlockPileFeature : Feature<BlockPileConfiguration>
 {
     private const string FeatureId = "block_pile";
@@ -505,8 +505,8 @@ public sealed class BlockPileFeature : Feature<BlockPileConfiguration>
         level.SetBlockState(pos.X, pos.Y, pos.Z, config.StateProvider.GetState(level, random, pos));
     }
 
-    //MayPlaceOn 下方要有整格上表面 对应原版 mayPlaceOn
-    //原版下方是土径时再掷一次随机 本作没有土径方块 只保留整格判定
+    //MayPlaceOn the cell below must have a full top face, maps to vanilla mayPlaceOn
+    //Vanilla rolls again when the cell below is dirt path; there is no dirt path block here, so only the full cell check remains
     private static bool MayPlaceOn(WorldGenRegion level, BlockPos pos)
     {
         var below = pos.Offset(0, -1, 0);
@@ -515,7 +515,7 @@ public sealed class BlockPileFeature : Feature<BlockPileConfiguration>
     }
 }
 
-//BlockColumnConfiguration 方块柱配置 对应原版 BlockColumnConfiguration
+//BlockColumnConfiguration block column configuration, maps to vanilla BlockColumnConfiguration
 public sealed class BlockColumnConfiguration : FeatureConfiguration
 {
     public static readonly Codec<BlockColumnConfiguration> Codec =
@@ -546,7 +546,7 @@ public sealed class BlockColumnConfiguration : FeatureConfiguration
         PrioritizeTip = prioritizeTip;
     }
 
-    //Layer 柱体的一段 对应原版 BlockColumnConfiguration.Layer
+    //Layer one segment of the column, maps to vanilla BlockColumnConfiguration.Layer
     public sealed class Layer
     {
         public static readonly Codec<Layer> Codec =
@@ -567,7 +567,7 @@ public sealed class BlockColumnConfiguration : FeatureConfiguration
     }
 }
 
-//BlockColumnFeature 方块柱特征 对应原版 BlockColumnFeature
+//BlockColumnFeature block column feature, maps to vanilla BlockColumnFeature
 public sealed class BlockColumnFeature : Feature<BlockColumnConfiguration>
 {
     private const string FeatureId = "block_column";
@@ -619,7 +619,7 @@ public sealed class BlockColumnFeature : Feature<BlockColumnConfiguration>
         return true;
     }
 
-    //Truncate 把超出可放置高度的余量按层的顺序削掉 对应原版 truncate
+    //Truncate shave off the excess beyond the placeable height in layer order, maps to vanilla truncate
     private static void Truncate(int[] layerHeights, int totalHeight, int newHeight, bool prioritizeTip)
     {
         var amountToRemove = totalHeight - newHeight;
@@ -637,7 +637,7 @@ public sealed class BlockColumnFeature : Feature<BlockColumnConfiguration>
     }
 }
 
-//ReplaceBlockConfiguration 单点替换配置 对应原版 ReplaceBlockConfiguration
+//ReplaceBlockConfiguration single-point replacement configuration, maps to vanilla ReplaceBlockConfiguration
 public sealed class ReplaceBlockConfiguration : FeatureConfiguration
 {
     public static readonly Codec<ReplaceBlockConfiguration> Codec =
@@ -651,7 +651,7 @@ public sealed class ReplaceBlockConfiguration : FeatureConfiguration
     public ReplaceBlockConfiguration(IReadOnlyList<OreTargetState> targetStates) => TargetStates = targetStates;
 }
 
-//ReplaceSingleBlockFeature 单点替换特征 对应原版 ReplaceBlockFeature 注册名 replace_single_block
+//ReplaceSingleBlockFeature single-point replacement feature, maps to vanilla ReplaceBlockFeature, registered as replace_single_block
 public sealed class ReplaceSingleBlockFeature : Feature<ReplaceBlockConfiguration>
 {
     private const string FeatureId = "replace_single_block";
@@ -677,7 +677,7 @@ public sealed class ReplaceSingleBlockFeature : Feature<ReplaceBlockConfiguratio
     }
 }
 
-//SimpleBlockConfiguration 单方块配置 对应原版 SimpleBlockConfiguration
+//SimpleBlockConfiguration simple block configuration, maps to vanilla SimpleBlockConfiguration
 public sealed class SimpleBlockConfiguration : FeatureConfiguration
 {
     public static readonly Codec<SimpleBlockConfiguration> Codec =
@@ -698,7 +698,7 @@ public sealed class SimpleBlockConfiguration : FeatureConfiguration
     }
 }
 
-//SimpleBlockFeature 单方块特征 对应原版 SimpleBlockFeature
+//SimpleBlockFeature simple block feature, maps to vanilla SimpleBlockFeature
 public sealed class SimpleBlockFeature : Feature<SimpleBlockConfiguration>
 {
     private const string FeatureId = "simple_block";
@@ -715,14 +715,14 @@ public sealed class SimpleBlockFeature : Feature<SimpleBlockConfiguration>
         var origin = context.Origin;
         var state = config.ToPlace.GetOptionalState(level, context.Random, origin);
         if (state is not { } toPlace) return false;
-        //原版此处还判 canSurvive 与双层植物/苔藓毯的特殊落位 本作这些方块行为未接入 先直接落位
+        //Vanilla also checks canSurvive and special placement for double plants and moss carpets; those block behaviors are not wired up here, so place directly
         level.SetBlockState(origin.X, origin.Y, origin.Z, toPlace);
         return true;
     }
 }
 
-//CompositeFeatureConfiguration 组合特征配置 对应原版 CompositeFeatureConfiguration
-//已放置特征集合为空的校验未做 解析时只解引用不做非空断言
+//CompositeFeatureConfiguration composite feature configuration, maps to vanilla CompositeFeatureConfiguration
+//The check for an empty placed feature set is not performed; decoding only resolves references without asserting non-emptiness
 public sealed class CompositeFeatureConfiguration : FeatureConfiguration
 {
     public static readonly Codec<CompositeFeatureConfiguration> Codec =
@@ -739,7 +739,7 @@ public sealed class CompositeFeatureConfiguration : FeatureConfiguration
         => Features.SelectMany(PlacedFeatureHelpers.SubFeatures);
 }
 
-//SequenceFeature 顺序特征 对应原版 SequenceFeature
+//SequenceFeature sequence feature, maps to vanilla SequenceFeature
 public sealed class SequenceFeature : Feature<CompositeFeatureConfiguration>
 {
     private const string FeatureId = "sequence";
@@ -762,7 +762,7 @@ public sealed class SequenceFeature : Feature<CompositeFeatureConfiguration>
     }
 }
 
-//SimpleRandomSelectorFeature 等概率随机选择特征 对应原版 SimpleRandomSelectorFeature
+//SimpleRandomSelectorFeature uniformly random selector feature, maps to vanilla SimpleRandomSelectorFeature
 public sealed class SimpleRandomSelectorFeature : Feature<CompositeFeatureConfiguration>
 {
     private const string FeatureId = "simple_random_selector";
@@ -782,7 +782,7 @@ public sealed class SimpleRandomSelectorFeature : Feature<CompositeFeatureConfig
     }
 }
 
-//WeightedRandomFeatureConfiguration 权重随机选择配置 对应原版 WeightedRandomFeatureConfiguration
+//WeightedRandomFeatureConfiguration weighted random selector configuration, maps to vanilla WeightedRandomFeatureConfiguration
 public sealed class WeightedRandomFeatureConfiguration : FeatureConfiguration
 {
     public static readonly Codec<WeightedRandomFeatureConfiguration> Codec =
@@ -802,7 +802,7 @@ public sealed class WeightedRandomFeatureConfiguration : FeatureConfiguration
         => Features.Unwrap().SelectMany(entry => PlacedFeatureHelpers.SubFeatures(entry.Value));
 }
 
-//WeightedRandomSelectorFeature 权重随机选择特征 对应原版 WeightedRandomSelectorFeature
+//WeightedRandomSelectorFeature weighted random selector feature, maps to vanilla WeightedRandomSelectorFeature
 public sealed class WeightedRandomSelectorFeature : Feature<WeightedRandomFeatureConfiguration>
 {
     private const string FeatureId = "weighted_random_selector";
@@ -822,7 +822,7 @@ public sealed class WeightedRandomSelectorFeature : Feature<WeightedRandomFeatur
     }
 }
 
-//RandomBooleanFeatureConfiguration 布尔随机选择配置 对应原版 RandomBooleanFeatureConfiguration
+//RandomBooleanFeatureConfiguration boolean random selector configuration, maps to vanilla RandomBooleanFeatureConfiguration
 public sealed class RandomBooleanFeatureConfiguration : FeatureConfiguration
 {
     public static readonly Codec<RandomBooleanFeatureConfiguration> Codec =
@@ -848,7 +848,7 @@ public sealed class RandomBooleanFeatureConfiguration : FeatureConfiguration
         => PlacedFeatureHelpers.SubFeatures(FeatureTrue).Concat(PlacedFeatureHelpers.SubFeatures(FeatureFalse));
 }
 
-//RandomBooleanSelectorFeature 布尔随机选择特征 对应原版 RandomBooleanSelectorFeature
+//RandomBooleanSelectorFeature boolean random selector feature, maps to vanilla RandomBooleanSelectorFeature
 public sealed class RandomBooleanSelectorFeature : Feature<RandomBooleanFeatureConfiguration>
 {
     private const string FeatureId = "random_boolean_selector";
@@ -867,8 +867,8 @@ public sealed class RandomBooleanSelectorFeature : Feature<RandomBooleanFeatureC
     }
 }
 
-//WeightedPlacedFeature 带权重的已放置特征 对应原版 WeightedPlacedFeature
-//random_selector 逐项比 chance 不是按权重归一化抽签
+//WeightedPlacedFeature weighted placed feature, maps to vanilla WeightedPlacedFeature
+//random_selector compares chance per entry rather than drawing from normalized weights
 public sealed class WeightedPlacedFeature
 {
     public static readonly Codec<WeightedPlacedFeature> Codec =
@@ -888,7 +888,7 @@ public sealed class WeightedPlacedFeature
     }
 }
 
-//RandomFeatureConfiguration 随机选择配置 对应原版 RandomFeatureConfiguration
+//RandomFeatureConfiguration random selector configuration, maps to vanilla RandomFeatureConfiguration
 public sealed class RandomFeatureConfiguration : FeatureConfiguration
 {
     public static readonly Codec<RandomFeatureConfiguration> Codec =
@@ -915,8 +915,8 @@ public sealed class RandomFeatureConfiguration : FeatureConfiguration
             .Concat(Features.SelectMany(entry => PlacedFeatureHelpers.SubFeatures(entry.Feature)));
 }
 
-//RandomSelectorFeature 随机选择特征 对应原版 RandomSelectorFeature
-//按顺序逐项掷 chance 先命中的先放 全都没命中才放 default
+//RandomSelectorFeature random selector feature, maps to vanilla RandomSelectorFeature
+//Rolls chance for each entry in order and places the first hit; only when nothing hits is default placed
 public sealed class RandomSelectorFeature : Feature<RandomFeatureConfiguration>
 {
     private const string FeatureId = "random_selector";
@@ -940,9 +940,9 @@ public sealed class RandomSelectorFeature : Feature<RandomFeatureConfiguration>
     }
 }
 
-//PlacedFeatureInlineRefCodec 已放置特征引用编解码 注册名与内联定义都接受
-//对应原版 PlacedFeature.CODEC 的 allowInline 形态
-//random_selector 的 default 是内联对象 features 里的 feature 是注册名 同一个 codec 要同时吃两种
+//PlacedFeatureInlineRefCodec placed feature reference codec accepting both registry names and inline definitions
+//Maps to the allowInline form of vanilla PlacedFeature.CODEC
+//The default of random_selector is an inline object while the feature inside features is a registry name, so one codec must accept both
 internal sealed class PlacedFeatureInlineRefCodec : ScalarCodec<Holder<RegistryPlacedFeature>>
 {
     public static readonly PlacedFeatureInlineRefCodec Instance = new();
@@ -957,7 +957,7 @@ internal sealed class PlacedFeatureInlineRefCodec : ScalarCodec<Holder<RegistryP
                 Holder<RegistryPlacedFeature>.Direct(inline.GetOrThrow()));
         var reason = inline.MapOrElse(_ => string.Empty, error => error);
         return DataResult<Holder<RegistryPlacedFeature>>.Error(
-            () => $"已放置特征既不是注册名也不是内联定义: {reason}");
+            () => $"placed feature is neither a registry name nor an inline definition: {reason}");
     }
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, Holder<RegistryPlacedFeature> value)
@@ -966,29 +966,29 @@ internal sealed class PlacedFeatureInlineRefCodec : ScalarCodec<Holder<RegistryP
             : PlacedFeatureRefCodec.Instance.EncodeStart(ops, value);
 }
 
-//PlacedFeatureSetCodec 已放置特征集合编解码 元素可以是注册名 标签引用 或内联定义
-//对应原版 RegistryCodecs.homogeneousList 的 allowInline 形态
-//组合类特征的 features 字段里内联对象很常见 只吃字符串会把整条配置挡掉
+//PlacedFeatureSetCodec placed feature set codec; elements can be registry names, tag references or inline definitions
+//Maps to the allowInline form of vanilla RegistryCodecs.homogeneousList
+//Inline objects are common in the features field of composite features, so accepting only strings would reject the whole config
 internal sealed class PlacedFeatureSetCodec : ScalarCodec<HolderSet<RegistryPlacedFeature>>
 {
     public static readonly PlacedFeatureSetCodec Instance = new();
 
     public override DataResult<HolderSet<RegistryPlacedFeature>> Parse<U>(DynamicOps<U> ops, U input)
     {
-        //单个字符串交给注册表集合 codec 它自己会分辨 #标签 与普通注册名
+        //A single string is handed to the registry set codec, which distinguishes # tags from plain registry names
         var text = ops.GetStringValue(input);
         if (text.Result().IsPresent) return HolderSetCodecs.PlacedFeatureSet.Parse(ops, input);
 
         var stream = ops.GetStream(input);
         if (!stream.Result().IsPresent)
-            return DataResult<HolderSet<RegistryPlacedFeature>>.Error(() => "已放置特征集合必须是字符串或数组");
+            return DataResult<HolderSet<RegistryPlacedFeature>>.Error(() => "placed feature set must be a string or an array");
         var holders = new List<Holder<RegistryPlacedFeature>>();
         foreach (var element in stream.GetOrThrow())
         {
             var parsed = PlacedFeatureInlineRefCodec.Instance.Parse(ops, element);
             if (!parsed.Result().IsPresent)
                 return DataResult<HolderSet<RegistryPlacedFeature>>.Error(
-                    () => "已放置特征集合里有一个元素解析失败: "
+                    () => "one element of the placed feature set failed to parse: "
                         + parsed.MapOrElse(_ => string.Empty, error => error));
             holders.Add(parsed.GetOrThrow());
         }
@@ -1000,25 +1000,25 @@ internal sealed class PlacedFeatureSetCodec : ScalarCodec<HolderSet<RegistryPlac
         => HolderSetCodecs.PlacedFeatureSet.EncodeStart(ops, value);
 }
 
-//PlacedFeatureHelpers 组合类特征共用的已放置特征放置与子特征展开
+//PlacedFeatureHelpers placed feature placement and sub-feature expansion shared by composite features
 internal static class PlacedFeatureHelpers
 {
-    //Place 放置一个已放置特征引用 引用未绑定或不是本作实现时按未放置处理
+    //Place place one placed feature reference; treat an unbound reference or one not implemented here as not placed
     public static bool Place(Holder<RegistryPlacedFeature> holder, WorldGenRegion level,
         ChunkGenerator generator, RandomSource random, BlockPos origin)
         => holder.IsBound()
             && holder.Value is PlacementNS.PlacedFeature placed
             && placed.Place(level, generator, random, origin);
 
-    //SubFeatures 展开一个已放置特征引用的全部配置化特征 含配置内嵌的子特征
+    //SubFeatures expand every configured feature of a placed feature reference, including sub-features embedded in the config
     public static IEnumerable<Holder<RegistryConfiguredFeature>> SubFeatures(Holder<RegistryPlacedFeature> holder)
         => holder.IsBound() && holder.Value is PlacementNS.PlacedFeature placed
             ? placed.GetFeatures()
             : Enumerable.Empty<Holder<RegistryConfiguredFeature>>();
 }
 
-//PlacedFeatureRefCodec 已放置特征引用编解码 对应原版 PlacedFeature.CODEC 的字符串形态
-//元素必须已在 PLACED_FEATURE 注册表里 未注册直接报错交给加载器重试
+//PlacedFeatureRefCodec placed feature reference codec, the string form of vanilla PlacedFeature.CODEC
+//The element must already be in the PLACED_FEATURE registry; report an error when unregistered so the loader can retry
 internal sealed class PlacedFeatureRefCodec : ScalarCodec<Holder<RegistryPlacedFeature>>
 {
     public static readonly PlacedFeatureRefCodec Instance = new();
@@ -1027,13 +1027,13 @@ internal sealed class PlacedFeatureRefCodec : ScalarCodec<Holder<RegistryPlacedF
     {
         var text = ops.GetStringValue(input);
         if (!text.Result().IsPresent)
-            return DataResult<Holder<RegistryPlacedFeature>>.Error(() => "已放置特征引用必须是字符串");
+            return DataResult<Holder<RegistryPlacedFeature>>.Error(() => "placed feature reference must be a string");
         var id = Identifier.TryParse(text.GetOrThrow());
         if (id is null)
-            return DataResult<Holder<RegistryPlacedFeature>>.Error(() => $"非法的标识符: {text.GetOrThrow()}");
+            return DataResult<Holder<RegistryPlacedFeature>>.Error(() => $"invalid identifier: {text.GetOrThrow()}");
         var holder = BuiltInRegistries.PLACED_FEATURE.Get(id.Value);
         return holder is null
-            ? DataResult<Holder<RegistryPlacedFeature>>.Error(() => $"PLACED_FEATURE 里还没有 {id}")
+            ? DataResult<Holder<RegistryPlacedFeature>>.Error(() => $"PLACED_FEATURE does not have {id} yet")
             : DataResult<Holder<RegistryPlacedFeature>>.Success(holder);
     }
 
@@ -1041,13 +1041,13 @@ internal sealed class PlacedFeatureRefCodec : ScalarCodec<Holder<RegistryPlacedF
     {
         var key = value.UnwrapKey();
         return key is null
-            ? DataResult<U>.Error(() => "直接持有者没有注册名 无法编码")
+            ? DataResult<U>.Error(() => "a direct holder has no registry name and cannot be encoded")
             : DataResult<U>.Success(ops.CreateString(key.Identifier.ToString()));
     }
 }
 
-//DirectionCodec 六向方向编解码 对应原版 Direction.CODEC
-//JSON 形态是 down/up/north/south/west/east 小写名
+//DirectionCodec six-direction codec, maps to vanilla Direction.CODEC
+//JSON form is a lowercase name: down/up/north/south/west/east
 internal sealed class DirectionCodec : ScalarCodec<Direction>
 {
     public static readonly DirectionCodec Instance = new();
@@ -1055,7 +1055,7 @@ internal sealed class DirectionCodec : ScalarCodec<Direction>
     public override DataResult<Direction> Parse<U>(DynamicOps<U> ops, U input)
     {
         var text = ops.GetStringValue(input);
-        if (!text.Result().IsPresent) return DataResult<Direction>.Error(() => "方向必须是字符串");
+        if (!text.Result().IsPresent) return DataResult<Direction>.Error(() => "direction must be a string");
         return text.GetOrThrow() switch
         {
             "down" => DataResult<Direction>.Success(Direction.Down),
@@ -1064,7 +1064,7 @@ internal sealed class DirectionCodec : ScalarCodec<Direction>
             "south" => DataResult<Direction>.Success(Direction.South),
             "west" => DataResult<Direction>.Success(Direction.West),
             "east" => DataResult<Direction>.Success(Direction.East),
-            var other => DataResult<Direction>.Error(() => $"未知的方向: {other}")
+            var other => DataResult<Direction>.Error(() => $"unknown direction: {other}")
         };
     }
 
@@ -1080,8 +1080,8 @@ internal sealed class DirectionCodec : ScalarCodec<Direction>
         }));
 }
 
-//RequiredFeatures 首批必备特征注册入口
-//触碰各静态 Instance 与提供者类型使静态注册生效
+//RequiredFeatures first-batch required feature registration entry
+//Touching each static Instance and provider type triggers static registration
 public static class RequiredFeatures
 {
     public static void RegisterAll()
@@ -1109,13 +1109,13 @@ public static class RequiredFeatures
     }
 }
 
-//WorldGenRegionHeights 关卡高度区间便捷访问
-//LevelHeightAccessor 的默认接口成员不能经具体类型取用 这里按区段换算补一层
+//WorldGenRegionHeights convenience access to level height bounds
+//The default interface members of LevelHeightAccessor cannot be called through a concrete type, so they are recomputed from sections here
 internal static class WorldGenRegionHeights
 {
-    //MinBuildHeight 最低可放置 Y 对应原版 getMinBuildHeight
+    //MinBuildHeight lowest placeable Y, maps to vanilla getMinBuildHeight
     public static int MinBuildHeight(this WorldGenRegion level) => level.MinSectionY * 16;
 
-    //MaxBuildHeight 最高可放置 Y 的开区间上界 对应原版 getMaxBuildHeight
+    //MaxBuildHeight exclusive upper bound of the highest placeable Y, maps to vanilla getMaxBuildHeight
     public static int MaxBuildHeight(this WorldGenRegion level) => (level.MaxSectionY + 1) * 16;
 }

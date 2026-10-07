@@ -1,9 +1,9 @@
 namespace NetCraft.Gpu.Pipeline;
 
-//VertexElement 顶点属性元素
+//VertexElement vertex attribute element
 public readonly record struct VertexElement(string Name, VertexElementFormat Format, int Offset);
 
-//VertexElementFormat 顶点元素数据格式
+//VertexElementFormat vertex element data format
 public enum VertexElementFormat
 {
     Float,
@@ -16,8 +16,8 @@ public enum VertexElementFormat
     IVec2
 }
 
-//VertexFormat 顶点格式对标原版 VertexFormat
-//描述一个 binding 槽的顶点布局 elements 总 stride 由 elements 自动累加
+//VertexFormat vertex format, maps to vanilla VertexFormat
+//Describes the vertex layout of one binding slot; the total stride accumulates from the elements
 public sealed class VertexFormat
 {
     private readonly List<VertexElement> _elements;
@@ -62,8 +62,8 @@ public sealed class VertexFormat
     }
 }
 
-//DefaultVertexFormat 顶点格式预设对标原版 DefaultVertexFormat
-//POSITION_COLOR 用于纯色 GUI POSITION_TEX_COLOR 用于带纹理 GUI
+//DefaultVertexFormat vertex format presets, maps to vanilla DefaultVertexFormat
+//POSITION_COLOR for GUI solid color POSITION_TEX_COLOR for textured GUI
 public static class DefaultVertexFormat
 {
     public static readonly VertexFormat POSITION_COLOR = VertexFormat.Create()
@@ -82,8 +82,8 @@ public static class DefaultVertexFormat
         .Add("UV0", VertexElementFormat.Vec2)
         .Build();
 
-    //POSITION_COLOR_UV_LIGHT_NORMAL 3D 物品顶点格式对标原版简化版去 overlay
-    //VertexConsumer3D 输出 10 float 顶点 color/light 暂未使用 shader 跳过 location 1/3
+    //POSITION_COLOR_UV_LIGHT_NORMAL 3D item vertex format, a simplified vanilla version without overlay
+    //VertexConsumer3D outputs a 10-float vertex; color/light are unused for now and the shader skips locations 1/3
     public static readonly VertexFormat POSITION_COLOR_UV_LIGHT_NORMAL = VertexFormat.Create()
         .Add("Position", VertexElementFormat.Vec3)
         .Add("Color", VertexElementFormat.Float)
@@ -92,8 +92,8 @@ public static class DefaultVertexFormat
         .Add("Normal", VertexElementFormat.Vec3)
         .Build();
 
-    //POSITION_COLOR_TEX_OVERLAY_LIGHT_NORMAL 实体顶点格式对标原版 entity 格式
-    //比方块多 Overlay 属性伤害红闪用 stride 44 字节 color/light/overlay 用 Float 存 packed int
+    //POSITION_COLOR_TEX_OVERLAY_LIGHT_NORMAL entity vertex format, maps to the vanilla entity format
+    //Adds an Overlay attribute over blocks, used for the red damage flash; stride 44 bytes, color/light/overlay store packed ints in Float
     public static readonly VertexFormat POSITION_COLOR_TEX_OVERLAY_LIGHT_NORMAL = VertexFormat.Create()
         .Add("Position", VertexElementFormat.Vec3)
         .Add("Color", VertexElementFormat.Float)

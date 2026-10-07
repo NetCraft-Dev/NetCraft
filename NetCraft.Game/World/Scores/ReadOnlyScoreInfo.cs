@@ -1,12 +1,12 @@
 namespace NetCraft.Game.World.Scores;
 
-//ReadOnlyScoreInfo 只读的分数视图 对应原版 net.minecraft.world.scores.ReadOnlyScoreInfo
-//原版的 formatValue 依赖 NumberFormat 本项目编号格式体系未接通 暂不提供
+//ReadOnlyScoreInfo read-only score view, maps to vanilla net.minecraft.world.scores.ReadOnlyScoreInfo
+//Vanilla formatValue depends on NumberFormat; the number format system is not wired up in this project, so it is not provided yet
 public interface ReadOnlyScoreInfo
 {
-    //Value 分数值 对应原版 value
+    //Value score value, maps to vanilla value
     int Value();
 
-    //IsLocked 是否锁定 锁定的分数不接受命令改动 对应原版 isLocked
+    //IsLocked whether it is locked; locked scores reject changes from commands, maps to vanilla isLocked
     bool IsLocked();
 }

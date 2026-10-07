@@ -11,18 +11,18 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Commands;
 
-//FillCommand /fill 命令对应原版 net.minecraft.server.commands.FillCommand
-//fill <起点> <终点> <方块> 填充长方体区域 起点终点任意顺序
-//模式 outline 只填外壳 hollow 外壳加空气芯 destroy 先按掉落破坏原方块
-//replace 后可接方块谓词 只替换匹配的格子 strict 跳过光照发包与邻居通知
-//单次改动上限由世界规则 max_block_modifications 控制 默认 32768
+//FillCommand /fill command, maps to vanilla net.minecraft.server.commands.FillCommand
+//fill <begin> <end> <block> fills a cuboid region; begin and end in any order
+//Modes: outline fills only the shell; hollow adds an air core; destroy breaks the original blocks with drops
+//After replace a block predicate may follow to replace only matching cells; strict skips light updates, packets and neighbor notifications
+//The per-call change limit is controlled by the world rule max_block_modifications, default 32768
 public static class FillCommand
 {
-    //EmptyOnly keep 模式的过滤器 只处理空气位置 对应原版 isEmptyBlock 判定
+    //EmptyOnly the keep mode filter handles only air positions, maps to vanilla isEmptyBlock
     private static readonly Predicate<BlockInWorld> EmptyOnly = world =>
         world.State is { } state && state == Blocks.AIR.DefaultBlockState;
 
-    //Mode 填充模式对应原版 FillCommand.Mode
+    //Mode fill mode, maps to vanilla FillCommand.Mode
     private enum Mode
     {
         Replace,
@@ -33,7 +33,7 @@ public static class FillCommand
 
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
-        //模式与 replace/keep 都挂在 block 参数节点下 位置对应原版 wrapWithMode
+        //The mode and replace/keep both hang under the block argument node, positions matching vanilla wrapWithMode
         var block = RequiredArgumentBuilder<CommandSourceStack, BlockInput>
             .Argument("block", BlockStateArgument.Block());
         block.Executes(context => Fill(context, Mode.Replace, false, null));
@@ -63,8 +63,8 @@ public static class FillCommand
                     .Then(block))));
     }
 
-    //Fill 执行填充 对应原版 fillBlocks
-    //逐格按模式决定放什么 未加载区块的格子跳过 改动数为 0 时按原版报失败
+    //Fill performs the fill, maps to vanilla fillBlocks
+    //Per cell the mode decides what to place; unloaded chunk cells are skipped; a change count of 0 fails like vanilla
     private static int Fill(CommandContext<CommandSourceStack> context, Mode mode, bool strict,
         Predicate<BlockInWorld>? filter)
     {
@@ -85,15 +85,15 @@ public static class FillCommand
         var maxZ = Math.Max(from.Z, to.Z);
 
         var area = (long)(maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
-        //上限受世界规则限制 对应原版 max_block_modifications 默认 32768
+        //The limit is bounded by the world rule, maps to vanilla max_block_modifications default 32768
         var limit = source.Server.GameRules.GetInt(GameRules.MaxBlockModifications);
         if (area > limit)
         {
-            source.SendFailure($"填充区域过大 上限 {limit} 实际 {area}");
+            source.SendFailure($"fill region too large, limit {limit}, actual {area}");
             return 0;
         }
 
-        //批量收集变更 对应原版每格只写状态 光照与方块包等全部写完再统一刷一次
+        //Collect changes in a batch, maps to vanilla writing only the state per cell and flushing light and block packets once at the end
         var batch = new BlockChangeBatch(level);
         var count = 0;
         for (var x = minX; x <= maxX; x++)
@@ -101,7 +101,7 @@ public static class FillCommand
         for (var z = minZ; z <= maxZ; z++)
         {
             var pos = new BlockPos(x, y, z);
-            //区块未加载的格子按原版跳过 不作数
+            //Cells in unloaded chunks are skipped like vanilla and do not count
             if (level.GetBlockState(pos) is null) continue;
             if (filter is not null && !filter(new BlockInWorld(level, pos, blockEntities))) continue;
 
@@ -110,7 +110,7 @@ public static class FillCommand
 
             if (!TryResolveTarget(mode, pos, minX, minY, minZ, maxX, maxY, maxZ, input, out var target))
             {
-                //该格不放方块 只有 destroy 真的破坏了才算一次改动
+                //No block is placed in that cell; only a real destroy counts as a change
                 if (affected) count++;
                 continue;
             }
@@ -119,7 +119,7 @@ public static class FillCommand
                 if (affected) count++;
                 continue;
             }
-            //方块实体数据只在非 strict 时写入 strict 语义是不产生任何副作用
+            //Block entity data is written only when not strict; strict means no side effects at all
             if (!strict && input.Nbt is not null && blockEntities.Get(pos) is { } blockEntity)
             {
                 blockEntity.LoadAdditional(input.Nbt);
@@ -127,20 +127,20 @@ public static class FillCommand
             }
             count++;
         }
-        //strict 只落状态 不发光照不发包不通知邻居
+        //strict only writes the state: no light, no packet, no neighbor notification
         batch.Flush(players, sideEffects: !strict);
 
         if (count == 0)
         {
-            source.SendFailure("没有方块被改动");
+            source.SendFailure("no blocks were changed");
             return 0;
         }
-        source.SendSuccess($"已填充 {count} 个方块");
+        source.SendSuccess($"filled {count} blocks");
         return count;
     }
 
-    //TryResolveTarget 按模式决定该格放什么 返回 false 表示这格完全不动
-    //outline 只处理六个面上的格子 hollow 面上放目标方块内部塞空气
+    //TryResolveTarget decides by mode what to place in a cell; returns false when the cell is not touched at all
+    //outline only handles the cells on the six faces; hollow places the target block on the faces and air inside
     private static bool TryResolveTarget(Mode mode, BlockPos pos,
         int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockInput input, out BlockState target)
     {

@@ -2,8 +2,8 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.World.Crafting;
 
-//SingleItemRecipe 单原料配方基类对应原版 net.minecraft.world.item.crafting.SingleItemRecipe
-//匹配就是一个原料对一个输入格 切石机与熔炼都用它
+//SingleItemRecipe single-ingredient recipe base class, maps to vanilla net.minecraft.world.item.crafting.SingleItemRecipe
+//Matching is one ingredient against one input slot, used by stonecutting and cooking
 public abstract class SingleItemRecipe : Recipe<SingleRecipeInput>
 {
     protected SingleItemRecipe(Ingredient ingredient, ItemStack result, string group)
@@ -13,13 +13,13 @@ public abstract class SingleItemRecipe : Recipe<SingleRecipeInput>
         Group = group;
     }
 
-    //Ingredient 唯一原料
+    //Ingredient the single ingredient
     public Ingredient Ingredient { get; }
 
-    //Result 成品栈模板 产出时给副本
+    //Result result stack template, a copy is given on output
     public ItemStack Result { get; }
 
-    //Group 配方分组 对应原版 CommonInfo 的 group
+    //Group recipe group, maps to the group of vanilla CommonInfo
     public string Group { get; }
 
     public abstract string Type { get; }
@@ -29,11 +29,11 @@ public abstract class SingleItemRecipe : Recipe<SingleRecipeInput>
     public ItemStack Assemble(SingleRecipeInput input) => Result.Copy();
 }
 
-//StonecutterRecipe 切石机配方对应原版 net.minecraft.world.item.crafting.StonecutterRecipe
-//JSON 形态 {"type":"minecraft:stonecutting","ingredient":..,"result":..}
+//StonecutterRecipe stonecutter recipe, maps to vanilla net.minecraft.world.item.crafting.StonecutterRecipe
+//JSON form {"type":"minecraft:stonecutting","ingredient":..,"result":..}
 public sealed class StonecutterRecipe : SingleItemRecipe
 {
-    //SerializerId 配方序列化 id 即 JSON 里的 type
+    //SerializerId recipe serializer id, the type field in JSON
     public const string SerializerId = "stonecutting";
 
     public StonecutterRecipe(Ingredient ingredient, ItemStack result, string group)

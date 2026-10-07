@@ -2,21 +2,21 @@ using NetCraft.Gpu.Pipeline;
 
 namespace NetCraft.Gpu;
 
-//GpuDevice GPU 逻辑设备对应原版 RenderSystem 抽象
-//提供命令缓冲分配和资源创建入口
+//GpuDevice GPU logical device, corresponds to the vanilla RenderSystem abstraction
+//Provides command buffer allocation and resource creation entry points
 public abstract class GpuDevice : IDisposable
 {
     public GpuContext Context { get; }
-    //ShaderManager 声明式 pipeline shader 加载编译入口阶段 8 补完 FromDeclaration shader 加载
+    //ShaderManager declarative pipeline shader load/compile entry; stage 8 completes the FromDeclaration shader loading
     public ShaderManager ShaderManager { get; }
 
-    //Limits GPU 设备硬件限制对标原版 device.getDeviceInfo().limits()
-    //子类查询后端真实值 Vulkan 走 VkPhysicalDeviceLimits.maxImageDimension2D
-    //Empty/Mock 后端用默认 4096 占位保证无 Vulkan 环境也能编译运行
+    //Limits GPU hardware limits, maps to vanilla device.getDeviceInfo().limits()
+    //Subclasses query the backend's real values; Vulkan uses VkPhysicalDeviceLimits.maxImageDimension2D
+    //The Empty/Mock backends use 4096 as a default placeholder so they compile and run without Vulkan
     public abstract DeviceLimits Limits { get; }
 
-    //SupportsGpuRendering 是否支持录制 GPU 渲染命令 Vulkan 后端 true Empty/Mock 后端 false
-    //ItemItemAtlas.DrawToSlot 用此判断走 GPU 渲染或仅 CPU 顶点生成
+    //SupportsGpuRendering whether recording GPU render commands is supported; true for the Vulkan backend, false for Empty/Mock
+    //ItemItemAtlas.DrawToSlot uses this to decide between GPU rendering and CPU-only vertex generation
     public virtual bool SupportsGpuRendering => false;
 
     protected GpuDevice(GpuContext context)
@@ -25,44 +25,44 @@ public abstract class GpuDevice : IDisposable
         ShaderManager = new ShaderManager();
     }
 
-    //CreateCommandBuffer 创建命令缓冲用于录制渲染命令
+    //CreateCommandBuffer creates a command buffer for recording render commands
     public abstract GpuCommandBuffer CreateCommandBuffer();
 
-    //CreateRenderPipeline 创建渲染管线
+    //CreateRenderPipeline creates a render pipeline
     public abstract CompiledRenderPipeline CreateRenderPipeline(RenderPipelineDescription description);
 
-    //CreateBuffer 创建 GPU buffer
+    //CreateBuffer creates a GPU buffer
     public abstract GpuBuffer CreateBuffer(int size, GpuBufferUsage usage);
 
-    //CreateHostVisibleBuffer 创建 HostVisible 内存 buffer 适合每帧更新的 vertex/index buffer
-    //默认实现回退到 CreateBuffer 走 DeviceLocal+staging 子类可 override 提供 HostVisible 优化
-    //HostVisible 走 map+memcpy 避免 staging 的 QueueSubmit+QueueWaitIdle 同步开销
+    //CreateHostVisibleBuffer creates a host-visible memory buffer, suited to vertex/index buffers updated every frame
+    //The default falls back to CreateBuffer using device-local+staging; subclasses may override to provide the host-visible optimization
+    //Host-visible uses map+memcpy to avoid the QueueSubmit+QueueWaitIdle synchronization cost of staging
     public virtual GpuBuffer CreateHostVisibleBuffer(int size, GpuBufferUsage usage)
         => CreateBuffer(size, usage);
 
-    //CreateImage 创建 GPU 图像/纹理
+    //CreateImage creates a GPU image/texture
     public abstract GpuImage CreateImage(GpuImageDescription desc);
 
-    //CreateShader 创建 SPIR-V shader module
+    //CreateShader creates a SPIR-V shader module
     public abstract GpuShader CreateShader(GpuShaderStage stage, byte[] spirvCode, string entryPoint = "main");
 
-    //CreateDescriptorLayout 创建描述符集布局
+    //CreateDescriptorLayout creates a descriptor set layout
     public abstract GpuDescriptorLayout CreateDescriptorLayout(GpuDescriptorLayoutDescription description);
 
-    //AllocateDescriptorSet 从内部 pool 分配一个描述符集
+    //AllocateDescriptorSet allocates a descriptor set from the internal pool
     public abstract GpuDescriptorSet AllocateDescriptorSet(GpuDescriptorLayout layout);
 
-    //CreateSampler 创建纹理采样器
+    //CreateSampler creates a texture sampler
     public abstract GpuSampler CreateSampler(GpuSamplerDescription description);
 
-    //CreateCommandEncoder 创建命令编码器录制 copy/render pass 命令
-    //旧后端不支持抛 NotSupportedException Vulkan 后端 override 实现
+    //CreateCommandEncoder creates a command encoder to record copy/render pass commands
+    //Legacy backends throw NotSupportedException; the Vulkan backend overrides it
     public virtual ICommandEncoder CreateCommandEncoder() =>
-        throw new NotSupportedException("当前后端不支持 ICommandEncoder");
+        throw new NotSupportedException("The current backend does not support ICommandEncoder");
 
-    //PrecompilePipeline 编译声明式 RenderPipeline 为 CompiledRenderPipeline
-    //默认实现把声明式转换为 RenderPipelineDescription 再编译 descriptor layout 后 CreateRenderPipeline
-    //子类可 override 接入 PipelineCache 缓存编译产物
+    //PrecompilePipeline compiles a declarative RenderPipeline into a CompiledRenderPipeline
+    //The default converts the declaration to a RenderPipelineDescription, compiles the descriptor layout, then CreateRenderPipeline
+    //Subclasses may override to hook into PipelineCache and cache the compiled artifact
     public virtual CompiledRenderPipeline PrecompilePipeline(RenderPipeline declaration)
     {
         var description = RenderPipelineDescription.FromDeclaration(declaration, ShaderManager);
@@ -72,7 +72,7 @@ public abstract class GpuDevice : IDisposable
         return CreateRenderPipeline(description);
     }
 
-    //PrecompilePipeline 兼容旧 RenderPipelineDescription 调用方不缓存
+    //PrecompilePipeline legacy RenderPipelineDescription overload, callers do not cache
     public virtual CompiledRenderPipeline PrecompilePipeline(RenderPipelineDescription description) =>
         CreateRenderPipeline(description);
 

@@ -1,18 +1,18 @@
 namespace NetCraft.Gpu;
 
-//ITextureAtlas 纹理图集查询接口供 BlockModelBaker 解耦 GpuDevice
-//BlockTextureAtlas 实现此接口生产环境用测试可用 stub
+//ITextureAtlas texture atlas query interface for BlockModelBaker to decouple from GpuDevice
+//BlockTextureAtlas implements it for production; tests can use a stub
 public interface ITextureAtlas
 {
-    //GetSprite 按 name 查询 sprite 未找到返回 null
+    //GetSprite looks up a sprite by name, returns null if not found
     TextureAtlasSprite? GetSprite(string name);
 }
 
-//BlockTextureAtlas 方块纹理图集对标原版 TextureAtlas
-//接收 sprite 列表（name+pixels）用 TextureStitcher 拼接到 GpuImage 提供 name→TextureAtlasSprite 查询
-//Gpu 层只做拼接+上传+UV 查询不扫描 assets（扫描由 Game 层 BlockTextureCollector 做）
-//nearest sampler 像素风格不模糊方块纹理边
-//不支持动画帧后续补
+//BlockTextureAtlas block texture atlas, maps to vanilla TextureAtlas
+//Takes a sprite list (name+pixels), stitches it into a GpuImage with TextureStitcher and provides name→TextureAtlasSprite lookup
+//The GPU layer only does stitching+upload+UV lookup and does not scan assets (scanning is done by the Game layer's BlockTextureCollector)
+//nearest sampler keeps the pixel style from blurring block texture edges
+//Animated frames are unsupported and to be added later
 public sealed class BlockTextureAtlas : ITextureAtlas, IDisposable
 {
     private readonly GpuDevice _device;
@@ -21,11 +21,11 @@ public sealed class BlockTextureAtlas : ITextureAtlas, IDisposable
     private GpuSampler? _sampler;
     private readonly Dictionary<string, TextureAtlasSprite> _sprites = new();
 
-    //AtlasImage 拼接上传后的图集纹理 null 表示未 Build
+    //AtlasImage the stitched and uploaded atlas texture; null means not yet Built
     public GpuImage? AtlasImage => _atlasImage;
-    //Sampler 图集采样器 nearest 过滤
+    //Sampler atlas sampler with nearest filtering
     public GpuSampler? Sampler => _sampler;
-    //Width/Height 图集尺寸
+    //Width/Height atlas size
     public int Width { get; private set; }
     public int Height { get; private set; }
 
@@ -35,9 +35,9 @@ public sealed class BlockTextureAtlas : ITextureAtlas, IDisposable
         _maxAtlasSize = maxAtlasSize;
     }
 
-    //Build 拼接 sprite 列表上传到 GpuImage
-    //重复调 Dispose 旧图集重建
-    //返回 false 表示 maxAtlasSize 装不下
+    //Build stitches the sprite list and uploads to a GpuImage
+    //Calling it again Disposes the old atlas and rebuilds
+    //Returns false when it does not fit within maxAtlasSize
     public bool Build(IReadOnlyList<TextureStitcher.SpriteInput> sprites)
     {
         DisposeAtlas();
@@ -46,7 +46,7 @@ public sealed class BlockTextureAtlas : ITextureAtlas, IDisposable
             return false;
         Width = stitcher.AtlasWidth;
         Height = stitcher.AtlasHeight;
-        //创建图集纹理 ColorAttachment 不需要只需 SampledImage
+        //Creates the atlas texture; ColorAttachment is not needed, only SampledImage
         _atlasImage = _device.CreateImage(new GpuImageDescription
         {
             Width = Width,
@@ -54,14 +54,14 @@ public sealed class BlockTextureAtlas : ITextureAtlas, IDisposable
             Format = GpuImageFormat.R8G8B8A8Unorm,
             Usage = GpuImageUsage.SampledImage
         });
-        //nearest 采样保留像素风格不重复地址避免 bleeding
+        //Nearest sampling preserves the pixel style and does not repeat addresses to avoid bleeding
         _sampler = _device.CreateSampler(new GpuSamplerDescription
         {
             LinearFilter = false,
             RepeatAddress = false
         });
-        //先全清零再按区域上传每个 sprite
-        //全清零避免未覆盖区域是垃圾数据
+        //Clears everything first, then uploads each sprite region-wise
+        //Clearing avoids garbage data in uncovered regions
         var zero = new byte[Width * Height * 4];
         _atlasImage.Upload(zero);
         foreach (var placed in stitcher.Placed)
@@ -75,8 +75,8 @@ public sealed class BlockTextureAtlas : ITextureAtlas, IDisposable
         return true;
     }
 
-    //GetSprite 按 name 查询 sprite 未找到返回 null
-    //name 格式 minecraft:block/stone
+    //GetSprite looks up a sprite by name, returns null if not found
+    //name format minecraft:block/stone
     public TextureAtlasSprite? GetSprite(string name)
         => _sprites.TryGetValue(name, out var s) ? s : null;
 

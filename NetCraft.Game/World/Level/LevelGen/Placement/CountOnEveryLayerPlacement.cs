@@ -7,8 +7,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//CountOnEveryLayerPlacement 逐层计数放置对应原版 CountOnEveryLayerPlacement
-//从地表往下逐层找可放置的地面 每层按 count 撒点 直到某层全部失败
+//CountOnEveryLayerPlacement per-layer count placement, maps to vanilla CountOnEveryLayerPlacement
+//Walks down from the surface layer by layer looking for placeable ground, scattering count points per layer until one layer fails entirely
 public sealed class CountOnEveryLayerPlacement : PlacementModifier
 {
     public static readonly Codec<CountOnEveryLayerPlacement> Codec =
@@ -17,12 +17,12 @@ public sealed class CountOnEveryLayerPlacement : PlacementModifier
             count => new CountOnEveryLayerPlacement(count),
             placement => placement.CountProvider);
 
-    //CountProvider 每层撒点数量 属性名避开原版字段名 count
+    //CountProvider points scattered per layer; the property name avoids the vanilla field name count
     public IntProvider CountProvider { get; }
 
     private CountOnEveryLayerPlacement(IntProvider count) => CountProvider = count;
 
-    //Of 构造入口对应原版 of
+    //Of construction entry, maps to vanilla of
     public static CountOnEveryLayerPlacement Of(IntProvider count) => new(count);
 
     public static CountOnEveryLayerPlacement Of(int count) => new(ConstantInt.Of(count));
@@ -53,7 +53,7 @@ public sealed class CountOnEveryLayerPlacement : PlacementModifier
         return positions;
     }
 
-    //FindOnGroundYPosition 从地表往下找第 layer 个实体地面之上的一格对应原版 findOnGroundYPosition
+    //FindOnGroundYPosition search down from the surface for the cell above the layer-th solid ground, maps to vanilla findOnGroundYPosition
     private static int FindOnGroundYPosition(PlacementContext context, int xStart, int yStart, int zStart, int layerToPlaceOn)
     {
         var currentLayer = 0;
@@ -71,14 +71,14 @@ public sealed class CountOnEveryLayerPlacement : PlacementModifier
         return int.MaxValue;
     }
 
-    //IsEmpty 空液判定对应原版 isEmpty
+    //IsEmpty empty fluid check, maps to vanilla isEmpty
     private static bool IsEmpty(BlockState state)
         => state.Owner == Blocks.AIR || state.Owner == Blocks.WATER || state.Owner == Blocks.LAVA;
 
     public override PlacementModifierType Type => CountOnEveryLayerPlacementType.Instance;
 }
 
-//CountOnEveryLayerPlacementType 对应原版 PlacementModifierType.COUNT_ON_EVERY_LAYER
+//CountOnEveryLayerPlacementType, maps to vanilla PlacementModifierType.COUNT_ON_EVERY_LAYER
 public sealed class CountOnEveryLayerPlacementType : PlacementModifierType<CountOnEveryLayerPlacement>
 {
     public static readonly CountOnEveryLayerPlacementType Instance = Register(

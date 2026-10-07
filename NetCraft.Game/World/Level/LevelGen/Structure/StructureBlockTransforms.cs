@@ -5,13 +5,13 @@ using GameDirection = NetCraft.Primitives.Direction;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//StructureBlockTransforms 方块状态的镜像与旋转 对应原版 BlockState.mirror / BlockState.rotate
-//原版每个方块自己重写这两个方法 这里按属性语义统一处理方向类属性
-//台阶的 shape 与多面连接类属性暂未覆盖 原样保留
+//StructureBlockTransforms block state mirroring and rotation, maps to vanilla BlockState.mirror / BlockState.rotate
+//Vanilla overrides these two methods per block; here direction-like properties are handled uniformly by property semantics
+//Stair shape and multi-face connection properties are not covered yet and are kept as is
 public static class StructureBlockTransforms
 {
-    //ApplyMirror 镜像方块状态 朝向属性按镜像规则翻转 十六分之一圆的 rotation 取补
-    //方法名不能叫 Mirror 否则会遮蔽同名枚举类型
+    //ApplyMirror mirrors a block state; facing properties flip by the mirror rule, and sixteenth-circle rotation is complemented
+    //The method cannot be named Mirror or it would shadow the enum type of the same name
     public static BlockState ApplyMirror(BlockState state, Mirror mirror)
     {
         if (mirror == Mirror.None) return state;
@@ -34,7 +34,7 @@ public static class StructureBlockTransforms
         return state;
     }
 
-    //ApplyRotation 旋转方块状态 朝向属性按旋转规则转向 轴属性在 90 度时互换 十六分之一圆的 rotation 加步进
+    //ApplyRotation rotates a block state; facing properties turn by the rotation rule, axes swap at 90 degrees, and sixteenth-circle rotation advances by steps
     public static BlockState ApplyRotation(BlockState state, Rotation rotation)
     {
         if (rotation == Rotation.None) return state;
@@ -61,7 +61,7 @@ public static class StructureBlockTransforms
         return state;
     }
 
-    //SetIfAllowed 值不在属性允许集里时原样返回 避免注册表 SetValue 抛异常
+    //SetIfAllowed returns the state unchanged when the value is not in the property's allowed set, avoiding a throw from registry SetValue
     public static BlockState SetIfAllowed(BlockState state, PropertyBase property, object value)
     {
         foreach (var candidate in property.PossibleValuesAsObjects)
@@ -71,7 +71,7 @@ public static class StructureBlockTransforms
         return state;
     }
 
-    //RotateAxis 绕 Y 轴 90 度会让 X 轴与 Z 轴互换 180 度轴不变
+    //RotateAxis a 90-degree turn around Y swaps the X and Z axes; 180 degrees leaves the axis unchanged
     private static Axis RotateAxis(Axis axis, Rotation rotation) => rotation switch
     {
         Rotation.Clockwise90 or Rotation.Counterclockwise90 => axis switch
@@ -83,13 +83,13 @@ public static class StructureBlockTransforms
         _ => axis,
     };
 
-    //TransformOrientation 朝向组合的正面与顶面各过一次方向变换 对应原版 OctahedralGroup.rotate(FrontAndTop)
+    //TransformOrientation applies the direction transform to the front and top of an orientation, maps to vanilla OctahedralGroup.rotate(FrontAndTop)
     private static FrontAndTop TransformOrientation(FrontAndTop orientation,
         Func<GameDirection, GameDirection> transform)
         => JigsawBlock.FromFrontAndTop(transform(JigsawBlock.FrontOf(orientation)),
             transform(JigsawBlock.TopOf(orientation)));
 
-    //IsFullCircle 属性取值个数等于整圈步数说明它是环形角度属性
+    //IsFullCircle when the number of possible values equals the full-circle steps, the property is a circular angle property
     private static bool IsFullCircle(PropertyBase property, int steps)
         => property.PossibleValuesAsObjects.Count == steps;
 }

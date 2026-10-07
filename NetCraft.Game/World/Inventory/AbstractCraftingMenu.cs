@@ -4,8 +4,8 @@ using NetCraft.Network.Inventory;
 
 namespace NetCraft.Game.World.Inventory;
 
-//AbstractCraftingMenu 带合成格的菜单基类对应原版 net.minecraft.world.inventory.AbstractCraftingMenu
-//背包的 2x2 与工作台的 3x3 共用结果重算与扣料逻辑 差别只有网格尺寸与槽位坐标
+//AbstractCraftingMenu base class for menus with a crafting grid, maps to vanilla net.minecraft.world.inventory.AbstractCraftingMenu
+//The inventory 2x2 and the crafting table 3x3 share the result recompute and ingredient consumption logic, only the grid size and slot coordinates differ
 public abstract class AbstractCraftingMenu : AbstractContainerMenu
 {
     protected AbstractCraftingMenu(MenuType? kind, int containerId, int width, int height)
@@ -15,24 +15,24 @@ public abstract class AbstractCraftingMenu : AbstractContainerMenu
         CraftHeight = height;
         CraftSlots = new SimpleContainer(width * height);
         ResultSlots = new SimpleContainer(1);
-        //合成格一变就重算结果 对应原版 AbstractCraftingMenu.slotsChanged
+        //Recomputes the result whenever the crafting grid changes, maps to vanilla AbstractCraftingMenu.slotsChanged
         CraftSlots.Changed += _ => UpdateCraftingResult();
     }
 
-    //CraftWidth/CraftHeight 合成网格宽高 背包 2x2 工作台 3x3
+    //CraftWidth/CraftHeight crafting grid width and height, 2x2 for the inventory and 3x3 for the crafting table
     public int CraftWidth { get; }
     public int CraftHeight { get; }
 
-    //CraftSlotCount 合成格总数
+    //CraftSlotCount total number of crafting slots
     public int CraftSlotCount => CraftWidth * CraftHeight;
 
-    //CraftSlots 合成格容器 子类按各自坐标铺槽位
+    //CraftSlots crafting grid container, subclasses lay out slots at their own coordinates
     protected SimpleContainer CraftSlots { get; }
 
-    //ResultSlots 结果容器 只有一个槽
+    //ResultSlots result container with a single slot
     protected SimpleContainer ResultSlots { get; }
 
-    //BuildCraftingInput 把合成格读成配方输入 下标按行优先排列
+    //BuildCraftingInput reads the crafting grid into recipe input, indices are row-major
     private CraftingInput BuildCraftingInput()
     {
         var items = new ItemStack[CraftSlotCount];
@@ -40,16 +40,16 @@ public abstract class AbstractCraftingMenu : AbstractContainerMenu
         return CraftingInput.Of(CraftWidth, CraftHeight, items);
     }
 
-    //UpdateCraftingResult 重算结果槽 对应原版 slotChangedCraftingGrid
-    //配方管理器还没装配时结果槽保持空
+    //UpdateCraftingResult recomputes the result slot, maps to vanilla slotChangedCraftingGrid
+    //The result slot stays empty while the recipe manager is not yet wired up
     public void UpdateCraftingResult()
     {
         var recipes = RecipeManager.Active;
         ResultSlots.SetItem(0, recipes is null ? ItemStack.Empty : recipes.GetCraftingResult(BuildCraftingInput()));
     }
 
-    //OnCraftingTaken 取走成品后扣掉合成格材料并重算 对应原版 ResultSlot.onTake
-    //每个非空合成格减一份 减完触发 Changed 自动重算
+    //OnCraftingTaken consumes ingredients from the crafting grid and recomputes after the result is taken, maps to vanilla ResultSlot.onTake
+    //Decrements each non-empty crafting slot; triggering Changed afterwards recomputes automatically
     public void OnCraftingTaken()
     {
         for (var i = 0; i < CraftSlots.Size; i++)

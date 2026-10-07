@@ -3,8 +3,8 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.World.Entity;
 
-//EquipmentSlotGroup 装备槽分组 对应原版 net.minecraft.world.entity.EquipmentSlotGroup
-//一个分组覆盖一或多个槽位 属性修饰与谓词按分组筛选 声明顺序即网络 id
+//EquipmentSlotGroup equipment slot group, maps to vanilla net.minecraft.world.entity.EquipmentSlotGroup
+//A group covers one or more slots, attribute modifiers and predicates filter by group, the declaration order is the network id
 public enum EquipmentSlotGroup
 {
     Any,
@@ -19,30 +19,30 @@ public enum EquipmentSlotGroup
     Body
 }
 
-//EquipmentSlotGroups 装备槽分组的编解码与槽位判定
+//EquipmentSlotGroups codecs and slot tests for equipment slot groups
 public static class EquipmentSlotGroups
 {
-    //Names 分组序列化名 下标与枚举值对应
+    //Names group serialized names, the index corresponds to the enum value
     private static readonly string[] Names =
     {
         "any", "mainhand", "offhand", "hand", "feet", "legs", "chest", "head", "armor", "body"
     };
 
-    //Codec 按序列化名编解码 对应原版 EquipmentSlotGroup.CODEC
+    //Codec encodes by serialized name, maps to vanilla EquipmentSlotGroup.CODEC
     public static readonly Codec<EquipmentSlotGroup> Codec = Codecs.String.ComapFlatMap(
         name =>
         {
             for (var i = 0; i < Names.Length; i++)
                 if (Names[i] == name) return DataResult<EquipmentSlotGroup>.Success((EquipmentSlotGroup)i);
-            return DataResult<EquipmentSlotGroup>.Error(() => $"未知的装备槽分组: {name}");
+            return DataResult<EquipmentSlotGroup>.Error(() => $"unknown equipment slot group: {name}");
         },
         group => Names[(int)group]);
 
-    //StreamCodec 网络编解码 按分组 id 进出 对应原版 EquipmentSlotGroup.STREAM_CODEC
+    //StreamCodec network codec, goes in and out by group id, maps to vanilla EquipmentSlotGroup.STREAM_CODEC
     public static readonly StreamCodec<RegistryFriendlyByteBuf, EquipmentSlotGroup> StreamCodec =
         new EquipmentSlotGroupStreamCodec();
 
-    //Test 该分组是否覆盖指定槽位 对应原版 EquipmentSlotGroup.test
+    //Test whether the group covers the given slot, maps to vanilla EquipmentSlotGroup.test
     public static bool Test(this EquipmentSlotGroup group, EquipmentSlot slot) => group switch
     {
         EquipmentSlotGroup.Any => true,
@@ -59,7 +59,7 @@ public static class EquipmentSlotGroups
     };
 }
 
-//EquipmentSlotGroupStreamCodec 按分组 id 进出 对应原版 STREAM_CODEC
+//EquipmentSlotGroupStreamCodec goes in and out by group id, maps to vanilla STREAM_CODEC
 internal sealed class EquipmentSlotGroupStreamCodec : StreamCodec<RegistryFriendlyByteBuf, EquipmentSlotGroup>
 {
     public EquipmentSlotGroup Decode(RegistryFriendlyByteBuf buf) => (EquipmentSlotGroup)buf.ReadVarInt();

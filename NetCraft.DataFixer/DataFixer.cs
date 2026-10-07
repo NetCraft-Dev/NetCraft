@@ -3,13 +3,13 @@ namespace NetCraft.DataFixer;
 using NetCraft.Codec;
 using NetCraft.DataFixer.Schemas;
 
-//DataFixer数据修复器接口对应原版com.mojang.datafixers.DataFixer
-//按type与版本范围对Dynamic执行更新
+//DataFixer data fixer interface maps to vanilla com.mojang.datafixers.DataFixer
+//applies updates to a Dynamic by type and version range
 public interface DataFixer
 {
-    //update按type与版本范围对input执行更新
+    //update applies updates to input by type and version range
     Dynamic<T> Update<T>(DSL.ITypeReference type, Dynamic<T> input, int version, int newVersion);
 
-    //getSchema按key取得Schema
+    //getSchema takes the Schema by key
     Schema GetSchema(int key);
 }

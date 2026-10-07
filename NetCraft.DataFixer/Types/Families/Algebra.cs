@@ -2,13 +2,13 @@ namespace NetCraft.DataFixer.Types.Families;
 
 using NetCraft.DataFixer;
 
-//Algebra代数对应原版com.mojang.datafixers.types.families.Algebra
-//按index提供RewriteResult描述递归类型家族每个index的重写
+//Algebra maps to vanilla com.mojang.datafixers.types.families.Algebra
+//provides a RewriteResult per index, describing the rewrite of each index in a recursive type family
 public interface Algebra
 {
-    //apply按索引返回该位置的重写结果
+    //apply returns the rewrite result at the given index
     RewriteResult<object, object> Apply(int index);
 
-    //toString带缩进级别
+    //toString with an indent level
     string ToString(int level);
 }

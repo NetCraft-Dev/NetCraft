@@ -7,32 +7,32 @@ using NetCraft.Storage.Light;
 
 namespace NetCraft.Game.Server;
 
-//ChunkSender 渐进区块发送器对应原版 PlayerChunkSender
-//UpdateCenter 玩家跨块时更新视野中心 新入视野的入队离开的遗忘对应原版 updateChunkTracking+applyChunkTrackingView
-//Tick 每 tick 发一批 BatchStart+就绪区块+BatchFinished 未就绪的留在待发集合下次 tick 再取
-//生成在 ServerChunkCache 后台推进不阻塞主循环 连接断开后永久终止
+//ChunkSender progressive chunk sender, maps to vanilla PlayerChunkSender
+//UpdateCenter updates the view center when a player crosses a chunk; chunks entering view are queued and those leaving are forgotten, maps to vanilla updateChunkTracking+applyChunkTrackingView
+//Tick sends a batch of BatchStart + ready chunks + BatchFinished per tick; not-ready ones stay in the pending set for the next tick
+//Generation advances in the ServerChunkCache background without blocking the main loop; it terminates permanently after disconnect
 public sealed class ChunkSender
 {
-    //ChunksPerTick 每 tick 发送区块数对齐原版 desiredChunksPerTick 量级
+    //ChunksPerTick chunks sent per tick, aligned with the order of magnitude of vanilla desiredChunksPerTick
     public const int ChunksPerTick = 4;
 
     private readonly Connection _connection;
     private readonly Func<ChunkPos, ChunkAccess?> _provider;
     private readonly Func<ChunkPos, bool>? _isFailed;
-    //_lightSource 光照数据来源为空时下发空光照
+    //_lightSource light data source; empty sends empty light
     private readonly ServerChunkCache? _lightSource;
-    //_blockEntityBridge 方块实体数据来源 为空时区块包不带方块实体
+    //_blockEntityBridge block entity data source; empty means the chunk packet carries no block entities
     private readonly IBlockEntityBridge? _blockEntityBridge;
-    //待发送坐标按入队顺序排列 每 tick 从头取就绪的凑一批
-    //原版 pendingChunks 也是插入序队列 本作先前每 tick 全量扫加排序纯属多余开销
+    //Pending coordinates in queue order; each tick takes a batch of ready ones from the front
+    //Vanilla pendingChunks is also an insertion-order queue; this project scanning everything and sorting every tick was pure overhead
     private readonly List<long> _pending = new();
     private readonly HashSet<long> _pendingSet = new();
-    //视野内已入队过的坐标含已发送的 离开视野时据此判定是否需要发 Forget
+    //Coordinates already queued within view, including sent ones; used when leaving view to decide whether to send Forget
     private readonly HashSet<long> _tracked = new();
     private int _centerX = int.MinValue;
     private int _centerZ;
     private int _viewDistance = 1;
-    //_cursor 下轮扫描起点 未就绪区块原地保留不重复从头扫
+    //_cursor the scan start for the next round; not-ready chunks stay in place and are not re-scanned from the front
     private int _cursor;
     private int _sentCount;
     private int _failedCount;
@@ -49,14 +49,14 @@ public sealed class ChunkSender
         _blockEntityBridge = blockEntityBridge;
     }
 
-    //PendingCount 待发送区块数供诊断
+    //PendingCount number of chunks waiting to be sent, for diagnostics
     public int PendingCount => _pending.Count;
 
-    //FailedCount 已丢弃的加载失败区块数供诊断
+    //FailedCount number of load-failed chunks dropped, for diagnostics
     public int FailedCount => _failedCount;
 
-    //UpdateCenter 更新视野中心 新入视野的入队离开的遗忘并同步 SetChunkCacheCenter
-    //中心与视距都没变时直接返回避免重复发包
+    //UpdateCenter updates the view center; chunks entering view are queued and leaving ones forgotten, and SetChunkCacheCenter is synced
+    //Returns early when neither the center nor the view distance changed, to avoid resending packets
     public void UpdateCenter(int centerChunkX, int centerChunkZ, int viewDistance)
     {
         var radius = Math.Clamp(viewDistance, 1, 32);
@@ -66,8 +66,8 @@ public sealed class ChunkSender
         _centerZ = centerChunkZ;
         _viewDistance = radius;
         var radiusSquared = radius * radius;
-        //新入视野坐标入队 圆形判定与初始入队口径一致
-        //本批内部按距离排好再追加 于是队列整体近似距离序 发送端不必再每 tick 全量重排
+        //Coordinates entering view are queued; the circular test matches the initial queueing rule
+        //Within this batch they are sorted by distance before appending, so the queue is roughly distance-ordered and the sender need not re-sort everything every tick
         List<long>? added = null;
         for (var dx = -radius; dx <= radius; dx++)
         for (var dz = -radius; dz <= radius; dz++)
@@ -85,13 +85,13 @@ public sealed class ChunkSender
                 _pendingSet.Add(key);
             }
         }
-        //离开视野的遗忘 未发送的仅出队已发送的发 Forget 包对应原版 dropChunk
+        //Forgetting on leaving view: unsent ones are only dequeued, sent ones send a Forget packet, maps to vanilla dropChunk
         foreach (var key in _tracked.Where(key => DistanceSquared(ChunkPos.Unpack(key)) > radiusSquared).ToList())
             DropChunk(key);
         _connection.Send(new ClientboundSetChunkCacheCenterPacket(centerChunkX, centerChunkZ));
     }
 
-    //DropChunk 遗忘单个区块 已发送过的才需要通知客户端
+    //DropChunk forgets a single chunk; only one already sent needs to notify the client
     private void DropChunk(long key)
     {
         _tracked.Remove(key);
@@ -111,12 +111,12 @@ public sealed class ChunkSender
         return dx * dx + dz * dz;
     }
 
-    //Tick 渐进发送本批就绪区块 从游标处按队列序取够一批即停
-    //队列入队时已近似距离序 单 tick 扫描量由预算封顶 未就绪的留在原地下轮由游标回看
+    //Tick progressively sends this batch of ready chunks, taking a batch from the cursor in queue order
+    //The queue is roughly distance-ordered on enqueue; the per-tick scan is capped by the budget and not-ready ones stay in place for the cursor to revisit
     public void Tick()
     {
         if (_closed) return;
-        //连接已断则终止发送并清空状态 避免每 tick 抛 ObjectDisposedException 刷日志
+        //If the connection is closed, sending terminates and state is cleared, avoiding an ObjectDisposedException every tick flooding the log
         if (!_connection.IsConnected)
         {
             Log.Debug($"Chunk sending aborted, connection closed remaining={_pending.Count}");
@@ -162,10 +162,10 @@ public sealed class ChunkSender
             _connection.Send(new ClientboundChunkBatchStartPacket());
             foreach (var (pos, chunk) in batch)
             {
-                //区块序列化是重活且不碰光照引擎 放在光照锁外做 锁内只读光照数据
-                //整段进锁会让主线程持锁时间被序列化拉长 生成线程跟着一起等
+                //Chunk serialization is heavy and does not touch the light engine, so it runs outside the light lock; only light data is read inside the lock
+                //Holding the lock for the whole section would lengthen the main thread's lock hold by serialization and make generation threads wait too
                 var lightSource = _lightSource;
-                //方块实体随区块一起下发 客户端进服就能看到已有的方块实体
+                //Block entities are sent with the chunk so the client sees existing block entities on join
                 var blockEntities = _blockEntityBridge?.Collect(pos);
                 var packet = lightSource is null
                     ? ClientboundLevelChunkWithLightPacket.CreatePrepared(
@@ -182,7 +182,7 @@ public sealed class ChunkSender
         catch (Exception e)
         {
             _closed = true;
-            //连接在发送期间被对端关闭属正常竞态 静默终止不误报
+            //The connection being closed by the peer during sending is a normal race; terminate silently without a false report
             if (!_connection.IsConnected)
             {
                 Log.Debug($"Chunk sending aborted, connection closed remaining={_pending.Count}");

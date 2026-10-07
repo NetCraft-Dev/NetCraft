@@ -2,8 +2,8 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//WorldGenerationContext 世界生成上下文对应原版 net.minecraft.world.level.levelgen.WorldGenerationContext
-//把生成器与高度访问器夹取成实际能生成的 Y 区间 高度提供者与雕刻都靠它把锚点解算成绝对 Y
+//WorldGenerationContext world generation context, maps to vanilla net.minecraft.world.level.levelgen.WorldGenerationContext
+//Clamps the generator and height accessor into the Y range that can actually be generated; height providers and carving use it to resolve anchors into absolute Y
 public class WorldGenerationContext
 {
     private readonly int _minY;

@@ -5,8 +5,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//NoiseThresholdCountPlacement 噪声阈值计数放置对应原版 NoiseThresholdCountPlacement
-//按噪声是否低于阈值在两组数量间二选一
+//NoiseThresholdCountPlacement noise threshold count placement, maps to vanilla NoiseThresholdCountPlacement
+//Picks between two counts depending on whether the noise is below the threshold
 public sealed class NoiseThresholdCountPlacement : RepeatingPlacement
 {
     public static readonly Codec<NoiseThresholdCountPlacement> Codec =
@@ -30,7 +30,7 @@ public sealed class NoiseThresholdCountPlacement : RepeatingPlacement
         AboveNoise = aboveNoise;
     }
 
-    //Of 构造入口对应原版 of
+    //Of construction entry, maps to vanilla of
     public static NoiseThresholdCountPlacement Of(double noiseLevel, int belowNoise, int aboveNoise)
         => new(noiseLevel, belowNoise, aboveNoise);
 
@@ -43,7 +43,7 @@ public sealed class NoiseThresholdCountPlacement : RepeatingPlacement
     public override PlacementModifierType Type => NoiseThresholdCountPlacementType.Instance;
 }
 
-//NoiseThresholdCountPlacementType 对应原版 PlacementModifierType.NOISE_THRESHOLD_COUNT
+//NoiseThresholdCountPlacementType, maps to vanilla PlacementModifierType.NOISE_THRESHOLD_COUNT
 public sealed class NoiseThresholdCountPlacementType : PlacementModifierType<NoiseThresholdCountPlacement>
 {
     public static readonly NoiseThresholdCountPlacementType Instance = Register(

@@ -2,26 +2,26 @@ using NetCraft.Codec;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//DimensionPadding 维度边界留白 对应原版 net.minecraft.world.level.levelgen.structure.pools.DimensionPadding
-//结构包围盒不许贴到维度上下界的留白格数 上下不同就得写对象形态
+//DimensionPadding dimension boundary padding, maps to vanilla net.minecraft.world.level.levelgen.structure.pools.DimensionPadding
+//Number of blocks the structure bounding box must stay away from the dimension top/bottom; unequal top and bottom require the object form
 public sealed record DimensionPadding(int Bottom, int Top)
 {
-    //Codec 维度留白编解码 裸整数两侧同值 对象形态分上下 对应原版 CODEC
+    //Codec dimension padding codec; a bare int means both sides equal, the object form splits top and bottom, maps to vanilla CODEC
     public static readonly Codec<DimensionPadding> Codec = new DimensionPaddingCodec();
 
-    //Zero 不留白 对应原版 ZERO
+    //Zero no padding, maps to vanilla ZERO
     public static readonly DimensionPadding Zero = new(0);
 
     public DimensionPadding(int value)
         : this(value, value) { }
 
-    //HasEqualTopAndBottom 上下留白是否相同 编码时相同就压成裸整数
+    //HasEqualTopAndBottom whether top and bottom padding are equal; encoding collapses to a bare int when equal
     public bool HasEqualTopAndBottom() => Top == Bottom;
 
     public override string ToString() => $"DimensionPadding[{Bottom},{Top}]";
 }
 
-//DimensionPaddingCodec 维度留白编解码 裸整数或 bottom/top 对象二选一
+//DimensionPaddingCodec dimension padding codec, either a bare int or a bottom/top object
 internal sealed class DimensionPaddingCodec : ScalarCodec<DimensionPadding>
 {
     public override DataResult<DimensionPadding> Parse<U>(DynamicOps<U> ops, U input)
@@ -31,7 +31,7 @@ internal sealed class DimensionPaddingCodec : ScalarCodec<DimensionPadding>
         {
             var value = (int)number.GetOrThrow();
             return value < 0
-                ? DataResult<DimensionPadding>.Error(() => $"维度留白必须非负 实际 {value}")
+                ? DataResult<DimensionPadding>.Error(() => $"dimension padding must be non-negative, got {value}")
                 : DataResult<DimensionPadding>.Success(new DimensionPadding(value));
         }
 
@@ -46,13 +46,13 @@ internal sealed class DimensionPaddingCodec : ScalarCodec<DimensionPadding>
     private static DataResult<DimensionPadding> ParsePadding<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var bottom = ReadPadding(ops, input, "bottom");
-        if (!bottom.Result().IsPresent) return DataResult<DimensionPadding>.Error(() => "维度留白的 bottom 解析失败");
+        if (!bottom.Result().IsPresent) return DataResult<DimensionPadding>.Error(() => "failed to parse dimension padding bottom");
         var top = ReadPadding(ops, input, "top");
-        if (!top.Result().IsPresent) return DataResult<DimensionPadding>.Error(() => "维度留白的 top 解析失败");
+        if (!top.Result().IsPresent) return DataResult<DimensionPadding>.Error(() => "failed to parse dimension padding top");
         return DataResult<DimensionPadding>.Success(new DimensionPadding(bottom.GetOrThrow(), top.GetOrThrow()));
     }
 
-    //ReadPadding 读单侧留白 字段缺失按 0 对应原版 lenientOptionalFieldOf
+    //ReadPadding reads one side of the padding, missing field defaults to 0, maps to vanilla lenientOptionalFieldOf
     private static DataResult<int> ReadPadding<U>(DynamicOps<U> ops, MapLike<U> input, string name)
     {
         var tag = input.Get(name);
@@ -61,7 +61,7 @@ internal sealed class DimensionPaddingCodec : ScalarCodec<DimensionPadding>
         {
             var value = (int)raw;
             return value < 0
-                ? DataResult<int>.Error(() => $"维度留白必须非负 实际 {value}")
+                ? DataResult<int>.Error(() => $"dimension padding must be non-negative, got {value}")
                 : DataResult<int>.Success(value);
         });
     }

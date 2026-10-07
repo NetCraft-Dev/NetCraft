@@ -5,8 +5,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//RuleProcessor 规则处理器 对应原版 RuleProcessor
-//逐条跑规则 第一条命中的输出状态顶替原方块 全不命中原样返回
+//RuleProcessor rule processor, maps to vanilla RuleProcessor
+//Runs rules in order; the output state of the first hit replaces the block, and nothing matching returns the block unchanged
 public sealed class RuleProcessor : StructureProcessor
 {
     public static readonly MapCodec<RuleProcessor> MapCodec =
@@ -22,7 +22,7 @@ public sealed class RuleProcessor : StructureProcessor
     public StructureBlockInfo? ProcessBlock(WorldGenRegion? level, BlockPos targetPosition, BlockPos referencePos,
         BlockPos templateRelativePos, StructureBlockInfo processedBlockInfo, StructurePlaceSettings settings)
     {
-        //原版用方块坐标派生的种子 与放置坐标无关 同一格每次放置结果一致
+        //Vanilla derives the seed from block coords, independent of placement position, so the same cell is deterministic per placement
         var random = RandomSource.Create(Mth.GetSeed(processedBlockInfo.Pos.X, processedBlockInfo.Pos.Y, processedBlockInfo.Pos.Z));
         foreach (var rule in Rules)
         {

@@ -2,11 +2,11 @@ using System.Text;
 
 namespace NetCraft.Gpu;
 
-//Button 可点击按钮控件
-//点击触发 Click 事件支持 pressed/hover/disabled 视觉状态切换
-//九宫格纹理背景三态 button.png/button_highlighted.png/button_disabled.png 对应原版 widget sprite
-//P0 三态用 Sprite identifier 由 GuiSpriteManager 按 .mcmeta 分派九宫格/平铺/拉伸
-//未设置 BackgroundSprite 时回退色块兼容旧代码
+//Button clickable button widget
+//Clicking fires the Click event; supports pressed/hover/disabled visual states
+//Nine-slice texture background with three states button.png/button_highlighted.png/button_disabled.png, corresponding to vanilla widget sprites
+//P0 the three states use sprite identifiers; GuiSpriteManager dispatches nine-slice/tile/stretch by .mcmeta
+//Falls back to a color block when BackgroundSprite is unset, for legacy code
 public sealed class GuiButton : GuiControl
 {
     private bool _pressed;
@@ -18,14 +18,14 @@ public sealed class GuiButton : GuiControl
     public GuiColor PressedColor { get; set; } = GuiColor.FromRgb(40, 60, 120);
     public GuiColor ForegroundColor { get; set; } = GuiColor.White;
 
-    //BackgroundSprite 普通态 sprite identifier 形如 minecraft:textures/gui/sprites/widget/button
-    //null/空字符串表示走色块占位 .mcmeta 由 GuiSpriteManager 解析决定 nine_slice/stretch/tile
+    //BackgroundSprite normal-state sprite identifier like minecraft:textures/gui/sprites/widget/button
+    //null/an empty string means a color-block placeholder; GuiSpriteManager parses .mcmeta to decide nine_slice/stretch/tile
     public string BackgroundSprite { get; set; } = string.Empty;
-    //HoverBackgroundSprite 悬停/按下态 sprite identifier 空回退到 BackgroundSprite
+    //HoverBackgroundSprite hover/pressed-state sprite identifier, falls back to BackgroundSprite when empty
     public string HoverBackgroundSprite { get; set; } = string.Empty;
-    //DisabledBackgroundSprite 禁用态 sprite identifier 空回退到 BackgroundSprite
+    //DisabledBackgroundSprite disabled-state sprite identifier, falls back to BackgroundSprite when empty
     public string DisabledBackgroundSprite { get; set; } = string.Empty;
-    //ImageTint 纹理调制颜色默认白色不调制禁用态用 button_disabled.png 自身灰色不必额外 tint
+    //ImageTint texture tint color, white by default (no tint); the disabled state uses button_disabled.png's own gray so no extra tint is needed
     public GuiColor ImageTint { get; set; } = GuiColor.White;
 
     public event EventHandler<EventArgs>? Click;
@@ -87,7 +87,7 @@ public sealed class GuiButton : GuiControl
         }
         if (!string.IsNullOrEmpty(sprite))
         {
-            //DrawSprite 由 GuiSpriteManager 按 .mcmeta 分派 nine_slice/stretch/tile
+            //DrawSprite dispatched by GuiSpriteManager as nine_slice/stretch/tile by .mcmeta
             context.DrawSprite(sprite, X, Y, Width, Height, ImageTint);
         }
         else
@@ -104,13 +104,13 @@ public sealed class GuiButton : GuiControl
     }
 }
 
-//Label 静态文本显示控件
+//Label static text display widget
 public sealed class GuiLabel : GuiControl
 {
     public string Text { get; set; } = string.Empty;
     public GuiColor ForegroundColor { get; set; } = GuiColor.White;
     public GuiColor? BackgroundColor { get; set; }
-    //TextAlign 文本水平对齐 Left 左对齐 Center 居中 Right 右对齐
+    //TextAlign horizontal text alignment Left left Center center Right right
     public GuiTextAlign TextAlign { get; set; } = GuiTextAlign.Left;
 
     public GuiLabel(string text = "")
@@ -126,7 +126,7 @@ public sealed class GuiLabel : GuiControl
         }
         if (!string.IsNullOrEmpty(Text))
         {
-            //Left 对齐直接从 X 开始 Center/Right 按 MeasureText 偏移
+            //Left alignment starts at X; Center/Right offset by MeasureText
             var textX = X;
             if (TextAlign != GuiTextAlign.Left)
             {
@@ -140,8 +140,8 @@ public sealed class GuiLabel : GuiControl
     }
 }
 
-//Panel 容器面板控件
-//可包含子控件并绘制背景
+//Panel container panel widget
+//Can hold children and draw a background
 public sealed class GuiPanel : GuiContainer
 {
     public GuiColor BackgroundColor { get; set; } = GuiColor.FromRgb(50, 50, 50);
@@ -153,25 +153,25 @@ public sealed class GuiPanel : GuiContainer
     }
 }
 
-//TextBox 文本输入控件
-//支持光标定位/选区/键盘导航/复制粘贴/光标闪烁对齐原版 EditBox 行为
-//聚焦时 Update 推进闪烁计时每 0.5s MarkDirty 重 Render 切换光标可见
-//_charX 缓存字符边界 X 坐标 Render 时更新供 ClickToCaretIndex 查找点击位置
-//Clipboard 静态内存字段跨实例共享暂不接入系统剪贴板
+//TextBox text input widget
+//Supports caret positioning/selection/keyboard navigation/copy-paste/caret blinking, aligned with vanilla EditBox behavior
+//When focused, Update advances the blink timer and MarkDirty re-Renders every 0.5s to toggle caret visibility
+//_charX caches character boundary X coordinates, updated on Render for ClickToCaretIndex to find the click position
+//Clipboard static in-memory field shared across instances; not wired to the system clipboard yet
 public sealed class GuiTextBox : GuiControl
 {
     private readonly StringBuilder _text = new();
     private int _caretIndex;
-    //_selectionAnchor 选区锚点 -1 或与 _caretIndex 相同表示无选区
-    //选区范围 min(anchor,caret)..max(anchor,caret)
+    //_selectionAnchor selection anchor; -1 or equal to _caretIndex means no selection
+    //Selection range min(anchor,caret)..max(anchor,caret)
     private int _selectionAnchor = -1;
     private bool _cursorVisible = true;
     private double _blinkAccumulator;
     private bool _isFocused;
     private bool _isDragging;
-    //_charX[i] 第 i 个字符前的 X 坐标 caret=i 时光标画在 _charX[i]
+    //_charX[i] X coordinate before the i-th character; with caret=i the caret is drawn at _charX[i]
     private readonly List<int> _charX = new();
-    //Clipboard 内存剪贴板跨 TextBox 实例共享
+    //Clipboard in-memory clipboard shared across TextBox instances
     private static string _clipboard = string.Empty;
 
     private const int TextPaddingX = 4;
@@ -206,7 +206,7 @@ public sealed class GuiTextBox : GuiControl
 
     private void ClearSelection() => _selectionAnchor = -1;
 
-    //DeleteSelection 删选区文本 caret 移到选区起点清选区
+    //DeleteSelection deletes the selection text, moves the caret to the selection start and clears the selection
     private void DeleteSelection()
     {
         if (!HasSelection) return;
@@ -217,7 +217,7 @@ public sealed class GuiTextBox : GuiControl
         TextChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    //InsertText 在 caret 处插入文本有选区先删 caret 前移清选区
+    //InsertText inserts text at the caret; with a selection it deletes first, moves the caret and clears the selection
     private void InsertText(string text)
     {
         if (HasSelection) DeleteSelection();
@@ -243,7 +243,7 @@ public sealed class GuiTextBox : GuiControl
         MarkDirty();
     }
 
-    //OnMouseDown 点击定位光标 Shift+点击扩展选区 普通点击清选区 开始拖拽
+    //OnMouseDown positions the caret on click; Shift+click extends the selection, a plain click clears it, and dragging starts
     protected internal override void OnMouseDown(MouseEventArgs e)
     {
         _isDragging = true;
@@ -265,7 +265,7 @@ public sealed class GuiTextBox : GuiControl
         base.OnMouseDown(e);
     }
 
-    //OnMouseMove 拖拽中 caret 跟随鼠标 anchor 固定形成选区
+    //OnMouseMove while dragging the caret follows the mouse and the anchor stays fixed, forming a selection
     protected internal override void OnMouseMove(MouseEventArgs e)
     {
         if (!_isDragging) return;
@@ -281,7 +281,7 @@ public sealed class GuiTextBox : GuiControl
         base.OnMouseUp(e);
     }
 
-    //ClickToCaretIndex 根据鼠标 X 找最近字符位置用 _charX 缓存中点判定
+    //ClickToCaretIndex finds the nearest character position from the mouse X using the _charX midpoint
     private int ClickToCaretIndex(int mouseX)
     {
         if (_charX.Count == 0) return _text.Length;
@@ -294,7 +294,7 @@ public sealed class GuiTextBox : GuiControl
         return _text.Length;
     }
 
-    //OnKeyPress 处理可打印字符插入 Ctrl 组合键短路 BackSpace 走 OnKeyDown
+    //OnKeyPress inserts printable characters; Ctrl combos short-circuit and BackSpace goes through OnKeyDown
     protected internal override void OnKeyPress(KeyEventArgs e)
     {
         if ((e.Modifiers & KeyModifiers.Control) != 0) return;
@@ -306,7 +306,7 @@ public sealed class GuiTextBox : GuiControl
         base.OnKeyPress(e);
     }
 
-    //OnKeyDown 处理编辑键 Left/Right/Home/End/BackSpace/Delete/Ctrl+C/V/X/A
+    //OnKeyDown handles editing keys Left/Right/Home/End/BackSpace/Delete/Ctrl+C/V/X/A
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         var ctrl = (e.Modifiers & KeyModifiers.Control) != 0;
@@ -369,7 +369,7 @@ public sealed class GuiTextBox : GuiControl
         base.OnKeyDown(e);
     }
 
-    //MoveCaret 移动光标 shift 扩展选区否则清选区 重置光标可见
+    //MoveCaret moves the caret; shift extends the selection, otherwise it clears it, and resets caret visibility
     private void MoveCaret(int newIndex, bool shift)
     {
         newIndex = Math.Clamp(newIndex, 0, _text.Length);
@@ -384,7 +384,7 @@ public sealed class GuiTextBox : GuiControl
         MarkDirty();
     }
 
-    //Update 推进光标闪烁计时聚焦时每 BlinkInterval 切换可见 MarkDirty 重 Render
+    //Update advances the caret blink timer; when focused it toggles visibility every BlinkInterval and MarkDirty re-Renders
     public override void Update(double delta)
     {
         if (!_isFocused) return;
@@ -407,7 +407,7 @@ public sealed class GuiTextBox : GuiControl
         var text = _text.ToString();
         var textX = X + TextPaddingX;
         var textY = Y + TextPaddingY;
-        //更新 _charX 缓存供 ClickToCaretIndex 用 MeasureText 累积字符宽度
+        //Updates the _charX cache for ClickToCaretIndex, accumulating character widths via MeasureText
         _charX.Clear();
         _charX.Add(textX);
         for (int i = 0; i < text.Length; i++)
@@ -433,9 +433,9 @@ public sealed class GuiTextBox : GuiControl
     }
 }
 
-//Slider 滑块控件对应原版 AbstractSliderButton
-//拖动鼠标更新 Value 钳制到 Min/Max 并按 Step 对齐触发 ValueChanged
-//PoC 不支持鼠标捕获拖出控件后停止拖动需在控件内释放
+//Slider slider widget, corresponds to vanilla AbstractSliderButton
+//Dragging updates Value, clamps to Min/Max, aligns by Step and fires ValueChanged
+//The PoC does not support mouse capture; dragging stops outside the widget, so release inside it
 public sealed class GuiSlider : GuiControl
 {
     private bool _dragging;
@@ -446,7 +446,7 @@ public sealed class GuiSlider : GuiControl
     public double Step { get; set; } = 1;
 
     private double _value;
-    //Value setter 钳制到 Min/Max 按 Step 对齐变化才触发 ValueChanged
+    //The Value setter clamps to Min/Max and aligns by Step, firing ValueChanged only on change
     public double Value
     {
         get => _value;
@@ -475,7 +475,7 @@ public sealed class GuiSlider : GuiControl
         _value = Math.Clamp(AlignToStep(value), Math.Min(min, max), Math.Max(min, max));
     }
 
-    //AlignToStep 把任意值对齐到最近的 Step 整数倍偏移 Min
+    //AlignToStep aligns any value to the nearest multiple of Step offset by Min
     private double AlignToStep(double raw)
     {
         if (Step <= 0) return raw;
@@ -483,7 +483,7 @@ public sealed class GuiSlider : GuiControl
         return Min + steps * Step;
     }
 
-    //ValueFromX 根据鼠标 X 坐标计算对应 Value
+    //ValueFromX computes the Value for a mouse X coordinate
     private double ValueFromX(int x)
     {
         if (Width <= 0) return Min;
@@ -492,7 +492,7 @@ public sealed class GuiSlider : GuiControl
         return raw;
     }
 
-    //HandleX 计算手柄左边缘 X 坐标手柄宽度 8 居中
+    //HandleX computes the handle's left-edge X; the handle is 8 wide and centered
     private int HandleX()
     {
         if (Math.Abs(Max - Min) < 1e-9) return X;
@@ -537,21 +537,21 @@ public sealed class GuiSlider : GuiControl
 
     public override void Render(IGuiRenderContext context)
     {
-        //轨道居中 4px 高
+        //Track centered, 4px tall
         var trackY = Y + Height / 2 - 2;
         context.DrawQuad(X, trackY, Width, 4, TrackColor);
-        //手柄 8xHeight 居中
+        //Handle 8xHeight, centered
         var handleColor = _dragging ? HandleActiveColor : (_hover ? HandleActiveColor : HandleColor);
         context.DrawQuad(HandleX(), Y, 8, Height, handleColor);
-        //文本左上角显示 Label 或 Value
+        //Text at the top-left shows Label or Value
         var text = string.IsNullOrEmpty(Label) ? Value.ToString("0.##") : $"{Label}: {Value:0.##}";
         context.DrawText(X + 2, Y + 2, text, ForegroundColor);
     }
 }
 
-//Checkbox 复选框控件对应原版 Checkbox
-//点击切换 Checked 触发 CheckedChanged 渲染方框加勾选填充与文本标签
-//基类 GuiControl 不自动触发 OnMouseClick 需在 OnMouseUp 内判断 pressed 后调
+//Checkbox checkbox widget, corresponds to vanilla Checkbox
+//Clicking toggles Checked and fires CheckedChanged; draws a box with a check fill and a text label
+//The GuiControl base does not fire OnMouseClick automatically; check pressed inside OnMouseUp and call it
 public sealed class GuiCheckbox : GuiControl
 {
     private bool _hover;
@@ -610,11 +610,11 @@ public sealed class GuiCheckbox : GuiControl
 
     public override void Render(IGuiRenderContext context)
     {
-        //方框尺寸取 Height
+        //The box size is taken from Height
         var boxSize = Height;
         var bg = _hover ? HoverColor : BoxColor;
         context.DrawQuad(X, Y, boxSize, boxSize, bg);
-        //勾选时内缩 2px 填充绿色
+        //When checked, inset 2px and fill green
         if (Checked)
         {
             var pad = 2;
@@ -627,36 +627,36 @@ public sealed class GuiCheckbox : GuiControl
     }
 }
 
-//Image 图像控件对应原版 blit
-//SpriteIdentifier 非空优先 DrawSprite 由 GuiSpriteManager 按 .mcmeta 分派 nine_slice/stretch/tile
-//TextureId 非 0 调 DrawImage 采样已注册纹理子区域否则走色块+边框占位
-//TextureWidth/Height 为图集总尺寸 0 表示按全图采样 srcW/srcH
+//Image image widget, corresponds to vanilla blit
+//SpriteIdentifier when non-empty takes priority via DrawSprite, dispatched by GuiSpriteManager as nine_slice/stretch/tile by .mcmeta
+//TextureId when non-zero calls DrawImage to sample a registered texture sub-region, otherwise uses a color-block + border placeholder
+//TextureWidth/Height is the atlas total size; 0 means sample srcW/srcH across the whole image
 public sealed class GuiImage : GuiControl
 {
     public GuiColor BackgroundColor { get; set; } = GuiColor.FromRgb(80, 80, 80);
     public GuiColor? BorderColor { get; set; } = GuiColor.FromRgb(120, 120, 120);
-    //SpriteIdentifier 形如 minecraft:textures/gui/sprites/hud/crosshair 非空优先走 DrawSprite
-    //.mcmeta 由 GuiSpriteManager 解析决定 nine_slice/stretch/tile 对标原版 blitSprite
+    //SpriteIdentifier like minecraft:textures/gui/sprites/hud/crosshair; when non-empty, DrawSprite takes priority
+    //.mcmeta is parsed by GuiSpriteManager to decide nine_slice/stretch/tile, maps to vanilla blitSprite
     public string SpriteIdentifier { get; set; } = string.Empty;
-    //TextureId RegisterTexture 返回的纹理 id 0 表示无纹理走占位
+    //TextureId the texture id returned by RegisterTexture; 0 means no texture and uses the placeholder
     public int TextureId { get; set; }
-    //TextureWidth/Height 纹理图集总尺寸 UV 计算用 0 时按全图采样
+    //TextureWidth/Height texture atlas total size used for UV computation; 0 samples the whole image
     public int TextureWidth { get; set; }
     public int TextureHeight { get; set; }
-    //SourceU/V/W/H 归一化 UV 坐标 0~1 表示采样子区域
+    //SourceU/V/W/H normalized UV coordinates 0~1 for the sampled sub-region
     public float SourceU { get; set; }
     public float SourceV { get; set; }
     public float SourceW { get; set; } = 1f;
     public float SourceH { get; set; } = 1f;
-    //Tile=true 按纹理原始尺寸平铺覆盖 Width/Height 用于 dirt 等背景纹理
-    //false 拉伸整个纹理到 Width/Height
+    //Tile=true tiles at the texture's original size to cover Width/Height, used for background textures like dirt
+    //false stretches the whole texture to Width/Height
     public bool Tile { get; set; }
-    //Tint 纹理颜色调制 White 不调制原色 dirt 背景可叠加深色 overlay
+    //Tint texture color modulation; White leaves the original color; dirt backgrounds can layer a dark overlay
     public GuiColor Tint { get; set; } = GuiColor.White;
 
     public override void Render(IGuiRenderContext context)
     {
-        //SpriteIdentifier 优先走 DrawSprite 由 GuiSpriteManager 按 .mcmeta 分派
+        //SpriteIdentifier takes priority via DrawSprite, dispatched by GuiSpriteManager by .mcmeta
         if (!string.IsNullOrEmpty(SpriteIdentifier))
         {
             context.DrawSprite(SpriteIdentifier, X, Y, Width, Height, Tint);
@@ -666,7 +666,7 @@ public sealed class GuiImage : GuiControl
         {
             if (Tile)
             {
-                //Tile 模式按纹理原始尺寸网格平铺每个 tile 画完整纹理覆盖 Width/Height
+                //Tile mode tiles on the texture's original-size grid, drawing the full texture per tile to cover Width/Height
                 var ttw = TextureWidth > 0 ? TextureWidth : 16;
                 var tth = TextureHeight > 0 ? TextureHeight : 16;
                 var cols = (Width + ttw - 1) / ttw;
@@ -676,7 +676,7 @@ public sealed class GuiImage : GuiControl
                         context.DrawImage(TextureId, X + i * ttw, Y + j * tth, ttw, tth, 0, 0, ttw, tth, Tint);
                 return;
             }
-            //有纹理时把归一化 UV 转像素坐标由 renderer 换算实际 UV
+            //With a texture, normalized UVs are converted to pixel coordinates and the renderer derives the actual UVs
             var tw = TextureWidth > 0 ? TextureWidth : (int)(SourceW * 100);
             var th = TextureHeight > 0 ? TextureHeight : (int)(SourceH * 100);
             var srcX = (int)(SourceU * tw);
@@ -686,11 +686,11 @@ public sealed class GuiImage : GuiControl
             context.DrawImage(TextureId, X, Y, Width, Height, srcX, srcY, srcW, srcH, Tint);
             return;
         }
-        //无纹理走色块+边框占位
+        //Without a texture, uses a color-block + border placeholder
         context.DrawQuad(X, Y, Width, Height, BackgroundColor);
         if (BorderColor is { } border)
         {
-            //1px 边框四边
+            //1px border on all four sides
             context.DrawQuad(X, Y, Width, 1, border);
             context.DrawQuad(X, Y + Height - 1, Width, 1, border);
             context.DrawQuad(X, Y, 1, Height, border);

@@ -3,7 +3,7 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//AllOfPredicate 全部满足对应原版 AllOfPredicate
+//AllOfPredicate all must match, maps to vanilla AllOfPredicate
 public class AllOfPredicate : CombiningPredicate
 {
     public static readonly Codec<AllOfPredicate> Codec = CreateCodec<AllOfPredicate>(predicates => new AllOfPredicate(predicates));

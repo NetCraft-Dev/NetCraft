@@ -1,8 +1,8 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundRecipeBookChangeSettingsPacket 数据包对应原版 ServerboundRecipeBookChangeSettingsPacket
-//字段 BookType(原版 RecipeBookType 枚举序号) IsOpen(boolean) IsFiltering(boolean)
-//nc 尚无配方书系统 BookType 存序号 监听器侧空实现
+//ServerboundRecipeBookChangeSettingsPacket recipe book change settings packet, maps to vanilla ServerboundRecipeBookChangeSettingsPacket
+//Fields: BookType (vanilla RecipeBookType enum ordinal), IsOpen(boolean), IsFiltering(boolean)
+//nc has no recipe book system yet; BookType stores the ordinal and the listener side is a no-op
 public sealed record ServerboundRecipeBookChangeSettingsPacket(int BookType, bool IsOpen, bool IsFiltering) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundRecipeBookChangeSettingsPacket> StreamCodec { get; } = new RecipeBookChangeSettingsCodec();
@@ -13,8 +13,8 @@ public sealed record ServerboundRecipeBookChangeSettingsPacket(int BookType, boo
 
     private sealed class RecipeBookChangeSettingsCodec : StreamCodec<FriendlyByteBuf, ServerboundRecipeBookChangeSettingsPacket>
     {
-        //原版是 composite(RecipeBookType 的 varint 序号, bool, bool)
-        //打开或关闭配方书界面时客户端都会发 不注册会在服务端日志里刷未知包告警
+        //Vanilla is composite(RecipeBookType varint ordinal, bool, bool)
+        //The client sends this both when opening and closing the recipe book screen; if not registered it spams unknown-packet warnings in the server log
         public ServerboundRecipeBookChangeSettingsPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadVarInt(), buf.ReadBoolean(), buf.ReadBoolean());
 

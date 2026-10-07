@@ -5,15 +5,15 @@ using NetCraft.Util;
 
 namespace NetCraft.Game.World.Entity;
 
-//AbstractArrow 箭类投射物基类 对应原版 net.minecraft.world.entity.projectile.arrow.AbstractArrow
-//重力 0.05 空气阻力 0.99 命中方块后插在原地 过一段时间自然消失
-//原版还有拾取(玩家能捡回箭)与穿透附魔 本作没有玩家物品使用体系 只保留插地与消失
+//AbstractArrow arrow-like projectile base class, maps to vanilla net.minecraft.world.entity.projectile.arrow.AbstractArrow
+//Gravity 0.05, air drag 0.99, sticks in place on hitting a block and despawns after a while
+//Vanilla also has pickup (players can retrieve arrows) and piercing enchantment; this project has no player item use system, so only sticking and despawning are kept
 public abstract class AbstractArrow : Projectile
 {
-    //BaseDamage 箭的基础伤害 对应原版默认 2.0 最终伤害再乘飞行速度
+    //BaseDamage base arrow damage, maps to vanilla default 2.0, the final damage is multiplied by flight speed
     private const double BaseDamage = 2.0;
 
-    //AirborneDespawnTicks 插地后的存活刻数 对应原版 1200 刻(60 秒)
+    //AirborneDespawnTicks ticks it survives after sticking, maps to vanilla 1200 ticks (60 seconds)
     private const int AirborneDespawnTicks = 1200;
 
     private bool _inGround;
@@ -21,13 +21,13 @@ public abstract class AbstractArrow : Projectile
 
     protected AbstractArrow(EntityType<object> type) : base(type) { }
 
-    //DefaultGravity 箭重力 0.05 对应原版 getDefaultGravity
+    //DefaultGravity arrow gravity 0.05, maps to vanilla getDefaultGravity
     public override double DefaultGravity => 0.05;
 
-    //AirDrag 箭空气阻力 0.99 对应原版 getAirDrag
+    //AirDrag arrow air drag 0.99, maps to vanilla getAirDrag
     public override double AirDrag => 0.99;
 
-    //InGround 箭是否已插在方块上
+    //InGround whether the arrow is stuck in a block
     public bool InGround => _inGround;
 
     public override void Tick()
@@ -51,7 +51,7 @@ public abstract class AbstractArrow : Projectile
         }
         if (hit.Type == ProjectileHitType.block)
         {
-            //撞上方块就插住 位置停在命中点 对应原版命中方块的处理
+            //Hitting a block sticks it, the position stops at the hit point, maps to the vanilla block hit handling
             Pos = hit.Location;
             _inGround = true;
             Velocity = Vec3.Zero;
@@ -63,20 +63,20 @@ public abstract class AbstractArrow : Projectile
         UpdateRotation();
     }
 
-    //OnHitEntity 伤害按命中瞬间的速度乘基础伤害 对应原版 onHitEntity
+    //OnHitEntity damage is the speed at the moment of impact times the base damage, maps to vanilla onHitEntity
     protected override void OnHitEntity(ProjectileHitResult hit)
     {
         base.OnHitEntity(hit);
-        //原版箭还能穿透与插在生物身上 本作只造成一次伤害后消失
+        //Vanilla arrows can pierce and stick into mobs; here it deals damage once and disappears
         var damage = (float)Mth.Clamp(Velocity.Length() * BaseDamage, 0.0, int.MaxValue);
-        //以箭自身位置为来源 命中目标会被沿飞行方向击退
+        //The source is the arrow's own position, the target is knocked back along the flight direction
         hit.Entity?.Hurt((float)Math.Ceiling(damage), Pos);
         Discard();
     }
 }
 
-//Arrow 普通箭 对应原版 net.minecraft.world.entity.projectile.arrow.Arrow
-//发光箭与三叉戟本作未实现 行为差异只在外观与效果
+//Arrow plain arrow, maps to vanilla net.minecraft.world.entity.projectile.arrow.Arrow
+//Spectral arrows and tridents are not implemented here, they differ only in appearance and effects
 public sealed class Arrow : AbstractArrow
 {
     public Arrow(EntityType<object> type) : base(type) { }

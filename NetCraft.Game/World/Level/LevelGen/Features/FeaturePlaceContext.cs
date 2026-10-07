@@ -3,8 +3,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features;
 
-//FeaturePlaceContext 特征放置上下文对应原版 FeaturePlaceContext
-//把世界/生成器/随机源/原点/已解好的配置打包给 Feature.Place
+//FeaturePlaceContext feature placement context, maps to vanilla FeaturePlaceContext
+//Bundles the world, generator, random source, origin and decoded config for Feature.Place
 public sealed class FeaturePlaceContext
 {
     public WorldGenRegion Level { get; }

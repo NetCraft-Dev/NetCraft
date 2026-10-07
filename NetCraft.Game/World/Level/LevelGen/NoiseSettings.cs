@@ -4,17 +4,17 @@ using NetCraft.Storage.Chunk;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//NoiseSettings 噪声设置对应原版 net.minecraft.world.level.levelgen.NoiseSettings
-//描述维度噪声采样网格minY/height 定 y 范围noiseSize 决定 cell 宽高
-//主世界 create(-64,384,1,2) → cellWidth=4 cellHeight=8
+//NoiseSettings noise settings, maps to vanilla net.minecraft.world.level.levelgen.NoiseSettings
+//Describes the dimension noise sampling grid; minY/height fix the y range and noiseSize decides the cell width and height
+//Overworld create(-64,384,1,2) → cellWidth=4 cellHeight=8
 public sealed class NoiseSettings
 {
-    //对应原版 DimensionType.MIN_Y/MAX_Y 校验边界
+    //Matches vanilla DimensionType.MIN_Y/MAX_Y validation bounds
     private const int MinAllowedY = -2032;
     private const int MaxAllowedY = 2032;
 
-    //Codec 噪声设置 JSON 编解码对应原版 NoiseSettings.CODEC
-    //字段 min_y/height/size_horizontal/size_verticalguardY 校验失败返回 Error
+    //Codec noise settings JSON codec, maps to vanilla NoiseSettings.CODEC
+    //Fields min_y/height/size_horizontal/size_vertical; a failed guardY returns Error
     public static readonly Codec<NoiseSettings> Codec = BuildCodec();
 
     public int MinY { get; }
@@ -30,7 +30,7 @@ public sealed class NoiseSettings
         NoiseSizeVertical = noiseSizeVertical;
     }
 
-    //BuildCodec 先按四字段构造再包一层 guardY 校验
+    //BuildCodec builds from the four fields then wraps a guardY check
     private static Codec<NoiseSettings> BuildCodec()
     {
         var fields = RecordCodecBuilder.Of4(
@@ -43,7 +43,7 @@ public sealed class NoiseSettings
         return fields.ComapFlatMap(GuardYResult, s => s);
     }
 
-    //GuardYResult 校验失败返回 Error 对应原版 guardY 的 DataResult 形式
+    //GuardYResult returns Error on a failed check, the DataResult form of vanilla guardY
     private static DataResult<NoiseSettings> GuardYResult(NoiseSettings settings)
     {
         if (settings.MinY + settings.Height > MaxAllowedY + 1)
@@ -55,7 +55,7 @@ public sealed class NoiseSettings
         return DataResult<NoiseSettings>.Success(settings);
     }
 
-    //Create 带校验工厂对应原版 create
+    //Create checked factory, maps to vanilla create
     public static NoiseSettings Create(int minY, int height, int noiseSizeHorizontal, int noiseSizeVertical)
     {
         var settings = new NoiseSettings(minY, height, noiseSizeHorizontal, noiseSizeVertical);
@@ -63,7 +63,7 @@ public sealed class NoiseSettings
         return settings;
     }
 
-    //GuardY 校验 y 范围与 16 倍数对应原版 guardY
+    //GuardY validates the y range and the multiple-of-16 rule, maps to vanilla guardY
     private static void GuardY(NoiseSettings settings)
     {
         if (settings.MinY + settings.Height > MaxAllowedY + 1)
@@ -74,13 +74,13 @@ public sealed class NoiseSettings
             throw new InvalidOperationException("min_y has to be a multiple of 16");
     }
 
-    //GetCellHeight cell 高度=NoiseSizeVertical*4 对应原版 getCellHeight
+    //GetCellHeight cell height = NoiseSizeVertical*4, maps to vanilla getCellHeight
     public int GetCellHeight() => QuartPos.ToBlock(NoiseSizeVertical);
 
-    //GetCellWidth cell 宽度=NoiseSizeHorizontal*4 对应原版 getCellWidth
+    //GetCellWidth cell width = NoiseSizeHorizontal*4, maps to vanilla getCellWidth
     public int GetCellWidth() => QuartPos.ToBlock(NoiseSizeHorizontal);
 
-    //ClampToHeightAccessor 按 LevelHeightAccessor 裁剪 y 范围对应原版 clampToHeightAccessor
+    //ClampToHeightAccessor clamps the y range to a LevelHeightAccessor, maps to vanilla clampToHeightAccessor
     public NoiseSettings ClampToHeightAccessor(LevelHeightAccessor accessor)
     {
         var newMinY = Math.Max(MinY, accessor.MinBuildHeight);
@@ -88,7 +88,7 @@ public sealed class NoiseSettings
         return new NoiseSettings(newMinY, newHeight, NoiseSizeHorizontal, NoiseSizeVertical);
     }
 
-    //5 内置常量对应原版 OVERWORLD/NETHER/END/CAVES/FLOATING_ISLANDS_NOISE_SETTINGS
+    //The five built-in constants, maps to vanilla OVERWORLD/NETHER/END/CAVES/FLOATING_ISLANDS_NOISE_SETTINGS
     public static readonly NoiseSettings Overworld = Create(-64, 384, 1, 2);
     public static readonly NoiseSettings Nether = Create(0, 128, 1, 2);
     public static readonly NoiseSettings End = Create(0, 128, 2, 1);

@@ -13,29 +13,29 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.Commands;
 
-//SpreadPlayersCommand spreadplayers 命令对应原版 net.minecraft.server.commands.SpreadPlayersCommand
-//把目标摊开在中心周围 落点反复迭代到互相不挤 再按队或逐个落到地表
-//under 分支限制最高落点 不给时用当前维度的建筑高度上界
+//SpreadPlayersCommand spreadplayers command, maps to vanilla net.minecraft.server.commands.SpreadPlayersCommand
+//Spreads the targets around a center, iterating the landing points until they no longer crowd each other, then lands them per team or one by one on the surface
+//The under branch limits the maximum landing point; without it the current dimension's build height ceiling is used
 public static class SpreadPlayersCommand
 {
-    //MaxIterationCount 落点迭代上限 对应原版 MAX_ITERATION_COUNT
+    //MaxIterationCount landing point iteration limit, maps to vanilla MAX_ITERATION_COUNT
     private const int MaxIterationCount = 10000;
 
     private static readonly Dynamic4CommandExceptionType ErrorFailedToSpreadTeams =
         new((count, x, z, recommended) =>
-            new LiteralMessage($"迭代 {MaxIterationCount} 次仍无法把 {count} 支队伍散布在 {x} {z} 附近 最小间距只有 {recommended}"));
+            new LiteralMessage($"after {MaxIterationCount} iterations {count} teams still cannot be spread near {x} {z}; the minimum spacing is only {recommended}"));
 
     private static readonly Dynamic4CommandExceptionType ErrorFailedToSpreadEntities =
         new((count, x, z, recommended) =>
-            new LiteralMessage($"迭代 {MaxIterationCount} 次仍无法把 {count} 个实体散布在 {x} {z} 附近 最小间距只有 {recommended}"));
+            new LiteralMessage($"after {MaxIterationCount} iterations {count} entities still cannot be spread near {x} {z}; the minimum spacing is only {recommended}"));
 
     private static readonly Dynamic2CommandExceptionType ErrorInvalidMaxHeight =
         new((suppliedMaxHeight, worldMinHeight) =>
-            new LiteralMessage($"最大高度 {suppliedMaxHeight} 低于世界最低高度 {worldMinHeight}"));
+            new LiteralMessage($"the maximum height {suppliedMaxHeight} is below the world minimum height {worldMinHeight}"));
 
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
-        //targets 节点两处挂载 一处用维度建筑高度上界 一处用 under 给定的最大高度
+        //The targets node is attached in two places: one using the dimension build height ceiling, one using the under-given maximum height
         var directTargets = RequiredArgumentBuilder<CommandSourceStack, EntitySelector>
             .Argument("targets", EntityArgument.Entities())
             .Executes(c => SpreadPlayers((ServerCommandSource)c.GetSource(), Vec2Argument.GetVec2(c, "center"),
@@ -68,7 +68,7 @@ public static class SpreadPlayersCommand
                         .Then(under)))));
     }
 
-    //SpreadPlayers 把目标摊开 对应原版 spreadPlayers
+    //SpreadPlayers spreads the targets, maps to vanilla spreadPlayers
     private static int SpreadPlayers(ServerCommandSource source, (double X, double Z) center, float spreadDistance,
         float maxRange, int maxHeight, bool respectTeams, IReadOnlyList<CommandTarget> targets)
     {
@@ -85,16 +85,16 @@ public static class SpreadPlayersCommand
         SpreadPositions(center, spreadDistance, level, random, minX, minZ, maxX, maxZ, maxHeight, positions, respectTeams);
         var distance = SetPlayerPositions(source, targets, level, positions, maxHeight, respectTeams);
         source.SendSuccess(respectTeams
-            ? $"已将 {positions.Length} 支队伍散布在 {center.X:0.00} {center.Z:0.00} 附近 平均间距 {distance:0.00}"
-            : $"已将 {positions.Length} 个实体散布在 {center.X:0.00} {center.Z:0.00} 附近 平均间距 {distance:0.00}");
+            ? $"spread {positions.Length} teams near {center.X:0.00} {center.Z:0.00}, average spacing {distance:0.00}"
+            : $"spread {positions.Length} entities near {center.X:0.00} {center.Z:0.00}, average spacing {distance:0.00}");
         return positions.Length;
     }
 
-    //GetNumberOfTeams 数目标涉及的队伍数 对应原版 getNumberOfTeams
-    //队伍数据未接入 原版 getTeam 恒 null 所以全部目标同属一队
+    //GetNumberOfTeams counts the teams involved, maps to vanilla getNumberOfTeams
+    //Team data is not wired up; vanilla getTeam is always null so all targets belong to one team
     private static int GetNumberOfTeams(IReadOnlyList<CommandTarget> targets) => targets.Count == 0 ? 0 : 1;
 
-    //CreateInitialPositions 在范围内随机撒初始落点 对应原版 createInitialPositions
+    //CreateInitialPositions scatters initial landing points randomly in the range, maps to vanilla createInitialPositions
     private static Position[] CreateInitialPositions(RandomSource random, int count,
         double minX, double minZ, double maxX, double maxZ)
     {
@@ -108,13 +108,13 @@ public static class SpreadPlayersCommand
         return result;
     }
 
-    //SpreadPositions 迭代把落点推开并夹回范围 全部落点站得住才收敛 对应原版 spreadPositions
+    //SpreadPositions iteratively pushes landing points apart and clamps them back; it converges only when all landing points can stand, maps to vanilla spreadPositions
     private static void SpreadPositions((double X, double Z) center, double spreadDistance, ServerLevel level,
         RandomSource random, double minX, double minZ, double maxX, double maxZ, int maxHeight,
         Position[] positions, bool respectTeams)
     {
         var hasCollisions = true;
-        //哨兵沿用原版的 float 最大值 收敛后一定比它小
+        //The sentinel follows vanilla's float maximum; after convergence it is certainly smaller
         var minDistance = (double)float.MaxValue;
         var iteration = 0;
         while (iteration < MaxIterationCount && hasCollisions)
@@ -143,7 +143,7 @@ public static class SpreadPlayersCommand
                     averageX /= neighbourCount;
                     averageZ /= neighbourCount;
                     var length = Math.Sqrt(averageX * averageX + averageZ * averageZ);
-                    //邻居挤在一起就顺着平均方向往反方向挪 完全重合才重新随机
+                    //When neighbors crowd together they shift in the opposite direction along the average; a full overlap triggers a re-randomize
                     if (length > 0.0)
                     {
                         position.X -= averageX / length;
@@ -175,7 +175,7 @@ public static class SpreadPlayersCommand
             : ErrorFailedToSpreadEntities.Create(positions.Length, center.X, center.Z, minDistance.ToString("0.00"));
     }
 
-    //SetPlayerPositions 把目标落到各自落点上并回算平均间距 对应原版 setPlayerPositions
+    //SetPlayerPositions lands the targets on their landing points and computes the average spacing, maps to vanilla setPlayerPositions
     private static double SetPlayerPositions(ServerCommandSource source, IReadOnlyList<CommandTarget> targets,
         ServerLevel level, Position[] positions, int maxHeight, bool respectTeams)
     {
@@ -187,7 +187,7 @@ public static class SpreadPlayersCommand
             Position position;
             if (respectTeams)
             {
-                //队伍数据未接入 所有目标同属一队 只取首个落点 等价原版全无队伍时的映射
+                //Team data is not wired up; all targets belong to one team, so only the first landing point is taken, equivalent to vanilla's mapping with no teams
                 teamPosition ??= positions[positionIndex++];
                 position = teamPosition;
             }
@@ -208,13 +208,13 @@ public static class SpreadPlayersCommand
         return targets.Count < 2 ? 0.0 : averageDistance / targets.Count;
     }
 
-    //Position 摊开算法里的二维落点 对应原版 SpreadPlayersCommand$Position
+    //Position the 2D landing point in the spread algorithm, maps to vanilla SpreadPlayersCommand$Position
     private sealed class Position
     {
         public double X;
         public double Z;
 
-        //Dist 两落点水平距离 对应原版 dist
+        //Dist horizontal distance between two landing points, maps to vanilla dist
         public double Dist(Position other)
         {
             var dx = X - other.X;
@@ -222,7 +222,7 @@ public static class SpreadPlayersCommand
             return Math.Sqrt(dx * dx + dz * dz);
         }
 
-        //Clamp 夹回范围内 有改动返回真 对应原版 clamp
+        //Clamp clamps back into the range; returns true when changed, maps to vanilla clamp
         public bool Clamp(double minX, double minZ, double maxX, double maxZ)
         {
             var changed = false;
@@ -249,7 +249,7 @@ public static class SpreadPlayersCommand
             return changed;
         }
 
-        //GetSpawnY 从最高点往下找第一处能站的三格空腔 找不到返回最高点上界 对应原版 getSpawnY
+        //GetSpawnY searches downward from the highest point for the first standable three-block cavity; without one it returns the height ceiling, maps to vanilla getSpawnY
         public int GetSpawnY(ServerLevel level, int maxHeight)
         {
             var x = Mth.Floor(X);
@@ -270,7 +270,7 @@ public static class SpreadPlayersCommand
             }
         }
 
-        //IsSafe 落点脚下方块不是液体也不着火才算站得住 对应原版 isSafe
+        //IsSafe a landing point stands only when the block underfoot is neither liquid nor fire, maps to vanilla isSafe
         public bool IsSafe(ServerLevel level, int maxHeight)
         {
             var spawnY = GetSpawnY(level, maxHeight) - 1;
@@ -280,7 +280,7 @@ public static class SpreadPlayersCommand
             return !IsLiquid(value) && !IsFire(value);
         }
 
-        //Randomize 在范围内重新随机 对应原版 randomize
+        //Randomize re-randomizes in the range, maps to vanilla randomize
         public void Randomize(RandomSource random, double minX, double minZ, double maxX, double maxZ)
         {
             X = Mth.NextDouble(random, minX, maxX);
@@ -288,13 +288,13 @@ public static class SpreadPlayersCommand
         }
     }
 
-    //IsAir 空气判定 区块未加载时按空气看待 对应原版 BlockState.isAir
+    //IsAir air test; an unloaded chunk is treated as air, maps to vanilla BlockState.isAir
     private static bool IsAir(BlockState? state)
         => state is not { } value || value.Owner is BlockBehaviour { IsAir: true };
 
-    //IsLiquid 液体判定 流体状态非空即水或岩浆 对应原版 BlockState.liquid
+    //IsLiquid liquid test; a non-empty fluid state is water or lava, maps to vanilla BlockState.liquid
     private static bool IsLiquid(BlockState state) => !state.FluidState.IsEmpty;
 
-    //IsFire 火焰判定 原版走 BlockTags.FIRE 标签 NC 火焰类只有火与灵魂火两个方块
+    //IsFire fire test; vanilla goes through the BlockTags.FIRE tag; NC's fire category only has fire and soul fire
     private static bool IsFire(BlockState state) => state.Owner is Blocks.BaseFireBlock;
 }

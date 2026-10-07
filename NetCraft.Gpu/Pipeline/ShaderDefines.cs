@@ -1,8 +1,8 @@
 namespace NetCraft.Gpu.Pipeline;
 
-//ShaderDefines shader 编译期宏定义对标原版 ShaderDefines
-//values 是 key->string 值宏 flags 是无值 flag 集合
-//builder 链式定义后 Build 返回不可变快照
+//ShaderDefines shader compile-time macro definitions, maps to vanilla ShaderDefines
+//values is the key->string value macros; flags is the set of valueless flags
+//The builder chains definitions, then Build returns an immutable snapshot
 public sealed class ShaderDefines
 {
     private readonly Dictionary<string, string> _values;
@@ -24,28 +24,28 @@ public sealed class ShaderDefines
         private readonly Dictionary<string, string> _values = new();
         private readonly HashSet<string> _flags = new();
 
-        //Define 无值 flag
+        //Define valueless flag
         public Builder Define(string key)
         {
             _flags.Add(key);
             return this;
         }
 
-        //Define 整数值宏
+        //Define integer-valued macro
         public Builder Define(string key, int value)
         {
             _values[key] = value.ToString();
             return this;
         }
 
-        //Define 浮点值宏
+        //Define float-valued macro
         public Builder Define(string key, float value)
         {
             _values[key] = value.ToString("R");
             return this;
         }
 
-        //Define 字符串值宏
+        //Define string-valued macro
         public Builder Define(string key, string value)
         {
             _values[key] = value;

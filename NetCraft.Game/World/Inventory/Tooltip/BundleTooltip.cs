@@ -2,6 +2,6 @@ using NetCraft.Game.World.Items.Component;
 
 namespace NetCraft.Game.World.Inventory.Tooltip;
 
-//BundleTooltip 收纳袋提示组件 对应原版 net.minecraft.world.inventory.tooltip.BundleTooltip
-//只承载内容 具体绘制由渲染层按类型分派
+//BundleTooltip bundle tooltip component, maps to vanilla net.minecraft.world.inventory.tooltip.BundleTooltip
+//Only carries the contents, actual drawing is dispatched by type in the render layer
 public sealed record BundleTooltip(BundleContents Contents) : TooltipComponent;

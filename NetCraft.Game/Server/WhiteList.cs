@@ -4,8 +4,8 @@ using NetCraft.Logging;
 
 namespace NetCraft.Game.Server;
 
-//WhiteList 白名单对应原版 net.minecraft.server.players.WhiteList
-//落盘 whitelist.json 字段对齐原版 uuid/name 只记名字时也能按名字命中
+//WhiteList whitelist, maps to vanilla net.minecraft.server.players.WhiteList
+//Persisted to whitelist.json with fields aligned with vanilla uuid/name; a list with only a name still hits by name
 public sealed class WhiteList
 {
     private readonly string _path;
@@ -18,19 +18,19 @@ public sealed class WhiteList
         Load();
     }
 
-    //Path 名单文件路径
+    //Path the list file path
     public string Path => _path;
 
-    //Count 名单条目数
+    //Count the number of list entries
     public int Count => _byName.Count;
 
-    //Names 名单名字快照 供命令列出
+    //Names a snapshot of list names, listed by the command
     public IReadOnlyList<string> Names => _byName.Values.Select(e => e.Name).ToList();
 
-    //IsAllowed 是否在白名单内
+    //IsAllowed whether it is on the whitelist
     public bool IsAllowed(GameProfile profile) => Find(profile) is not null;
 
-    //Add 写入名单并落盘 返回是否新增条目
+    //Add writes to the list and persists it; returns whether an entry was added
     public bool Add(GameProfile profile)
     {
         var added = Find(profile) is null;
@@ -39,7 +39,7 @@ public sealed class WhiteList
         return added;
     }
 
-    //Remove 从名单移除并落盘 返回是否命中条目
+    //Remove removes from the list and persists it; returns whether an entry was hit
     public bool Remove(GameProfile profile)
     {
         var existing = Find(profile);
@@ -50,14 +50,14 @@ public sealed class WhiteList
         return true;
     }
 
-    //Find 先按 uuid 再按名字查
+    //Find looks up by uuid then by name
     private WhiteListEntry? Find(GameProfile profile)
     {
         if (_byId.TryGetValue(profile.Id, out var byId)) return byId;
         return _byName.TryGetValue(profile.Name, out var byName) ? byName : null;
     }
 
-    //Index 登记条目 同名旧条目先清掉避免两个 uuid 抢一个名字
+    //Index registers an entry; an old same-name entry is cleared first so two uuids do not fight over one name
     private void Index(WhiteListEntry entry)
     {
         if (_byName.TryGetValue(entry.Name, out var previous))
@@ -66,10 +66,10 @@ public sealed class WhiteList
         _byName[entry.Name] = entry;
     }
 
-    //Reload 从磁盘重读名单 whitelist reload 命令用
+    //Reload re-reads the list from disk, used by the whitelist reload command
     public void Reload() => Load();
 
-    //Load 读名单 文件缺失生成空名单 解析失败按空名单处理不阻断启动
+    //Load reads the list; a missing file creates an empty list and a parse failure is treated as empty without blocking startup
     private void Load()
     {
         _byId.Clear();
@@ -99,7 +99,7 @@ public sealed class WhiteList
                     continue;
                 }
                 var idText = element.TryGetProperty("uuid", out var idNode) ? idNode.GetString() : null;
-                //uuid 缺失或非法时只用名字索引 手写名单可以只填名字
+                //When the uuid is missing or invalid only the name index is used; a hand-written list may contain only names
                 var id = Guid.TryParse(idText, out var parsedId) ? parsedId : Guid.Empty;
                 var entry = new WhiteListEntry(id, name);
                 _byName[name] = entry;
@@ -113,7 +113,7 @@ public sealed class WhiteList
         }
     }
 
-    //Save 写名单 写盘失败只记日志不影响运行
+    //Save writes the list; a write failure only logs and does not affect running
     private void Save()
     {
         try
@@ -141,6 +141,6 @@ public sealed class WhiteList
         }
     }
 
-    //WhiteListEntry 单条白名单记录
+    //WhiteListEntry a single whitelist record
     private sealed record WhiteListEntry(Guid Id, string Name);
 }

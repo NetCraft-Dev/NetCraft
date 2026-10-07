@@ -12,7 +12,7 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Vegetation;
 
-//CountConfiguration 计数配置 对应原版 CountConfiguration 只带一个数量提供者
+//CountConfiguration count configuration, maps to vanilla CountConfiguration with a single count provider
 public sealed class CountConfiguration : FeatureConfiguration
 {
     public static readonly Codec<CountConfiguration> Codec =
@@ -26,7 +26,7 @@ public sealed class CountConfiguration : FeatureConfiguration
     public CountConfiguration(IntProvider count) => Count = count;
 }
 
-//BlockStateConfiguration 单状态配置 对应原版 BlockStateConfiguration 冰山与浮冰共用
+//BlockStateConfiguration single state configuration, maps to vanilla BlockStateConfiguration, shared by icebergs and packed ice
 public sealed class BlockStateConfiguration : FeatureConfiguration
 {
     public static readonly Codec<BlockStateConfiguration> Codec =
@@ -40,8 +40,8 @@ public sealed class BlockStateConfiguration : FeatureConfiguration
     public BlockStateConfiguration(BlockState state) => State = state;
 }
 
-//SpringConfiguration 泉水配置 对应原版 SpringConfiguration
-//state 原版是流体的 FluidState 本作没有流体物理 这里解成方块状态 落下标记一类的流体属性忽略
+//SpringConfiguration spring configuration, maps to vanilla SpringConfiguration
+//In vanilla state is a fluid FluidState; there is no fluid physics here, so it is decoded as a block state and fluid properties such as the falling flag are ignored
 public sealed class SpringConfiguration : FeatureConfiguration
 {
     public static readonly Codec<SpringConfiguration> Codec =
@@ -76,8 +76,8 @@ public sealed class SpringConfiguration : FeatureConfiguration
     }
 }
 
-//LenientBlockStateCodec 宽松方块状态编解码 对应原版 BlockState.CODEC 的容错形态
-//泉水配置里的 state 原本是流体状态 会带上 falling 这类方块没有的属性 这里跳过未知属性而不是报错
+//LenientBlockStateCodec lenient block state codec, the tolerant form of vanilla BlockState.CODEC
+//The state in spring configs is originally a fluid state carrying properties like falling that blocks lack; unknown properties are skipped instead of erroring
 internal sealed class LenientBlockStateCodec : ScalarCodec<BlockState>
 {
     public static readonly LenientBlockStateCodec Instance = new();
@@ -88,25 +88,25 @@ internal sealed class LenientBlockStateCodec : ScalarCodec<BlockState>
     private static DataResult<BlockState> DecodeState<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var nameTag = input.Get("Name");
-        if (!nameTag.IsPresent) return DataResult<BlockState>.Error(() => "方块状态缺 Name");
+        if (!nameTag.IsPresent) return DataResult<BlockState>.Error(() => "block state is missing Name");
         var idResult = IdentifierCodec.Instance.Parse(ops, nameTag.Get());
-        if (!idResult.Result().IsPresent) return DataResult<BlockState>.Error(() => "方块状态 Name 不是合法标识符");
+        if (!idResult.Result().IsPresent) return DataResult<BlockState>.Error(() => "block state Name is not a valid identifier");
         var id = idResult.GetOrThrow();
         var block = BuiltInRegistries.BLOCK.ContainsKey(id) ? BuiltInRegistries.BLOCK.GetValue(id) : null;
-        if (block is null) return DataResult<BlockState>.Error(() => $"未知方块: {id}");
+        if (block is null) return DataResult<BlockState>.Error(() => $"unknown block: {id}");
         var state = block.DefaultBlockState;
 
         var propertiesTag = input.Get("Properties");
         if (!propertiesTag.IsPresent) return DataResult<BlockState>.Success(state);
         var propertiesResult = ops.GetMap(propertiesTag.Get());
         if (!propertiesResult.Result().IsPresent)
-            return DataResult<BlockState>.Error(() => "方块状态 Properties 必须是对象");
+            return DataResult<BlockState>.Error(() => "block state Properties must be an object");
         foreach (var (keyTag, valueTag) in propertiesResult.GetOrThrow().Entries())
         {
             var keyResult = ops.GetStringValue(keyTag);
             var valueResult = ops.GetStringValue(valueTag);
             if (!keyResult.Result().IsPresent || !valueResult.Result().IsPresent)
-                return DataResult<BlockState>.Error(() => "方块状态 Properties 的键值必须是字符串");
+                return DataResult<BlockState>.Error(() => "block state Properties values must be strings");
             var name = keyResult.GetOrThrow();
             var property = FindProperty(state, name);
             if (property is null) continue;
@@ -116,7 +116,7 @@ internal sealed class LenientBlockStateCodec : ScalarCodec<BlockState>
         return DataResult<BlockState>.Success(state);
     }
 
-    //FindProperty 按属性名在状态属性表里查找
+    //FindProperty find a property by name in the state's property table
     private static PropertyBase? FindProperty(BlockState state, string name)
     {
         foreach (var property in state.GetProperties())
@@ -128,8 +128,8 @@ internal sealed class LenientBlockStateCodec : ScalarCodec<BlockState>
         => BlockStateCodec.Instance.EncodeStart(ops, value);
 }
 
-//SeagrassFeature 海草特征 对应原版 SeagrassFeature
-//在附近八格内随机取一列海底 是水就按概率长一株或一丛高海草
+//SeagrassFeature seagrass feature, maps to vanilla SeagrassFeature
+//Picks a random seabed column within eight blocks; if it is water, grows one seagrass or a patch of tall seagrass by chance
 public sealed class SeagrassFeature : Feature<ProbabilityFeatureConfiguration>
 {
     private const string FeatureId = "seagrass";
@@ -154,7 +154,7 @@ public sealed class SeagrassFeature : Feature<ProbabilityFeatureConfiguration>
         {
             var isTall = random.NextDouble() < config.Probability;
             var state = isTall ? VegetationSupport.StateOf("tall_seagrass") : VegetationSupport.StateOf("seagrass");
-            //原版这里判 canSurvive 本作没有这些方块的存活判定 直接落位
+            //Vanilla checks canSurvive here; there is no survival check for these blocks, so place directly
             if (isTall)
             {
                 var upperState = VegetationSupport.WithProperty(state, "half", "upper");
@@ -175,8 +175,8 @@ public sealed class SeagrassFeature : Feature<ProbabilityFeatureConfiguration>
     }
 }
 
-//KelpFeature 海带特征 对应原版 KelpFeature
-//自海底向上长一到十一节 水面或岸边时把最上一节换成带 age 的顶端
+//KelpFeature kelp feature, maps to vanilla KelpFeature
+//Grows one to eleven segments up from the seabed; at the surface or shore the top segment becomes an age-bearing tip
 public sealed class KelpFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "kelp";
@@ -205,7 +205,7 @@ public sealed class KelpFeature : Feature<NoneFeatureConfiguration>
             {
                 var here = VegetationSupport.Get(level, kelpPos);
                 var above = VegetationSupport.Get(level, kelpPos.Offset(Direction.Up));
-                //原版还判了 canSurvive 本作没有海带的存活判定
+                //Vanilla also checks canSurvive; there is no kelp survival check here
                 if (VegetationSupport.IsState(here, "water") && VegetationSupport.IsState(above, "water"))
                 {
                     if (h == height)
@@ -238,8 +238,8 @@ public sealed class KelpFeature : Feature<NoneFeatureConfiguration>
     }
 }
 
-//SeaPickleFeature 海泡菜特征 对应原版 SeaPickleFeature
-//按数量在附近八格内随机找海底水格 每处放一团一到四颗
+//SeaPickleFeature sea pickle feature, maps to vanilla SeaPickleFeature
+//Randomly finds seabed water cells within eight blocks, placing a cluster of one to four pickles each
 public sealed class SeaPickleFeature : Feature<CountConfiguration>
 {
     private const string FeatureId = "sea_pickle";
@@ -265,7 +265,7 @@ public sealed class SeaPickleFeature : Feature<CountConfiguration>
             var picklePos = new BlockPos(origin.X + x, y, origin.Z + z);
             var pickleState = VegetationSupport.WithProperty(VegetationSupport.StateOf("sea_pickle"),
                 "pickles", random.NextInt(4) + 1);
-            //原版还判了 canSurvive 本作没有海泡菜的存活判定
+            //Vanilla also checks canSurvive; there is no sea pickle survival check here
             if (VegetationSupport.IsState(VegetationSupport.Get(level, picklePos), "water"))
             {
                 VegetationSupport.Set(level, picklePos, pickleState);
@@ -276,8 +276,8 @@ public sealed class SeaPickleFeature : Feature<CountConfiguration>
     }
 }
 
-//BlueIceFeature 蓝冰特征 对应原版 BlueIceFeature
-//水下紧邻浮冰时贴着长出一团蓝冰
+//BlueIceFeature blue ice feature, maps to vanilla BlueIceFeature
+//Grows a patch of blue ice next to packed ice underwater
 public sealed class BlueIceFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "blue_ice";
@@ -333,8 +333,8 @@ public sealed class BlueIceFeature : Feature<NoneFeatureConfiguration>
     }
 }
 
-//IcebergFeature 冰山特征 对应原版 IcebergFeature
-//按椭圆或圆形剖面在水面上堆冰 水下再堆一截倒锥 最后挖掉悬空与过薄的冰
+//IcebergFeature iceberg feature, maps to vanilla IcebergFeature
+//Builds ice above water from an ellipse or circle profile, adds an inverted cone below, then removes floating and too-thin ice
 public sealed class IcebergFeature : Feature<BlockStateConfiguration>
 {
     private const string FeatureId = "iceberg";
@@ -401,7 +401,7 @@ public sealed class IcebergFeature : Feature<BlockStateConfiguration>
         return true;
     }
 
-    //GenerateCutOut 从冰山一角挖掉一块 对应原版 generateCutOut
+    //GenerateCutOut carve out one piece from a corner of the iceberg, maps to vanilla generateCutOut
     private static void GenerateCutOut(RandomSource random, WorldGenRegion level, int width, int height,
         BlockPos globalOrigin, bool isEllipse, int shapeEllipseA, double shapeAngle, int shapeEllipseC)
     {
@@ -431,7 +431,7 @@ public sealed class IcebergFeature : Feature<BlockStateConfiguration>
         }
     }
 
-    //Carve 按椭圆剖面挖空 水下补成水 水上补成空气 对应原版 carve
+    //Carve carve by the ellipse profile, filling water below and air above, maps to vanilla carve
     private static void Carve(int radius, int yOff, BlockPos globalOrigin, WorldGenRegion level, bool underWater,
         double angle, BlockPos localOrigin, int shapeEllipseA, int shapeEllipseC)
     {
@@ -459,7 +459,7 @@ public sealed class IcebergFeature : Feature<BlockStateConfiguration>
         }
     }
 
-    //RemoveFloatingSnowLayer 挖空后上方的浮雪也一并清掉 对应原版 removeFloatingSnowLayer
+    //RemoveFloatingSnowLayer also clear floating snow above after carving, maps to vanilla removeFloatingSnowLayer
     private static void RemoveFloatingSnowLayer(WorldGenRegion level, BlockPos pos)
     {
         var above = pos.Offset(Direction.Up);
@@ -467,7 +467,7 @@ public sealed class IcebergFeature : Feature<BlockStateConfiguration>
             VegetationSupport.Set(level, above, Blocks.AIR.DefaultBlockState);
     }
 
-    //GenerateIcebergBlock 按剖面判定是否落冰 对应原版 generateIcebergBlock
+    //GenerateIcebergBlock decide from the profile whether to place ice, maps to vanilla generateIcebergBlock
     private static void GenerateIcebergBlock(WorldGenRegion level, RandomSource random, BlockPos origin,
         int height, int xo, int yOff, int zo, int radius, int a, bool isEllipse, int shapeEllipseC,
         double shapeAngle, bool snowOnTop, BlockState mainBlockState)
@@ -482,7 +482,7 @@ public sealed class IcebergFeature : Feature<BlockStateConfiguration>
         SetIcebergBlock(pos, level, random, height - yOff, height, isEllipse, snowOnTop, mainBlockState);
     }
 
-    //SetIcebergBlock 只替换空气雪冰块与水 顶上够厚时换雪块 对应原版 setIcebergBlock
+    //SetIcebergBlock replace only air, snow, ice and water; snow blocks above when thick enough, maps to vanilla setIcebergBlock
     private static void SetIcebergBlock(BlockPos pos, WorldGenRegion level, RandomSource random, int hDiff,
         int height, bool isEllipse, bool snowOnTop, BlockState mainBlockState)
     {
@@ -498,7 +498,7 @@ public sealed class IcebergFeature : Feature<BlockStateConfiguration>
             VegetationSupport.Set(level, pos, mainBlockState);
     }
 
-    //GetEllipseC 顶部三格收窄椭圆短轴 对应原版 getEllipseC
+    //GetEllipseC narrow the ellipse minor axis over the top three blocks, maps to vanilla getEllipseC
     private static int GetEllipseC(int yOff, int height, int shapeEllipseC)
     {
         var c = shapeEllipseC;
@@ -506,14 +506,14 @@ public sealed class IcebergFeature : Feature<BlockStateConfiguration>
         return c;
     }
 
-    //SignedDistanceCircle 圆剖面隐式距离 对应原版 signedDistanceCircle
+    //SignedDistanceCircle implicit distance of a circular profile, maps to vanilla signedDistanceCircle
     private static double SignedDistanceCircle(int xo, int zo, BlockPos origin, int radius, RandomSource random)
     {
         var off = 10.0f * Mth.Clamp(random.NextFloat(), 0.2f, 0.8f) / radius;
         return off + Math.Pow(xo - origin.X, 2.0d) + Math.Pow(zo - origin.Z, 2.0d) - Math.Pow(radius, 2.0d);
     }
 
-    //SignedDistanceEllipse 椭圆剖面隐式距离 对应原版 signedDistanceEllipse
+    //SignedDistanceEllipse implicit distance of an elliptical profile, maps to vanilla signedDistanceEllipse
     private static double SignedDistanceEllipse(int xo, int zo, BlockPos origin, int a, int c, double angle)
     {
         return Math.Pow((((xo - origin.X) * Math.Cos(angle)) - ((zo - origin.Z) * Math.Sin(angle))) / a, 2.0d)
@@ -521,7 +521,7 @@ public sealed class IcebergFeature : Feature<BlockStateConfiguration>
             - 1.0d;
     }
 
-    //HeightDependentRadiusRound 圆剖面按高度决定半径 对应原版 heightDependentRadiusRound
+    //HeightDependentRadiusRound radius depends on height for a circular profile, maps to vanilla heightDependentRadiusRound
     private static int HeightDependentRadiusRound(RandomSource random, int yOff, int height, int width)
     {
         var k = 3.5f - random.NextFloat();
@@ -534,14 +534,14 @@ public sealed class IcebergFeature : Feature<BlockStateConfiguration>
         return Mth.Ceil(scale / 2.0f);
     }
 
-    //HeightDependentRadiusEllipse 椭圆剖面按高度决定半径 对应原版 heightDependentRadiusEllipse
+    //HeightDependentRadiusEllipse radius depends on height for an elliptical profile, maps to vanilla heightDependentRadiusEllipse
     private static int HeightDependentRadiusEllipse(int yOff, int height, int width)
     {
         var scale = (1.0f - ((float)Math.Pow(yOff, 2.0d) / height)) * width;
         return Mth.Ceil(scale / 2.0f);
     }
 
-    //HeightDependentRadiusSteep 水下倒锥按高度决定半径 对应原版 heightDependentRadiusSteep
+    //HeightDependentRadiusSteep radius depends on height for the underwater inverted cone, maps to vanilla heightDependentRadiusSteep
     private static int HeightDependentRadiusSteep(RandomSource random, int yOff, int height, int width)
     {
         var k = 1.0f + (random.NextFloat() / 2.0f);
@@ -549,12 +549,12 @@ public sealed class IcebergFeature : Feature<BlockStateConfiguration>
         return Mth.Ceil(scale / 2.0f);
     }
 
-    //IsIcebergState 是否为冰山材质 对应原版 isIcebergState
+    //IsIcebergState whether the state is iceberg material, maps to vanilla isIcebergState
     private static bool IsIcebergState(BlockState state)
         => VegetationSupport.IsState(state, "packed_ice") || VegetationSupport.IsState(state, "snow_block")
             || VegetationSupport.IsState(state, "blue_ice");
 
-    //Smooth 清掉悬空的冰与三面悬空过薄的冰 对应原版 smooth
+    //Smooth remove floating ice and ice too thin on three sides, maps to vanilla smooth
     private static void Smooth(WorldGenRegion level, BlockPos origin, int width, int height, bool isEllipse,
         int shapeEllipseA)
     {
@@ -593,8 +593,8 @@ public sealed class IcebergFeature : Feature<BlockStateConfiguration>
     }
 }
 
-//SpringFeature 泉水特征 对应原版 SpringFeature
-//上下左右与下方的岩石数正好等于配置值时把中心换成泉水
+//SpringFeature spring feature, maps to vanilla SpringFeature
+//When the count of stone above, below, and on the four sides matches the config, replace the center with a spring
 public sealed class SpringFeature : Feature<SpringConfiguration>
 {
     private const string FeatureId = "spring_feature";
@@ -638,13 +638,13 @@ public sealed class SpringFeature : Feature<SpringConfiguration>
 
         if (rockCount != config.RockCount || holeCount != config.HoleCount) return false;
         VegetationSupport.Set(level, origin, config.State);
-        //原版还会给泉水排一个流体刻 本作没有流体刻 省略
+        //Vanilla also schedules a fluid tick for the spring; there is no fluid tick here, so it is omitted
         return true;
     }
 }
 
-//GlowstoneFeature 荧石团特征 对应原版 GlowstoneFeature
-//只在原版岩类下方悬空生长 先落一块再向上找只有一个荧石邻居的空位补
+//GlowstoneFeature glowstone feature, maps to vanilla GlowstoneFeature
+//Grows hanging only below vanilla base stone: place one block, then search upward for air cells with exactly one glowstone neighbor to fill
 public sealed class GlowstoneFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "glowstone_blob";
@@ -683,9 +683,9 @@ public sealed class GlowstoneFeature : Feature<NoneFeatureConfiguration>
     }
 }
 
-//SnowAndFreezeFeature 结冰积雪特征 对应原版 SnowAndFreezeFeature
-//按运动遮挡高度逐列判断 生物群系够冷就把水面冻成冰 空中落雪并在下方打上 snowy
-//原版的亮度与降水类型判定依赖光照与流体系统 本作没有 只用群系温度与降水标记近似
+//SnowAndFreezeFeature snow and freeze feature, maps to vanilla SnowAndFreezeFeature
+//Decides per column from the motion-blocking height; when the biome is cold enough, water surfaces freeze, snow falls and the block below is marked snowy
+//Vanilla's light and precipitation-type checks depend on the light and fluid systems, which are absent here, so biome temperature and the precipitation flag approximate them
 public sealed class SnowAndFreezeFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "freeze_top_layer";
@@ -725,7 +725,7 @@ public sealed class SnowAndFreezeFeature : Feature<NoneFeatureConfiguration>
         return true;
     }
 
-    //ShouldFreeze 够冷且该格是水就冻 对应原版 shouldFreeze 的不查邻居分支
+    //ShouldFreeze freeze when cold enough and the cell is water, matching the branch of vanilla shouldFreeze that does not check neighbors
     private static bool ShouldFreeze(Biome biome, WorldGenRegion level, BlockPos pos, int seaLevel)
     {
         if (!biome.Climate.HasPrecipitation) return false;
@@ -734,7 +734,7 @@ public sealed class SnowAndFreezeFeature : Feature<NoneFeatureConfiguration>
         return VegetationSupport.IsState(VegetationSupport.Get(level, pos), "water");
     }
 
-    //ShouldSnow 够冷且该格是空气或雪就落雪 对应原版 shouldSnow
+    //ShouldSnow snow when cold enough and the cell is air or snow, maps to vanilla shouldSnow
     private static bool ShouldSnow(Biome biome, WorldGenRegion level, BlockPos pos, int seaLevel)
     {
         if (!biome.Climate.HasPrecipitation) return false;
@@ -744,14 +744,14 @@ public sealed class SnowAndFreezeFeature : Feature<NoneFeatureConfiguration>
         return state.Owner.IsAir || VegetationSupport.IsState(state, "snow");
     }
 
-    //ColdEnoughToSnow 高度修正后的温度低于降雨阈值 对应原版 coldEnoughToSnow
+    //ColdEnoughToSnow the height-adjusted temperature is below the rain threshold, maps to vanilla coldEnoughToSnow
     private static bool ColdEnoughToSnow(Biome biome, BlockPos pos, int seaLevel)
         => !BiomeTemperature.WarmEnoughToRain(biome, pos.X, pos.Y, pos.Z, seaLevel);
 }
 
-//BonusChestFeature 奖励箱特征 对应原版 BonusChestFeature
-//在区块内随机顺序找第一个能放箱子的位置 周围能立火把的位置补火把
-//原版会给箱子挂出生奖励战利品表 战利品表不在本阶段范围内 这里只放方块
+//BonusChestFeature bonus chest feature, maps to vanilla BonusChestFeature
+//Searches the chunk in random order for the first spot that can hold a chest, and adds torches where they can stand
+//Vanilla attaches the spawn bonus loot table to the chest; loot tables are out of scope at this stage, so only blocks are placed
 public sealed class BonusChestFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "bonus_chest";
@@ -797,7 +797,7 @@ public sealed class BonusChestFeature : Feature<NoneFeatureConfiguration>
     }
 }
 
-//UnderwaterMagmaConfiguration 水下岩浆配置 对应原版 UnderwaterMagmaConfiguration
+//UnderwaterMagmaConfiguration underwater magma configuration, maps to vanilla UnderwaterMagmaConfiguration
 public sealed class UnderwaterMagmaConfiguration : FeatureConfiguration
 {
     public static readonly Codec<UnderwaterMagmaConfiguration> Codec =
@@ -824,8 +824,8 @@ public sealed class UnderwaterMagmaConfiguration : FeatureConfiguration
     }
 }
 
-//UnderwaterMagmaFeature 水下岩浆特征 对应原版 UnderwaterMagmaFeature
-//先扫出水柱底面 再在底面周围按概率把被完全遮住的位置换成岩浆块
+//UnderwaterMagmaFeature underwater magma feature, maps to vanilla UnderwaterMagmaFeature
+//Scans the water column for its floor, then by chance turns fully enclosed cells around it into magma blocks
 public sealed class UnderwaterMagmaFeature : Feature<UnderwaterMagmaConfiguration>
 {
     private const string FeatureId = "underwater_magma";
@@ -863,7 +863,7 @@ public sealed class UnderwaterMagmaFeature : Feature<UnderwaterMagmaConfiguratio
         return placed > 0;
     }
 
-    //GetFloorY 水柱底面的 Y 对应原版 getFloorY
+    //GetFloorY the Y of the water column floor, maps to vanilla getFloorY
     private static int? GetFloorY(WorldGenRegion level, BlockPos origin, UnderwaterMagmaConfiguration config)
     {
         var column = Column.Scan(level, origin, config.FloorSearchRange,
@@ -872,7 +872,7 @@ public sealed class UnderwaterMagmaFeature : Feature<UnderwaterMagmaConfiguratio
         return column?.Floor;
     }
 
-    //IsValidPlacement 该位置被六面完全遮住才放 对应原版 isValidPlacement
+    //IsValidPlacement place only when all six faces are enclosed, maps to vanilla isValidPlacement
     private static bool IsValidPlacement(WorldGenRegion level, BlockPos pos)
     {
         var state = VegetationSupport.Get(level, pos);
@@ -883,7 +883,7 @@ public sealed class UnderwaterMagmaFeature : Feature<UnderwaterMagmaConfiguratio
         return true;
     }
 
-    //IsVisibleFromOutside 该面沒被整面遮住就算露在外面 对应原版 isVisibleFromOutside
+    //IsVisibleFromOutside a face not fully covered counts as exposed, maps to vanilla isVisibleFromOutside
     private static bool IsVisibleFromOutside(WorldGenRegion level, BlockPos pos, Direction coveredDirection)
     {
         var state = VegetationSupport.Get(level, pos);

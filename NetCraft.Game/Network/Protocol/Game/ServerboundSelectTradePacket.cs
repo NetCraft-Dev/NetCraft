@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundSelectTradePacket 数据包对应原版 ServerboundSelectTradePacket
-//字段 Item(int)
+//ServerboundSelectTradePacket select trade packet, maps to vanilla ServerboundSelectTradePacket
+//Field: Item(int)
 public sealed record ServerboundSelectTradePacket(int Item) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundSelectTradePacket> StreamCodec { get; } = new SelectTradeCodec();
@@ -12,7 +12,7 @@ public sealed record ServerboundSelectTradePacket(int Item) : Packet<ServerGameP
 
     private sealed class SelectTradeCodec : StreamCodec<FriendlyByteBuf, ServerboundSelectTradePacket>
     {
-        //村民交易界面点选商品时发送 只有商品序号
+        //Sent when selecting a trade in the villager trading screen; carries only the trade index
         public ServerboundSelectTradePacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadVarInt());
 

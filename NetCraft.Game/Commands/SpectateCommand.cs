@@ -9,21 +9,21 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Commands;
 
-//SpectateCommand spectate 命令对应原版 net.minecraft.server.commands.SpectateCommand
-//<target> [<player>] 让旁观模式玩家把视角切到目标实体 无参数时把视角收回自身
+//SpectateCommand spectate command, maps to vanilla net.minecraft.server.commands.SpectateCommand
+//<target> [<player>] switches a spectator's view to the target entity; without arguments the view returns to itself
 public static class SpectateCommand
 {
-    //ErrorSelf 不能旁观自己 对应原版 ERROR_SELF
+    //ErrorSelf cannot spectate yourself, maps to vanilla ERROR_SELF
     private static readonly SimpleCommandExceptionType ErrorSelf =
-        new(new LiteralMessage("不能旁观自己"));
+        new(new LiteralMessage("you cannot spectate yourself"));
 
-    //ErrorNotSpectator 指定玩家不在旁观模式 对应原版 ERROR_NOT_SPECTATOR
+    //ErrorNotSpectator the given player is not a spectator, maps to vanilla ERROR_NOT_SPECTATOR
     private static readonly DynamicCommandExceptionType ErrorNotSpectator =
-        new(name => new LiteralMessage($"{name} 不在旁观模式"));
+        new(name => new LiteralMessage($"{name} is not a spectator"));
 
-    //ErrorCannotSpectate 目标类型不可被旁观 对应原版 ERROR_CANNOT_SPECTATE
+    //ErrorCannotSpectate the target type cannot be spectated, maps to vanilla ERROR_CANNOT_SPECTATE
     private static readonly DynamicCommandExceptionType ErrorCannotSpectate =
-        new(name => new LiteralMessage($"无法旁观 {name}"));
+        new(name => new LiteralMessage($"cannot spectate {name}"));
 
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
@@ -45,22 +45,22 @@ public static class SpectateCommand
                         EntityArgument.GetSingleTarget(context, "target"), EntityArgument.GetPlayer(context, "player"))))));
     }
 
-    //Spectate 切换目标玩家的旁观相机 对应原版 SpectateCommand.spectate
-    //target 为空表示收回自身视角 校验顺序与报错同原版
+    //Spectate switches the target player's spectator camera, maps to vanilla SpectateCommand.spectate
+    //target null means restoring the player's own view; validation order and errors match vanilla
     private static int Spectate(ServerCommandSource source, CommandTarget? target, ServerPlayer player)
     {
         if (target is not null && target.EntityId == player.EntityId)
             throw ErrorSelf.Create();
         if (!player.IsSpectator)
             throw ErrorNotSpectator.Create(player.Profile.Name);
-        //追踪视距为 0 的实体不下发 AddEntity 客户端拿不到 无法旁观 对应原版 clientTrackingRange
+        //Entities with tracking range 0 get no AddEntity and the client cannot see them, so they cannot be spectated, maps to vanilla clientTrackingRange
         if (target?.Type is { TrackingRangeChunks: 0 })
             throw ErrorCannotSpectate.Create(target.Name);
         player.SetCamera(target?.Player ?? (ITrackedEntity?)target?.WorldEntity);
         if (target is not null)
-            source.SendSuccess($"正在旁观 {target.Name}");
+            source.SendSuccess($"spectating {target.Name}");
         else
-            source.SendSuccess("已停止旁观");
+            source.SendSuccess("stopped spectating");
         return 1;
     }
 }

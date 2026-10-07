@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundSelectBundleItemPacket 数据包对应原版 ServerboundSelectBundleItemPacket
-//字段 SlotId(int) SelectedItemIndex(int)
+//ServerboundSelectBundleItemPacket select bundle item packet, maps to vanilla ServerboundSelectBundleItemPacket
+//Fields: SlotId(int), SelectedItemIndex(int)
 public sealed record ServerboundSelectBundleItemPacket(int SlotId, int SelectedItemIndex) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundSelectBundleItemPacket> StreamCodec { get; } = new SelectBundleItemCodec();
@@ -13,9 +13,9 @@ public sealed record ServerboundSelectBundleItemPacket(int SlotId, int SelectedI
     private sealed class SelectBundleItemCodec : StreamCodec<FriendlyByteBuf, ServerboundSelectBundleItemPacket>
     {
         public ServerboundSelectBundleItemPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ServerboundSelectBundleItemPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

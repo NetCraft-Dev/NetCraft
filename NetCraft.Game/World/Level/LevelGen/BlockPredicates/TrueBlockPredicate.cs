@@ -3,7 +3,7 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//TrueBlockPredicate 恒真谓词对应原版 TrueBlockPredicate
+//TrueBlockPredicate always-true predicate, maps to vanilla TrueBlockPredicate
 public class TrueBlockPredicate : BlockPredicate
 {
     public static readonly TrueBlockPredicate Instance = new();

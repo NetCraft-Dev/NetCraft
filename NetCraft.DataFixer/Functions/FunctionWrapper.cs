@@ -5,8 +5,8 @@ using NetCraft.Codec;
 using NetCraft.DataFixer;
 using T = NetCraft.DataFixer.Types;
 
-//FunctionWrapper函数包装对应原版FunctionWrapper
-//把普通Function<DynamicOps,Function<A,B>>包装为PointFree
+//FunctionWrapper function wrapper maps to vanilla FunctionWrapper
+//wraps a plain Function<DynamicOps,Function<A,B>> as PointFree
 internal sealed class FunctionWrapper<A, B> : PointFree<Func<A, B>>
 {
     private readonly string _name;

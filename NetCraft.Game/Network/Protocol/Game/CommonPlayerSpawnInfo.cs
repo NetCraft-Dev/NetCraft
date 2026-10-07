@@ -7,8 +7,8 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//CommonPlayerSpawnInfo 玩家出生公共信息对应原版 CommonPlayerSpawnInfo
-//ClientboundLoginPacket/RespawnPacket 共用 含维度/种子/游戏模式/死亡点/传送门冷却
+//CommonPlayerSpawnInfo common player spawn info, maps to vanilla CommonPlayerSpawnInfo
+//Shared by ClientboundLoginPacket/RespawnPacket; carries dimension/seed/game mode/death location/portal cooldown
 public sealed record CommonPlayerSpawnInfo(
     Identifier DimensionType,
     ResourceKey<Level> Dimension,
@@ -22,22 +22,22 @@ public sealed record CommonPlayerSpawnInfo(
     BlockPos? LastDeathPosition,
     int PortalCooldown)
 {
-    //DimensionTypeRegistry 维度类型注册表 id 登录包的 dimensionType 按其同步顺序 int id 编码
+    //DimensionTypeRegistry dimension type registry id; the login packet's dimensionType is encoded by its synchronized int id
     private const string DimensionTypeRegistry = "minecraft:dimension_type";
 
-    //StaticCodec 公共编解码器供 Login/Respawn 复用
+    //StaticCodec shared codec reused by Login/Respawn
     public static StreamCodec<FriendlyByteBuf, CommonPlayerSpawnInfo> StaticCodec { get; } = new CommonPlayerSpawnInfoCodec();
 
     private sealed class CommonPlayerSpawnInfoCodec : StreamCodec<FriendlyByteBuf, CommonPlayerSpawnInfo>
     {
         public CommonPlayerSpawnInfo Decode(FriendlyByteBuf buf)
         {
-            //原版 holderRegistry 编码为 VarInt 注册表 id 写 Identifier 会让客户端把长度前缀当 id
+            //Vanilla holderRegistry is encoded as a VarInt registry id; writing an Identifier would make the client read the length prefix as the id
             var dimensionType = SynchronizedRegistryData.GetEntry(DimensionTypeRegistry, buf.ReadVarInt())
                 ?? Identifier.WithDefaultNamespace("overworld");
             var dimension = ResourceKey<Level>.Create(Registries.DIMENSION, buf.ReadIdentifier());
             var seed = buf.ReadLong();
-            //S4 原版 GameType.byId(readByte) 单字节
+            //S4 vanilla GameType.byId(readByte) single byte
             var gameType = GameType.ById(buf.ReadByte()) ?? GameType.Survival;
             var prevRaw = buf.ReadByte();
             var previousGameType = prevRaw == -1 ? null : GameType.ById(prevRaw);
@@ -53,7 +53,7 @@ public sealed record CommonPlayerSpawnInfo(
                 deathPos = new BlockPos(BlockPos.GetX(packed), BlockPos.GetY(packed), BlockPos.GetZ(packed));
             }
             var portalCooldown = buf.ReadVarInt();
-            //S4 26.2 新增 seaLevel varint 解码后丢弃
+            //S4 26.2 adds a seaLevel varint, discarded after decoding
             buf.ReadVarInt();
             return new CommonPlayerSpawnInfo(dimensionType, dimension, seed, gameType,
                 previousGameType, isDebug, isFlat, hasDeath, deathDim, deathPos, portalCooldown);
@@ -61,13 +61,13 @@ public sealed record CommonPlayerSpawnInfo(
 
         public void Encode(FriendlyByteBuf buf, CommonPlayerSpawnInfo value)
         {
-            //原版 holderRegistry 编码为同步顺序 int id 不能写 Identifier
+            //Vanilla holderRegistry is encoded as the synchronized int id; an Identifier must not be written
             buf.WriteVarInt(SynchronizedRegistryData.GetEntryId(DimensionTypeRegistry, value.DimensionType));
             buf.WriteIdentifier(value.Dimension.Identifier);
             buf.WriteLong(value.Seed);
-            //S4 原版 writeByte(gameType.getId()) 单字节
+            //S4 vanilla writeByte(gameType.getId()) single byte
             buf.WriteByte((byte)value.GameType.Id);
-            //previousGameType 原版 writeByte(-1 或 id) 单字节不能用 VarInt(-1) 5 字节
+            //previousGameType vanilla writeByte(-1 or id) single byte; VarInt(-1) is 5 bytes and must not be used
             buf.WriteByte((byte)(value.PreviousGameType?.Id ?? -1));
             buf.WriteBoolean(value.IsDebug);
             buf.WriteBoolean(value.IsFlat);
@@ -78,7 +78,7 @@ public sealed record CommonPlayerSpawnInfo(
                 buf.WriteLong(value.LastDeathPosition!.Value.AsLong());
             }
             buf.WriteVarInt(value.PortalCooldown);
-            //S4 26.2 新增 seaLevel varint 原版海平面 63
+            //S4 26.2 adds a seaLevel varint; the vanilla sea level is 63
             buf.WriteVarInt(63);
         }
     }

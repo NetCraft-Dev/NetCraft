@@ -7,8 +7,8 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//食物转可食用组件修复对应原版FoodToConsumableFix
-//1.21.2拆分food组件为food/use_remainder/consumable三组件并把effects转为apply_effects效果
+//Food to consumable component fix, maps to vanilla FoodToConsumableFix
+//1.21.2 splits the food component into food/use_remainder/consumable and turns effects into apply_effects
 public class FoodToConsumableFix : DataFix
 {
     public FoodToConsumableFix(Schema outputSchema) : base(outputSchema, true) { }

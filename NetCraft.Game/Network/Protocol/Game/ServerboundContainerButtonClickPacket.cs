@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundContainerButtonClickPacket 数据包对应原版 ServerboundContainerButtonClickPacket
-//字段 ContainerId(int) ButtonId(int)
+//ServerboundContainerButtonClickPacket container button click packet, maps to vanilla ServerboundContainerButtonClickPacket
+//Fields: ContainerId(int), ButtonId(int)
 public sealed record ServerboundContainerButtonClickPacket(int ContainerId, int ButtonId) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundContainerButtonClickPacket> StreamCodec { get; } = new ContainerButtonClickCodec();
@@ -12,7 +12,7 @@ public sealed record ServerboundContainerButtonClickPacket(int ContainerId, int 
 
     private sealed class ContainerButtonClickCodec : StreamCodec<FriendlyByteBuf, ServerboundContainerButtonClickPacket>
     {
-        //containerId 对应原版 readContainerId 为 VarInt buttonId 为 VarInt
+        //containerId maps to vanilla readContainerId, a VarInt; buttonId is a VarInt
         public ServerboundContainerButtonClickPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadVarInt(), buf.ReadVarInt());
 

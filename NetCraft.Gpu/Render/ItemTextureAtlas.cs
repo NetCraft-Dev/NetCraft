@@ -1,10 +1,10 @@
 namespace NetCraft.Gpu;
 
-//ItemTextureAtlas 物品纹理图集对标原版 TextureAtlas
-//PoC 程序化生成 16x16 单纹理图集供 3D 物品采样
-//完整版应从 textures/texture_atlas.png 加载 + 按 sprite 元数据切分
-//顶点 UV 是相对图集的 [0,1] 坐标 shader 直接 texture(sampler, fragUv) 采样
-//GenerateTestTexture 生成棋盘格测试纹理验证 UV 采样可见每个格子不同色
+//ItemTextureAtlas item texture atlas, maps to vanilla TextureAtlas
+//The PoC procedurally generates a 16x16 single-texture atlas for 3D item sampling
+//The full version should load from textures/texture_atlas.png and split by sprite metadata
+//Vertex UVs are [0,1] coordinates relative to the atlas; the shader samples directly with texture(sampler, fragUv)
+//GenerateTestTexture generates a checkerboard test texture so UV sampling is visible with a different color per cell
 public sealed class ItemTextureAtlas : IDisposable
 {
     public const int AtlasSize = 16;
@@ -21,12 +21,12 @@ public sealed class ItemTextureAtlas : IDisposable
             CreateResources();
     }
 
-    //Texture 物品纹理图集 null 表示无 GPU 后端
+    //Texture item texture atlas; null means no GPU backend
     public GpuImage? Texture => _texture;
-    //Sampler 物品纹理采样器 null 表示无 GPU 后端
+    //Sampler item texture sampler; null means no GPU backend
     public GpuSampler? Sampler => _sampler;
 
-    //CreateResources 创建 GPU 纹理 + sampler 仅 SupportsGpuRendering=true 调用
+    //CreateResources creates the GPU texture + sampler, called only when SupportsGpuRendering=true
     private void CreateResources()
     {
         _texture = _device!.CreateImage(new GpuImageDescription
@@ -37,7 +37,7 @@ public sealed class ItemTextureAtlas : IDisposable
             Usage = GpuImageUsage.SampledImage
         });
         _texture.Upload(GenerateTestTexture());
-        //物品纹理小图集用 nearest 保持像素感匹配原版 Minecraft 像素风格
+        //The small item texture atlas uses nearest to keep the pixel feel, matching vanilla Minecraft's pixel style
         _sampler = _device.CreateSampler(new GpuSamplerDescription
         {
             LinearFilter = false,
@@ -45,9 +45,9 @@ public sealed class ItemTextureAtlas : IDisposable
         });
     }
 
-    //GenerateTestTexture 生成 16x16 RGBA 棋盘格测试纹理
-    //4x4 格子每格 8x8 像素格子颜色交替深浅灰便于验证 UV 采样
-    //横轴 2 格纵轴 2 格 (0,0)=深灰 (1,0)=浅灰 (0,1)=浅灰 (1,1)=深灰
+    //GenerateTestTexture generates a 16x16 RGBA checkerboard test texture
+    //4x4 cells of 8x8 pixels each, alternating light and dark gray to verify UV sampling
+    //2 cells horizontally and 2 vertically (0,0)=dark gray (1,0)=light gray (0,1)=light gray (1,1)=dark gray
     public static byte[] GenerateTestTexture()
     {
         var pixels = new byte[AtlasSize * AtlasSize * 4];
@@ -58,7 +58,7 @@ public sealed class ItemTextureAtlas : IDisposable
             {
                 var cellX = x / cellSize;
                 var cellY = y / cellSize;
-                //棋盘格交替深浅灰
+                //Checkerboard alternating light and dark gray
                 var isLight = (cellX + cellY) % 2 == 0;
                 var v = (byte)(isLight ? 200 : 80);
                 var idx = (y * AtlasSize + x) * 4;
@@ -80,21 +80,21 @@ public sealed class ItemTextureAtlas : IDisposable
     }
 }
 
-//ItemTints 物品染色表对标原版 net.minecraft.client.color.item.ItemTints
-//原版按 tintIndex 查 dyeColor/potionColor/leatherColor PoC 简化为静态白
-//tintIndex=-1 表示无 tint 返回白色 0xFFFFFFFF
-//PackColor 把 RGBA 4 byte packed 成 int ARGB 对标原版 vertex color 格式
+//ItemTints item tint table, maps to vanilla net.minecraft.client.color.item.ItemTints
+//Vanilla looks up dyeColor/potionColor/leatherColor by tintIndex; the PoC simplifies to static white
+//tintIndex=-1 means no tint and returns white 0xFFFFFFFF
+//PackColor packs RGBA 4 bytes into an ARGB int, maps to the vanilla vertex color format
 public static class ItemTints
 {
-    //White 白色 packed ARGB 0xFFFFFFFF = -1 (int) 对标原版默认 tint
+    //White white packed ARGB 0xFFFFFFFF = -1 (int), maps to the vanilla default tint
     public const int White = unchecked((int)0xFFFFFFFF);
 
-    //PackColor 把 RGBA packed 成 int ARGB 高 8 位 A 依次 BGR
-    //对标原版 vertex color 格式 shader 用 (color>>16)&0xFF 取 R 等位运算解包
+    //PackColor packs RGBA into an ARGB int with the high 8 bits A then BGR
+    //maps to the vanilla vertex color format; the shader unpacks with bit ops like (color>>16)&0xFF for R
     public static int PackColor(byte r, byte g, byte b, byte a = 255)
         => (a << 24) | (r << 16) | (g << 8) | b;
 
-    //GetTint 按 tintIndex 返回染色颜色 PoC 全返回白色
-    //tintIndex=-1 或未知都返回白色完整版按 tintIndex 查染色表
+    //GetTint returns the tint color by tintIndex; the PoC always returns white
+    //tintIndex=-1 or unknown both return white; the full version looks up the tint table by tintIndex
     public static int GetTint(int tintIndex) => White;
 }

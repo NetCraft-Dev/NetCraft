@@ -4,14 +4,14 @@ using System;
 using NetCraft.DataFixer;
 using T = NetCraft.DataFixer.Types;
 
-//TypeFamily类型家族对应原版com.mojang.datafixers.types.families.TypeFamily
-//按index返回不同子类型用于递归类型
+//TypeFamily type family maps to vanilla com.mojang.datafixers.types.families.TypeFamily
+//returns a different child type per index, used for recursive types
 public interface TypeFamily
 {
-    //apply按索引返回子类型
+    //apply returns the child type at the given index
     T.Type<object> Apply(int index);
 
-    //familyOptic工厂用IntFunction构造FamilyOptic
+    //familyOptic factory builds a FamilyOptic from an IntFunction
     static FamilyOptic<A, B> FamilyOptic<A, B>(Func<int, TypedOptic<object, object, A, B>> optics)
         => new(optics);
 }

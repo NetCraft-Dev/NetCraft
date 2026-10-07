@@ -6,25 +6,25 @@ using System.Linq;
 using System.Reflection;
 using NetCraft.DataFixer.Kinds;
 
-//光学接口核心组合子对应原版com.mojang.datafixers.optics.Optic
-//Proof是证明类型约束可接受的最弱profunctor
-//S/T是源/目标类型A/B是焦点/新值
+//Optic interface core combinator, maps to vanilla com.mojang.datafixers.optics.Optic
+//Proof is the proof-type constraint, the weakest acceptable profunctor
+//S/T are the source/target types; A/B are the focus/new value
 public interface Optic<Proof, S, T, A, B> where Proof : K1
 {
-    //eval接收profunctor证明返回App2<P,A,B>->App2<P,S,T>的函数
+    //eval receives a profunctor proof and returns a function App2<P,A,B>->App2<P,S,T>
     Func<App2<P, A, B>, App2<P, S, T>> Eval<P>(App<Proof, P> proof) where P : K2;
 }
 
-//组合光学对应原版Optic.CompositionOptic
-//持有一组optic从右到左链式组合函数
+//composite optic maps to vanilla Optic.CompositionOptic
+//holds a set of optics that chain functions from right to left
 public sealed record CompositionOptic<Proof, S, T, A, B>(IReadOnlyList<object> Optics) : Optic<Proof, S, T, A, B> where Proof : K1
 {
-    //eval从右到左收集每个optic的eval函数后链式应用
-    //用表达式树编译委托缓存避免每次反射Invoke
+    //eval collects each optic's eval function from right to left, then applies them in a chain
+    //uses a compiled-delegate cache via expression trees to avoid reflective Invoke each time
     public Func<App2<P, A, B>, App2<P, S, T>> Eval<P>(App<Proof, P> proof) where P : K2
     {
-        //用object[]存func避免List<Func<...>>内部数组协变检查抛ArrayTypeMismatchException
-        //func运行时类型带具体泛型参数与Func<App2<P,object,object>,App2<P,object,object>>无继承关系
+        //stores func in object[] to avoid the internal array covariance check of List<Func<...>> throwing ArrayTypeMismatchException
+        //func's runtime type carries concrete generic parameters and has no inheritance relation to Func<App2<P,object,object>,App2<P,object,object>>
         var functions = new List<object>();
         for (int i = Optics.Count - 1; i >= 0; i--)
         {
@@ -54,15 +54,15 @@ public sealed record CompositionOptic<Proof, S, T, A, B>(IReadOnlyList<object> O
     }
 }
 
-//EvalCacheHelper跨Optic共享表达式树缓存避免重复Invoke反射
-//对应原版Java类型擦除后虚方法分派C#用编译委托模拟
+//EvalCacheHelper shares the expression-tree cache across Optics, avoiding repeated reflective Invoke
+//maps to vanilla Java virtual dispatch after type erasure; C# emulates it with compiled delegates
 internal static class EvalCacheHelper
 {
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<(Type opticType, Type pType), System.Func<object, object, object>> _evalCache = new();
 
-    //ForceCast用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
-    //proof运行时是FunctionTypeInstance实现App<FunctionTypeInstance.Mu,P>接口
-    //但Eval期望App<ICartesianMu,P>等不同封闭泛型类型C#严格泛型不变量下强转失败
+    //ForceCast uses Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
+    //at runtime proof is FunctionTypeInstance, implementing the App<FunctionTypeInstance.Mu,P> interface
+    //but Eval expects different closed generic types such as App<ICartesianMu,P>; the cast fails under C# strict generic invariance
     private static T ForceCast<T>(object obj)
     {
         var o = obj;
@@ -75,8 +75,8 @@ internal static class EvalCacheHelper
         var pType = typeof(P);
         var func = _evalCache.GetOrAdd((opticType, pType), key =>
         {
-            //Eval可能是显式接口实现方法名带接口前缀GetMethod("Eval")找不到
-            //遍历所有接口查找名为Eval的泛型方法对齐Java虚方法分派语义
+            //Eval may be an explicit interface implementation whose name carries the interface prefix, so GetMethod("Eval") fails
+            //iterates all interfaces to find the generic method named Eval, aligning with Java virtual dispatch semantics
             MethodInfo? method = FindEvalMethod(key.opticType);
             if (method == null)
             {
@@ -84,8 +84,8 @@ internal static class EvalCacheHelper
             }
             method = method.MakeGenericMethod(key.pType);
             var proofType = method.GetParameters()[0].ParameterType;
-            //表达式树编译(o,p)=>optic.Eval<P>(ForceCast<App<Proof,P>>(p))
-            //ForceCast用Unsafe.As绕过proof参数运行时类型检查对齐Java类型擦除语义
+            //expression-tree compiled (o,p)=>optic.Eval<P>(ForceCast<App<Proof,P>>(p))
+            //ForceCast uses Unsafe.As to bypass the proof parameter's runtime type check, aligning with Java type erasure semantics
             var opticParam = System.Linq.Expressions.Expression.Parameter(typeof(object), "o");
             var proofParam = System.Linq.Expressions.Expression.Parameter(typeof(object), "p");
             var forceCastMethod = typeof(EvalCacheHelper).GetMethod("ForceCast", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.MakeGenericMethod(proofType);
@@ -99,8 +99,8 @@ internal static class EvalCacheHelper
         return func(optic, proofInstance!);
     }
 
-    //FindEvalMethod递归查找类与所有接口的Eval泛型方法
-    //对齐Java类型擦除后虚方法分派语义
+    //FindEvalMethod recursively searches the class and all interfaces for the generic Eval method
+    //aligns with Java virtual dispatch semantics after type erasure
     private static MethodInfo? FindEvalMethod(Type type)
     {
         var method = type.GetMethod("Eval");

@@ -4,13 +4,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items.Component.Predicates;
 
-//TrimPredicate 盔甲纹饰谓词 判定材料与图案是否落在给定集合
-//对应原版 net.minecraft.core.component.predicates.TrimPredicate
+//TrimPredicate armor trim predicate, checks whether material and pattern fall in the given sets
+//Maps to vanilla net.minecraft.core.component.predicates.TrimPredicate
 public sealed record TrimPredicate(
     Optional<HolderSet<TrimMaterial>> Material,
     Optional<HolderSet<TrimPattern>> Pattern) : SingleComponentItemPredicate<ArmorTrim>
 {
-    //Codec 持久化编解码 两个可选集合字段 对应原版 CODEC
+    //Codec persistence codec, two optional set fields, maps to vanilla CODEC
     public static readonly Codec<TrimPredicate> Codec = RecordCodecBuilder.Of2(
         HolderSetCodecs.TrimMaterialSet.OptionalFieldOf("material")
             .ForGetter((TrimPredicate predicate) => predicate.Material),

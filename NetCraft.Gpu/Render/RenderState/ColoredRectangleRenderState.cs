@@ -3,9 +3,9 @@ using RenderPipeline = NetCraft.Gpu.Pipeline.RenderPipeline;
 
 namespace NetCraft.Gpu;
 
-//ColoredRectangleRenderState 纯色/双色渐变矩形渲染状态对标原版 ColoredRectangleRenderState
-//col1 用于左上/右下顶点 col2 用于左下/右上顶点形成对角渐变
-//不可变 record 参与 GuiRenderState 排序合批
+//ColoredRectangleRenderState solid/two-color gradient rectangle render state, maps to vanilla ColoredRectangleRenderState
+//col1 is used for the top-left/bottom-right vertices and col2 for the bottom-left/top-right, forming a diagonal gradient
+//Immutable record participating in GuiRenderState sorting and batching
 public sealed record ColoredRectangleRenderState(
     RenderPipeline Pipeline,
     TextureSetup TextureSetup,
@@ -15,7 +15,7 @@ public sealed record ColoredRectangleRenderState(
     ScreenRectangle ScissorArea,
     ScreenRectangle Bounds) : GuiElementRenderState
 {
-    //构造重载不传 bounds 时由几何+pose+scissor 自动推导
+    //The constructor overload without bounds derives it automatically from the geometry+pose+scissor
     public ColoredRectangleRenderState(
         RenderPipeline pipeline,
         TextureSetup textureSetup,
@@ -28,7 +28,7 @@ public sealed record ColoredRectangleRenderState(
     {
     }
 
-    //BuildVertices 写 4 顶点对角双色 uv 传 0 纯色管线不采样纹理
+    //BuildVertices writes a 4-vertex diagonal two-color quad with uv 0; the solid-color pipeline samples no texture
     public void BuildVertices(IVertexConsumer consumer)
     {
         consumer.AddVertexWith2DPose(Pose, X0, Y0, 0f, 0f, Col1);

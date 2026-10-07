@@ -5,14 +5,14 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features;
 
-//ConfiguredFeature 配置化特征 非泛型化对应原版 ConfiguredFeature<FC,F>
-//把特征单例与其配置绑成注册表元素 类型名由 type 字段派发 config 走各特征自己的 codec
+//ConfiguredFeature configured feature, non-generic counterpart of vanilla ConfiguredFeature<FC,F>
+//Binds a feature singleton to its config as a registry element; the type field dispatches and config goes through the feature's own codec
 public sealed class ConfiguredFeature : NetCraft.Registry.ConfiguredFeature
 {
-    //Codec 元素 codec 对应原版 DIRECT_CODEC
+    //Codec element codec, maps to vanilla DIRECT_CODEC
     public static readonly Codec<ConfiguredFeature> Codec = new ConfiguredFeatureCodec();
 
-    //ElementCodec 注册表元素 codec 注册表按标记接口持有元素
+    //ElementCodec registry element codec; the registry holds elements by marker interface
     public static readonly Codec<NetCraft.Registry.ConfiguredFeature> ElementCodec = Codec.ComapFlatMap(
         feature => DataResult<NetCraft.Registry.ConfiguredFeature>.Success(feature),
         feature => (ConfiguredFeature)feature);
@@ -26,18 +26,18 @@ public sealed class ConfiguredFeature : NetCraft.Registry.ConfiguredFeature
         Config = config;
     }
 
-    //Place 放置本特征对应原版 place
+    //Place place this feature, maps to vanilla place
     public bool Place(WorldGenRegion level, ChunkGenerator generator, RandomSource random, BlockPos origin)
         => Feature.Place(Config, new FeaturePlaceContext(level, generator, random, origin, Config));
 
-    //SubFeatures 本配置内嵌的子特征引用
+    //SubFeatures embedded sub-feature references of this config
     public IEnumerable<Holder<NetCraft.Registry.ConfiguredFeature>> SubFeatures => Config.SubFeatures;
 
     public override string ToString() => $"{Feature.Id}[{Config.GetType().Name}]";
 }
 
-//ConfiguredFeatureCodec 按 type 字段查 FEATURE 注册表 再按 config 字段解配置
-//对应原版 BuiltInRegistries.FEATURE.byNameCodec().dispatch(f => f, f => f.configuredCodec())
+//ConfiguredFeatureCodec look up the FEATURE registry by the type field then decode config from the config field
+//Maps to vanilla BuiltInRegistries.FEATURE.byNameCodec().dispatch(f => f, f => f.configuredCodec())
 internal sealed class ConfiguredFeatureCodec : ScalarCodec<ConfiguredFeature>
 {
     public override DataResult<ConfiguredFeature> Parse<U>(DynamicOps<U> ops, U input)
@@ -46,19 +46,19 @@ internal sealed class ConfiguredFeatureCodec : ScalarCodec<ConfiguredFeature>
     private static DataResult<ConfiguredFeature> DecodeFeature<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var typeTag = input.Get("type");
-        if (!typeTag.IsPresent) return DataResult<ConfiguredFeature>.Error(() => "configured_feature 缺 type 字段");
+        if (!typeTag.IsPresent) return DataResult<ConfiguredFeature>.Error(() => "configured_feature is missing the type field");
         var typeText = ops.GetStringValue(typeTag.Get());
         if (!typeText.Result().IsPresent)
-            return DataResult<ConfiguredFeature>.Error(() => "configured_feature 的 type 必须是字符串");
+            return DataResult<ConfiguredFeature>.Error(() => "configured_feature type must be a string");
         var typeId = Identifier.TryParse(typeText.GetOrThrow());
         if (typeId is null)
-            return DataResult<ConfiguredFeature>.Error(() => $"非法的特征类型: {typeText.GetOrThrow()}");
+            return DataResult<ConfiguredFeature>.Error(() => $"invalid feature type: {typeText.GetOrThrow()}");
         if (BuiltInRegistries.FEATURE.GetValue(typeId.Value) is not Feature feature)
-            return DataResult<ConfiguredFeature>.Error(() => $"未知的特征类型: {typeId}");
+            return DataResult<ConfiguredFeature>.Error(() => $"unknown feature type: {typeId}");
 
         var configTag = input.Get("config");
         if (!configTag.IsPresent)
-            return DataResult<ConfiguredFeature>.Error(() => $"特征 {typeId} 缺 config 字段");
+            return DataResult<ConfiguredFeature>.Error(() => $"feature {typeId} is missing the config field");
         return feature.ConfigCodec.Parse(ops, configTag.Get()).Map(config => new ConfiguredFeature(feature, config));
     }
 

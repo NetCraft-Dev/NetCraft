@@ -1,6 +1,6 @@
 namespace NetCraft.Gpu;
 
-//GpuShaderStage shader 阶段
+//GpuShaderStage shader stage
 public enum GpuShaderStage
 {
     Vertex,
@@ -8,8 +8,8 @@ public enum GpuShaderStage
     Compute
 }
 
-//GpuShader SPIR-V 字节码模块抽象对应原版 blaze3d Shader
-//子类创建底层 shader module
+//GpuShader SPIR-V bytecode module abstraction, corresponds to vanilla blaze3d Shader
+//Subclasses create the underlying shader module
 public abstract class GpuShader : IDisposable
 {
     public GpuShaderStage Stage { get; }

@@ -1,8 +1,8 @@
 namespace NetCraft.Gpu;
 
-//GridLayout 网格布局对标原版 GridLayout extends AbstractLayout
-//核心布局引擎按 row/column 定位子元素跨多行多列元素均分尺寸
-//ArrangeElements 计算每列最大宽每行最大高再按 align 偏移定位
+//GridLayout grid layout, maps to vanilla GridLayout extends AbstractLayout
+//Core layout engine positioning children by row/column, dividing size for multi-row/column elements
+//ArrangeElements computes each column's max width and each row's max height, then offsets positions by align
 public sealed class GridLayout : AbstractLayout
 {
     private readonly List<ChildContainer> _children = new();
@@ -14,16 +14,16 @@ public sealed class GridLayout : AbstractLayout
 
     public GridLayout(int x, int y) : base(x, y, 0, 0) { }
 
-    //ColumnSpacing/RowSpacing/Spacing 链式设置间距
+    //ColumnSpacing/RowSpacing/Spacing chained spacing setters
     public GridLayout ColumnSpacing(int spacing) { _columnSpacing = spacing; return this; }
     public GridLayout RowSpacing(int spacing) { _rowSpacing = spacing; return this; }
     public GridLayout Spacing(int spacing) => ColumnSpacing(spacing).RowSpacing(spacing);
 
-    //NewCellSettings/DefaultCellSetting 每个子元素默认 LayoutSettings 副本
+    //NewCellSettings/DefaultCellSetting a default LayoutSettings copy per child
     public LayoutSettings NewCellSettings() => _defaultCellSettings.Copy();
     public LayoutSettings DefaultCellSetting() => _defaultCellSettings;
 
-    //AddChild 多重载对标原版默认 occupiedRows=1 occupiedColumns=1
+    //AddChild overloads, maps to vanilla defaulting occupiedRows=1 occupiedColumns=1
     public T AddChild<T>(T child, int row, int column) where T : ILayoutElement
         => AddChild(child, row, column, 1, 1, NewCellSettings());
 
@@ -33,7 +33,7 @@ public sealed class GridLayout : AbstractLayout
     public T AddChild<T>(T child, int row, int column, int rows, int columns) where T : ILayoutElement
         => AddChild(child, row, column, rows, columns, NewCellSettings());
 
-    //AddChild 核心重载指定 row/column/occupiedRows/occupiedColumns + cellSettings
+    //AddChild core overload specifying row/column/occupiedRows/occupiedColumns + cellSettings
     public T AddChild<T>(T child, int row, int column, int rows, int columns, LayoutSettings cellSettings) where T : ILayoutElement
     {
         if (rows < 1) throw new ArgumentException("Occupied rows must be at least 1");
@@ -42,11 +42,11 @@ public sealed class GridLayout : AbstractLayout
         return child;
     }
 
-    //CreateRowHelper 创建行辅助器按 columns 列自动换行添加子元素
+    //CreateRowHelper creates a row helper that adds children with automatic wrapping at columns
     public RowHelper CreateRowHelper(int columns) => new(this, columns);
 
-    //ArrangeElements 计算每列最大宽每行最大高按 align 偏移定位子元素
-    //跨多行多列的元素高度/宽度减去间距后用 Divisor 均分到各行列
+    //ArrangeElements computes each column's max width and each row's max height then positions children by align
+    //Multi-row/column elements have spacing subtracted then use a Divisor to split across rows and columns
     public override void ArrangeElements()
     {
         base.ArrangeElements();
@@ -68,20 +68,20 @@ public sealed class GridLayout : AbstractLayout
         var maxRowHeights = new int[maxRow + 1];
         foreach (var c in _children)
         {
-            //跨多行的元素高度减去行间距后均分到各行
+            //A multi-row element's height minus row spacing is divided across rows
             int childHeight = c.GetHeight() - (c.OccupiedRows - 1) * _rowSpacing;
             var heightDiv = new Divisor(childHeight, c.OccupiedRows);
             for (int row = c.Row; row <= c.GetLastOccupiedRow(); row++)
                 maxRowHeights[row] = Math.Max(maxRowHeights[row], heightDiv.NextInt());
 
-            //跨多列的元素宽度减去列间距后均分到各列
+            //A multi-column element's width minus column spacing is divided across columns
             int childWidth = c.GetWidth() - (c.OccupiedColumns - 1) * _columnSpacing;
             var widthDiv = new Divisor(childWidth, c.OccupiedColumns);
             for (int col = c.Column; col <= c.GetLastOccupiedColumn(); col++)
                 maxColumnWidths[col] = Math.Max(maxColumnWidths[col], widthDiv.NextInt());
         }
 
-        //累加列 X 偏移和行 Y 偏移含间距
+        //Accumulates the column X offset and row Y offset including spacing
         var columnXOffsets = new int[maxColumn + 1];
         var rowYOffsets = new int[maxRow + 1];
         for (int col = 1; col <= maxColumn; col++)
@@ -89,7 +89,7 @@ public sealed class GridLayout : AbstractLayout
         for (int row = 1; row <= maxRow; row++)
             rowYOffsets[row] = rowYOffsets[row - 1] + maxRowHeights[row - 1] + _rowSpacing;
 
-        //每个子元素按 align 偏移定位 availableSpace=跨列宽度之和+间距
+        //Each child is offset by align; availableSpace=sum of spanned column widths+spacing
         foreach (var c in _children)
         {
             int availableWidth = 0;
@@ -114,7 +114,7 @@ public sealed class GridLayout : AbstractLayout
 
     public override void RemoveChildren() => _children.Clear();
 
-    //ChildContainer 网格子元素容器含 row/column/occupiedRows/occupiedColumns
+    //ChildContainer grid child container with row/column/occupiedRows/occupiedColumns
     private sealed class ChildContainer : ChildWrapper
     {
         public readonly int Row;
@@ -135,8 +135,8 @@ public sealed class GridLayout : AbstractLayout
         public int GetLastOccupiedColumn() => Column + OccupiedColumns - 1;
     }
 
-    //RowHelper 行辅助器按 columns 列自动换行添加子元素
-    //对标原版 GridLayout.RowHelper index 超过列数自动换行
+    //RowHelper row helper adding children with automatic wrapping at columns
+    //maps to vanilla GridLayout.RowHelper: wraps automatically when the index exceeds the column count
     public sealed class RowHelper
     {
         private readonly GridLayout _grid;
@@ -158,7 +158,7 @@ public sealed class GridLayout : AbstractLayout
         public T AddChild<T>(T child, LayoutSettings settings) where T : ILayoutElement
             => AddChild(child, 1, settings);
 
-        //AddChild 自动算 row/column 超过列数换行 occupiedColumns 跨多列时不足换行
+        //AddChild computes row/column automatically, wrapping past the column count; with occupiedColumns spanning multiple columns it wraps when short
         public T AddChild<T>(T child, int occupiedColumns, LayoutSettings settings) where T : ILayoutElement
         {
             int row = _index / _columns;
@@ -176,7 +176,7 @@ public sealed class GridLayout : AbstractLayout
         public LayoutSettings NewCellSettings() => _grid.NewCellSettings();
         public LayoutSettings DefaultCellSetting() => _grid.DefaultCellSetting();
 
-        //RoundToward 向上取整到最近的 columns 倍数对标原版 Mth.roundToward
+        //RoundToward rounds up to the nearest multiple of columns, maps to vanilla Mth.roundToward
         private static int RoundToward(int value, int divisor)
             => ((value + divisor - 1) / divisor) * divisor;
     }

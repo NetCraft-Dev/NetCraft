@@ -1,7 +1,7 @@
 namespace NetCraft.Gpu.Pipeline;
 
-//Snippet pipeline 片段对标原版 RenderPipeline.Snippet record
-//所有字段可选用于组合覆盖后者的非空字段覆盖前者支持 RenderPipelines 的 snippet 组合
+//Snippet pipeline snippet, maps to vanilla RenderPipeline.Snippet record
+//All fields are optional for composition; later non-null fields override earlier ones, supporting snippet composition in RenderPipelines
 public sealed class Snippet
 {
     public string? VertexShader { get; }

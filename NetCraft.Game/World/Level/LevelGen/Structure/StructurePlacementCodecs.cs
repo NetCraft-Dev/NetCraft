@@ -4,18 +4,18 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//StructurePlacementType 结构放置类型基类 对应原版 StructurePlacementType
-//持注册名与 decode 入口 装载时按 placement 的 type 字段派发到具体类型
+//StructurePlacementType structure placement type base class, maps to vanilla StructurePlacementType
+//Holds the registry name and decode entry; loading dispatches to a concrete type by the placement's type field
 public abstract class StructurePlacementType : NetCraft.Registry.StructurePlacementType<object>
 {
     public Identifier Id { get; }
 
     protected StructurePlacementType(Identifier id) => Id = id;
 
-    //Decode 从 map 解出一个放置实例 type 字段已由外层消费
+    //Decode decodes a placement instance from a map; the type field is already consumed by the caller
     public abstract DataResult<StructurePlacement> Decode<U>(DynamicOps<U> ops, MapLike<U> input);
 
-    //Register 注册进 STRUCTURE_PLACEMENT 并返回自身 便于静态字段直接赋值
+    //Register registers into STRUCTURE_PLACEMENT and returns itself so a static field can be assigned directly
     protected static T Register<T>(Identifier id, T type) where T : StructurePlacementType
     {
         Registry<NetCraft.Registry.StructurePlacementType<object>>.Register(
@@ -26,7 +26,7 @@ public abstract class StructurePlacementType : NetCraft.Registry.StructurePlacem
     public override string ToString() => $"StructurePlacementType[{Id}]";
 }
 
-//RandomSpreadStructurePlacementType 随机散布放置类型 对应原版 StructurePlacementType.RANDOM_SPREAD
+//RandomSpreadStructurePlacementType random spread placement type, maps to vanilla StructurePlacementType.RANDOM_SPREAD
 public sealed class RandomSpreadStructurePlacementType : StructurePlacementType
 {
     public static readonly RandomSpreadStructurePlacementType Instance =
@@ -35,22 +35,22 @@ public sealed class RandomSpreadStructurePlacementType : StructurePlacementType
     private RandomSpreadStructurePlacementType()
         : base(Identifier.WithDefaultNamespace("random_spread")) { }
 
-    //Decode 解析公共字段与网格参数 对应原版 RandomSpreadStructurePlacement.CODEC
+    //Decode parses the common fields and grid params, maps to vanilla RandomSpreadStructurePlacement.CODEC
     public override DataResult<StructurePlacement> Decode<U>(DynamicOps<U> ops, MapLike<U> input)
         => StructurePlacementCodecs.ReadCommon(ops, input).FlatMap(parts =>
         {
             var spacing = StructurePlacementCodecs.ReadIntField(ops, input, "spacing");
-            if (!spacing.Result().IsPresent) return DataResult<StructurePlacement>.Error(() => "random_spread 缺少 spacing");
+            if (!spacing.Result().IsPresent) return DataResult<StructurePlacement>.Error(() => "random_spread is missing spacing");
             var separation = StructurePlacementCodecs.ReadIntField(ops, input, "separation");
-            if (!separation.Result().IsPresent) return DataResult<StructurePlacement>.Error(() => "random_spread 缺少 separation");
+            if (!separation.Result().IsPresent) return DataResult<StructurePlacement>.Error(() => "random_spread is missing separation");
             var spreadType = RandomSpreadType.Linear;
             var spreadTag = input.Get("spread_type");
             if (spreadTag.IsPresent)
             {
                 var text = ops.GetStringValue(spreadTag.Get());
-                if (!text.Result().IsPresent) return DataResult<StructurePlacement>.Error(() => "spread_type 必须是字符串");
+                if (!text.Result().IsPresent) return DataResult<StructurePlacement>.Error(() => "spread_type must be a string");
                 var parsed = RandomSpreadTypes.TryParse(text.GetOrThrow());
-                if (parsed is null) return DataResult<StructurePlacement>.Error(() => $"未知的 spread_type: {text.GetOrThrow()}");
+                if (parsed is null) return DataResult<StructurePlacement>.Error(() => $"unknown spread_type: {text.GetOrThrow()}");
                 spreadType = parsed.Value;
             }
             return DataResult<StructurePlacement>.Success(new RandomSpreadStructurePlacement(
@@ -59,14 +59,14 @@ public sealed class RandomSpreadStructurePlacementType : StructurePlacementType
         });
 }
 
-//StructurePlacementCodecs 结构放置 codec 入口 对应原版 StructurePlacement.CODEC
+//StructurePlacementCodecs structure placement codec entry point, maps to vanilla StructurePlacement.CODEC
 public static class StructurePlacementCodecs
 {
-    //ElementCodec 注册表元素 codec 按 type 派发到 STRUCTURE_PLACEMENT 里注册的放置类型
+    //ElementCodec registry element codec, dispatches by type to the placement type registered in STRUCTURE_PLACEMENT
     public static readonly Codec<StructurePlacement> ElementCodec = new PlacementDispatchCodec();
 
-    //ReadCommon 解析放置公共字段 各放置类型复用
-    //locate_offset 与 frequency_reduction_method 可省 frequency 默认 1.0 salt 必填
+    //ReadCommon parses the common placement fields, reused by each placement type
+    //locate_offset and frequency_reduction_method are optional, frequency defaults to 1.0, salt is required
     internal static DataResult<PlacementParts> ReadCommon<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var locateOffset = Vec3i.Zero;
@@ -74,7 +74,7 @@ public static class StructurePlacementCodecs
         if (offsetTag.IsPresent)
         {
             var offset = ReadVec3i(ops, offsetTag.Get());
-            if (!offset.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "locate_offset 必须是有符号整数三元组");
+            if (!offset.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "locate_offset must be a triple of signed integers");
             locateOffset = offset.GetOrThrow();
         }
 
@@ -83,9 +83,9 @@ public static class StructurePlacementCodecs
         if (methodTag.IsPresent)
         {
             var text = ops.GetStringValue(methodTag.Get());
-            if (!text.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "frequency_reduction_method 必须是字符串");
+            if (!text.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "frequency_reduction_method must be a string");
             var parsed = FrequencyReductionMethods.TryParse(text.GetOrThrow());
-            if (parsed is null) return DataResult<PlacementParts>.Error(() => $"未知的 frequency_reduction_method: {text.GetOrThrow()}");
+            if (parsed is null) return DataResult<PlacementParts>.Error(() => $"unknown frequency_reduction_method: {text.GetOrThrow()}");
             method = parsed.Value;
         }
 
@@ -94,14 +94,14 @@ public static class StructurePlacementCodecs
         if (frequencyTag.IsPresent)
         {
             var value = ops.GetNumberValue(frequencyTag.Get());
-            if (!value.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "frequency 必须是数值");
+            if (!value.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "frequency must be a number");
             frequency = (float)value.GetOrThrow();
         }
 
         var saltTag = input.Get("salt");
-        if (!saltTag.IsPresent) return DataResult<PlacementParts>.Error(() => "placement 缺少必填字段 salt");
+        if (!saltTag.IsPresent) return DataResult<PlacementParts>.Error(() => "placement is missing required field salt");
         var saltValue = ops.GetNumberValue(saltTag.Get());
-        if (!saltValue.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "salt 必须是整数");
+        if (!saltValue.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "salt must be an integer");
         var salt = (int)saltValue.GetOrThrow();
 
         StructurePlacement.ExclusionZone? exclusion = null;
@@ -109,76 +109,76 @@ public static class StructurePlacementCodecs
         if (exclusionTag.IsPresent)
         {
             var mapResult = ops.GetMap(exclusionTag.Get());
-            if (!mapResult.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "exclusion_zone 必须是对象");
+            if (!mapResult.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "exclusion_zone must be an object");
             var map = mapResult.GetOrThrow();
             var otherSetTag = map.Get("other_set");
-            if (!otherSetTag.IsPresent) return DataResult<PlacementParts>.Error(() => "exclusion_zone 缺少 other_set");
+            if (!otherSetTag.IsPresent) return DataResult<PlacementParts>.Error(() => "exclusion_zone is missing other_set");
             var otherSet = HolderSetCodecs.StructureSetRef.Parse(ops, otherSetTag.Get());
-            if (!otherSet.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "exclusion_zone.other_set 解析失败");
+            if (!otherSet.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "failed to parse exclusion_zone.other_set");
             var chunkCount = ReadIntField(ops, map, "chunk_count");
-            if (!chunkCount.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "exclusion_zone.chunk_count 必须是整数");
+            if (!chunkCount.Result().IsPresent) return DataResult<PlacementParts>.Error(() => "exclusion_zone.chunk_count must be an integer");
             exclusion = new StructurePlacement.ExclusionZone(otherSet.GetOrThrow(), chunkCount.GetOrThrow());
         }
 
         return DataResult<PlacementParts>.Success(new PlacementParts(locateOffset, method, frequency, salt, exclusion));
     }
 
-    //ReadIntField 读一个整数标量字段 缺失或非数值都报错
+    //ReadIntField reads an integer scalar field, erroring on a missing or non-numeric value
     internal static DataResult<int> ReadIntField<U>(DynamicOps<U> ops, MapLike<U> map, string key)
     {
         var tag = map.Get(key);
-        if (!tag.IsPresent) return DataResult<int>.Error(() => $"缺少字段 {key}");
+        if (!tag.IsPresent) return DataResult<int>.Error(() => $"missing field {key}");
         var value = ops.GetNumberValue(tag.Get());
-        if (!value.Result().IsPresent) return DataResult<int>.Error(() => $"{key} 必须是数值");
+        if (!value.Result().IsPresent) return DataResult<int>.Error(() => $"{key} must be a number");
         return DataResult<int>.Success((int)value.GetOrThrow());
     }
 
-    //ReadVec3i 读三元素整数数组 对应原版 Vec3i.CODEC 的 [x, y, z] 形式
+    //ReadVec3i reads a three-element integer array, maps to the [x, y, z] form of vanilla Vec3i.CODEC
     internal static DataResult<Vec3i> ReadVec3i<U>(DynamicOps<U> ops, U input)
     {
         var streamResult = ops.GetStream(input);
         if (!streamResult.Result().IsPresent)
-            return DataResult<Vec3i>.Error(() => "坐标必须是有符号整数三元组");
+            return DataResult<Vec3i>.Error(() => "coordinates must be a triple of signed integers");
         var values = new List<int>();
         foreach (var element in streamResult.GetOrThrow())
         {
             var number = ops.GetNumberValue(element);
             if (!number.Result().IsPresent)
-                return DataResult<Vec3i>.Error(() => "坐标必须是有符号整数三元组");
+                return DataResult<Vec3i>.Error(() => "coordinates must be a triple of signed integers");
             var value = number.GetOrThrow();
             if (value != Math.Floor(value))
-                return DataResult<Vec3i>.Error(() => "坐标必须是有符号整数三元组");
+                return DataResult<Vec3i>.Error(() => "coordinates must be a triple of signed integers");
             values.Add((int)value);
         }
         if (values.Count != 3)
-            return DataResult<Vec3i>.Error(() => $"坐标必须是有符号整数三元组 实际 {values.Count} 个");
+            return DataResult<Vec3i>.Error(() => $"coordinates must be a triple of signed integers, got {values.Count}");
         return DataResult<Vec3i>.Success(new Vec3i(values[0], values[1], values[2]));
     }
 }
 
-//PlacementParts 放置公共字段的解析结果 供各放置类型组装自己的实例
+//PlacementParts parse result of the common placement fields, used by each placement type to build its own instance
 internal sealed record PlacementParts(Vec3i LocateOffset, FrequencyReductionMethod ReductionMethod,
     float Frequency, int Salt, StructurePlacement.ExclusionZone? Exclusion);
 
-//PlacementDispatchCodec 按 type 字段查 STRUCTURE_PLACEMENT 再交给该类型的 decode 对应原版 dispatch codec
+//PlacementDispatchCodec looks up STRUCTURE_PLACEMENT by the type field then hands off to that type's decode, maps to vanilla dispatch codec
 internal sealed class PlacementDispatchCodec : ScalarCodec<StructurePlacement>
 {
     public override DataResult<StructurePlacement> Parse<U>(DynamicOps<U> ops, U input)
     {
         var mapResult = ops.GetMap(input);
-        if (!mapResult.Result().IsPresent) return DataResult<StructurePlacement>.Error(() => "placement 必须是对象");
+        if (!mapResult.Result().IsPresent) return DataResult<StructurePlacement>.Error(() => "placement must be an object");
         var map = mapResult.GetOrThrow();
         var typeTag = map.Get("type");
-        if (!typeTag.IsPresent) return DataResult<StructurePlacement>.Error(() => "placement 缺少 type 字段");
+        if (!typeTag.IsPresent) return DataResult<StructurePlacement>.Error(() => "placement is missing the type field");
         var typeText = ops.GetStringValue(typeTag.Get());
-        if (!typeText.Result().IsPresent) return DataResult<StructurePlacement>.Error(() => "placement.type 必须是字符串");
+        if (!typeText.Result().IsPresent) return DataResult<StructurePlacement>.Error(() => "placement.type must be a string");
         var typeId = Identifier.TryParse(typeText.GetOrThrow());
-        if (typeId is null) return DataResult<StructurePlacement>.Error(() => $"非法的 placement 类型: {typeText.GetOrThrow()}");
+        if (typeId is null) return DataResult<StructurePlacement>.Error(() => $"invalid placement type: {typeText.GetOrThrow()}");
         var type = BuiltInRegistries.STRUCTURE_PLACEMENT.GetValue(typeId.Value) as StructurePlacementType;
-        if (type is null) return DataResult<StructurePlacement>.Error(() => $"未注册的 placement 类型: {typeId}");
+        if (type is null) return DataResult<StructurePlacement>.Error(() => $"unregistered placement type: {typeId}");
         return type.Decode(ops, map);
     }
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, StructurePlacement value)
-        => DataResult<U>.Error(() => "结构放置编码暂未实现");
+        => DataResult<U>.Error(() => "structure placement encoding not implemented yet");
 }

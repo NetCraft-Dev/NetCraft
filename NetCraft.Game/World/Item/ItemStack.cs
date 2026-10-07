@@ -5,21 +5,21 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items;
 
-//ItemStack 物品栈对应原版 net.minecraft.world.item.ItemStack
-//持有 Holder<Item> count PatchedDataComponentMap 三元组
-//STREAM_CODEC 编码 count+Item.STREAM_CODEC+DataComponentPatch.STREAM_CODEC
-//OPTIONAL_STREAM_CODEC 允许空栈 count<=0 视为 EMPTY
-//STREAM_CODEC 在 OPTIONAL 基础上禁止空栈编解码抛 EncoderException/DecoderException
+//ItemStack item stack, maps to vanilla net.minecraft.world.item.ItemStack
+//Holds the triple of Holder<Item>, count and PatchedDataComponentMap
+//STREAM_CODEC encodes count + Item.STREAM_CODEC + DataComponentPatch.STREAM_CODEC
+//OPTIONAL_STREAM_CODEC allows empty stacks, count<=0 is treated as EMPTY
+//STREAM_CODEC forbids empty stacks on top of OPTIONAL, encoding/decoding throws EncoderException/DecoderException
 public sealed class ItemStack : ItemInstance, DataComponentHolder
 {
-    //Empty 空栈单例 _item=null
+    //Empty empty stack singleton, _item=null
     public static readonly ItemStack Empty = new();
 
-    //OptionalStreamCodec 允许空栈编解码
+    //OptionalStreamCodec allows empty stacks
     public static readonly StreamCodec<RegistryFriendlyByteBuf, ItemStack> OptionalStreamCodec
         = new ItemStackOptionalStreamCodec();
 
-    //StreamCodec 禁止空栈编解码
+    //StreamCodec forbids empty stacks
     public static readonly StreamCodec<RegistryFriendlyByteBuf, ItemStack> StreamCodec
         = new ItemStackStreamCodec();
 
@@ -41,45 +41,45 @@ public sealed class ItemStack : ItemInstance, DataComponentHolder
         _components = new PatchedDataComponentMap(item.Components, patch);
     }
 
-    //GetCount 物品数量
+    //GetCount item count
     public int GetCount() => _count;
 
-    //Count 数量 对应 ItemInstance 只读视图
+    //Count count, ItemInstance read-only view
     public int Count => _count;
 
-    //TypeHolder 物品类型句柄 对应 ItemInstance 只读视图 空栈抛异常
+    //TypeHolder item type holder, ItemInstance read-only view, throws on an empty stack
     public Holder<Item> TypeHolder => _item ?? throw new InvalidOperationException("Cannot get item from empty ItemStack");
 
-    //Get 查该栈的组件 对应 ItemInstance 只读视图
+    //Get looks up a component of the stack, ItemInstance read-only view
     public T? Get<T>(DataComponentType<T> type) where T : class => _components.Get(type);
 
-    //GetOrDefault 查组件缺失时用兜底值 对应原版 getOrDefault
+    //GetOrDefault looks up a component with a fallback when missing, maps to vanilla getOrDefault
     public T GetOrDefault<T>(DataComponentType<T> type, T fallback) where T : class => Get(type) ?? fallback;
 
-    //Set 覆写组件 对应原版 set 空栈不允许改
+    //Set overwrites a component, maps to vanilla set, empty stacks cannot be modified
     public void Set<T>(DataComponentType<T> type, T value) where T : class
     {
         if (IsEmpty()) throw new InvalidOperationException("Cannot modify an empty ItemStack");
         _components.Set(type, value);
     }
 
-    //Remove 移除组件 对应原版 remove
+    //Remove removes a component, maps to vanilla remove
     public void Remove<T>(DataComponentType<T> type) where T : class
     {
         if (IsEmpty()) return;
         _components.Remove(type);
     }
 
-    //SetCount 设置数量
+    //SetCount sets the count
     public void SetCount(int count)
     {
         _count = count;
     }
 
-    //Shrink 数量减少 落到 0 为止 对应原版 shrink
+    //Shrink reduces the count, clamped at 0, maps to vanilla shrink
     public void Shrink(int amount) => _count = Math.Max(0, _count - amount);
 
-    //Split 取出 amount 个做新栈 原栈相应减少 对应原版 split
+    //Split takes amount into a new stack and reduces this one, maps to vanilla split
     public ItemStack Split(int amount)
     {
         var taken = Math.Min(amount, _count);
@@ -89,15 +89,15 @@ public sealed class ItemStack : ItemInstance, DataComponentHolder
         return result;
     }
 
-    //GetMaxStackSize 堆叠上限 空栈按 64 对应原版 getMaxStackSize
+    //GetMaxStackSize stack limit, 64 for an empty stack, maps to vanilla getMaxStackSize
     public int GetMaxStackSize() => IsEmpty() ? 64 : GetItem().GetDefaultMaxStackSize();
 
-    //IsStackable 该栈能否继续参与堆叠 对应原版 isStackable
-    //原版还要求未损耗耐久 耐久组件接入前只按堆叠上限判定
+    //IsStackable whether the stack can still take part in stacking, maps to vanilla isStackable
+    //Vanilla also requires undamaged durability; before the damage component lands only the stack limit is checked
     public bool IsStackable() => GetMaxStackSize() > 1;
 
-    //IsSameItemAndComponentsAs 同物品且组件相同 对应原版 isSameItemSameComponents
-    //逐键比较组件补丁 只比补丁引用的话组件系统接入后会把不同附魔当成同种
+    //IsSameItemAndComponentsAs same item and same components, maps to vanilla isSameItemSameComponents
+    //Compares the component patch key by key; comparing only the patch reference would treat different enchantments as the same once the component system lands
     public bool IsSameItemAndComponentsAs(ItemStack other)
     {
         if (IsEmpty() || other.IsEmpty()) return false;
@@ -114,10 +114,10 @@ public sealed class ItemStack : ItemInstance, DataComponentHolder
         return true;
     }
 
-    //IsEmpty 是否空栈
+    //IsEmpty whether the stack is empty
     public bool IsEmpty() => _item is null || _count <= 0;
 
-    //GetItem 获取 Item 空栈抛异常
+    //GetItem returns the Item, throws on an empty stack
     public Item GetItem()
     {
         if (_item is null)
@@ -125,36 +125,36 @@ public sealed class ItemStack : ItemInstance, DataComponentHolder
         return _item.Value;
     }
 
-    //GetTypeHolder 获取 Holder<Item> 空栈返回 null
+    //GetTypeHolder returns Holder<Item>, null for an empty stack
     public Holder<Item>? GetTypeHolder() => _item;
 
-    //GetComponents 获取组件映射
+    //GetComponents returns the component map
     public PatchedDataComponentMap GetComponents() => _components;
 
-    //显式实现 DataComponentHolder 按基接口类型暴露同一份映射
+    //Explicit implementation of DataComponentHolder exposing the same map under the base interface type
     DataComponentMap DataComponentHolder.GetComponents() => _components;
 
-    //Copy 复制物品栈
+    //Copy copies the item stack
     public ItemStack Copy()
     {
         if (IsEmpty()) return Empty;
         return new ItemStack(_item!, _count, _components.AsPatch());
     }
 
-    //CopyWithCount 按指定数量复制
+    //CopyWithCount copies with the given count
     public ItemStack CopyWithCount(int count)
     {
         if (IsEmpty()) return Empty;
         return new ItemStack(_item!, count, _components.AsPatch());
     }
 
-    //WriteNbt 按原版 1.20.5+ 的 id + count + components 结构写出物品栈 空栈不写
+    //WriteNbt writes the stack in the vanilla 1.20.5+ id + count + components shape, empty stacks write nothing
     public static void WriteNbt(CompoundTag parent, string key, ItemStack stack)
     {
         if (ToNbt(stack) is { } entry) parent.Put(key, entry);
     }
 
-    //ToNbt 写出物品栈的标签 组件以补丁形式落在 components 字段 空栈返回 null
+    //ToNbt writes the stack tag, components land in the components field as a patch, returns null for an empty stack
     public static CompoundTag? ToNbt(ItemStack stack)
     {
         if (stack.IsEmpty()) return null;
@@ -170,8 +170,8 @@ public sealed class ItemStack : ItemInstance, DataComponentHolder
         return entry;
     }
 
-    //ReadNbt 读回物品栈 缺 id 或物品未注册或数量非法一律返回空栈
-    //注册表带默认值 必须按 ResourceKey 查 否则未知物品会静默落到默认项
+    //ReadNbt reads a stack back, returns an empty stack when the id is missing, the item is unregistered or the count is invalid
+    //The registry has a default value, lookup must go through ResourceKey, otherwise unknown items silently hit the default
     public static ItemStack ReadNbt(CompoundTag? tag)
     {
         if (tag is null) return Empty;
@@ -192,8 +192,8 @@ public sealed class ItemStack : ItemInstance, DataComponentHolder
     }
 }
 
-//ItemStackOptionalStreamCodec 允许空栈编解码对应原版 OPTIONAL_STREAM_CODEC
-//count<=0 视为 EMPTY 编码空栈写 count=0
+//ItemStackOptionalStreamCodec allows empty stacks, maps to vanilla OPTIONAL_STREAM_CODEC
+//count<=0 is treated as EMPTY, an empty stack encodes count=0
 internal sealed class ItemStackOptionalStreamCodec : StreamCodec<RegistryFriendlyByteBuf, ItemStack>
 {
     public ItemStack Decode(RegistryFriendlyByteBuf buf)
@@ -219,8 +219,8 @@ internal sealed class ItemStackOptionalStreamCodec : StreamCodec<RegistryFriendl
     }
 }
 
-//ItemStackStreamCodec 禁止空栈编解码对应原版 STREAM_CODEC
-//空栈 encode/decode 抛异常
+//ItemStackStreamCodec forbids empty stacks, maps to vanilla STREAM_CODEC
+//Empty stacks throw on encode/decode
 internal sealed class ItemStackStreamCodec : StreamCodec<RegistryFriendlyByteBuf, ItemStack>
 {
     public ItemStack Decode(RegistryFriendlyByteBuf buf)

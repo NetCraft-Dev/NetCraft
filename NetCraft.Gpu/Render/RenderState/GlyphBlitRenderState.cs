@@ -3,10 +3,10 @@ using RenderPipeline = NetCraft.Gpu.Pipeline.RenderPipeline;
 
 namespace NetCraft.Gpu;
 
-//GlyphBlitRenderState 字形 blit 渲染状态对标原版 BakedSheetGlyph.renderChar 提交的 4 顶点 quad
-//4 个浮点顶点支持 italic shearTop/shearBottom 和 bold extraThickness 偏移
-//BlitRenderState 用 int 矩形不支持浮点偏移故新增此类型专用于字形渲染
-//参与 GuiRenderState 排序合批按 (Pipeline, TextureSetup, ScissorArea) 合并
+//GlyphBlitRenderState glyph blit render state, maps to the 4-vertex quad submitted by vanilla BakedSheetGlyph.renderChar
+//4 float vertices supporting italic shearTop/shearBottom and the bold extraThickness offset
+//BlitRenderState uses int rectangles and does not support float offsets, so this type was added specifically for glyph rendering
+//Participates in GuiRenderState sorting and batching, merging by (Pipeline, TextureSetup, ScissorArea)
 public sealed record GlyphBlitRenderState(
     RenderPipeline Pipeline,
     TextureSetup TextureSetup,
@@ -21,7 +21,7 @@ public sealed record GlyphBlitRenderState(
     ScreenRectangle ScissorArea,
     ScreenRectangle Bounds) : GuiElementRenderState
 {
-    //构造重载不传 bounds 时由 4 顶点+pose+scissor 自动推导
+    //The constructor overload without bounds derives it automatically from the 4 vertices+pose+scissor
     public GlyphBlitRenderState(
         RenderPipeline pipeline,
         TextureSetup textureSetup,
@@ -35,8 +35,8 @@ public sealed record GlyphBlitRenderState(
     {
     }
 
-    //BuildVertices 写 4 顶点四边形对标原版 BakedSheetGlyph 顶点顺序 左上→左下→右下→右上
-    //UV 映射 左上(U0,V0) 左下(U0,V1) 右下(U1,V1) 右上(U1,V0)
+    //BuildVertices writes a 4-vertex quad matching the vanilla BakedSheetGlyph vertex order top-left→bottom-left→bottom-right→top-right
+    //UV mapping top-left(U0,V0) bottom-left(U0,V1) bottom-right(U1,V1) top-right(U1,V0)
     public void BuildVertices(IVertexConsumer consumer)
     {
         consumer.AddVertexWith2DPose(Pose, X0, Y0, U0, V0, Color);
@@ -45,7 +45,7 @@ public sealed record GlyphBlitRenderState(
         consumer.AddVertexWith2DPose(Pose, X3, Y3, U1, V0, Color);
     }
 
-    //GetBounds 由 4 顶点经 pose 变换后与 scissor 求交得出最终 Bounds
+    //GetBounds intersects the pose-transformed 4 vertices with the scissor for the final bounds
     private static ScreenRectangle GetBounds(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, Matrix3x2 pose, ScreenRectangle scissorArea)
     {
         float minX = Math.Min(Math.Min(x0, x1), Math.Min(x2, x3));

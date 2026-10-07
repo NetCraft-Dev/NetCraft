@@ -12,33 +12,33 @@ using NetCraft.Network.Chat;
 using NetCraft.Registry;
 using NetCraft.Storage;
 using NetCraft.Primitives;
-//属性相关类型自带命名空间 这里只取需要的几个名字
+//Attribute-related types carry their own namespace; only the needed names are taken here
 using AttributeMap = NetCraft.Registry.EntityAttribute.AttributeMap;
 using AttributeSupplier = NetCraft.Registry.EntityAttribute.AttributeSupplier;
 using AttributeDef = NetCraft.Registry.EntityAttribute.Attribute;
 using EntityAttributes = NetCraft.Registry.EntityAttribute.Attributes;
-//效果类与注册表占位接口同名 这里给效果实现类取短别名
+//The effect class has the same name as the registry placeholder interface, so the effect implementation class gets a short alias
 using GameMobEffect = NetCraft.Game.World.Effect.MobEffect;
 
 namespace NetCraft.Game.Server;
 
-//ServerPlayer 服务端玩家对象对应原版 ServerPlayer
-//最小实现持有 Connection/GameProfile/坐标/游戏模式供 PlayerList 管理
-//不继承 NetCraft.Registry.Entity 避免与已有实体体系混淆本轮只做网络层玩家
-//实现 ITrackedEntity 让玩家与实体走同一条追踪同步链路
-//实现 ISyncedEntity 让元数据同步与掉落物等实体共用一套机制
+//ServerPlayer server-side player object, maps to vanilla ServerPlayer
+//Minimal implementation holding Connection/GameProfile/position/game type for PlayerList to manage
+//Does not extend NetCraft.Registry.Entity to avoid confusion with the existing entity system; this round only does the network-layer player
+//Implements ITrackedEntity so players and entities share one tracking sync path
+//Implements ISyncedEntity so metadata sync shares a mechanism with entities such as drops
 public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
 {
-    //EntityId 服务端分配的实体 id 用于 ClientboundLoginPacket 等同步
-    //与 Registry.Entity 共用同一个分配器 两套自增器会撞号导致攻击包找错目标
+    //EntityId the entity id assigned by the server, used for sync such as ClientboundLoginPacket
+    //Shares the same allocator as Registry.Entity; two independent counters would collide and make attack packets target the wrong entity
     public int EntityId { get; private set; }
     public GameProfile Profile { get; }
     public Connection Connection { get; }
     public ServerLevel Level { get; }
 
-    //GameType 玩家游戏模式 PlaceNewPlayer 时从服务端默认模式初始化
-    //切换时同步背包的无限材料标记: 创造模式塞不下时按原版直接吞掉物品不算失败
-    //只有创造开 instabuild 旁观没有 与原版 updatePlayerAbilities 一致
+    //GameType the player's game type, initialized from the server default in PlaceNewPlayer
+    //On switch it syncs the inventory's infinite materials flag: creative swallows items it cannot fit without counting it as failure
+    //Only creative sets instabuild, spectator does not, consistent with vanilla updatePlayerAbilities
     public GameType GameType
     {
         get => _gameType;
@@ -46,64 +46,64 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         {
             _gameType = value;
             Inventory.InfiniteMaterials = value == GameType.Creative;
-            //能力随模式重算 创造分支不动飞行状态 玩家按出来的飞行切模式后还在 对应原版 updatePlayerAbilities
+            //Abilities are recomputed with the mode; the creative branch does not touch the flight state, so the player's toggled flight survives a mode switch, maps to vanilla updatePlayerAbilities
             Abilities.ApplyGameType(value);
         }
     }
 
     private GameType _gameType = GameType.Survival;
 
-    //Abilities 玩家能力状态 入场下发能力包与玩家存档都读它 对应原版 Player.abilities
+    //Abilities player ability state; the join ability packet and the player save both read it, maps to vanilla Player.abilities
     public Abilities Abilities { get; } = new();
 
-    //PermissionLevel 权限等级 0-4 加入时由 PlayerList 按 ops.json 设置
-    //op/deop 变更后由 PlayerList 更新并同步客户端 对应原版 ServerPlayer 的 permission level
+    //PermissionLevel permission level 0-4, set by PlayerList from ops.json on join
+    //After op/deop changes PlayerList updates it and syncs the client, maps to the vanilla ServerPlayer permission level
     public int PermissionLevel { get; set; }
 
-    //HasPermissions 是否达到指定权限等级 对应原版 ServerPlayer.hasPermissions
+    //HasPermissions whether it reaches the given permission level, maps to vanilla ServerPlayer.hasPermissions
     public bool HasPermissions(int level) => PermissionLevel >= level;
 
-    //Position 玩家坐标默认出生点 0,0,0 后续接入出生点逻辑
+    //Position player position, defaults to spawn 0,0,0; spawn logic is wired in later
     public Vec3 Position { get; set; } = new(0, 64, 0);
     public float Yaw { get; set; }
     public float Pitch { get; set; }
 
-    //_lastActivePosition 上一刻位置 与当前位置不同即认为玩家在活动
+    //_lastActivePosition the previous tick's position; differing from the current one means the player is active
     private Vec3 _lastActivePosition;
 
-    //LastActiveMillis 最后一次活动时刻 挂机踢出计时基准
+    //LastActiveMillis the last active moment, the baseline for the idle kick timer
     public long LastActiveMillis { get; private set; } = Environment.TickCount64;
 
-    //RespawnPos 个人重生点 对应原版 spawnpoint 命令设置的玩家重生位置 为空时回落到世界出生点
+    //RespawnPos personal respawn point, maps to the player respawn position set by the vanilla spawnpoint command; empty falls back to the world spawn
     public Vec3? RespawnPos { get; set; }
 
-    //RespawnAngle 个人重生朝向
+    //RespawnAngle personal respawn facing
     public float RespawnAngle { get; set; }
 
-    //Velocity/OnGround 服务端记录的玩家运动状态 玩家移动由客户端上报后回填
+    //Velocity/OnGround the player's motion state recorded by the server; movement is reported by the client and filled back
     public Vec3 Velocity { get; set; } = Vec3.Zero;
     public bool OnGround { get; set; }
 
-    //--- 旁观相机 对应原版 ServerPlayer.camera ---
+    //--- spectator camera, maps to vanilla ServerPlayer.camera ---
 
-    //IsSpectator 是否处于旁观模式 对应原版 isSpectator
+    //IsSpectator whether in spectator mode, maps to vanilla isSpectator
     public bool IsSpectator => GameType == GameType.Spectator;
 
-    //_camera 当前旁观相机实体 null 表示视角在自己 对应原版 camera 字段
+    //_camera the current spectator camera entity; null means the view is on the player, maps to the vanilla camera field
     private ITrackedEntity? _camera;
 
-    //GetCamera 当前相机实体 未旁观时返回自身 对应原版 getCamera
+    //GetCamera the current camera entity; returns the player itself when not spectating, maps to vanilla getCamera
     public ITrackedEntity GetCamera() => _camera ?? this;
 
-    //SetCamera 切换旁观相机 对应原版 ServerPlayer.setCamera
-    //null 表示回到自身视角 切换时把位置同步到相机处并下发设置相机包
-    //跨维度旁观未实现: ServerPlayer.Level 构造后固定 相机在其它维度时只跟随位置不换维度
+    //SetCamera switches the spectator camera, maps to vanilla ServerPlayer.setCamera
+    //null means returning to the player's own view; switching syncs the position to the camera and sends the set-camera packet
+    //Cross-dimension spectating is not implemented: ServerPlayer.Level is fixed after construction, so a camera in another dimension only follows position without changing dimension
     public void SetCamera(ITrackedEntity? newCamera)
     {
         var oldCamera = GetCamera();
         _camera = newCamera ?? this;
         if (ReferenceEquals(oldCamera, _camera)) return;
-        //位置落到相机处 区块加载与实体追踪跟随相机 对应原版 setCamera 里的 teleportTo
+        //The position lands at the camera; chunk loading and entity tracking follow the camera, maps to teleportTo in vanilla setCamera
         var pos = _camera.Pos;
         if (Listener is { } listener)
             listener.Teleport(pos, Yaw, Pitch, pos.X, pos.Y, pos.Z, Yaw, Pitch, 0);
@@ -112,8 +112,8 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         Connection.Send(new ClientboundSetCameraPacket(_camera.EntityId));
     }
 
-    //TickCamera 旁观者每刻跟随相机位置 对应原版 ServerPlayer.tick 的 camera 分支
-    //相机实体被移除时回到自身视角 位置直接落服务端状态 客户端视角已由相机包接管
+    //TickCamera each tick a spectator follows the camera position, maps to the camera branch of vanilla ServerPlayer.tick
+    //When the camera entity is removed it returns to the player's own view; the position lands directly in server state and the client view is already taken over by the camera packet
     private void TickCamera()
     {
         if (_camera is not { } camera || ReferenceEquals(camera, this)) return;
@@ -127,88 +127,88 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         Pitch = camera.XRot;
     }
 
-    //--- ITrackedEntity 实现 ---
+    //--- ITrackedEntity implementation ---
 
-    //Type 玩家实体类型 玩家与实体走同一追踪链路按该类型下发 AddEntity
+    //Type the player entity type; players and entities share the tracking path and send AddEntity by this type
     public EntityType<object>? Type => EntityTypes.PLAYER;
 
-    //Uuid 玩家唯一标识沿用 GameProfile 的 id
+    //Uuid the player's unique id, reusing the GameProfile id
     public Guid Uuid => Profile.Id;
 
     Vec3 ITrackedEntity.Pos => Position;
     float ITrackedEntity.YRot => Yaw;
     float ITrackedEntity.XRot => Pitch;
 
-    //Attributes 玩家属性表 按实体类型取默认表
-    //对应原版 ServerPlayer 经 LivingEntity 持有 AttributeMap 这一层
+    //Attributes the player attribute map, taking the default map by entity type
+    //maps to the vanilla ServerPlayer layer holding an AttributeMap via LivingEntity
     public AttributeMap Attributes { get; }
 
-    //GetAttributeValue 取属性最终值 对应原版 getAttributeValue
+    //GetAttributeValue gets the final attribute value, maps to vanilla getAttributeValue
     public double GetAttributeValue(AttributeDef attribute) => Attributes.GetValue(attribute);
 
-    //--- 姿态与共享标志 对应原版 Entity.DATA_SHARED_FLAGS_ID 与 DATA_POSE ---
+    //--- pose and shared flags, maps to vanilla Entity.DATA_SHARED_FLAGS_ID and DATA_POSE ---
 
-    //PoseStanding/PoseCrouching 姿态 id 对齐原版 Pose 枚举
+    //PoseStanding/PoseCrouching pose ids, aligned with the vanilla Pose enum
     public const int PoseStanding = 0;
     public const int PoseCrouching = 5;
 
-    //SyncedData 玩家元数据容器 共享标志位与姿态走它同步 对应原版 SynchedEntityData
+    //SyncedData player metadata container; shared flags and pose sync through it, maps to vanilla SynchedEntityData
     public SynchedEntityData SyncedData { get; } = new();
 
-    //IsSprinting/IsSneaking 疾跑与潜行状态 由 player_command 包切换
+    //IsSprinting/IsSneaking sprint and sneak state, toggled by the player_command packet
     public bool IsSprinting { get; private set; }
     public bool IsSneaking { get; private set; }
 
-    //SharedFlags 共享标志位 位1 潜行 位3 疾跑 其余位本作未用
+    //SharedFlags shared flags: bit 1 sneak, bit 3 sprint, the rest unused here
     public byte SharedFlags => (byte)((IsSneaking ? 1 << 1 : 0) | (IsSprinting ? 1 << 3 : 0));
 
-    //PoseId 当前姿态 潜行时模型下蹲
+    //PoseId current pose; the model crouches when sneaking
     public int PoseId => IsSneaking ? PoseCrouching : PoseStanding;
 
-    //SetSprinting 切换疾跑 对应原版 setSprinting
+    //SetSprinting toggles sprint, maps to vanilla setSprinting
     public void SetSprinting(bool value)
     {
         IsSprinting = value;
         SyncSharedState();
     }
 
-    //SetSneaking 切换潜行 对应原版 setShiftKeyDown
+    //SetSneaking toggles sneak, maps to vanilla setShiftKeyDown
     public void SetSneaking(bool value)
     {
         IsSneaking = value;
         SyncSharedState();
     }
 
-    //SyncSharedState 把共享标志位与姿态写进元数据 Set 内部只在值有变化时计版本
+    //SyncSharedState writes the shared flags and pose into metadata; Set only bumps the version when the value changed
     private void SyncSharedState()
     {
         SyncedData.Set(NetCraft.Registry.Entity.SharedFlagsIndex, SharedFlags);
         SyncedData.Set(NetCraft.Registry.Entity.PoseIndex, PoseId);
     }
 
-    //ChunkSender 渐进区块发送器 PlaceNewPlayer 时由 PlayerList 注入 tick 驱动发送
+    //ChunkSender progressive chunk sender, injected by PlayerList in PlaceNewPlayer and driven by tick
     public ChunkSender? ChunkSender { get; set; }
 
-    //ViewDistanceChunks 玩家视距区块数 PlaceNewPlayer 时取服务端配置
-    //实体追踪按它与实体追踪距离的较小者判定可见性
+    //ViewDistanceChunks the player's view distance in chunks, taken from server config in PlaceNewPlayer
+    //Entity tracking decides visibility by the smaller of it and the entity tracking distance
     public int ViewDistanceChunks { get; set; }
 
-    //KeepAliveIntervalMillis 心跳间隔对齐原版 15 秒客户端 Netty 读超时 30 秒靠它压住
+    //KeepAliveIntervalMillis heartbeat interval aligned with vanilla 15 seconds; it keeps the client's 30-second netty read timeout from firing
     public const long KeepAliveIntervalMillis = 15000;
 
-    //Inventory 玩家物品栏 随玩家对象创建 菜单槽位最终落到这里
+    //Inventory player inventory, created with the player object; menu slots ultimately land here
     public PlayerInventory Inventory { get; } = new();
 
-    //OwnerList 所属玩家列表 音效要广播给全服 由 PlayerList.PlaceNewPlayer 注入
+    //OwnerList the owning player list; sounds broadcast to the whole server, injected by PlayerList.PlaceNewPlayer
     public PlayerList? OwnerList { get; set; }
 
-    //AddItem 内核给予入口 对应原版 Player.addItem
-    //所有把物品交到玩家手上的路径都收敛到这里 返回是否放进去了至少一个
-    //放不下的数量留在传入栈里 由调用方决定掉落还是留在原地
+    //AddItem core give entry, maps to vanilla Player.addItem
+    //All paths handing items to the player converge here; returns whether at least one was placed
+    //What cannot be placed stays in the passed stack; the caller decides whether to drop it or leave it in place
     public bool AddItem(ItemStack stack) => Inventory.Add(stack);
 
-    //GiveItem 给予物品并把放不下的部分弹在脚下 放进去了就播拾取音效 返回实际放入数量
-    //对应原版 give 命令里 inventory.add 加 player.drop 的组合 指令给予与拾取共用这条链路
+    //GiveItem gives an item, dropping what cannot fit at the feet and playing the pickup sound when something was placed; returns the count actually placed
+    //maps to the inventory.add plus player.drop combination in the vanilla give command; command giving and picking up share this path
     public int GiveItem(ItemStack stack)
     {
         var total = stack.GetCount();
@@ -220,8 +220,8 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         return placed;
     }
 
-    //PlayPickupSound 播物品入手音效 对应原版 ServerPlayer.onItemPickup
-    //音量 0.2 音调按原版公式在两倍附近抖动 这是物品进入背包唯一的声音出口
+    //PlayPickupSound plays the item pickup sound, maps to vanilla ServerPlayer.onItemPickup
+    //Volume 0.2, pitch jittering around double by the vanilla formula; this is the only sound exit for items entering the inventory
     public void PlayPickupSound()
     {
         if (OwnerList is null) return;
@@ -230,14 +230,14 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
             Position.X, Position.Y, Position.Z, 0.2f, pitch * 2.0f);
     }
 
-    //EyeHeight 玩家眼高 对应原版玩家实体尺寸里的眼睛高度 丢弃时按它算出手位置
+    //EyeHeight player eye height, maps to the eye height in the vanilla player entity dimensions; used to compute the hand position when dropping
     public const float EyeHeight = 1.62f;
 
-    //DropPickupDelay 丢出后的拾取冷却刻数 对应原版 40 刻
+    //DropPickupDelay pickup delay ticks after dropping, maps to vanilla 40 ticks
     private const int DropPickupDelay = 40;
 
-    //Drop 丢弃选中槽的物品 对应原版 ServerPlayer.drop(boolean)
-    //all 为真整槽丢出 为假只丢一个 背包变更后同步给客户端
+    //Drop drops the item in the selected slot, maps to vanilla ServerPlayer.drop(boolean)
+    //all true drops the whole slot, false drops one; the inventory change is synced to the client
     public ItemEntity? Drop(bool all)
     {
         var removed = Inventory.RemoveFromSelected(all);
@@ -245,8 +245,8 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         return Drop(removed, randomly: false, thrownFromHand: true);
     }
 
-    //Drop 生成掉落物实体并加入关卡 对应原版 LivingEntity.drop 与 createItemStackToDrop
-    //位置取眼睛下方 0.3 格 丢出后带 40 刻拾取冷却 免得刚丢出就被自己捡回
+    //Drop spawns the drop entity and adds it to the level, maps to vanilla LivingEntity.drop and createItemStackToDrop
+    //The position is 0.3 blocks below the eyes; after dropping it has a 40-tick pickup delay so it is not picked back immediately
     public ItemEntity? Drop(ItemStack stack, bool randomly, bool thrownFromHand)
     {
         if (stack.IsEmpty()) return null;
@@ -263,8 +263,8 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         return drop;
     }
 
-    //DropVelocity 丢出速度 对应原版 createItemStackToDrop 的两条分支
-    //randomly 用于死亡掉落一类的随机散布 手上丢出按视线方向抛并带少量随机抖动
+    //DropVelocity drop velocity, maps to the two branches of vanilla createItemStackToDrop
+    //randomly is used for random scatter such as death drops; a hand drop is thrown along the look direction with a little random jitter
     private Vec3 DropVelocity(bool randomly)
     {
         if (randomly)
@@ -286,8 +286,8 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
             cosY * cosX * 0.3f + MathF.Sin(spread) * jitter);
     }
 
-    //GetNearestLookingDirection 玩家视线最近的六向 观察者这类含上下的方块放置时要用 对应原版同名方法
-    //视线向量按原版 getViewVector 算 含俯仰所以能落出 UP 与 DOWN
+    //GetNearestLookingDirection the nearest of the six directions to the player's look; needed when placing blocks such as observers that include up/down, maps to the vanilla same-named method
+    //The look vector is computed by vanilla getViewVector and includes pitch, so UP and DOWN can come out
     public Direction GetNearestLookingDirection()
     {
         const float toRadians = MathF.PI / 180f;
@@ -298,60 +298,60 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
             MathF.Sin(yaw) * cosPitch, -MathF.Sin(pitch), MathF.Cos(yaw) * cosPitch);
     }
 
-    //MaxHealth 满血量取 max_health 属性 对应原版 getMaxHealth
-    //装备与效果接入后带修饰符的血量上限会经属性生效
+    //MaxHealth full health from the max_health attribute, maps to vanilla getMaxHealth
+    //Once equipment and effects are wired up the max health with modifiers takes effect through the attribute
     public float MaxHealth => (float)GetAttributeValue(EntityAttributes.MaxHealth);
 
-    //AttackDamage 空手攻击伤害取 attack_damage 属性 对应原版玩家的 ATTACK_DAMAGE
-    //武器加成/冷却系数/暴击未实现 阶段 2 再补
+    //AttackDamage bare-hand attack damage from the attack_damage attribute, maps to the vanilla player's ATTACK_DAMAGE
+    //Weapon bonus/cooldown/crit are not implemented, added in phase 2
     public float AttackDamage => (float)GetAttributeValue(EntityAttributes.AttackDamage);
 
-    //Health 当前血量 新玩家按 max_health 属性满血 由 playerdata 恢复 入服 SetHealth 包按它下发
+    //Health current health; a new player is at full from the max_health attribute, restored by playerdata, and sent by the SetHealth packet on join
     public float Health { get; set; }
 
-    //InvulnerableTime 受伤无敌帧剩余刻数 对应原版 invulnerableTime
+    //InvulnerableTime remaining ticks of the hurt invulnerability frames, maps to vanilla invulnerableTime
     public int InvulnerableTime { get; private set; }
 
-    //IsDeadOrDying 血量归零 对应原版 isDeadOrDying
+    //IsDeadOrDying health reached zero, maps to vanilla isDeadOrDying
     public bool IsDeadOrDying => Health <= 0f;
 
-    //Hurt 造成伤害 对应原版 hurtServer 的最小集
-    //无敌帧内不重复受伤 未做护甲减免/击退/伤害来源追踪
+    //Hurt deals damage, the minimal set of vanilla hurtServer
+    //No repeated damage within the invulnerability frames; armor reduction/knockback/damage source tracking are not done
     public bool Hurt(float amount)
     {
         if (IsDeadOrDying || InvulnerableTime > 0) return false;
         Health = Math.Max(0f, Health - amount);
-        //无敌帧 10 刻 原版是 20 刻其中 10 刻给受伤动画
+        //Invulnerability frames 10 ticks; vanilla is 20 of which 10 are for the hurt animation
         InvulnerableTime = 10;
         return true;
     }
 
-    //SetHealth 设置血量并钳制到 0..满血 存档恢复与重生走它 对应原版 setHealth
+    //SetHealth sets health and clamps to 0..full; save restore and respawn go through it, maps to vanilla setHealth
     public void SetHealth(float value) => Health = Math.Clamp(value, 0f, MaxHealth);
 
-    //XpLevel 经验等级 XpProgress 当前级进度 0-1 XpTotal 累计经验
+    //XpLevel xp level, XpProgress current level progress 0-1, XpTotal accumulated xp
     public int XpLevel { get; set; }
     public float XpProgress { get; set; }
     public int XpTotal { get; set; }
 
-    //ContainerMenu 玩家当前打开的菜单 PlaceNewPlayer 创建背包菜单并下发初始内容
+    //ContainerMenu the menu the player currently has open; PlaceNewPlayer creates the inventory menu and sends the initial content
     public AbstractContainerMenu? ContainerMenu { get; set; }
 
-    //BackpackMenu 玩家背包菜单 关闭容器菜单后切回它 对应原版 inventoryMenu
+    //BackpackMenu the player inventory menu; switching back to it after closing a container menu, maps to vanilla inventoryMenu
     public InventoryMenu BackpackMenu { get; private set; } = null!;
 
-    //_containerCounter 容器菜单 id 分配器 原版从 1 起 0 留给背包菜单
+    //_containerCounter container menu id allocator; vanilla starts at 1, with 0 reserved for the inventory menu
     private int _containerCounter;
 
-    //SetUpInventoryMenu 建好背包菜单并置为当前菜单 玩家进世界时调一次
+    //SetUpInventoryMenu builds the inventory menu and makes it current, called once when the player enters the world
     public void SetUpInventoryMenu()
     {
         BackpackMenu = new InventoryMenu(Inventory) { Synchronizer = new ServerContainerSynchronizer(this) };
         ContainerMenu = BackpackMenu;
     }
 
-    //OpenMenu 打开菜单 先收掉上一个容器菜单 分配 id 下发 open_screen 再同步初始内容
-    //对应原版 ServerPlayer.openMenu(MenuProvider)
+    //OpenMenu opens a menu: closes the previous container menu, allocates an id, sends open_screen then syncs the initial content
+    //maps to vanilla ServerPlayer.openMenu(MenuProvider)
     public void OpenMenu(MenuProvider provider)
     {
         if (ContainerMenu is { } current && !ReferenceEquals(current, BackpackMenu)) DoCloseContainer();
@@ -364,8 +364,8 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         menu.SendAllDataToRemote();
     }
 
-    //CloseContainer 服务端主动关闭容器菜单 先告知客户端再切回背包
-    //方块被拆或玩家走远时走它 对应原版 ServerPlayer.closeContainer
+    //CloseContainer the server closes the container menu, telling the client first then switching back to the backpack
+    //Used when a block is broken or the player walks away, maps to vanilla ServerPlayer.closeContainer
     public void CloseContainer()
     {
         if (ContainerMenu is not { } menu || ReferenceEquals(menu, BackpackMenu)) return;
@@ -373,8 +373,8 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         DoCloseContainer();
     }
 
-    //DoCloseContainer 切回背包菜单并同步背包内容 对应原版 doCloseContainer
-    //客户端主动关菜单只走这里 服务端不再回发 container_close 与原版一致
+    //DoCloseContainer switches back to the inventory menu and syncs the inventory content, maps to vanilla doCloseContainer
+    //A client-initiated menu close only goes here; the server does not send container_close back, consistent with vanilla
     public void DoCloseContainer()
     {
         if (BackpackMenu is null) return;
@@ -382,54 +382,54 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         BackpackMenu.SendAllDataToRemote();
     }
 
-    //SendSystemMessage 发系统聊天 默认走聊天栏 对应原版 sendSystemMessage(Component)
+    //SendSystemMessage sends system chat through the chat bar by default, maps to vanilla sendSystemMessage(Component)
     public void SendSystemMessage(Component message) => SendSystemMessage(message, false);
 
-    //SendOverlayMessage 发叠加消息 客户端渲染在动作栏 对应原版 sendOverlayMessage
-    //这是动作栏的通用底层入口 title 命令的 actionbar 分支另有专用包 两者客户端表现一致
+    //SendOverlayMessage sends an overlay message rendered in the action bar, maps to vanilla sendOverlayMessage
+    //This is the generic action bar entry; the title command's actionbar branch has a dedicated packet and both render the same on the client
     public void SendOverlayMessage(Component message) => SendSystemMessage(message, true);
 
-    //SendSystemMessage overlay 为真走动作栏 对应原版 sendSystemMessage(Component,boolean)
+    //SendSystemMessage with overlay true uses the action bar, maps to vanilla sendSystemMessage(Component,boolean)
     public void SendSystemMessage(Component message, bool overlay)
         => Connection.Send(new ClientboundSystemChatPacket(message, overlay));
 
-    //SendBuildLimitMessage 建筑高度越界提示 对应原版 sendBuildLimitMessage
-    //越上界给 build.tooHigh 带 319 越下界给 build.tooLow 带 -64 都是红色动作栏文字
+    //SendBuildLimitMessage build height out-of-bounds message, maps to vanilla sendBuildLimitMessage
+    //Above the upper bound gives build.tooHigh with 319, below the lower bound build.tooLow with -64, both red action bar text
     public void SendBuildLimitMessage(bool isTooHigh, int limit)
         => SendOverlayMessage(Component.Translatable(isTooHigh ? "build.tooHigh" : "build.tooLow", limit)
             .WithStyle(ChatFormatting.Red));
 
-    //Listener 关联的 play 阶段监听器 由 DedicatedServer.TransitionToGame 注入
-    //传送要走它的等待客户端确认流程 直接改坐标发包会被在途的旧位置包打回传送前的坐标
+    //Listener the associated play-stage listener, injected by DedicatedServer.TransitionToGame
+    //Teleports must go through its wait-for-client-ack flow; directly changing coordinates and sending packets would be pulled back by in-flight old position packets
     public ServerGamePacketListenerImpl? Listener { get; set; }
 
     private long _keepAliveSentAt;
     private long _keepAliveId;
     private bool _keepAlivePending;
-    //_lastChunkX/_lastChunkZ 上次视野中心区块跨块检测用初始无效值
+    //_lastChunkX/_lastChunkZ the last view center chunk, for cross-chunk detection, initial invalid value
     private int _lastChunkX = int.MinValue;
     private int _lastChunkZ;
 
-    //--- 药水效果 对应原版 LivingEntity.activeEffects ---
+    //--- mob effects, maps to vanilla LivingEntity.activeEffects ---
 
-    //_activeEffects 玩家当前生效的效果 按效果值索引
+    //_activeEffects the effects currently active on the player, indexed by effect value
     private readonly Dictionary<NetCraft.Registry.MobEffect, MobEffectInstance> _activeEffects = new();
 
-    //ActiveEffects 当前生效的全部效果实例
+        //ActiveEffects all active effect instances
     public IReadOnlyCollection<MobEffectInstance> ActiveEffects => _activeEffects.Values;
 
-    //GetEffect 取指定效果的实例 没有返回 null
+        //GetEffect gets the instance of the given effect; returns null when absent
     public MobEffectInstance? GetEffect(NetCraft.Registry.MobEffect effect)
         => _activeEffects.GetValueOrDefault(effect);
 
-    //AddEffect 施加效果并返回是否生效 已有同类效果时按原版 update 语义取舍 更弱的不覆盖
-    //只发给玩家自己 对应原版 ServerPlayer.onEffectUpdated 只同步本连接
+        //AddEffect applies an effect and returns whether it took effect; with an existing same-kind effect it follows vanilla update semantics and a weaker one does not override
+        //Only sent to the player itself, maps to vanilla ServerPlayer.onEffectUpdated syncing only this connection
     public bool AddEffect(MobEffectInstance instance)
     {
         var effect = instance.Effect.Value;
         if (_activeEffects.TryGetValue(effect, out var existing))
         {
-            //等级更低 或等级相同但时长更短 都不覆盖
+                //A lower level, or the same level with a shorter duration, does not override
             if (instance.Amplifier < existing.Amplifier) return false;
             if (instance.Amplifier == existing.Amplifier && instance.Duration < existing.Duration) return false;
         }
@@ -439,7 +439,7 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         return true;
     }
 
-    //RemoveEffect 移除指定效果并通知客户端 返回是否移除
+        //RemoveEffect removes the given effect and notifies the client; returns whether it was removed
     public bool RemoveEffect(NetCraft.Registry.MobEffect effect)
     {
         if (!_activeEffects.Remove(effect, out var removed)) return false;
@@ -447,7 +447,7 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         return true;
     }
 
-    //RemoveAllEffects 移除全部效果并逐个通知客户端 返回是否有移除
+        //RemoveAllEffects removes all effects notifying the client for each; returns whether any were removed
     public bool RemoveAllEffects()
     {
         if (_activeEffects.Count == 0) return false;
@@ -457,7 +457,7 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         return true;
     }
 
-    //TickEffects 每刻推进效果时长 到期的移除并通知客户端
+        //TickEffects advances effect durations every tick; expired ones are removed and the client notified
     public void TickEffects()
     {
         List<MobEffectInstance>? expired = null;
@@ -467,7 +467,7 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
             if (instance.Expired) (expired ??= new()).Add(instance);
         }
         if (expired is null) return;
-        //遍历中不能改字典 到期项收集完再统一移除
+            //The dictionary cannot be modified while iterating; expired entries are collected then removed together
         foreach (var instance in expired)
         {
             _activeEffects.Remove(instance.Effect.Value);
@@ -481,47 +481,47 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         Profile = profile;
         Connection = connection;
         Level = level;
-        //玩家属性表按实体类型取默认表 与客户端本地那份同源 没登记过就退回空表
+            //The player attribute map takes the default by entity type, from the same source as the client's local one; falls back to an empty map when unregistered
         Attributes = new AttributeMap(DefaultAttributes.GetSupplier(EntityTypes.PLAYER) ?? AttributeSupplier.Empty);
-        //新玩家满血 对应原版 LivingEntity 构造里的 setHealth(getMaxHealth())
+            //A new player is at full health, maps to setHealth(getMaxHealth()) in the vanilla LivingEntity constructor
         Health = MaxHealth;
         _keepAliveSentAt = Environment.TickCount64;
-        //玩家元数据基线 对应原版 Player 的 defineSynchedData
+            //Player metadata baseline, maps to vanilla Player's defineSynchedData
         SyncedData.Define(NetCraft.Registry.Entity.SharedFlagsIndex, EntityDataSerializers.Byte, (byte)0);
         SyncedData.Define(NetCraft.Registry.Entity.PoseIndex, EntityDataSerializers.Pose, PoseStanding);
     }
 
-    //Tick 每帧调度对应原版 ServerPlayer.tick
-    //跨块时更新区块视野 驱动 ChunkSender 渐进发送 维持心跳 并把菜单脏槽同步给客户端
+        //Tick per-frame scheduling, maps to vanilla ServerPlayer.tick
+        //On a chunk crossing it updates the chunk view, drives ChunkSender progressive sending, keeps the heartbeat and syncs the menu's dirty slots to the client
     public void Tick()
     {
-        //旁观者每刻跟随相机位置 对应原版 ServerPlayer.tick 开头附近的 camera 分支
+            //A spectator follows the camera position every tick, maps to the camera branch near the start of vanilla ServerPlayer.tick
         TickCamera();
-        //药水效果每刻递减时长 到期自动移除并同步客户端
+            //Mob effects decrement duration every tick; expired ones are removed automatically and synced to the client
         TickEffects();
-        //无敌帧每刻递减 对应原版 LivingEntity.tick 里的 invulnerableTime--
+            //Invulnerability frames decrement every tick, maps to invulnerableTime-- in vanilla LivingEntity.tick
         if (InvulnerableTime > 0) InvulnerableTime--;
-        //位置有变化即视为活跃 挂机踢出计时靠它重置
+            //A position change counts as active; the idle kick timer resets from it
         if (Position != _lastActivePosition)
         {
             _lastActivePosition = Position;
             LastActiveMillis = Environment.TickCount64;
         }
-        //越界伤害 创造与旁观带无敌标志 原版由 isInvulnerableTo 挡掉
+            //Out-of-bounds damage; creative and spectator carry the invulnerable flag and vanilla blocks it via isInvulnerableTo
         if (GameType != GameType.Creative && GameType != GameType.Spectator) TickWorldBorderDamage();
         UpdateChunkTracking();
         ChunkSender?.Tick();
         TickItemPickup();
         ContainerMenu?.BroadcastChanges();
-        //容器菜单失效时自动关闭 方块被拆或玩家走出 8 格 对应原版 ServerPlayer.tick 里的 stillValid 检查
+            //A container menu is closed automatically when it becomes invalid, a block broken or the player more than 8 blocks away, maps to the stillValid check in vanilla ServerPlayer.tick
         if (ContainerMenu is { } openMenu && BackpackMenu is not null
             && !ReferenceEquals(openMenu, BackpackMenu) && !openMenu.StillValid(this))
             CloseContainer();
         TickKeepAlive();
     }
 
-    //TickItemPickup 检查脚下与身边的掉落物并尝试拾取
-    //原版靠实体移动时的接触检测触发 playerTouch 本作没有实体间碰撞 改成每刻按拾取盒主动查
+        //TickItemPickup checks drops underfoot and nearby and tries to pick them up
+        //Vanilla triggers playerTouch on entity contact during movement; this project has no entity-entity collision and queries actively each tick by the pickup box
     private void TickItemPickup()
     {
         if (Level is not PersistentServerLevel level) return;
@@ -529,19 +529,19 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         foreach (var entity in level.EntitiesInBox(box))
         {
             if (entity is not ItemEntity item) continue;
-            //空间索引是分桶结果 再按包围盒相交筛一次
+                //The spatial index is the bucketing result; filter once more by bounding box intersection
             if (!box.Intersects(item.BoundingBox)) continue;
             item.PlayerTouch(this);
         }
     }
 
-    //PickupBox 拾取判定盒 玩家碰撞箱 0.6 宽 1.8 高 再按原版膨胀 1.0/0.5/1.0 格
+        //PickupBox the pickup test box: the player hit box 0.6 wide 1.8 tall inflated by vanilla 1.0/0.5/1.0 blocks
     private AABB PickupBox()
         => new AABB(Position.X - 0.3, Position.Y, Position.Z - 0.3,
             Position.X + 0.3, Position.Y + 1.8, Position.Z + 0.3).Inflate(1.0, 0.5, 1.0);
 
-    //TickWorldBorderDamage 越出世界边界的持续伤害 对应原版 LivingEntity.baseTick 的边界伤害段
-    //免伤缓冲内不受伤 伤害按越界格数乘每格伤害取下限 1
+        //TickWorldBorderDamage continuous damage outside the world border, maps to the border damage section of vanilla LivingEntity.baseTick
+        //No damage within the damage buffer; damage is the out-of-bounds blocks times damage per block with a minimum of 1
     private void TickWorldBorderDamage()
     {
         var border = Level.WorldBorder;
@@ -553,8 +553,8 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         Hurt(Math.Max(1f, MathF.Floor((float)(-distance * border.DamagePerBlock))));
     }
 
-    //UpdateChunkTracking 玩家跨块时更新视野中心对应原版 ChunkMap.move
-    //每 tick 比较当前区块与上次记录 变了才通知 ChunkSender
+        //UpdateChunkTracking updates the view center when a player crosses a chunk, maps to vanilla ChunkMap.move
+        //Each tick it compares the current chunk with the last recorded one and notifies ChunkSender only on change
     private void UpdateChunkTracking()
     {
         var chunkX = (int)Math.Floor(Position.X / 16);
@@ -563,14 +563,14 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         _lastChunkX = chunkX;
         _lastChunkZ = chunkZ;
         ChunkSender?.UpdateCenter(chunkX, chunkZ, ViewDistanceChunks);
-        //玩家票随视野中心走 视距内出加载票 玩家所在区块出模拟票 对应原版 ChunkMap.move
+            //Player tickets follow the view center: load tickets within view distance and a simulation ticket for the player's own chunk, maps to vanilla ChunkMap.move
         if (Level is PersistentServerLevel persistent)
             persistent.ChunkSource.UpdatePlayerTickets(this, chunkX, chunkZ, ViewDistanceChunks);
     }
 
-    //TickKeepAlive 每 15 秒发一次心跳
-    //客户端收不到任何包满 30 秒就判读超时断开 区块发完后服务端不再有其它出站包
-    //上一轮心跳未获回应说明链路已废直接断开 对齐原版 ServerGamePacketListenerImpl.tick
+        //TickKeepAlive sends a heartbeat every 15 seconds
+        //If the client receives no packet for 30 seconds it declares a read timeout and disconnects; after chunks are sent the server has no other outbound packets
+        //An unanswered last heartbeat means the link is dead and disconnects directly, aligned with vanilla ServerGamePacketListenerImpl.tick
     private void TickKeepAlive()
     {
         if (!Connection.IsConnected) return;
@@ -595,22 +595,22 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         }
     }
 
-    //PendingKeepAliveId 尚未回应的心跳 id 无等待时为 null
-    //供假客户端模拟真实客户端的回包行为 假连接没有 netty 替它自动回包
+        //PendingKeepAliveId the heartbeat id awaiting a reply; null when nothing is pending
+        //For a fake client to emulate a real client's reply behavior; a fake connection has no netty to auto-reply
     public long? PendingKeepAliveId => _keepAlivePending ? _keepAliveId : null;
 
-    //HandleKeepAliveResponse 客户端回心跳后清除等待标记
+        //HandleKeepAliveResponse clears the wait marker after the client replies to the heartbeat
     public void HandleKeepAliveResponse(long id)
     {
-        //打印匹配结果 心跳超时断开时用于区分回包缺失与 id 不匹配
+            //Prints the match result, used when a heartbeat times out to distinguish a missing reply from an id mismatch
         Log.Debug($"HandleKeepAliveResponse id={id} expected={_keepAliveId} pending={_keepAlivePending} match={id == _keepAliveId}");
         if (id == _keepAliveId) _keepAlivePending = false;
     }
 
-    //Disconnect 断开玩家连接对齐原版 ServerPlayer.disconnect
-    //Disconnect 主动断开玩家 对应原版 ServerGamePacketListenerImpl.disconnect
-    //必须先发断连包再关连接 否则客户端只看到连接中断不显示踢出原因
-    //原版 stop 走 multiPlayerList.removeAll 每个玩家都发 multiplayer.disconnect.server_shutdown
+        //Disconnect disconnects the player, aligned with vanilla ServerPlayer.disconnect
+        //Disconnect actively disconnects the player, maps to vanilla ServerGamePacketListenerImpl.disconnect
+        //The disconnect packet must be sent before closing the connection, or the client only sees the connection drop without the kick reason
+        //Vanilla stop goes through multiPlayerList.removeAll sending multiplayer.disconnect.server_shutdown to every player
     public void Disconnect(string reason)
     {
         if (Connection.IsConnected)
@@ -618,7 +618,7 @@ public sealed class ServerPlayer : ITrackedEntity, ISyncedEntity
         Connection.Disconnect(reason);
     }
 
-    //Disconnect 带组件理由的断开 封禁/踢出用翻译键组件 客户端按本地语言显示
+        //Disconnect with a component reason; bans/kicks use a translation key component and the client shows it in its local language
     public void Disconnect(Component reason)
     {
         if (Connection.IsConnected)

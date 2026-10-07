@@ -5,10 +5,10 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//MatchingFluidsPredicate 匹配流体集合对应原版 MatchingFluidsPredicate
+//MatchingFluidsPredicate matches a fluid set, maps to vanilla MatchingFluidsPredicate
 public class MatchingFluidsPredicate : StateTestingPredicate
 {
-    //EmptyFluid 空流体占位 对应原版 Fluids.EMPTY 流体注册表尚未装载内容
+    //EmptyFluid empty fluid placeholder, maps to vanilla Fluids.EMPTY; the fluid registry is not populated yet
     public static readonly Fluid EmptyFluid = Fluid.Empty;
 
     public static readonly Codec<MatchingFluidsPredicate> Codec =
@@ -24,7 +24,7 @@ public class MatchingFluidsPredicate : StateTestingPredicate
 
     public HolderSet<Fluid> Fluids => _fluids;
 
-    //NetCraft 流体状态只区分空与非空 按流体 id 是否为 empty 近似判定
+    //NetCraft fluid states only distinguish empty from non-empty, so approximate by checking whether the fluid id is empty
     protected override bool Test(BlockState state)
     {
         if (!_fluids.IsBound) return false;

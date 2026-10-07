@@ -4,10 +4,10 @@ using Silk.NET.Vulkan.Extensions.KHR;
 
 namespace NetCraft.Gpu.Vulkan;
 
-//VulkanCommandEncoder Vulkan 后端命令编码器实现 ICommandEncoder
-//封装 VkCommandBuffer 录制 copy/render pass 命令 Submit 提交 GPU 队列
-//替代旧 VulkanCommandBuffer 的混合录制分离命令编码和渲染通道
-//4.3 改造 CreateRenderPass 走 dynamic rendering 传 colorImage/depthImage 的 ImageView 给 VulkanRenderPass
+//VulkanCommandEncoder Vulkan backend command encoder implementing ICommandEncoder
+//Wraps VkCommandBuffer to record copy/render pass commands; Submit submits to the GPU queue
+//Replaces the mixed recording of the legacy VulkanCommandBuffer, separating command encoding from render passes
+//4.3 rework makes CreateRenderPass use dynamic rendering, passing the ImageViews of colorImage/depthImage to VulkanRenderPass
 public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
 {
     private readonly Vk _vk;
@@ -15,17 +15,17 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
     private readonly VulkanGpuDevice _gpuDevice;
     private readonly CommandPool _commandPool;
     private readonly Queue _graphicsQueue;
-    //DynRenderingExt KHR_dynamic_rendering 扩展实例传给 VulkanRenderPass 调 CmdBeginRendering
+    //DynRenderingExt the KHR_dynamic_rendering extension instance passed to VulkanRenderPass to call CmdBeginRendering
     private readonly KhrDynamicRendering _dynRenderingExt;
     private readonly CommandBuffer _handle;
     private readonly Fence _submitFence;
-    //WriteToTexture 创建的 staging buffer 生命周期延到 Submit 后统一释放
-    //Submit 调 WaitForFences 等 GPU 执行完才能安全释放 staging buffer
+    //Staging buffers created by WriteToTexture live until after Submit and are released together
+    //Submit calls WaitForFences and waits for the GPU to finish before safely releasing the staging buffer
     private readonly List<VulkanBuffer> _stagingBuffers = new();
-    //_pendingStagingBuffers SubmitAsync 时 staging 转入待释放列表等 WaitForCompletion 释放
-    //异步 Submit 不能立即释放 staging GPU 还在读需等 fence 完成
+    //_pendingStagingBuffers during SubmitAsync the staging buffers move to the pending-release list until WaitForCompletion
+    //An async Submit cannot release staging immediately since the GPU is still reading; wait for the fence
     private readonly List<VulkanBuffer> _pendingStagingBuffers = new();
-    //_pendingSubmit SubmitAsync 后未 WaitForCompletion 标记 BeginRecording 前必须先 WaitForCompletion
+    //_pendingSubmit marks that WaitForCompletion has not run after SubmitAsync; WaitForCompletion must precede BeginRecording
     private bool _pendingSubmit;
     private bool _disposed;
     private bool _recording;
@@ -38,7 +38,7 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
         _commandPool = commandPool;
         _graphicsQueue = graphicsQueue;
         _dynRenderingExt = dynRenderingExt;
-        //分配 command buffer
+        //Allocate a command buffer
         var allocInfo = new CommandBufferAllocateInfo
         {
             SType = StructureType.CommandBufferAllocateInfo,
@@ -47,15 +47,15 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
             CommandBufferCount = 1
         };
         if (_vk.AllocateCommandBuffers(_device, &allocInfo, out _handle) != Result.Success)
-            throw new InvalidOperationException("命令缓冲分配失败");
-        //创建 submit fence
+            throw new InvalidOperationException("Command buffer allocation failed");
+        //Create the submit fence
         var fenceInfo = new FenceCreateInfo { SType = StructureType.FenceCreateInfo };
         if (_vk.CreateFence(_device, &fenceInfo, null, out _submitFence) != Result.Success)
-            throw new InvalidOperationException("Submit fence 创建失败");
-        //开始录制
+            throw new InvalidOperationException("Submit fence creation failed");
+        //Begin recording
         var beginInfo = new CommandBufferBeginInfo { SType = StructureType.CommandBufferBeginInfo };
         if (_vk.BeginCommandBuffer(_handle, &beginInfo) != Result.Success)
-            throw new InvalidOperationException("命令缓冲开始录制失败");
+            throw new InvalidOperationException("Failed to begin command buffer recording");
         _recording = true;
     }
 
@@ -63,7 +63,7 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
     {
         EnsureRecording();
         if (colorImage is not VulkanImage vkColor)
-            throw new ArgumentException("colorImage 必须是 VulkanImage", nameof(colorImage));
+            throw new ArgumentException("colorImage must be a VulkanImage", nameof(colorImage));
         return new VulkanRenderPass(_vk, _dynRenderingExt, _handle, pipeline, vkColor.View, clearColor, null, 0f);
     }
 
@@ -71,7 +71,7 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
     {
         EnsureRecording();
         if (colorImage is not VulkanImage vkColor)
-            throw new ArgumentException("colorImage 必须是 VulkanImage", nameof(colorImage));
+            throw new ArgumentException("colorImage must be a VulkanImage", nameof(colorImage));
         return new VulkanRenderPass(_vk, _dynRenderingExt, _handle, pipeline, vkColor.View, clearColor, depthImage, clearDepth);
     }
 
@@ -79,7 +79,7 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
     {
         EnsureRecording();
         if (colorImage is not VulkanImage vkColor)
-            throw new ArgumentException("colorImage 必须是 VulkanImage", nameof(colorImage));
+            throw new ArgumentException("colorImage must be a VulkanImage", nameof(colorImage));
         var vkLoadOp = colorLoadOp switch
         {
             GpuLoadOp.Clear => AttachmentLoadOp.Clear,
@@ -92,8 +92,8 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
     public void CopyBuffer(GpuBuffer src, GpuBuffer dst, ulong srcOffset, ulong dstOffset, ulong size)
     {
         EnsureRecording();
-        if (src is not VulkanBuffer vkSrc) throw new ArgumentException("src 必须是 VulkanBuffer", nameof(src));
-        if (dst is not VulkanBuffer vkDst) throw new ArgumentException("dst 必须是 VulkanBuffer", nameof(dst));
+        if (src is not VulkanBuffer vkSrc) throw new ArgumentException("src must be a VulkanBuffer", nameof(src));
+        if (dst is not VulkanBuffer vkDst) throw new ArgumentException("dst must be a VulkanBuffer", nameof(dst));
         var region = new BufferCopy
         {
             SrcOffset = srcOffset,
@@ -103,17 +103,17 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
         _vk.CmdCopyBuffer(_handle, vkSrc.Handle, vkDst.Handle, 1, &region);
     }
 
-    //WriteToTexture 录制像素上传命令到当前 command buffer 走 staging buffer 中转
-    //与 VulkanImage.UploadRegion 区别 不立即 Submit 而是录制到当前 cmd 可与其他命令批量提交
-    //staging buffer 生命周期延到 Submit 后统一释放 Submit 调 WaitForFences 保证 GPU 已读完
-    //layout 转换 currentLayout→TransferDstOptimal→拷贝→ShaderReadOnlyOptimal
+    //WriteToTexture records a pixel upload into the current command buffer via a staging buffer
+    //Unlike VulkanImage.UploadRegion it does not Submit immediately but records into the current cmd, batchable with other commands
+    //The staging buffer lives until after Submit and is released then; Submit calls WaitForFences to ensure the GPU has read it
+    //Layout transitions currentLayout→TransferDstOptimal→copy→ShaderReadOnlyOptimal
     public void WriteToTexture(GpuImage dst, ReadOnlySpan<byte> data, int dstX, int dstY, int width, int height)
     {
         EnsureRecording();
         if (dst is not VulkanImage vkDst)
-            throw new ArgumentException("dst 必须是 VulkanImage", nameof(dst));
+            throw new ArgumentException("dst must be a VulkanImage", nameof(dst));
         if (vkDst.Usage == GpuImageUsage.DepthAttachment)
-            throw new InvalidOperationException("DepthAttachment 不支持 WriteToTexture");
+            throw new InvalidOperationException("DepthAttachment does not support WriteToTexture");
         var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(data.Length, GpuBufferUsage.StagingBuffer);
         staging.Upload(data.ToArray());
         _stagingBuffers.Add(staging);
@@ -137,14 +137,14 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
         vkDst.TransitionLayout(_handle, ImageLayout.ShaderReadOnlyOptimal);
     }
 
-    //TransitionImageLayout 录制图像布局转换到当前 command buffer
-    //PIP offscreen 渲染后 ColorAttachmentOptimal→ShaderReadOnlyOptimal 供 blit 采样
-    //跨帧复用下帧渲染前 ShaderReadOnlyOptimal→ColorAttachmentOptimal VulkanImage.TransitionLayout 已处理跳过
+    //TransitionImageLayout records an image layout transition into the current command buffer
+    //After PIP offscreen rendering ColorAttachmentOptimal→ShaderReadOnlyOptimal for blit sampling
+    //With cross-frame reuse it goes ShaderReadOnlyOptimal→ColorAttachmentOptimal before the next frame's render; VulkanImage.TransitionLayout already handles skipping
     public void TransitionImageLayout(GpuImage image, GpuImageLayout newLayout)
     {
         EnsureRecording();
         if (image is not VulkanImage vkImg)
-            throw new ArgumentException("image 必须是 VulkanImage", nameof(image));
+            throw new ArgumentException("image must be a VulkanImage", nameof(image));
         vkImg.TransitionLayout(_handle, ToVkLayout(newLayout));
     }
 
@@ -161,7 +161,7 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
     {
         if (!_recording) return;
         if (_vk.EndCommandBuffer(_handle) != Result.Success)
-            throw new InvalidOperationException("命令缓冲结束录制失败");
+            throw new InvalidOperationException("Failed to end command buffer recording");
         _recording = false;
         var cmd = _handle;
         var fence = _submitFence;
@@ -172,22 +172,22 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
         };
         submitInfo.PCommandBuffers = &cmd;
         if (_vk.QueueSubmit(_graphicsQueue, 1, &submitInfo, fence) != Result.Success)
-            throw new InvalidOperationException("QueueSubmit 失败");
+            throw new InvalidOperationException("QueueSubmit failed");
         _vk.WaitForFences(_device, 1, &fence, Vk.True, ulong.MaxValue);
         _vk.ResetFences(_device, 1, &fence);
-        //Submit 已等 fence 完成 GPU 读完 staging buffer 可安全释放
+        //Submit already waited for the fence so the GPU has read the staging buffer and it can be released safely
         foreach (var sb in _stagingBuffers) sb.Dispose();
         _stagingBuffers.Clear();
     }
 
-    //SubmitAsync 提交命令到 GPU 队列不等完成供 PIP 双缓冲异步渲染
-    //staging buffer 转入 _pendingStagingBuffers 延迟到 WaitForCompletion 释放
-    //调用方下次复用本 encoder 前必须 WaitForCompletion 保证 GPU 完成才能 Reset command buffer
+    //SubmitAsync submits commands to the GPU queue without waiting, for PIP double-buffered async rendering
+    //The staging buffer moves into _pendingStagingBuffers and is released lazily at WaitForCompletion
+    //The caller must WaitForCompletion before reusing this encoder so the GPU is done before the command buffer is Reset
     public void SubmitAsync()
     {
         if (!_recording) return;
         if (_vk.EndCommandBuffer(_handle) != Result.Success)
-            throw new InvalidOperationException("命令缓冲结束录制失败");
+            throw new InvalidOperationException("Failed to end command buffer recording");
         _recording = false;
         var cmd = _handle;
         var fence = _submitFence;
@@ -198,15 +198,15 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
         };
         submitInfo.PCommandBuffers = &cmd;
         if (_vk.QueueSubmit(_graphicsQueue, 1, &submitInfo, fence) != Result.Success)
-            throw new InvalidOperationException("QueueSubmit 失败");
+            throw new InvalidOperationException("QueueSubmit failed");
         _pendingSubmit = true;
         _pendingStagingBuffers.AddRange(_stagingBuffers);
         _stagingBuffers.Clear();
     }
 
-    //WaitForCompletion 等 SubmitAsync 提交的 GPU 命令完成
-    //未 SubmitAsync 过（_pendingSubmit=false）直接返回首次复用 encoder 安全跳过
-    //完成后 ResetFences 让 fence 可供下次 QueueSubmit 复用并释放待释放 staging
+    //WaitForCompletion waits for the GPU commands submitted by SubmitAsync to finish
+    //Returns immediately if SubmitAsync was never called (_pendingSubmit=false), safe to skip when reusing the encoder the first time
+    //After completion ResetFences makes the fence reusable for the next QueueSubmit and releases the pending staging buffers
     public void WaitForCompletion()
     {
         if (!_pendingSubmit) return;
@@ -218,30 +218,30 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
         _pendingSubmit = false;
     }
 
-    //BeginRecording 重新开始命令录制供 encoder 跨帧复用
-    //首次调用幂等（构造已 BeginCommandBuffer）_recording=true 直接返回
-    //后续调用需先 WaitForCompletion 保证 GPU 不再使用 command buffer 再 Reset+Begin
+    //BeginRecording restarts command recording so the encoder can be reused across frames
+    //The first call is idempotent (already BeginCommandBuffer in the constructor) and returns immediately with _recording=true
+    //Later calls require WaitForCompletion first so the GPU no longer uses the command buffer, then Reset+Begin
     public void BeginRecording()
     {
         if (_recording) return;
         if (_pendingSubmit)
-            throw new InvalidOperationException("SubmitAsync 后未 WaitForCompletion 不能 BeginRecording");
+            throw new InvalidOperationException("Cannot BeginRecording after SubmitAsync without WaitForCompletion");
         _vk.ResetCommandBuffer(_handle, CommandBufferResetFlags.None);
         var beginInfo = new CommandBufferBeginInfo { SType = StructureType.CommandBufferBeginInfo };
         if (_vk.BeginCommandBuffer(_handle, &beginInfo) != Result.Success)
-            throw new InvalidOperationException("命令缓冲开始录制失败");
+            throw new InvalidOperationException("Failed to begin command buffer recording");
         _recording = true;
     }
 
     private void EnsureRecording()
     {
-        if (!_recording) throw new InvalidOperationException("CommandEncoder 已 Submit 不能再录制");
+        if (!_recording) throw new InvalidOperationException("CommandEncoder already Submitted and cannot record again");
     }
 
     public void Dispose()
     {
         if (_disposed) return;
-        //异步 Submit 未等完成时先等 fence 保证 GPU 不再使用 command buffer 再 Free
+        //When an async Submit has not completed, first wait for the fence so the GPU no longer uses the command buffer, then Free
         if (_pendingSubmit)
         {
             var waitFence = _submitFence;

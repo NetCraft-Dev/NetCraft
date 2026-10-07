@@ -2,36 +2,36 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen.Dimension;
 
-//DimensionTypes 内置维度类型 对应原版 net.minecraft.world.level.dimension.BuiltinDimensionTypes
-//数据驱动从 data/minecraft/dimension_type/*.json 装载是首选 这里是无数据包时的兜底
-//数值一律照原版三个 json 抄 改动前先核对 jar 里的文件
+//DimensionTypes built-in dimension types, maps to vanilla net.minecraft.world.level.dimension.BuiltinDimensionTypes
+//Data-driven loading from data/minecraft/dimension_type/*.json is preferred; this is the fallback when no data pack is present
+//Values are copied from the three vanilla json files; verify against the jar before changing them
 public static class DimensionTypes
 {
-    //Overworld 主世界 有天光无天花板 高度 -64..320 坐标不缩放
+    //Overworld has skylight, no ceiling, height -64..320, coordinate scale 1
     public static readonly DimensionType Overworld = Create(
         "overworld", hasFixedTime: false, hasSkyLight: true, hasCeiling: false, hasEnderDragonFight: false,
         coordinateScale: 1.0, minY: -64, height: 384, logicalHeight: 384,
         infiniburn: "infiniburn_overworld", ambientLight: 0f,
         spawnLightMin: 0, spawnLightMax: 7, blockLightLimit: 0, skybox: null, cardinalLight: null);
 
-    //Nether 下界 有天花板无天光 高度 0..256 坐标 1:8 放大
+    //Nether has a ceiling, no skylight, height 0..256, coordinates scaled 1:8
     public static readonly DimensionType Nether = Create(
         "the_nether", hasFixedTime: true, hasSkyLight: false, hasCeiling: true, hasEnderDragonFight: false,
         coordinateScale: 8.0, minY: 0, height: 256, logicalHeight: 128,
         infiniburn: "infiniburn_nether", ambientLight: 0.1f,
         spawnLightMin: 7, spawnLightMax: 7, blockLightLimit: 15, skybox: "none", cardinalLight: "nether");
 
-    //End 末地 有天光无天花板 高度 0..256 逻辑高度等同总高度
+    //End has skylight, no ceiling, height 0..256 and logical height equal to the total height
     public static readonly DimensionType End = Create(
         "the_end", hasFixedTime: true, hasSkyLight: true, hasCeiling: false, hasEnderDragonFight: true,
         coordinateScale: 1.0, minY: 0, height: 256, logicalHeight: 256,
         infiniburn: "infiniburn_end", ambientLight: 0.25f,
         spawnLightMin: 15, spawnLightMax: 15, blockLightLimit: 0, skybox: "end", cardinalLight: null);
 
-    //All 三个内置维度类型
+    //All the three built-in dimension types
     public static readonly DimensionType[] All = { Overworld, Nether, End };
 
-    //RegisterBuiltin 把内置维度类型登记进注册表 已有同名键时跳过让数据驱动的真值优先
+    //RegisterBuiltin register the built-in dimension types; skip existing keys so the data-driven values win
     public static void RegisterBuiltin()
     {
         var registry = (WritableRegistry<NetCraft.Registry.DimensionType>)BuiltInRegistries.DIMENSION_TYPE;

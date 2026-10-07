@@ -14,9 +14,9 @@ using NetCraft.Util;
 using T = NetCraft.DataFixer.Types;
 using System.Runtime.CompilerServices;
 
-//TypeObjectWrapper包装任意Type<A>实例为Type<object>
-//解决C#严格泛型不变量下Type<int>与NamedType<A>:Type<Pair<string,A>>等无法强转Type<object>的问题
-//对齐Java类型擦除语义委托虚方法到原实例
+//TypeObjectWrapper wraps any Type<A> instance as Type<object>
+//solves the problem that under C#'s strict generic invariance, Type<int> and NamedType<A>:Type<Pair<string,A>> cannot be cast to Type<object>
+//aligning with Java type erasure semantics by delegating virtual methods to the original instance
 public sealed class TypeObjectWrapper : T.Type<object>
 {
     private readonly object _inner;
@@ -24,7 +24,7 @@ public sealed class TypeObjectWrapper : T.Type<object>
     private Codec<object>? _codecCache;
     private static readonly Dictionary<Type, MethodInfo> _methodCache = new();
     private static readonly object _cacheLock = new();
-    //FindTypeInChildren委托缓存按(内部类型,FT,FR)避免重复构造Expression
+    //FindTypeInChildren delegate cache keyed by (inner type,FT,FR) to avoid rebuilding the Expression repeatedly
     private static readonly ConcurrentDictionary<(Type, Type, Type), object> _findTypeInChildrenInvokerCache = new();
 
     public TypeObjectWrapper(object inner)
@@ -35,14 +35,14 @@ public sealed class TypeObjectWrapper : T.Type<object>
 
     public object Inner => _inner;
 
-    //反射获取实例方法带缓存
+    //reflectively gets an instance method, with caching
     private MethodInfo GetMethod(string name, Type[]? paramTypes = null)
     {
         var key = (name, paramTypes?.Length ?? 0);
         var cacheKey = _innerType.GetHashCode() ^ name.GetHashCode() ^ (paramTypes?.Length ?? 0);
         lock (_cacheLock)
         {
-            //简单缓存按(innerType, name, paramCount)
+            //simple cache keyed by (innerType, name, paramCount)
             foreach (var kv in _methodCache)
             {
                 if (kv.Key == _innerType && kv.Value.Name == name)
@@ -59,24 +59,24 @@ public sealed class TypeObjectWrapper : T.Type<object>
         }
     }
 
-    //反射调用原实例Template方法对齐原版Type.template()
+    //reflectively calls the original instance's Template method, aligning with vanilla Type.template()
     public override TypeTemplate BuildTemplate()
         => (TypeTemplate)GetMethod("Template").Invoke(_inner, null)!;
 
-    //包装原Codec<A>为Codec<object>
-    //原实例是Type<A>需先取Codec()再包装传Type实例会让GetMethod("Parse")找不到方法
+    //wraps the original Codec<A> as Codec<object>
+    //the original instance is Type<A>, so Codec() must be fetched first then wrapped; passing the Type instance would make GetMethod("Parse") fail to find the method
     protected override Codec<object> BuildCodec()
         => _codecCache ??= new CodecAdapter(GetInnerCodec());
 
-    //GetInnerCodec反射调用Type<A>.Codec()获取原Codec<A>实例
+    //GetInnerCodec reflectively calls Type<A>.Codec() to get the original Codec<A> instance
     private object GetInnerCodec()
     {
         var method = GetMethod("Codec");
         return method.Invoke(_inner, null)!;
     }
 
-    //委托原实例Equals(o, ignoreRecursionPoints, checkIndex)
-    //对方是wrapper时比较内部实例对方是裸Type<A>时直接比较
+    //delegates to the original instance's Equals(o, ignoreRecursionPoints, checkIndex)
+    //when the other is a wrapper compare the inner instance, when it is a bare Type<A> compare directly
     public override bool Equals(object? o, bool ignoreRecursionPoints, bool checkIndex)
     {
         var method = GetMethod("Equals", new[] { typeof(object), typeof(bool), typeof(bool) });
@@ -84,14 +84,14 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return (bool)method.Invoke(_inner, new object?[] { unwrapped, ignoreRecursionPoints, checkIndex })!;
     }
 
-    //Equals(object)委托到Equals(o,true,true)让RewriteCacheKey record按结构比较
-    //不重写时record EqualityComparer调Object.Equals引用比较缓存永不命中
+    //Equals(object) delegates to Equals(o,true,true) so the RewriteCacheKey record compares structurally
+    //without overriding, the record's EqualityComparer calls Object.Equals for reference comparison, so the cache never hits
     public override bool Equals(object? obj) => Equals(obj, true, true);
 
     public override int GetHashCode() => _inner.GetHashCode();
     public override string? ToString() => _inner.ToString();
 
-    //委托All返回RewriteResult<object,object>
+    //delegates All, returning RewriteResult<object,object>
     public override RewriteResult<object, object> All(object rule, bool recurse, bool checkIndex)
     {
         var method = GetMethod("All");
@@ -99,7 +99,7 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return WrapRewriteResult(innerResult);
     }
 
-    //委托One返回Optional<RewriteResult<object,object>>
+    //delegates One, returning Optional<RewriteResult<object,object>>
     public override Optional<RewriteResult<object, object>> One(object rule)
     {
         var method = GetMethod("One");
@@ -107,7 +107,7 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return WrapOptionalRewriteResult(innerOpt);
     }
 
-    //委托Everywhere返回Optional<RewriteResult<object,object>>
+    //delegates Everywhere, returning Optional<RewriteResult<object,object>>
     public override Optional<RewriteResult<object, object>> Everywhere(object rule, object optimizationRule, bool recurse, bool checkIndex)
     {
         var method = GetMethod("Everywhere");
@@ -115,7 +115,7 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return WrapOptionalRewriteResult(innerOpt);
     }
 
-    //委托UpdateMu返回Type<object>递归包装
+    //delegates UpdateMu, returning a recursively wrapped Type<object>
     public override Type<object> UpdateMu(RecursiveTypeFamily newFamily)
     {
         var method = GetMethod("UpdateMu");
@@ -144,10 +144,10 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return WrapOptionalType(innerOpt);
     }
 
-    //FindTypeInChildren是泛型方法<FT,FR>反射MakeGenericMethod调用内部对象
-    //matcher是Type<object>.TypeMatcher<FT,FR>跨泛型实例化内部期望Type<A>.TypeMatcher<FT,FR>
-    //反射Invoke会做运行时类型检查跨泛型实例化失败用Expression Tree构造委托绕过
-    //内部返回Either<TypedOptic<S,T,FT,FR>,FieldNotFoundException>反射取IsLeft/Left/Right重新包装
+    //FindTypeInChildren is a generic method <FT,FR>, invoked via reflective MakeGenericMethod on the inner object
+    //matcher is Type<object>.TypeMatcher<FT,FR>, but the inner expects Type<A>.TypeMatcher<FT,FR> across generic instantiations
+    //reflective Invoke performs a runtime type check that fails across generic instantiations, so an Expression Tree delegate is built to bypass it
+    //the inner returns Either<TypedOptic<S,T,FT,FR>,FieldNotFoundException>; reflectively read IsLeft/Left/Right and re-wrap
     public override Either<TypedOptic<object, object, FT, FR>, T.Type<object>.FieldNotFoundException> FindTypeInChildren<FT, FR>(
         T.Type<FT> type, T.Type<FR> resultType, T.Type<object>.TypeMatcher<FT, FR> matcher, bool recurse)
     {
@@ -162,11 +162,11 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return WrapEitherOpticFieldNotFound<FT, FR>(innerResult);
     }
 
-    //BuildFindTypeInChildrenInvoker用DynamicMethod+IL emit构造委托
-    //matcher跨泛型实例化Type<object>.TypeMatcher<FT,FR> vs Type<Pair<string,A>>.TypeMatcher<FT,FR>
-    //反射Invoke和Expression.Convert都做castclass运行时类型检查跨泛型实例化失败
-    //IL层面ldarg直接传对象引用不做类型检查callvirt按method token解析虚方法槽
-    //对齐Java类型擦除语义让matcher对象引用直接传给内部方法
+    //BuildFindTypeInChildrenInvoker builds a delegate with DynamicMethod+IL emit
+    //matcher across generic instantiations: Type<object>.TypeMatcher<FT,FR> vs Type<Pair<string,A>>.TypeMatcher<FT,FR>
+    //both reflective Invoke and Expression.Convert perform a castclass runtime type check that fails across generic instantiations
+    //at the IL level ldarg passes the object reference directly without a type check, and callvirt resolves the virtual method slot by method token
+    //aligning with Java type erasure semantics, passing the matcher object reference straight to the inner method
     private static System.Func<object, T.Type<FT>, T.Type<FR>, object, bool, object> BuildFindTypeInChildrenInvoker<FT, FR>(System.Reflection.MethodInfo method)
     {
         var dynamicMethod = new System.Reflection.Emit.DynamicMethod(
@@ -187,7 +187,7 @@ public sealed class TypeObjectWrapper : T.Type<object>
             typeof(System.Func<object, T.Type<FT>, T.Type<FR>, object, bool, object>));
     }
 
-    //WrapEitherOpticFieldNotFound反射Either<...>转Either<TypedOptic<object,object,FT,FR>,FieldNotFoundException>
+    //WrapEitherOpticFieldNotFound reflectively converts Either<...> to Either<TypedOptic<object,object,FT,FR>,FieldNotFoundException>
     private static Either<TypedOptic<object, object, FT, FR>, T.Type<object>.FieldNotFoundException> WrapEitherOpticFieldNotFound<FT, FR>(object innerEither)
     {
         var eitherType = innerEither.GetType()!;
@@ -226,7 +226,7 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return Either<TypedOptic<object, object, FT, FR>, T.Type<object>.FieldNotFoundException>.Right(new T.Type<object>.FieldNotFoundException(rightObj.ToString()!));
     }
 
-    //Point<T>是泛型方法反射MakeGenericMethod(typeof(T))
+    //Point<T> is a generic method, reflectively invoked via MakeGenericMethod(typeof(T))
     public override Optional<object> Point<T2>(DynamicOps<T2> ops)
     {
         var method = _innerType.GetMethod("Point")!.MakeGenericMethod(typeof(T2));
@@ -234,8 +234,8 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return WrapOptionalObject(innerOpt);
     }
 
-    //WrapType把任意Type<A>实例包装为Type<object>
-    //已是Type<object>直接返回否则用TypeObjectWrapper包装
+    //WrapType wraps any Type<A> instance as Type<object>
+    //returns it directly if already Type<object>, otherwise wraps it with TypeObjectWrapper
     private static T.Type<object> WrapType(object? typeObj)
     {
         if (typeObj == null) return null!;
@@ -243,7 +243,7 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return new TypeObjectWrapper(typeObj);
     }
 
-    //WrapRewriteResult反射取View和RecData重新构造为RewriteResult<object,object>
+    //WrapRewriteResult reflectively reads View and RecData and rebuilds as RewriteResult<object,object>
     private static RewriteResult<object, object> WrapRewriteResult(object innerResult)
     {
         var resultType = innerResult.GetType();
@@ -255,8 +255,8 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return RewriteResult<object, object>.Create(newView, innerRecData);
     }
 
-    //WrapView反射取Function/OldType/NewType重新构造为View<object,object>
-    //PointFree用Unsafe.As强转对齐Java类型擦除共享基类虚方法槽
+    //WrapView reflectively reads Function/OldType/NewType and rebuilds as View<object,object>
+    //PointFree uses Unsafe.As to cast, aligning with Java type erasure sharing a base class virtual method slot
     private static View<object, object> WrapView(object innerView)
     {
         var viewType = innerView.GetType();
@@ -272,7 +272,7 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return View<object, object>.Create(newFunction, newOldType, newNewType);
     }
 
-    //WrapOptionalRewriteResult反射Optional<RewriteResult<A,object>>转Optional<RewriteResult<object,object>>
+    //WrapOptionalRewriteResult reflectively converts Optional<RewriteResult<A,object>> to Optional<RewriteResult<object,object>>
     private static Optional<RewriteResult<object, object>> WrapOptionalRewriteResult(object innerOpt)
     {
         var optType = innerOpt.GetType();
@@ -284,7 +284,7 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return Optional<RewriteResult<object, object>>.Of(WrapRewriteResult(innerResult));
     }
 
-    //WrapOptionalType反射Optional<Type<A>>转Optional<Type<object>>
+    //WrapOptionalType reflectively converts Optional<Type<A>> to Optional<Type<object>>
     private static Optional<T.Type<object>> WrapOptionalType(object innerOpt)
     {
         var optType = innerOpt.GetType();
@@ -296,7 +296,7 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return Optional<T.Type<object>>.Of(WrapType(innerType));
     }
 
-    //WrapOptionalObject反射Optional<A>转Optional<object>
+    //WrapOptionalObject reflectively converts Optional<A> to Optional<object>
     private static Optional<object> WrapOptionalObject(object innerOpt)
     {
         var optType = innerOpt.GetType();
@@ -308,12 +308,12 @@ public sealed class TypeObjectWrapper : T.Type<object>
         return Optional<object>.OfNullable(innerValue);
     }
 
-    //CodecAdapter反射调用原Codec<A>的EncodeStart和Parse
-        //EncodeStart接收object实际是A类型装箱
-        //Parse返回DataResult<A>反射取_value字段包装为DataResult<object>
-        //反射Invoke的CheckValue受C#严格泛型不变量限制Pair<object,object>不能转Pair<string,object>
-        //EncodeStart<U>是泛型方法按typeof(U)缓存委托委托内部用Unsafe.As把input强转为A类型后调Invoke
-        //对齐Java类型擦除语义
+    //CodecAdapter reflectively calls the original Codec<A>'s EncodeStart and Parse
+        //EncodeStart receives object, which is actually a boxed A
+        //Parse returns DataResult<A>; reflectively read the _value field and wrap as DataResult<object>
+        //reflective Invoke's CheckValue is limited by C#'s strict generic invariance: Pair<object,object> cannot be cast to Pair<string,object>
+        //EncodeStart<U> is a generic method; the delegate is cached by typeof(U) and internally uses Unsafe.As to cast input to A before calling Invoke
+        //aligning with Java type erasure semantics
         private sealed class CodecAdapter : ScalarCodec<object>
         {
             private readonly object _codec;
@@ -353,9 +353,9 @@ public sealed class TypeObjectWrapper : T.Type<object>
                 return WrapDataResult(result);
             }
 
-            //BuildInvoker编译委托(object codec, object ops, object input) -> object
-            //input用CastTo<A>强转为方法参数类型避免反射Invoke的CheckValue运行时检查
-            //对齐Java类型擦除语义让Pair<object,object>当Pair<string,object>用
+            //BuildInvoker compiles the delegate (object codec, object ops, object input) -> object
+            //input is cast to the method parameter type via CastTo<A>, avoiding the reflective Invoke CheckValue runtime check
+            //aligning with Java type erasure semantics, letting Pair<object,object> be used as Pair<string,object>
             private static System.Func<object, object, object, object> BuildInvoker(System.Reflection.MethodInfo method, Type inputType)
             {
                 var codecParam = System.Linq.Expressions.Expression.Parameter(typeof(object), "codec");
@@ -375,8 +375,8 @@ public sealed class TypeObjectWrapper : T.Type<object>
                     codecParam, opsParam, inputParam).Compile();
             }
 
-            //WrapDataResult反射取DataResult<A>私有字段构造DataResult<object>
-            //A装箱为object对齐Java类型擦除语义
+            //WrapDataResult reflectively reads DataResult<A>'s private fields and builds a DataResult<object>
+            //A is boxed to object, aligning with Java type erasure semantics
             private static DataResult<object> WrapDataResult(object? dataResult)
             {
                 if (dataResult == null) return DataResult<object>.Error(() => "null result");
@@ -394,9 +394,9 @@ public sealed class TypeObjectWrapper : T.Type<object>
             private static T CastTo<T>(object obj)
             {
                 if (obj == null) return default!;
-                //T 是值类型时 obj 是装箱 struct 必须 unbox 取值
-                //Unsafe.As<object,T>(ref local) 只 reinterpret 栈上引用指针
-                //struct 字段会读到装箱指针而非 struct 内部字段值
+                //when T is a value type, obj is a boxed struct and must be unboxed to read the value
+                //Unsafe.As<object,T>(ref local) only reinterprets the reference pointer on the stack
+                //reading struct fields would read the boxing pointer instead of the struct's inner field values
                 if (typeof(T).IsValueType)
                 {
                     return (T)obj;

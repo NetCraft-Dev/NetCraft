@@ -9,8 +9,8 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Misc;
 
-//SpeleothemConfiguration 单根石笋配置 对应原版 SpeleothemConfiguration
-//基石方块定根部材质 尖端方块定石笋本体 四个概率字段控制根部蔓延范围与长度
+//SpeleothemConfiguration single speleothem configuration, maps to vanilla SpeleothemConfiguration
+//The base block sets the root material and the tip block sets the body; four probability fields control root spread range and length
 public sealed class SpeleothemConfiguration : FeatureConfiguration
 {
     public static readonly Codec<SpeleothemConfiguration> Codec =
@@ -57,8 +57,8 @@ public sealed class SpeleothemConfiguration : FeatureConfiguration
     }
 }
 
-//SpeleothemFeature 单根石笋特征 对应原版 SpeleothemFeature
-//先判上下哪边是岩石定出尖端朝向 再在根部铺一小片基石 最后长出一到两格石笋
+//SpeleothemFeature single speleothem feature, maps to vanilla SpeleothemFeature
+//Checks which side is rock to fix the tip direction, spreads a small patch of base blocks at the root, then grows one or two speleothem blocks
 public sealed class SpeleothemFeature : Feature<SpeleothemConfiguration>
 {
     private const string FeatureId = "speleothem";
@@ -78,7 +78,7 @@ public sealed class SpeleothemFeature : Feature<SpeleothemConfiguration>
         if (tipDirection is not { } tip) return false;
         var rootPos = pos.Offset(tip.Opposite);
         CreatePatchOfBaseBlocks(level, random, rootPos, config);
-        //尖端前一格不是空腔或水时只能长一格 概率判定先掷 顺序与原版一致
+        //When the cell before the tip is not a cavity or water, only one block can grow; the probability roll comes first, same order as vanilla
         var height = random.NextFloat() >= config.ChanceOfTallerGeneration
             || !SpeleothemUtils.IsEmptyOrWater(level, pos.Offset(tip))
             ? 1
@@ -88,7 +88,7 @@ public sealed class SpeleothemFeature : Feature<SpeleothemConfiguration>
         return true;
     }
 
-    //GetTipDirection 按上下方块是不是岩石定石笋朝向 上下都是时随机取一个 对应原版 getTipDirection
+    //GetTipDirection decide the speleothem direction from whether the block above or below is rock; if both are, pick one at random, maps to vanilla getTipDirection
     private static Direction? GetTipDirection(WorldGenRegion level, BlockPos pos, RandomSource random,
         SpeleothemConfiguration config)
     {
@@ -102,7 +102,7 @@ public sealed class SpeleothemFeature : Feature<SpeleothemConfiguration>
         return null;
     }
 
-    //CreatePatchOfBaseBlocks 自根部向外铺基石 逐圈按概率扩散到半径三 对应原版 createPatchOfBaseBlocks
+    //CreatePatchOfBaseBlocks lay base blocks outward from the root, spreading ring by ring up to radius three by chance, maps to vanilla createPatchOfBaseBlocks
     private static void CreatePatchOfBaseBlocks(WorldGenRegion level, RandomSource random, BlockPos pos,
         SpeleothemConfiguration config)
     {
@@ -121,6 +121,6 @@ public sealed class SpeleothemFeature : Feature<SpeleothemConfiguration>
         }
     }
 
-    //RandomDirection 六个方向里随机取一个 对应原版 Direction.getRandom
+    //RandomDirection pick one of the six directions at random, maps to vanilla Direction.getRandom
     private static Direction RandomDirection(RandomSource random) => Direction.Values[random.NextInt(6)];
 }

@@ -2,8 +2,8 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.World.Entity;
 
-//Input 玩家按键状态对应原版 net.minecraft.world.entity.player.Input
-//七个按键压进一个字节 空实例表示全部松开
+//Input player key states, maps to vanilla net.minecraft.world.entity.player.Input
+//Seven keys packed into one byte, an empty instance means all released
 public sealed record Input(
     bool Forward,
     bool Backward,
@@ -13,14 +13,14 @@ public sealed record Input(
     bool Shift,
     bool Sprint)
 {
-    //Empty 全部松开 对应原版 EMPTY
+    //Empty all released, maps to vanilla EMPTY
     public static readonly Input Empty = new(false, false, false, false, false, false, false);
 
-    //StreamCodec 单字节位标志 对应原版 STREAM_CODEC
+    //StreamCodec single byte bit flags, maps to vanilla STREAM_CODEC
     public static readonly StreamCodec<FriendlyByteBuf, Input> StreamCodec = new InputStreamCodec();
 }
 
-//InputStreamCodec 七位标志编解码 对应原版 STREAM_CODEC
+//InputStreamCodec seven bit flag codec, maps to vanilla STREAM_CODEC
 internal sealed class InputStreamCodec : StreamCodec<FriendlyByteBuf, Input>
 {
     public Input Decode(FriendlyByteBuf buf)

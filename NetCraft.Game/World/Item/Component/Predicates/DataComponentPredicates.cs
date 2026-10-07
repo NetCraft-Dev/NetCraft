@@ -4,70 +4,70 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items.Component.Predicates;
 
-//DataComponentPredicates 数据组件谓词类型注册 对应原版 net.minecraft.core.component.predicates.DataComponentPredicates
-//Bootstrap 由 DataComponents.Bootstrap 一并调用 必须在注册表冻结之前
+//DataComponentPredicates data component predicate type registration, maps to vanilla net.minecraft.core.component.predicates.DataComponentPredicates
+//Bootstrap is called together with DataComponents.Bootstrap, must run before the registry is frozen
 public static class DataComponentPredicates
 {
-    //ATTRIBUTE_MODIFIERS 属性修饰谓词
+    //ATTRIBUTE_MODIFIERS attribute modifier predicate
     public static readonly ConcreteType<AttributeModifiersPredicate> ATTRIBUTE_MODIFIERS =
         Register("attribute_modifiers", AttributeModifiersPredicate.Codec);
 
-    //BUNDLE_CONTENTS 收纳袋内容谓词
+    //BUNDLE_CONTENTS bundle contents predicate
     public static readonly ConcreteType<BundlePredicate> BUNDLE_CONTENTS =
         Register("bundle_contents", BundlePredicate.Codec);
 
-    //CONTAINER 容器谓词
+    //CONTAINER container predicate
     public static readonly ConcreteType<ContainerPredicate> CONTAINER =
         Register("container", ContainerPredicate.Codec);
 
-    //CUSTOM_DATA 自定义数据谓词
+    //CUSTOM_DATA custom data predicate
     public static readonly ConcreteType<CustomDataPredicate> CUSTOM_DATA =
         Register("custom_data", CustomDataPredicate.Codec);
 
-    //DAMAGE 耐久与损坏值谓词
+    //DAMAGE durability and damage predicate
     public static readonly ConcreteType<DamagePredicate> DAMAGE = Register("damage", DamagePredicate.Codec);
 
-    //ENCHANTMENTS 附魔谓词
+    //ENCHANTMENTS enchantments predicate
     public static readonly ConcreteType<EnchantmentsPredicate.Enchantments> ENCHANTMENTS =
         Register("enchantments", EnchantmentsPredicate.Enchantments.Codec);
 
-    //STORED_ENCHANTMENTS 附魔书谓词
+    //STORED_ENCHANTMENTS stored enchantments predicate
     public static readonly ConcreteType<EnchantmentsPredicate.StoredEnchantments> STORED_ENCHANTMENTS =
         Register("stored_enchantments", EnchantmentsPredicate.StoredEnchantments.Codec);
 
-    //FIREWORK_EXPLOSION 烟花爆炸谓词
+    //FIREWORK_EXPLOSION firework explosion predicate
     public static readonly ConcreteType<FireworkExplosionPredicate> FIREWORK_EXPLOSION =
         Register("firework_explosion", FireworkExplosionPredicate.Codec);
 
-    //FIREWORKS 烟花火箭谓词
+    //FIREWORKS firework rocket predicate
     public static readonly ConcreteType<FireworksPredicate> FIREWORKS =
         Register("fireworks", FireworksPredicate.Codec);
 
-    //JUKEBOX_PLAYABLE 唱片机谓词
+    //JUKEBOX_PLAYABLE jukebox playable predicate
     public static readonly ConcreteType<JukeboxPlayablePredicate> JUKEBOX_PLAYABLE =
         Register("jukebox_playable", JukeboxPlayablePredicate.Codec);
 
-    //POTION_CONTENTS 药水谓词
+    //POTION_CONTENTS potion contents predicate
     public static readonly ConcreteType<PotionsPredicate> POTION_CONTENTS =
         Register("potion_contents", PotionsPredicate.Codec);
 
-    //TRIM 盔甲纹饰谓词
+    //TRIM armor trim predicate
     public static readonly ConcreteType<TrimPredicate> TRIM =
         Register("trim", TrimPredicate.Codec);
 
-    //VILLAGER_VARIANT 村民变体谓词
+    //VILLAGER_VARIANT villager variant predicate
     public static readonly ConcreteType<VillagerTypePredicate> VILLAGER_VARIANT =
         Register("villager_variant", VillagerTypePredicate.Codec);
 
-    //WRITABLE_BOOK_CONTENT 书与笔谓词
+    //WRITABLE_BOOK_CONTENT writable book predicate
     public static readonly ConcreteType<WritableBookPredicate> WRITABLE_BOOK_CONTENT =
         Register("writable_book_content", WritableBookPredicate.Codec);
 
-    //WRITTEN_BOOK_CONTENT 成书谓词
+    //WRITTEN_BOOK_CONTENT written book predicate
     public static readonly ConcreteType<WrittenBookPredicate> WRITTEN_BOOK_CONTENT =
         Register("written_book_content", WrittenBookPredicate.Codec);
 
-    //Bootstrap 触发静态字段初始化完成注册
+    //Bootstrap triggers static field initialization to complete the registration
     public static void Bootstrap()
     {
         _ = ATTRIBUTE_MODIFIERS;
@@ -87,7 +87,7 @@ public static class DataComponentPredicates
         _ = WRITTEN_BOOK_CONTENT;
     }
 
-    //Register 注册谓词类型到 DATA_COMPONENT_PREDICATE_TYPE 注册表
+    //Register registers a predicate type into the DATA_COMPONENT_PREDICATE_TYPE registry
     private static ConcreteType<T> Register<T>(string name, Codec<T> codec)
         where T : class, DataComponentPredicate
     {

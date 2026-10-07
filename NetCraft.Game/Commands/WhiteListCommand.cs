@@ -5,8 +5,8 @@ using NetCraft.Commands.Context;
 
 namespace NetCraft.Game.Commands;
 
-//WhiteListCommand whitelist 命令对应原版 net.minecraft.server.commands.WhitelistCommand
-//开关白名单与增删成员 与原版一样目标只解析在线玩家名
+//WhiteListCommand whitelist command, maps to vanilla net.minecraft.server.commands.WhitelistCommand
+//Toggles the whitelist and adds/removes members; like vanilla the target only resolves online player names
 public static class WhiteListCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -29,34 +29,34 @@ public static class WhiteListCommand
                 .Executes(Reload)));
     }
 
-    //SetEnabled 开关白名单并写回 server.properties
+    //SetEnabled toggles the whitelist and writes it back to server.properties
     private static int SetEnabled(CommandContext<CommandSourceStack> context, bool enabled)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         if (source.Server.IsWhiteListEnabled == enabled)
         {
-            source.SendFailure(enabled ? "白名单已处于开启状态" : "白名单已处于关闭状态");
+            source.SendFailure(enabled ? "the whitelist is already on" : "the whitelist is already off");
             return 0;
         }
 
         source.Server.IsWhiteListEnabled = enabled;
         source.Server.Settings.SetWhiteList(enabled);
         source.Server.Settings.SaveCurrent();
-        source.SendSuccess(enabled ? "已开启白名单" : "已关闭白名单");
+        source.SendSuccess(enabled ? "whitelist enabled" : "whitelist disabled");
         return 1;
     }
 
-    //List 列出名单成员
+    //List lists the members
     private static int List(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var names = source.Server.WhiteList.Names;
-        source.SendSuccess($"白名单共 {names.Count} 名成员 当前{(source.Server.IsWhiteListEnabled ? "已开启" : "已关闭")}");
+        source.SendSuccess($"the whitelist has {names.Count} members; it is currently {(source.Server.IsWhiteListEnabled ? "on" : "off")}");
         foreach (var name in names) source.SendSuccess(name);
         return names.Count;
     }
 
-    //Apply 增删名单成员 只认在线玩家 与原版支持离线档案不同
+    //Apply adds/removes a member; only online players are recognized, unlike vanilla which supports offline profiles
     private static int Apply(CommandContext<CommandSourceStack> context, bool add)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -64,33 +64,33 @@ public static class WhiteListCommand
         var target = source.Server.PlayerList.GetPlayerByName(name);
         if (target is null)
         {
-            source.SendFailure($"玩家 {name} 不在线");
+            source.SendFailure($"player {name} is not online");
             return 0;
         }
 
         if (add)
         {
             source.Server.WhiteList.Add(target.Profile);
-            source.SendSuccess($"已将 {target.Profile.Name} 加入白名单");
+            source.SendSuccess($"added {target.Profile.Name} to the whitelist");
             return 1;
         }
 
         if (!source.Server.WhiteList.Remove(target.Profile))
         {
-            source.SendFailure($"{target.Profile.Name} 不在白名单内");
+            source.SendFailure($"{target.Profile.Name} is not on the whitelist");
             return 0;
         }
 
-        source.SendSuccess($"已将 {target.Profile.Name} 移出白名单");
+        source.SendSuccess($"removed {target.Profile.Name} from the whitelist");
         return 1;
     }
 
-    //Reload 从磁盘重读名单
+    //Reload re-reads the list from disk
     private static int Reload(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         source.Server.WhiteList.Reload();
-        source.SendSuccess($"已重新加载白名单 共 {source.Server.WhiteList.Count} 条");
+        source.SendSuccess($"reloaded the whitelist, {source.Server.WhiteList.Count} entries");
         return 1;
     }
 }

@@ -3,15 +3,15 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//StructurePlacementRegistry 结构集合注册表 对应原版 ChunkGenerator 持有的 List<StructureSet>
-//世界用到的全部结构集合都在这里 区块装配时按它筛出命中的集合
+//StructurePlacementRegistry structure set registry, maps to the List<StructureSet> held by vanilla ChunkGenerator
+//All structure sets used by the world live here; chunk assembly filters the hit sets through it
 public sealed class StructurePlacementRegistry
 {
     private readonly List<NetCraft.Registry.StructureSet> _sets = new();
 
     public long Seed { get; }
 
-    //State 放置判定状态 持世界种子供 placement 做排斥区查询
+    //State placement judge state, holds the world seed for placements to query exclusion zones
     public ChunkGeneratorStructureState State { get; }
 
     public IReadOnlyList<NetCraft.Registry.StructureSet> Sets => _sets;
@@ -22,11 +22,11 @@ public sealed class StructurePlacementRegistry
         State = new ChunkGeneratorStructureState(seed);
     }
 
-    //AddSet 追加一个集合
+    //AddSet appends a set
     public void AddSet(NetCraft.Registry.StructureSet set) => _sets.Add(set);
 
-    //GetSetsForChunk 取命中该区块的集合 对应原版 createStructures 的集合筛选
-    //排斥区判定会回头查本注册表里的其他集合 因此必须在同一个 state 下判定
+    //GetSetsForChunk returns the sets hitting the chunk, maps to the set filtering in vanilla createStructures
+    //Exclusion-zone checks look back at other sets in this registry, so all checks must share the same state
     public List<StructureSet> GetSetsForChunk(ChunkPos pos)
     {
         var result = new List<StructureSet>();
@@ -38,6 +38,6 @@ public sealed class StructurePlacementRegistry
         return result;
     }
 
-    //Empty 空注册表 不生成任何结构
+    //Empty empty registry, generates no structures
     public static StructurePlacementRegistry Empty { get; } = new(0L);
 }

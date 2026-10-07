@@ -9,7 +9,7 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Nether;
 
-//HugeFungusConfiguration 巨型菌配置 对应原版 HugeFungusConfiguration
+//HugeFungusConfiguration huge fungus configuration, maps to vanilla HugeFungusConfiguration
 public sealed class HugeFungusConfiguration : FeatureConfiguration
 {
     public static readonly Codec<HugeFungusConfiguration> Codec =
@@ -50,12 +50,12 @@ public sealed class HugeFungusConfiguration : FeatureConfiguration
     }
 }
 
-//HugeFungusFeature 巨型菌特征 对应原版 HugeFungusFeature
+//HugeFungusFeature huge fungus feature, maps to vanilla HugeFungusFeature
 public sealed class HugeFungusFeature : Feature<HugeFungusConfiguration>
 {
     private const string FeatureId = "huge_fungus";
 
-    //HugeProbability 自然生成时变成粗壮巨菌的概率
+    //HugeProbability chance of growing into a thick huge fungus during natural generation
     private const float HugeProbability = 0.06f;
 
     public static readonly HugeFungusFeature Instance = Register(
@@ -84,7 +84,7 @@ public sealed class HugeFungusFeature : Feature<HugeFungusConfiguration>
         return true;
     }
 
-    //IsReplaceable 该位置能否被菌体替换 对应原版 isReplaceable
+    //IsReplaceable whether the position can be replaced by the fungus, maps to vanilla isReplaceable
     private static bool IsReplaceable(WorldGenRegion level, BlockPos pos, HugeFungusConfiguration config,
         bool checkNonReplaceablePlants)
     {
@@ -92,7 +92,7 @@ public sealed class HugeFungusFeature : Feature<HugeFungusConfiguration>
         return checkNonReplaceablePlants && config.ReplaceableBlocks.Test(level, pos);
     }
 
-    //PlaceStem 立菌柄 对应原版 placeStem
+    //PlaceStem raise the fungus stem, maps to vanilla placeStem
     private static void PlaceStem(WorldGenRegion level, RandomSource random, HugeFungusConfiguration config,
         BlockPos surfaceOrigin, int totalHeight, bool isHuge)
     {
@@ -109,7 +109,7 @@ public sealed class HugeFungusFeature : Feature<HugeFungusConfiguration>
                     if (!IsReplaceable(level, pos, config, true)) continue;
                     if (config.Planted)
                     {
-                        //原版此处先 destroyBlock 掉原有植物 本作没有掉落系统直接覆盖
+                        //Vanilla calls destroyBlock on the existing plant first; there is no drop system here, so it is overwritten directly
                         NetherSupport.SetBlock(level, pos, stem);
                     }
                     else if (!cornerOfHugeStem)
@@ -125,7 +125,7 @@ public sealed class HugeFungusFeature : Feature<HugeFungusConfiguration>
         }
     }
 
-    //PlaceHat 长菌盖 对应原版 placeHat
+    //PlaceHat grow the fungus cap, maps to vanilla placeHat
     private static void PlaceHat(WorldGenRegion level, RandomSource random, HugeFungusConfiguration config,
         BlockPos surfaceOrigin, int totalHeight, bool isHuge)
     {
@@ -169,7 +169,7 @@ public sealed class HugeFungusFeature : Feature<HugeFungusConfiguration>
         }
     }
 
-    //PlaceHatBlock 按三段概率决定菌盖该格放装饰还是菌盖 对应原版 placeHatBlock
+    //PlaceHatBlock three-stage probability decides whether the cap cell holds decoration or cap, maps to vanilla placeHatBlock
     private static void PlaceHatBlock(WorldGenRegion level, RandomSource random, HugeFungusConfiguration config,
         BlockPos pos, float decorBlockProbability, float hatBlockProbability, float vinesProbability)
     {
@@ -184,7 +184,7 @@ public sealed class HugeFungusFeature : Feature<HugeFungusConfiguration>
         }
     }
 
-    //PlaceHatDropBlock 菌盖外沿缀一格 对应原版 placeHatDropBlock
+    //PlaceHatDropBlock add one block to the cap fringe, maps to vanilla placeHatDropBlock
     private static void PlaceHatDropBlock(WorldGenRegion level, RandomSource random, BlockPos pos,
         BlockState hatState, bool placeVines)
     {
@@ -200,7 +200,7 @@ public sealed class HugeFungusFeature : Feature<HugeFungusConfiguration>
         }
     }
 
-    //TryPlaceWeepingVines 菌盖下方挂一条垂泪藤 对应原版 tryPlaceWeepingVines
+    //TryPlaceWeepingVines hang one weeping vine below the cap, maps to vanilla tryPlaceWeepingVines
     private static void TryPlaceWeepingVines(BlockPos hatBlockPos, WorldGenRegion level, RandomSource random)
     {
         var placePos = hatBlockPos.Offset(0, -1, 0);
@@ -211,7 +211,7 @@ public sealed class HugeFungusFeature : Feature<HugeFungusConfiguration>
     }
 }
 
-//NetherForestVegetationConfig 下界林地植被配置 对应原版 NetherForestVegetationConfig
+//NetherForestVegetationConfig nether forest vegetation configuration, maps to vanilla NetherForestVegetationConfig
 public sealed class NetherForestVegetationConfig : FeatureConfiguration
 {
     public static readonly Codec<NetherForestVegetationConfig> Codec =
@@ -237,7 +237,7 @@ public sealed class NetherForestVegetationConfig : FeatureConfiguration
     }
 }
 
-//NetherForestVegetationFeature 下界林地植被特征 对应原版 NetherForestVegetationFeature
+//NetherForestVegetationFeature nether forest vegetation feature, maps to vanilla NetherForestVegetationFeature
 public sealed class NetherForestVegetationFeature : Feature<NetherForestVegetationConfig>
 {
     private const string FeatureId = "nether_forest_vegetation";

@@ -3,19 +3,19 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//PoolAliasLookup 池别名查找表 对应原版 net.minecraft.world.level.levelgen.structure.pools.alias.PoolAliasLookup
-//一次生成解出一份固定的别名映射 之后每查一个池名都走它
+//PoolAliasLookup pool alias lookup table, maps to vanilla net.minecraft.world.level.levelgen.structure.pools.alias.PoolAliasLookup
+//Resolves a fixed alias mapping once per generation; every pool name lookup afterwards goes through it
 public sealed class PoolAliasLookup
 {
-    //Empty 不做任何替换的查找表 对应原版 EMPTY
+    //Empty lookup table that performs no substitution, maps to vanilla EMPTY
     public static readonly PoolAliasLookup Empty = new(new Dictionary<Identifier, Identifier>());
 
     private readonly IReadOnlyDictionary<Identifier, Identifier> _mappings;
 
     private PoolAliasLookup(IReadOnlyDictionary<Identifier, Identifier> mappings) => _mappings = mappings;
 
-    //Create 按种子与生成点解出一份别名映射 对应原版 create
-    //随机源按种子派生再定位到生成点 同一生成点重复生成解出的映射一致
+    //Create resolves an alias mapping from the seed and generation position, maps to vanilla create
+    //The random source is forked from the seed and positioned at the generation point, so the same point resolves the same mapping
     public static PoolAliasLookup Create(IReadOnlyList<PoolAliasBinding> bindings, BlockPos pos, long seed)
     {
         if (bindings.Count == 0) return Empty;
@@ -26,7 +26,7 @@ public sealed class PoolAliasLookup
         return new PoolAliasLookup(mappings);
     }
 
-    //Lookup 查别名对应的池名 没有别名就用原池名
+    //Lookup returns the pool name for an alias, falling back to the original pool name when absent
     public Identifier Lookup(Identifier poolId)
         => _mappings.TryGetValue(poolId, out var target) ? target : poolId;
 }

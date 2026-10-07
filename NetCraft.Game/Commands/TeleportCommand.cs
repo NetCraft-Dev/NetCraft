@@ -10,27 +10,27 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Commands;
 
-//TeleportCommand teleport/tp 命令对应原版 net.minecraft.server.commands.TeleportCommand
-//tp 为 teleport 的 redirect 坐标支持相对与本地 朝向可显式 rotation 或 facing 实体/坐标
-//目标集合按玩家与关卡实体分派 玩家走位置确认链 关卡实体直接落服务端由追踪器补发移动包
-//执行时按 relatives 把绝对量换算回相对量下发 客户端叠加自身当前值复原绝对位置
+//TeleportCommand teleport/tp command, maps to vanilla net.minecraft.server.commands.TeleportCommand
+//tp is a redirect of teleport; coordinates support relative and local; facing can be an explicit rotation or facing an entity/coordinate
+//The target set is dispatched by player and level entity: players go through the position confirmation chain, level entities land on the server and the tracker re-sends the move packet
+//At execution the absolute quantities are converted back to relative ones by relatives; the client adds its own current value to restore the absolute position
 public static class TeleportCommand
 {
     private static int _teleportId;
 
-    //LookAt 传送后朝向 只负责给出目标点 算法对玩家与实体是同一套
+    //LookAt the facing after teleport; it only supplies the target point; the algorithm is the same for players and entities
     private interface LookAt
     {
         Vec3 TargetPoint();
     }
 
-    //朝向实体 eyes/feet 决定目标基准点 对应原版 LookAt.LookAtEntity
+    //Facing entity; eyes/feet decide the target reference point, maps to vanilla LookAt.LookAtEntity
     private sealed record LookAtEntity(CommandTarget Entity, EntityAnchorArgument.Anchor Anchor) : LookAt
     {
         public Vec3 TargetPoint() => AnchorPosition(Anchor, Entity);
     }
 
-    //朝向坐标 对应原版 LookAt.LookAtPosition
+    //Facing coordinate, maps to vanilla LookAt.LookAtPosition
     private sealed record LookAtPosition(Vec3 Position) : LookAt
     {
         public Vec3 TargetPoint() => Position;
@@ -55,7 +55,7 @@ public static class TeleportCommand
                         EntityArgument.GetSingleTarget(c, "destination"));
                 }))
             .Then(RequiredArgumentBuilder<CommandSourceStack, EntitySelector>.Argument("targets", EntityArgument.Entities())
-                //destination 与 location 平级挂在 targets 下 对应原版 teleport <targets> <destination>
+                //destination hangs under targets alongside location, maps to vanilla teleport <targets> <destination>
                 .Then(RequiredArgumentBuilder<CommandSourceStack, EntitySelector>.Argument("destination", EntityArgument.Entity())
                     .Executes(c => TeleportToEntity((ServerCommandSource)c.GetSource(),
                         EntityArgument.GetEntities(c, "targets"), EntityArgument.GetSingleTarget(c, "destination"))))
@@ -80,18 +80,18 @@ public static class TeleportCommand
                             .Executes(c => TeleportToPos((ServerCommandSource)c.GetSource(),
                                 EntityArgument.GetEntities(c, "targets"), Vec3Argument.GetCoordinates(c, "location"), null,
                                 new LookAtPosition(Vec3Argument.GetVec3(c, "facingLocation")))))))));
-        //tp 重定向到 teleport 与原版共享整棵子树
+        //tp redirects to teleport, sharing the whole subtree like vanilla
         dispatcher.Register(LiteralArgumentBuilder<CommandSourceStack>.Literal("tp")
             .Requires(s => s.HasPermission(2))
             .Redirect(teleport));
     }
 
-    //TeleportTarget 把单个命令目标传送到绝对坐标并保持朝向 供其它命令复用
-    //玩家走位置包同步链 关卡实体直接改位置由实体追踪器补发移动包
+    //TeleportTarget teleports a single command target to an absolute coordinate keeping the facing, for reuse by other commands
+    //Players go through the position packet sync chain; level entities change position directly and the entity tracker re-sends the move packet
     public static void TeleportTarget(ServerCommandSource source, CommandTarget target, double x, double y, double z)
         => PerformTeleport(source, target, x, y, z, new HashSet<RelativeFlag>(), target.Yaw, target.Pitch, null);
 
-    //TeleportToEntity 把目标集合传到目标实体脚下 继承其朝向
+    //TeleportToEntity teleports the target set under the target entity, inheriting its facing
     private static int TeleportToEntity(ServerCommandSource source, IReadOnlyList<CommandTarget> targets, CommandTarget destination)
     {
         foreach (var target in targets)
@@ -101,7 +101,7 @@ public static class TeleportCommand
         return targets.Count;
     }
 
-    //TeleportToPos 把目标集合传到指定坐标 rotation 为空保持当前朝向
+    //TeleportToPos teleports the target set to the given coordinate; a null rotation keeps the current facing
     private static int TeleportToPos(ServerCommandSource source, IReadOnlyList<CommandTarget> targets, Coordinates destination, Coordinates? rotation, LookAt? lookAt)
     {
         var pos = destination.GetPosition(source);
@@ -115,7 +115,7 @@ public static class TeleportCommand
         }
         foreach (var target in targets)
         {
-            //跨维度判定只对玩家有意义 控制台源没有所在维度 按同维度处理
+            //The cross-dimension check is only meaningful for players; a console source has no dimension, so it is treated as the same dimension
             var sameDimension = target.Player is not { } player || source.Player is not { } origin
                 || ReferenceEquals(player.Level, origin.Level);
             var relatives = GetRelatives(destination, rotation, sameDimension);
@@ -128,11 +128,11 @@ public static class TeleportCommand
         return targets.Count;
     }
 
-    //GetRelatives 推导传送的相对标志集 速度/位置/朝向三段 对应原版 getRelatives
+    //GetRelatives derives the relative flag set of the teleport, in three parts speed/position/facing, maps to vanilla getRelatives
     private static IReadOnlySet<RelativeFlag> GetRelatives(Coordinates destination, Coordinates? rotation, bool sameDimension)
     {
         var dir = RelativeFlags.Direction(destination.IsXRelative, destination.IsYRelative, destination.IsZRelative);
-        //跨维度传送位置必为绝对 本地坐标保持不了速度也一并清零
+        //A cross-dimension teleport position must be absolute; local coordinates cannot hold and speed is zeroed too
         var pos = sameDimension
             ? RelativeFlags.Position(destination.IsXRelative, destination.IsYRelative, destination.IsZRelative)
             : new HashSet<RelativeFlag>();
@@ -142,7 +142,7 @@ public static class TeleportCommand
         return RelativeFlags.Union(dir, pos, rot);
     }
 
-    //PerformTeleport 按目标来源分派 x/y/z 与 yaw/pitch 都是绝对量
+    //PerformTeleport dispatches by target source; x/y/z and yaw/pitch are all absolute
     private static void PerformTeleport(ServerCommandSource source, CommandTarget target, double x, double y, double z,
         IReadOnlySet<RelativeFlag> relatives, float yaw, float pitch, LookAt? lookAt)
     {
@@ -154,9 +154,9 @@ public static class TeleportCommand
         PerformEntityTeleport(target, x, y, z, yaw, pitch, lookAt);
     }
 
-    //PerformPlayerTeleport 应用传送并下发位置包 对应原版 performTeleport
-    //相对分量减去当前值换成相对量 客户端按 relatives 叠加自身当前值复原绝对位置
-    //有监听器时走它的等待确认流程 传送期间上报的旧坐标不会被采纳
+    //PerformPlayerTeleport applies the teleport and sends the position packet, maps to vanilla performTeleport
+    //Relative components subtract the current value to become relative; the client adds its own current value by relatives to restore the absolute position
+    //With a listener it goes through the listener's wait-for-ack flow; old coordinates reported during the teleport are not accepted
     private static void PerformPlayerTeleport(ServerCommandSource source, ServerPlayer player, double x, double y, double z,
         IReadOnlySet<RelativeFlag> relatives, float yaw, float pitch, LookAt? lookAt)
     {
@@ -166,7 +166,7 @@ public static class TeleportCommand
         var relYaw = yaw - (relatives.Contains(RelativeFlag.YRot) ? player.Yaw : 0f);
         var relPitch = pitch - (relatives.Contains(RelativeFlag.XRot) ? player.Pitch : 0f);
 
-        //服务端先行应用绝对量 对应原版 teleportSetPosition 的 calculateAbsolute
+        //The server applies the absolute quantities first, maps to vanilla teleportSetPosition's calculateAbsolute
         var target = new Vec3(
             relX + (relatives.Contains(RelativeFlag.X) ? player.Position.X : 0),
             relY + (relatives.Contains(RelativeFlag.Y) ? player.Position.Y : 0),
@@ -175,13 +175,13 @@ public static class TeleportCommand
         player.Yaw = relYaw + (relatives.Contains(RelativeFlag.YRot) ? player.Yaw : 0f);
         player.Pitch = Math.Clamp(relPitch + (relatives.Contains(RelativeFlag.XRot) ? player.Pitch : 0f), -90f, 90f);
 
-        //朝向先于位置包应用 最终朝向随位置包下发 对应原版 lookAt.perform
-        //lookAt 改的是服务端朝向 客户端不知情 相对分量要把这次改动的差值算进去
+        //The facing is applied before the position packet; the final facing is sent with the position packet, maps to vanilla lookAt.perform
+        //lookAt changes the server-side facing unbeknownst to the client; the relative components must include this change's delta
         var yawBeforeLook = player.Yaw;
         var pitchBeforeLook = player.Pitch;
         ApplyLookAt(player, lookAt);
 
-        //含 YRot/XRot 时下发相对量由客户端叠加自身当前值 不含时直接下发绝对量
+        //When YRot/XRot are present the relative amount is sent and the client adds its own current value; otherwise the absolute amount is sent
         var packetYaw = relatives.Contains(RelativeFlag.YRot) ? relYaw + (player.Yaw - yawBeforeLook) : player.Yaw;
         var packetPitch = relatives.Contains(RelativeFlag.XRot) ? relPitch + (player.Pitch - pitchBeforeLook) : player.Pitch;
         var packed = RelativeFlags.Pack(relatives);
@@ -192,18 +192,18 @@ public static class TeleportCommand
             listener.Teleport(target, player.Yaw, player.Pitch, relX, relY, relZ, packetYaw, packetPitch, packed);
             return;
         }
-        //没有监听器的场合(测试用假连接)退化为直接下发 位置与朝向已落到玩家状态
+        //Without a listener (a test fake connection) it degrades to sending directly; position and facing have already landed in the player state
         player.Connection.Send(new ClientboundPlayerPositionPacket(
             relX, relY, relZ, packetYaw, packetPitch, packed, _teleportId++));
     }
 
-    //PerformEntityTeleport 关卡实体没有位置确认流程 改完位置由实体追踪器补发移动包
+    //PerformEntityTeleport level entities have no position confirmation flow; after the change the entity tracker re-sends the move packet
     private static void PerformEntityTeleport(CommandTarget target, double x, double y, double z, float yaw, float pitch, LookAt? lookAt)
     {
         var position = new Vec3(x, y, z);
         if (lookAt is not null)
         {
-            //朝向按落点算 与原版先把实体挪过去再转头一致
+            //The facing is computed from the landing point, consistent with vanilla moving the entity first then turning the head
             var (lookYaw, lookPitch) = LookAngles(position, lookAt.TargetPoint());
             yaw = lookYaw;
             pitch = lookPitch;
@@ -211,7 +211,7 @@ public static class TeleportCommand
         target.WorldEntity!.SetPos(position, yaw, pitch);
     }
 
-    //ApplyLookAt 把朝向落到玩家上 目标点为空时不改
+    //ApplyLookAt applies the facing to the player; an empty target point changes nothing
     private static void ApplyLookAt(ServerPlayer player, LookAt? lookAt)
     {
         if (lookAt is null) return;
@@ -220,8 +220,8 @@ public static class TeleportCommand
         player.Pitch = pitch;
     }
 
-    //AnchorPosition 求朝向目标按锚点的世界坐标
-    //玩家用固定站立眼高 关卡实体没有单独的眼高数据 取包围盒九成高度处近似
+    //AnchorPosition resolves the world coordinate of the facing target at the anchor
+    //Players use the fixed standing eye height; level entities have no separate eye height data, approximated at 90 percent of the bounding box height
     private static Vec3 AnchorPosition(EntityAnchorArgument.Anchor anchor, CommandTarget target)
     {
         if (target.Player is { } player) return EntityAnchorArgument.Apply(anchor, player);
@@ -230,7 +230,7 @@ public static class TeleportCommand
         return new Vec3(target.Position.X, box.Min.Y + box.Size.Y * 0.9, target.Position.Z);
     }
 
-    //LookAngles 从 from 点看向 to 点的角度 对应原版 Entity.lookAt
+    //LookAngles the angle from the from point looking at the to point, maps to vanilla Entity.lookAt
     private static (float Yaw, float Pitch) LookAngles(Vec3 from, Vec3 to)
     {
         var xd = to.X - from.X;
@@ -242,7 +242,7 @@ public static class TeleportCommand
         return (yaw, pitch);
     }
 
-    //WrapDegrees 角度规范到[-180,180) 对应原版 Mth.wrapDegrees
+    //WrapDegrees normalizes the angle to [-180,180), maps to vanilla Mth.wrapDegrees
     private static float WrapDegrees(float value)
     {
         value %= 360;
@@ -251,15 +251,15 @@ public static class TeleportCommand
         return value;
     }
 
-    //SendTeleportSuccess 回执传送结果 单目标点名 多目标报数量
+    //SendTeleportSuccess reports the teleport result; a single target is named, multiple report the count
     private static void SendTeleportSuccess(ServerCommandSource source, IReadOnlyList<CommandTarget> targets, Vec3 pos)
     {
         if (targets.Count == 1)
-            source.SendSuccess($"已将 {targets[0].Name} 传送到 {FormatDouble(pos.X)} {FormatDouble(pos.Y)} {FormatDouble(pos.Z)}");
+            source.SendSuccess($"teleported {targets[0].Name} to {FormatDouble(pos.X)} {FormatDouble(pos.Y)} {FormatDouble(pos.Z)}");
         else
-            source.SendSuccess($"已将 {targets.Count} 个实体传送到 {FormatDouble(pos.X)} {FormatDouble(pos.Y)} {FormatDouble(pos.Z)}");
+            source.SendSuccess($"teleported {targets.Count} entities to {FormatDouble(pos.X)} {FormatDouble(pos.Y)} {FormatDouble(pos.Z)}");
     }
 
-    //FormatDouble 六位小数 对应原版 String.format %f
+    //FormatDouble six decimals, maps to vanilla String.format %f
     private static string FormatDouble(double value) => value.ToString("F6");
 }

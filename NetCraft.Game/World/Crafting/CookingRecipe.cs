@@ -2,8 +2,8 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.World.Crafting;
 
-//AbstractCookingRecipe 烹饪配方基类对应原版 net.minecraft.world.item.crafting.AbstractCookingRecipe
-//在单原料配方之上多了经验与烹饪时长 熔炼四件套共用这一份
+//AbstractCookingRecipe cooking recipe base class, maps to vanilla net.minecraft.world.item.crafting.AbstractCookingRecipe
+//Adds experience and cooking time on top of the single-ingredient recipe, the four cooking variants share this one
 public abstract class AbstractCookingRecipe : SingleItemRecipe
 {
     protected AbstractCookingRecipe(Ingredient ingredient, ItemStack result, string group, string category,
@@ -15,17 +15,17 @@ public abstract class AbstractCookingRecipe : SingleItemRecipe
         CookingTime = cookingTime;
     }
 
-    //Category 配方书分类 取值 food/blocks/misc 配方书阶段才用 先按原样存字符串
+    //Category recipe book category, values food/blocks/misc, only used at the recipe book stage, stored as a raw string for now
     public string Category { get; }
 
-    //Experience 每次产出发放的经验
+    //Experience experience granted per output
     public float Experience { get; }
 
-    //CookingTime 烹饪一炉所需刻数
+    //CookingTime ticks needed to cook one batch
     public int CookingTime { get; }
 }
 
-//SmeltingRecipe 熔炉配方 type=smelting 默认 200 刻
+//SmeltingRecipe furnace recipe, type=smelting, default 200 ticks
 public sealed class SmeltingRecipe : AbstractCookingRecipe
 {
     public const string SerializerId = "smelting";
@@ -38,7 +38,7 @@ public sealed class SmeltingRecipe : AbstractCookingRecipe
     public override string Type => SerializerId;
 }
 
-//BlastingRecipe 高炉配方 type=blasting 默认 100 刻
+//BlastingRecipe blast furnace recipe, type=blasting, default 100 ticks
 public sealed class BlastingRecipe : AbstractCookingRecipe
 {
     public const string SerializerId = "blasting";
@@ -51,7 +51,7 @@ public sealed class BlastingRecipe : AbstractCookingRecipe
     public override string Type => SerializerId;
 }
 
-//SmokingRecipe 烟熏炉配方 type=smoking 默认 100 刻
+//SmokingRecipe smoker recipe, type=smoking, default 100 ticks
 public sealed class SmokingRecipe : AbstractCookingRecipe
 {
     public const string SerializerId = "smoking";
@@ -64,7 +64,7 @@ public sealed class SmokingRecipe : AbstractCookingRecipe
     public override string Type => SerializerId;
 }
 
-//CampfireCookingRecipe 营火配方 type=campfire_cooking 默认 100 刻
+//CampfireCookingRecipe campfire recipe, type=campfire_cooking, default 100 ticks
 public sealed class CampfireCookingRecipe : AbstractCookingRecipe
 {
     public const string SerializerId = "campfire_cooking";

@@ -7,27 +7,27 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//BlockPredicate 方块谓词对应原版 net.minecraft.world.level.levelgen.blockpredicates.BlockPredicate
-//判定某个位置是否满足条件 放置修饰器与特征靠它做位置过滤
+//BlockPredicate block predicate, maps to vanilla net.minecraft.world.level.levelgen.blockpredicates.BlockPredicate
+//Tests whether a position satisfies a condition; placement modifiers and features use it to filter positions
 public abstract class BlockPredicate
 {
-    //Codec 多态编解码入口 先读 type 字段再分发到具体类型
+    //Codec polymorphic codec entry: read the type field, then dispatch to the concrete type
     public static readonly Codec<BlockPredicate> Codec = BlockPredicateCodec.Instance;
 
-    //AirTag 空气方块标签 对应原版 BlockTags.AIR
+    //AirTag the air block tag, maps to vanilla BlockTags.AIR
     public static readonly TagKey<RegBlock> AirTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("air"));
 
-    //OnlyInAir 只在空气里对应原版 ONLY_IN_AIR_PREDICATE
+    //OnlyInAir only inside air, maps to vanilla ONLY_IN_AIR_PREDICATE
     public static readonly BlockPredicate OnlyInAir = MatchesTag(AirTag);
 
-    //OnlyInAirOrWater 只在空气或水里对应原版 ONLY_IN_AIR_OR_WATER_PREDICATE
+    //OnlyInAirOrWater only inside air or water, maps to vanilla ONLY_IN_AIR_OR_WATER_PREDICATE
     public static readonly BlockPredicate OnlyInAirOrWater = AnyOf(OnlyInAir, MatchesBlocks(Blocks.WATER));
 
-    //Type 所属类型单例 编码与注册表解析靠它拿 id
+    //Type owning type singleton; encoding and registry resolution use it to get the id
     public abstract BlockPredicateType Type { get; }
 
-    //Test 判定该位置是否满足条件对应原版 test(WorldGenLevel, BlockPos)
+    //Test whether the position satisfies the condition, maps to vanilla test(WorldGenLevel, BlockPos)
     public abstract bool Test(WorldGenRegion level, BlockPos origin);
 
     public static BlockPredicate AllOf(IReadOnlyList<BlockPredicate> predicates) => new AllOfPredicate(predicates);
@@ -98,17 +98,17 @@ public abstract class BlockPredicate
 
     public static BlockPredicate Unobstructed() => Unobstructed(Vec3i.Zero);
 
-    //DirectBlocks 把方块列表包成直接集合 未注册方块退化成直接持有者
+    //DirectBlocks wrap a block list as a direct set; unregistered blocks degrade to direct holders
     private static DirectHolderSet<RegBlock> DirectBlocks(IReadOnlyList<RegBlock> blocks)
         => new(blocks.Select(BuiltInRegistries.BLOCK.WrapAsHolder).ToList());
 
-    //DirectFluids 把流体列表包成直接集合 未注册流体退化成直接持有者
+    //DirectFluids wrap a fluid list as a direct set; unregistered fluids degrade to direct holders
     private static DirectHolderSet<Fluid> DirectFluids(IReadOnlyList<Fluid> fluids)
         => new(fluids.Select(BuiltInRegistries.FLUID.WrapAsHolder).ToList());
 }
 
-//BlockPredicateCodec 按 type 字段查 BLOCK_PREDICATE_TYPE 再委派给该类型解码
-//对应原版 BuiltInRegistries.BLOCK_PREDICATE_TYPE.byNameCodec().dispatch(...)
+//BlockPredicateCodec look up BLOCK_PREDICATE_TYPE by the type field then delegate decoding to that type
+//Maps to vanilla BuiltInRegistries.BLOCK_PREDICATE_TYPE.byNameCodec().dispatch(...)
 internal sealed class BlockPredicateCodec : ScalarCodec<BlockPredicate>
 {
     public static readonly BlockPredicateCodec Instance = new();
@@ -119,15 +119,15 @@ internal sealed class BlockPredicateCodec : ScalarCodec<BlockPredicate>
     private static DataResult<BlockPredicate> DecodePredicate<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var typeTag = input.Get("type");
-        if (!typeTag.IsPresent) return DataResult<BlockPredicate>.Error(() => "方块谓词缺 type 字段");
+        if (!typeTag.IsPresent) return DataResult<BlockPredicate>.Error(() => "block predicate is missing the type field");
         var typeText = ops.GetStringValue(typeTag.Get());
         if (!typeText.Result().IsPresent)
-            return DataResult<BlockPredicate>.Error(() => "方块谓词的 type 必须是字符串");
+            return DataResult<BlockPredicate>.Error(() => "block predicate type must be a string");
         var typeId = Identifier.TryParse(typeText.GetOrThrow());
         if (typeId is null)
-            return DataResult<BlockPredicate>.Error(() => $"非法的谓词类型: {typeText.GetOrThrow()}");
+            return DataResult<BlockPredicate>.Error(() => $"invalid predicate type: {typeText.GetOrThrow()}");
         if (BuiltInRegistries.BLOCK_PREDICATE_TYPE.GetValue(typeId.Value) is not BlockPredicateType type)
-            return DataResult<BlockPredicate>.Error(() => $"未知的谓词类型: {typeId}");
+            return DataResult<BlockPredicate>.Error(() => $"unknown predicate type: {typeId}");
         return type.Decode(ops, input);
     }
 

@@ -8,11 +8,11 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Commands;
 
-//RotateCommand rotate 命令对应原版 net.minecraft.server.commands.RotateCommand
-//直接给目标改朝向 支持绝对角度与朝向坐标两种写法 原版的朝向实体分支暂缺
+//RotateCommand rotate command, maps to vanilla net.minecraft.server.commands.RotateCommand
+//Directly changes the target's facing; supports absolute angles and facing coordinates; vanilla's facing-entity branch is missing
 public static class RotateCommand
 {
-    //EyeHeight 玩家眼睛高度 朝向坐标算俯仰要减它
+    //EyeHeight player eye height; subtract it when computing pitch from a facing coordinate
     private const double EyeHeight = 1.62;
 
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -27,7 +27,7 @@ public static class RotateCommand
                         .Executes(context => RotateToPos(context))))));
     }
 
-    //RotateByAngle 用参数给出的绝对角度
+    //RotateByAngle uses the absolute angle from the argument
     private static int RotateByAngle(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -36,7 +36,7 @@ public static class RotateCommand
         return Apply(source, targets, yaw, pitch);
     }
 
-    //RotateToPos 由执行者位置指向目标点算偏航与俯仰 对应原版 LookAt 的公式
+    //RotateToPos computes yaw and pitch from the executor's position toward the target point, maps to vanilla LookAt's formula
     private static int RotateToPos(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -55,27 +55,27 @@ public static class RotateCommand
             changed++;
         }
 
-        source.SendSuccess($"已让 {changed} 名玩家转向 {destination.X:F1} {destination.Y:F1} {destination.Z:F1}");
+        source.SendSuccess($"turned {changed} players toward {destination.X:F1} {destination.Y:F1} {destination.Z:F1}");
         return changed;
     }
 
-    //Apply 把角度写到目标并发朝向包
+    //Apply writes the angle to the target and sends the facing packet
     private static int Apply(ServerCommandSource source, IReadOnlyList<ServerPlayer> targets, float yaw, float pitch)
     {
         if (targets.Count == 0)
         {
-            source.SendFailure("没有找到匹配的玩家");
+            source.SendFailure("no matching player found");
             return 0;
         }
 
         foreach (var target in targets)
             SendRotation(target, yaw, pitch);
 
-        source.SendSuccess($"已让 {targets.Count} 名玩家转向 {yaw:F1} {pitch:F1}");
+        source.SendSuccess($"turned {targets.Count} players toward {yaw:F1} {pitch:F1}");
         return targets.Count;
     }
 
-    //SendRotation 写朝向并发绝对角度包 相对标志为 false
+    //SendRotation writes the facing and sends the absolute angle packet with the relative flag false
     private static void SendRotation(ServerPlayer target, float yaw, float pitch)
     {
         target.Yaw = yaw;

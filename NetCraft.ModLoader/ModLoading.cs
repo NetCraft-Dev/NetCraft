@@ -4,15 +4,15 @@ using System.Runtime.Loader;
 
 namespace NetCraft.ModLoader;
 
-//ModManager 加载流程 静态扫描 依赖解析 拓扑排序 准备 初始化
+//ModManager loading flow: static scan, dependency resolution, topological sort, prepare, initialize
 public sealed partial class ModManager
 {
-    //LoadAllModsAsync 扫描并加载模组目录下的全部模组
-    //扫描阶段不加载任何程序集 加载从初始化阶段才开始
+    //LoadAllModsAsync: scans and loads all mods in the mods directory
+    //The scan phase loads no assemblies; loading begins only at the initialization phase
     public async Task<LoadResult> LoadAllModsAsync(ModEnvironment environment)
     {
         if (string.IsNullOrEmpty(_modsFolderPath))
-            throw new InvalidOperationException("未调用 Init 指定模组目录");
+            throw new InvalidOperationException("Init was not called to specify the mods directory");
 
         var result = new LoadResult();
 
@@ -36,7 +36,7 @@ public sealed partial class ModManager
         var sorted = TopologicalSort();
         if (sorted is null)
         {
-            result.Errors.Add("模组依赖存在环");
+            result.Errors.Add("mod dependencies contain a cycle");
             result.Success = false;
             return result;
         }
@@ -51,8 +51,8 @@ public sealed partial class ModManager
         return result;
     }
 
-    //ScanMods 静态读模组声明挑出当前端要加载的模组
-    //全程只读元数据表与内嵌资源 不加载程序集 这样运行端不匹配的模组不会被拉进进程
+    //ScanMods: statically reads mod declarations and picks the mods to load on the current side
+    //Reads only metadata tables and embedded resources without loading assemblies, so mods with a mismatched side are not pulled into the process
     private ScanResult ScanMods(ModEnvironment environment)
     {
         var result = new ScanResult();
@@ -66,7 +66,7 @@ public sealed partial class ModManager
 
             if (scanned.Manifest.Entry.Length == 0)
             {
-                result.Errors.Add($"模组 {scanned.Manifest.Id} 没有声明入口类");
+                result.Errors.Add($"mod {scanned.Manifest.Id} does not declare an entry class");
                 continue;
             }
 
@@ -85,9 +85,9 @@ public sealed partial class ModManager
         return result;
     }
 
-    //ValidateDependencyVersions 校验清单里声明的依赖版本
-    //引导阶段已经用同一份规则剔过一轮 这里再走一遍是为了单独使用 ModManager 的宿主
-    //版本不符只跳过声明方 其余模组照常加载
+    //ValidateDependencyVersions: checks the dependency versions declared in the manifest
+    //Bootstrap already filtered once with the same rules; this runs again for hosts that use ModManager on its own
+    //A version mismatch only skips the declaring mod, the rest load as usual
     private void ValidateDependencyVersions(LoadResult result)
     {
         var manifests = new List<ModManifest>();
@@ -112,8 +112,8 @@ public sealed partial class ModManager
         result.Errors.AddRange(errors);
     }
 
-    //BuildDependencyGraph 按程序集引用建依赖图
-    //模组间的依赖由编译期引用自然形成 AssemblyRef 不需要额外声明
+    //BuildDependencyGraph: builds the dependency graph from assembly references
+    //Dependencies between mods form AssemblyRef naturally from compile-time references and need no extra declaration
     private void BuildDependencyGraph()
     {
         var byAssembly = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -135,7 +135,7 @@ public sealed partial class ModManager
         }
     }
 
-    //TopologicalSort 依赖优先排序 存在环时返回 null
+    //TopologicalSort: orders dependencies first, returns null if there is a cycle
     private List<InternalModInfo>? TopologicalSort()
     {
         var sorted = new List<InternalModInfo>();
@@ -170,7 +170,7 @@ public sealed partial class ModManager
         return sorted;
     }
 
-    //InitializeModsAsync 依次走加载控制并初始化各模组
+    //InitializeModsAsync: runs the load control and initializes each mod in turn
     private async Task InitializeModsAsync(List<InternalModInfo> sorted, LoadResult result)
     {
         var pending = sorted.Where(m => m.Status == ModStatus.Scanned).ToList();
@@ -198,7 +198,7 @@ public sealed partial class ModManager
                 }
                 catch (Exception ex)
                 {
-                    OnError?.Invoke($"模组 {mod.Name} 的加载前置回调异常", ex);
+                    OnError?.Invoke($"pre-load callback of mod {mod.Name} threw", ex);
                     action = ModLoadAction.Skip;
                 }
             }
@@ -224,7 +224,7 @@ public sealed partial class ModManager
         }
     }
 
-    //HandleInterruptAsync 宿主接管加载 按结果决定标记失败 标记已加载 停在中途 还是回到默认流程
+    //HandleInterruptAsync: the host takes over loading; the result decides whether to mark failed, mark loaded, stop midway, or fall back to the default flow
     private async Task HandleInterruptAsync(InternalModInfo mod, ModLoadContext context, LoadResult result)
     {
         InterruptResult? interruptResult = null;
@@ -236,7 +236,7 @@ public sealed partial class ModManager
             }
             catch (Exception ex)
             {
-                OnError?.Invoke($"模组 {mod.Name} 的接管回调异常", ex);
+                OnError?.Invoke($"intercept callback of mod {mod.Name} threw", ex);
                 interruptResult = new InterruptResult { Error = ex.Message };
             }
         }
@@ -244,7 +244,7 @@ public sealed partial class ModManager
         if (interruptResult is not null && interruptResult.Error.Length > 0)
         {
             mod.Status = ModStatus.Error;
-            result.Errors.Add($"模组 {mod.Name} 接管失败 {interruptResult.Error}");
+            result.Errors.Add($"mod {mod.Name} takeover failed {interruptResult.Error}");
             ModFailed?.Invoke(mod.ToPublic(), new InvalidOperationException(interruptResult.Error));
             OnModLoadComplete?.Invoke(context, ModStatus.Error);
             return;
@@ -270,7 +270,7 @@ public sealed partial class ModManager
         await InitializeModAsync(mod, context, result);
     }
 
-    //InitializeModAsync 注入服务并调 Init
+    //InitializeModAsync: injects services and calls Init
     private async Task InitializeModAsync(InternalModInfo mod, ModLoadContext context, LoadResult result)
     {
         await mod.InitLock.WaitAsync();
@@ -301,8 +301,8 @@ public sealed partial class ModManager
         catch (Exception ex)
         {
             mod.Status = ModStatus.Error;
-            result.Errors.Add($"模组 {mod.Name} 初始化失败 {ex.Message}");
-            OnError?.Invoke($"模组 {mod.Name} 初始化失败", ex);
+            result.Errors.Add($"mod {mod.Name} initialization failed {ex.Message}");
+            OnError?.Invoke($"mod {mod.Name} initialization failed", ex);
             ModFailed?.Invoke(mod.ToPublic(), ex);
             OnModLoadComplete?.Invoke(context, ModStatus.Error);
         }
@@ -312,8 +312,8 @@ public sealed partial class ModManager
         }
     }
 
-    //PrepareMod 加载程序集并解析入口类
-    //程序集已在 Default 里时直接复用 同名加载出两份会让类型判等失败
+    //PrepareMod: loads the assembly and resolves the entry class
+    //Reuses the assembly already in Default; loading a second copy under the same name breaks type equality
     private static bool PrepareMod(InternalModInfo mod, LoadResult result)
     {
         if (mod.EntryType is not null)
@@ -327,14 +327,14 @@ public sealed partial class ModManager
             var entryType = assembly.GetType(entryName, throwOnError: false);
             if (entryType is null)
             {
-                result.Errors.Add($"模组 {mod.Name} 找不到入口类 {entryName}");
+                result.Errors.Add($"mod {mod.Name} entry class {entryName} not found");
                 return false;
             }
 
             var init = entryType.GetMethod("Init", BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
             if (init is null || init.ReturnType != typeof(Task))
             {
-                result.Errors.Add($"模组 {mod.Name} 的入口类缺少 public Task Init()");
+                result.Errors.Add($"mod {mod.Name} entry class lacks public Task Init()");
                 return false;
             }
 
@@ -346,7 +346,7 @@ public sealed partial class ModManager
         }
         catch (Exception ex)
         {
-            result.Errors.Add($"模组 {mod.Name} 加载失败 {ex.Message}");
+            result.Errors.Add($"mod {mod.Name} load failed {ex.Message}");
             return false;
         }
     }

@@ -1,21 +1,21 @@
 namespace NetCraft.Gpu;
 
-//GuiContainer 可包含子控件的容器
-//Render 默认遍历可见子控件调用其 Render
-//事件派发先递归到包含点的子控件否则自己处理
+//GuiContainer a container that can hold child widgets
+//Render by default walks visible children and calls their Render
+//Event dispatch recurses into the child containing the point first, otherwise handles it itself
 public abstract class GuiContainer : GuiControl
 {
     private readonly List<GuiControl> _children = new();
 
     public IReadOnlyList<GuiControl> Children => _children;
 
-    //Layout 布局引擎 null 表示不自动布局子控件用自身 X/Y 定位
+    //Layout layout engine; null means no automatic layout and children use their own X/Y
     public IGuiLayout? Layout { get; set; }
 
     public void Add(GuiControl child)
     {
         if (child.Parent is not null)
-            throw new InvalidOperationException("控件已有父容器");
+            throw new InvalidOperationException("The widget already has a parent container");
         child.Parent = this;
         _children.Add(child);
         MarkDirty();
@@ -36,8 +36,8 @@ public abstract class GuiContainer : GuiControl
         MarkDirty();
     }
 
-    //ClearDirtyTree 重 Render 录制后清自身 dirty 并递归清子控件
-    //整子树都重 Render 了子控件 dirty 也清避免下帧误判
+    //ClearDirtyTree after a re-Render recording clears its own dirty flag and recurses into children
+    //The whole subtree was re-rendered, so child dirty flags are cleared too to avoid a false positive next frame
     internal override void ClearDirtyTree()
     {
         _isDirty = false;
@@ -45,8 +45,8 @@ public abstract class GuiContainer : GuiControl
             child.ClearDirtyTree();
     }
 
-    //MarkDirty override 向上传播父链后向下传播所有子控件 cache 失效
-    //父容器属性变化（X/Y/Width/Height/Visible 等）子控件 pose/scissor 快照过时需重 Render
+    //MarkDirty override propagates up the parent chain then down to all children, invalidating caches
+    //When parent container properties change (X/Y/Width/Height/Visible etc.) child pose/scissor snapshots go stale and need a re-Render
     protected override void MarkDirty()
     {
         base.MarkDirty();
@@ -54,8 +54,8 @@ public abstract class GuiContainer : GuiControl
             child.MarkDirtyDown();
     }
 
-    //MarkDirtyDown 向下传播 dirty 到子控件子容器递归直到 leaf
-    //已 dirty 子树跳过避免重复标记
+    //MarkDirtyDown propagates dirty down to children, recursing through sub-containers to the leaves
+    //Already-dirty subtrees are skipped to avoid redundant marking
     internal override void MarkDirtyDown()
     {
         if (_isDirty) return;
@@ -67,7 +67,7 @@ public abstract class GuiContainer : GuiControl
     public override void Render(IGuiRenderContext context)
     {
         if (!Visible) return;
-        //push scissor 到容器边界裁剪子控件超出区域 GuiPanel 背景已在调用方绘制不受裁剪
+        //Pushes the scissor to the container bounds to clip overflowing children; the GuiPanel background is drawn by the caller and is not clipped
         context.PushScissor(X, Y, Width, Height);
         foreach (var child in _children)
         {
@@ -76,7 +76,7 @@ public abstract class GuiContainer : GuiControl
         context.PopScissor();
     }
 
-    //Update 先 Layout.Measure 排列子控件位置再遍历可见子控件 Update 推进动画
+    //Update calls Layout.Measure to arrange children, then walks visible children to Update animations
     public override void Update(double delta)
     {
         if (!Visible) return;
@@ -87,7 +87,7 @@ public abstract class GuiContainer : GuiControl
         }
     }
 
-    //HitTest 返回包含点的最顶层子控件层级深的优先
+    //HitTest returns the topmost child containing the point, deepest level first
     public GuiControl? HitTest(int x, int y)
     {
         for (int i = _children.Count - 1; i >= 0; i--)

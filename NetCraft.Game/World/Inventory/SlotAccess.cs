@@ -3,29 +3,29 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.World.Inventory;
 
-//SlotAccess 一个可读写的槽位引用 对应原版 net.minecraft.world.entity.SlotAccess
-//item 命令靠它取放物品 不可访问的位置统一用 Null 表示
+//SlotAccess a readable/writable slot reference, maps to vanilla net.minecraft.world.entity.SlotAccess
+//The item command uses it to get and put items, inaccessible positions are uniformly represented by Null
 public abstract class SlotAccess
 {
-    //Null 不可访问的槽位 读为空栈写恒失败 对应原版 SlotAccess.NULL
+    //Null inaccessible slot, reads as empty and writes always fail, maps to vanilla SlotAccess.NULL
     public static readonly SlotAccess Null = new NullAccess();
 
-    //Get 读当前内容 空槽返回 ItemStack.Empty
+    //Get reads the current contents, returns ItemStack.Empty for an empty slot
     public abstract ItemStack Get();
 
-    //Set 写回内容 返回是否写入成功
+    //Set writes contents back, returns whether the write succeeded
     public abstract bool Set(ItemStack stack);
 
-    //ForContainer 容器槽位 越界给空槽 对应原版 forContainer
+    //ForContainer container slot, out of range gives an empty slot, maps to vanilla forContainer
     public static SlotAccess ForContainer(Container container, int index)
         => (uint)index < (uint)container.Size ? new ContainerAccess(container, index) : Null;
 
-    //ForPlayer 按原版实体槽位号取玩家身上的槽 对应原版 Player.getSlot 与 LivingEntity.getSlot
-    //0..40 就是背包本身(0..8 快捷栏 9..35 背包 36..39 护甲 40 副手)
-    //98 主手落到当前选中的快捷栏格 101..104 护甲按 脚->腿->胸->头 对应背包 36..39
-    //103 同时是 weapon.offhand 与 armor.chest 原版按 EquipmentSlot 声明序先命中 OFFHAND 这里照做
-    //499 是 player.cursor 落到当前菜单的光标物品
-    //其余号段(末影箱/生物背包/骑马/鞍)本作没有对应容器 一律给空槽
+    //ForPlayer resolves a player slot by vanilla entity slot index, maps to vanilla Player.getSlot and LivingEntity.getSlot
+    //0..40 is the inventory itself (0..8 hotbar, 9..35 inventory, 36..39 armor, 40 offhand)
+    //98 main hand maps to the current hotbar slot, 101..104 armor goes feet->legs->chest->head mapping to inventory 36..39
+    //103 is both weapon.offhand and armor.chest; vanilla hits OFFHAND first per EquipmentSlot declaration order, same here
+    //499 is player.cursor, resolving to the current menu's carried item
+    //Remaining ranges (ender chest / mob inventory / riding / saddle) have no container here and always give an empty slot
     public static SlotAccess ForPlayer(ServerPlayer player, int slotId)
     {
         var inventory = player.Inventory;
@@ -42,14 +42,14 @@ public abstract class SlotAccess
         };
     }
 
-    //NullAccess 空实现
+    //NullAccess empty implementation
     private sealed class NullAccess : SlotAccess
     {
         public override ItemStack Get() => ItemStack.Empty;
         public override bool Set(ItemStack stack) => false;
     }
 
-    //ContainerAccess 容器槽位引用
+    //ContainerAccess container slot reference
     private sealed class ContainerAccess : SlotAccess
     {
         private readonly Container _container;
@@ -71,7 +71,7 @@ public abstract class SlotAccess
         }
     }
 
-    //CarriedAccess 菜单光标物品引用
+    //CarriedAccess menu carried item reference
     private sealed class CarriedAccess : SlotAccess
     {
         private readonly AbstractContainerMenu _menu;

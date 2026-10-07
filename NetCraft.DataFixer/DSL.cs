@@ -9,105 +9,105 @@ using NetCraft.DataFixer.Types.Constant;
 using NetCraft.DataFixer.Types.Templates;
 using NetCraft.DataFixer.Util;
 
-//DSL领域特定语言工厂对应原版com.mojang.datafixers.DSL
-//提供所有Type与TypeTemplate的静态构造入口
+//DSL domain-specific language factory maps to vanilla com.mojang.datafixers.DSL
+//provides static construction entry points for all Types and TypeTemplates
 public interface DSL
 {
-    //TypeReference类型引用对应原版DSL.TypeReference
-    //子类提供typeName从Schema取模板
+    //TypeReference type reference maps to vanilla DSL.TypeReference
+    //subclasses provide typeName to take a template from the Schema
     public interface ITypeReference
     {
         string TypeName();
 
-        //in按Schema返回此引用对应的模板
+        //in returns the template for this reference from the Schema
         TypeTemplate In(Schema schema) => schema.Id(TypeName());
     }
 
-    //bool类型
+    //bool type
     static T.Type<bool> Bool() => Instances.BOOL_TYPE;
 
-    //intType整数类型
+    //intType integer type
     static T.Type<int> IntType() => Instances.INT_TYPE;
 
-    //longType长整型
+    //longType long integer
     static T.Type<long> LongType() => Instances.LONG_TYPE;
 
-    //byteType字节型
+    //byteType byte type
     static T.Type<byte> ByteType() => Instances.BYTE_TYPE;
 
-    //shortType短整型
+    //shortType short integer
     static T.Type<short> ShortType() => Instances.SHORT_TYPE;
 
-    //floatType单精度浮点
+    //floatType single-precision float
     static T.Type<float> FloatType() => Instances.FLOAT_TYPE;
 
-    //doubleType双精度浮点
+    //doubleType double-precision float
     static T.Type<double> DoubleType() => Instances.DOUBLE_TYPE;
 
-    //string字符串类型
+    //string string type
     static T.Type<string> String() => Instances.STRING_TYPE;
 
-    //emptyPart空单元模板
+    //emptyPart empty unit template
     static TypeTemplate EmptyPart() => ConstType(Instances.EMPTY_PART);
 
-    //emptyPartType空单元Type
+    //emptyPartType empty unit Type
     static T.Type<Unit> EmptyPartType() => Instances.EMPTY_PART;
 
-    //remainder透传模板
+    //remainder passthrough template
     static TypeTemplate Remainder() => ConstType(Instances.EMPTY_PASSTHROUGH);
 
-    //remainderType透传Type
+    //remainderType passthrough Type
     static T.Type<Dynamic<object>> RemainderType() => Instances.EMPTY_PASSTHROUGH;
 
-    //check构造检查模板
+    //check builds a check template
     static TypeTemplate Check(string name, int index, TypeTemplate element)
         => new Check(name, index, element);
 
-    //compoundList按值模板构造复合列表模板
+    //compoundList builds a compound list template from a value template
     static TypeTemplate CompoundList(TypeTemplate element)
         => CompoundList(ConstType(String()), element);
 
-    //compoundList按值Type构造复合列表Type
+    //compoundList builds a compound list Type from a value Type
     static CompoundList.CompoundListType<string, V> CompoundList<V>(T.Type<V> value)
         => new(String(), value);
 
-    //compoundList按键值模板构造复合列表模板
+    //compoundList builds a compound list template from key and value templates
     static TypeTemplate CompoundList(TypeTemplate key, TypeTemplate element)
         => And(new CompoundList(key, element), Remainder());
 
-    //compoundList按键值Type构造复合列表Type
+    //compoundList builds a compound list Type from key and value Types
     static CompoundList.CompoundListType<K, V> CompoundList<K, V>(T.Type<K> key, T.Type<V> value)
         => new(key, value);
 
-    //constType构造常量模板
+    //constType builds a constant template
     static TypeTemplate ConstType<A>(T.Type<A> type) => new Const(T.TypeObjectConverterFactory.AsObjectType(type!));
 
-    //hook按模板构造钩子模板
+    //hook builds a hook template from a template
     static TypeTemplate Hook(TypeTemplate template, Hook.IHookFunction preRead, Hook.IHookFunction postWrite)
         => new Hook(template, preRead, postWrite);
 
-    //hook按Type构造钩子Type
+    //hook builds a hook Type from a Type
     static T.Type<A> Hook<A>(T.Type<A> type, Hook.IHookFunction preRead, Hook.IHookFunction postWrite)
         => new Hook.HookType<A>(type, preRead, postWrite);
 
-    //list按模板构造列表模板
+    //list builds a list template from a template
     static TypeTemplate List(TypeTemplate element) => new List(element);
 
-    //list按Type构造列表Type
+    //list builds a list Type from a Type
     static List.ListType<A> List<A>(T.Type<A> first) => new(first);
 
-    //named按名字与模板构造命名模板
+    //named builds a named template from a name and template
     static TypeTemplate Named(string name, TypeTemplate element) => new Named(name, element);
 
-    //named按名字与Type构造命名Type
-    //用DFU的Pair对齐原版com.mojang.datafixers.util.Pair
+    //named builds a named Type from a name and Type
+    //uses DFU's Pair, aligning with vanilla com.mojang.datafixers.util.Pair
     static T.Type<NetCraft.DataFixer.Util.Pair<string, A>> Named<A>(string name, T.Type<A> element)
         => new Named.NamedType<A>(name, element);
 
-    //and按两个模板构造积
+    //and builds a product from two templates
     static TypeTemplate And(TypeTemplate first, TypeTemplate second) => new Product(first, second);
 
-    //and按首个与可变参构造积
+    //and builds a product from the first and a params array
     static TypeTemplate And(TypeTemplate first, params TypeTemplate[] rest)
     {
         TypeTemplate template = first;
@@ -118,12 +118,12 @@ public interface DSL
         return template;
     }
 
-    //and按Type构造积Type用Util.Pair对齐原版Pair
+    //and builds a product Type from Types, using Util.Pair to align with vanilla Pair
     static T.Type<NetCraft.DataFixer.Util.Pair<F, G>> And<F, G>(T.Type<F> first, T.Type<G> second)
         => new Product.ProductType<F, G>(first, second);
 
-    //AndObject非泛型版用Unsafe.As绕过编译期类型检查
-    //供PointFreeRule.SortProj等反射调用对齐Java类型擦除语义
+    //AndObject is a non-generic version using Unsafe.As to bypass compile-time type checking
+    //used by reflective calls such as PointFreeRule.SortProj, aligning with Java type erasure semantics
     static T.Type<NetCraft.DataFixer.Util.Pair<object, object>> AndObject(object first, object second)
     {
         var fObj = first;
@@ -133,18 +133,18 @@ public interface DSL
         return (T.Type<NetCraft.DataFixer.Util.Pair<object, object>>)(object)And(fCast, sCast);
     }
 
-    //id按index构造递归点模板
+    //id builds a recursive point template from an index
     static TypeTemplate Id(int index) => new RecursivePoint(index);
 
-    //or按两个模板构造和
+    //or builds a sum from two templates
     static TypeTemplate Or(TypeTemplate left, TypeTemplate right) => new Sum(left, right);
 
-    //or按Type构造和Type
+    //or builds a sum Type from Types
     static T.Type<Either<F, G>> Or<F, G>(T.Type<F> first, T.Type<G> second)
         => new Sum.SumType<F, G>(first, second);
 
-    //OrObject非泛型版用Unsafe.As绕过编译期类型检查
-    //供PointFreeRule.SortInj等反射调用对齐Java类型擦除语义
+    //OrObject is a non-generic version using Unsafe.As to bypass compile-time type checking
+    //used by reflective calls such as PointFreeRule.SortInj, aligning with Java type erasure semantics
     static T.Type<Either<object, object>> OrObject(object first, object second)
     {
         var fObj = first;
@@ -154,31 +154,31 @@ public interface DSL
         return (T.Type<Either<object, object>>)(object)Or(fCast, sCast);
     }
 
-    //field按名与模板构造字段模板
+    //field builds a field template from a name and template
     static TypeTemplate Field(string name, TypeTemplate element) => new Tag(name, element);
 
-    //field按名与Type构造字段Type
+    //field builds a field Type from a name and Type
     static Tag.TagType<A> Field<A>(string name, T.Type<A> element) => new(name, element);
 
-    //taggedChoice按名与key与模板Map构造TaggedChoice
+    //taggedChoice builds a TaggedChoice from a name, key, and template Map
     static TaggedChoice<K> TaggedChoice<K>(string name, T.Type<K> keyType, Dictionary<K, TypeTemplate> templates)
         => new(name, keyType, templates);
 
-    //taggedChoiceType按名与key与Type Map构造TaggedChoiceType用Util.Pair对齐原版Pair
+    //taggedChoiceType builds a TaggedChoiceType from a name, key, and Type Map, using Util.Pair to align with vanilla Pair
     static T.Type<NetCraft.DataFixer.Util.Pair<K, object>> TaggedChoiceType<K>(string name, T.Type<K> keyType, Dictionary<K, T.Type<object>> types)
         => new TaggedChoice<K>.TaggedChoiceType<K>(name, keyType, types);
 
-    //func构造函数类型对应原版DSL.func返回Type<Function<A,B>>
+    //func builds a function type, maps to vanilla DSL.func returning Type<Function<A,B>>
     static T.Type<Func<A, B>> Func<A, B>(T.Type<A> input, T.Type<B> output)
         => new T.Func<A, B>(input, output);
 
-    //optional把Type包装为可选Either<A,Unit>
+    //optional wraps a Type as an optional Either<A,Unit>
     static T.Type<Either<A, Unit>> Optional<A>(T.Type<A> type) => Or(type, EmptyPartType());
 
-    //optional把模板包装为可选模板
+    //optional wraps a template as an optional template
     static TypeTemplate Optional(TypeTemplate value) => Or(value, EmptyPart());
 
-    //allWithRemainder首模板加rest末尾追加remainder对应原版DSL.allWithRemainder
+    //allWithRemainder appends a remainder after the first template and rest, maps to vanilla DSL.allWithRemainder
     static TypeTemplate AllWithRemainder(TypeTemplate first, params TypeTemplate[] rest)
     {
         var templates = new List<TypeTemplate> { first };
@@ -187,7 +187,7 @@ public interface DSL
         return And(templates);
     }
 
-    //and按List模板构造积空列表抛异常单元素直返对齐原版DSL.and(List)
+    //and builds a product from a List of templates, throws on an empty list and returns a single element directly, aligning with vanilla DSL.and(List)
     static TypeTemplate And(List<TypeTemplate> templates)
     {
         if (templates.Count == 0) throw new ArgumentException("Must have at least one type");
@@ -200,15 +200,15 @@ public interface DSL
         return result;
     }
 
-    //optionalFields单字段可选加余数对齐原版DSL.optionalFields(name,element)
+    //optionalFields makes a single field optional plus a remainder, aligns with vanilla DSL.optionalFields(name,element)
     static TypeTemplate OptionalFields(string name, TypeTemplate element)
         => AllWithRemainder(Optional(Field(name, element)));
 
-    //optionalFields双字段可选加余数
+    //optionalFields makes two fields optional plus a remainder
     static TypeTemplate OptionalFields(string name1, TypeTemplate element1, string name2, TypeTemplate element2)
         => AllWithRemainder(Optional(Field(name1, element1)), Optional(Field(name2, element2)));
 
-    //optionalFields按Pair数组构造字段全部Optional加余数对齐原版DSL.optionalFields(Pair...)
+    //optionalFields makes all fields Optional from a Pair array plus a remainder, aligns with vanilla DSL.optionalFields(Pair...)
     static TypeTemplate OptionalFields(params NetCraft.DataFixer.Util.Pair<string, TypeTemplate>[] fields)
     {
         var templates = new List<TypeTemplate>();
@@ -217,7 +217,7 @@ public interface DSL
         return And(templates);
     }
 
-    //optionalFieldsLazy按Map懒求值字段全部Optional加余数对应原版DSL.optionalFieldsLazy
+    //optionalFieldsLazy lazily evaluates fields from a Map, all Optional plus a remainder, maps to vanilla DSL.optionalFieldsLazy
     static TypeTemplate OptionalFieldsLazy(Dictionary<string, Func<TypeTemplate>> fields)
     {
         var templates = new List<TypeTemplate>();
@@ -226,22 +226,22 @@ public interface DSL
         return And(templates);
     }
 
-    //remainderFinder取得透传类型查找器
+    //remainderFinder gets the passthrough type finder
     static OpticFinder<Dynamic<object>> RemainderFinder() => Instances.REMAINDER_FINDER;
 
-    //typeFinder按类型构造类型查找器
+    //typeFinder builds a type finder from a type
     static OpticFinder<FT> TypeFinder<FT>(T.Type<FT> type) => new FieldFinder<FT>(null, type);
 
-    //fieldFinder按名与类型构造字段查找器
+    //fieldFinder builds a field finder from a name and type
     static OpticFinder<FT> FieldFinder<FT>(string? name, T.Type<FT> type) => new global::NetCraft.DataFixer.FieldFinder<FT>(name, type);
 
-    //namedChoice按名与类型构造命名选择查找器
+    //namedChoice builds a named choice finder from a name and type
     static OpticFinder<FT> NamedChoice<FT>(string name, T.Type<FT> type) => new NamedChoiceFinder<FT>(name, type);
 
-    //unit返回Unit单例
+    //unit returns the Unit singleton
     static Unit Unit() => Util.Unit.Instance;
 
-    //Instances缓存基本Type实例与TaggedChoiceType缓存
+    //Instances caches basic Type instances and the TaggedChoiceType cache
     public static class Instances
     {
         public static readonly T.Type<bool> BOOL_TYPE = new Const.PrimitiveType<bool>(null!);
@@ -258,7 +258,7 @@ public interface DSL
         public static readonly OpticFinder<Dynamic<object>> REMAINDER_FINDER
             = new FieldFinder<Dynamic<object>>(null, EMPTY_PASSTHROUGH);
 
-        //TaggedChoiceType缓存key
+        //TaggedChoiceType cache key
         public sealed record TaggedChoiceCacheKey<K>(string Name, T.Type<K> KeyType, Dictionary<K, T.Type<object>> Types)
         {
             public TaggedChoice<K>.TaggedChoiceType<K> Build()

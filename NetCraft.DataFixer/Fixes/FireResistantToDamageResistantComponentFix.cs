@@ -3,8 +3,8 @@ using NetCraft.DataFixer.Schemas;
 
 namespace NetCraft.DataFixer.Fixes;
 
-//火焰抗性组件重命名为伤害抗性组件对应原版FireResistantToDamageResistantComponentFix
-//1.21.4把minecraft:fire_resistant改为minecraft:damage_resistant并改值结构types=#minecraft:is_fire
+//fire resistant component renamed to damage resistant component, maps to vanilla FireResistantToDamageResistantComponentFix
+//1.21.4 changes minecraft:fire_resistant to minecraft:damage_resistant and its value structure to types=#minecraft:is_fire
 public class FireResistantToDamageResistantComponentFix : DataComponentRemainderFix
 {
     public FireResistantToDamageResistantComponentFix(Schema outputSchema)

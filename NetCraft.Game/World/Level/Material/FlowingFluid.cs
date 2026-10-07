@@ -8,68 +8,68 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.Material;
 
-//FlowingFluid 会流动的流体基类 对应原版 net.minecraft.world.level.material.FlowingFluid
-//扩散 液面降档 逆流搜索 水源生成与阻塞判定都在这里 水与岩浆只给各自的档位与延迟参数
-//原版用 BlockGetter 参数让同一套算法复用到生成期 本作一律走 ServerLevel
-//阻塞判定用方块自身遮挡形状 不查按位置变化的碰撞形状 实心方块两者一致 台阶栅栏一类会有偏差
+//FlowingFluid base for fluids that flow, maps to vanilla net.minecraft.world.level.material.FlowingFluid
+//Spread, surface drop-off, backward slope search, source formation and blockage checks all live here; water and lava only supply their own levels and delays
+//Vanilla takes a BlockGetter so the same algorithm works during generation; this port always uses ServerLevel
+//Blockage uses the block's own occlusion shape rather than a position-dependent collision shape; they match for solid blocks but may differ for slabs and fences
 public abstract class FlowingFluid : Fluid, IFluidBehaviour
 {
-    //四个水平方向 顺序照原版 Direction.Plane.HORIZONTAL
+    //Four horizontal directions, ordered like vanilla Direction.Plane.HORIZONTAL
     protected static readonly Direction[] HorizontalDirections =
     {
         Direction.North, Direction.East, Direction.South, Direction.West,
     };
 
-    //FlowingType 流动态实例 对应原版 getFlowing
+    //FlowingType flowing variant, maps to vanilla getFlowing
     public abstract Fluid FlowingType { get; }
 
-    //SourceType 源态实例 对应原版 getSource
+    //SourceType source variant, maps to vanilla getSource
     public abstract Fluid SourceType { get; }
 
-    //GetDropOff 每向外流一格损失多少档 水 1 岩浆 2 对应原版 getDropOff
+    //GetDropOff levels lost per block outward, 1 for water and 2 for lava, maps to vanilla getDropOff
     public abstract int GetDropOff(ServerLevel level);
 
-    //GetSlopeFindDistance 逆流搜索的最大层数 水 4 岩浆 2 对应原版 getSlopeFindDistance
+    //GetSlopeFindDistance max layers of backward slope search, 4 for water and 2 for lava, maps to vanilla getSlopeFindDistance
     public abstract int GetSlopeFindDistance(ServerLevel level);
 
-    //GetTickDelay 两次流动之间隔多少刻 水 5 岩浆 30 对应原版 getTickDelay
+    //GetTickDelay ticks between two flow steps, 5 for water and 30 for lava, maps to vanilla getTickDelay
     public abstract int GetTickDelay(ServerLevel level);
 
-    //GetHeight 该格流体的实际液面高度 对应原版 getHeight
+    //GetHeight actual surface height of the fluid in this cell, maps to vanilla getHeight
     public abstract float GetHeight(FluidState state, ServerLevel level, BlockPos pos);
 
-    //GetFlow 该格流体的流向 对应原版 getFlow
+    //GetFlow flow direction of the fluid in this cell, maps to vanilla getFlow
     public abstract Vec3 GetFlow(ServerLevel level, BlockPos pos, FluidState state);
 
-    //CanBeReplacedWith 该格流体能不能被另一种流体顶掉 对应原版 canBeReplacedWith
+    //CanBeReplacedWith whether the fluid here can be displaced by another fluid, maps to vanilla canBeReplacedWith
     public abstract bool CanBeReplacedWith(FluidState state, ServerLevel level, BlockPos pos, Fluid other, Direction direction);
 
-    //CanConvertToSource 两格以上相邻源时能否原地生成新源 对应原版 canConvertToSource
+    //CanConvertToSource whether a new source forms in place when two or more adjacent sources exist, maps to vanilla canConvertToSource
     protected abstract bool CanConvertToSource(ServerLevel level);
 
-    //BeforeDestroyingBlock 流体淹没一个方块前对它做的事 对应原版 beforeDestroyingBlock
+    //BeforeDestroyingBlock work done to a block before the fluid submerges it, maps to vanilla beforeDestroyingBlock
     protected virtual void BeforeDestroyingBlock(ServerLevel level, BlockPos pos, BlockState state) { }
 
     public virtual bool IsRandomlyTicking => false;
 
     public virtual void RandomTick(ServerLevel level, BlockPos pos, FluidState fluidState, RandomSource random) { }
 
-    //GetFlowingState 取流动态状态 对应原版 getFlowing(amount, falling)
+    //GetFlowingState gets the flowing state, maps to vanilla getFlowing(amount, falling)
     public FluidState GetFlowingState(int amount, bool falling) => FlowingType.GetStateOf(amount, falling);
 
-    //GetSourceState 取源态状态 对应原版 getSource(falling)
+    //GetSourceState gets the source state, maps to vanilla getSource(falling)
     public FluidState GetSourceState(bool falling) => SourceType.GetStateOf(8, falling);
 
-    //GetSpreadDelay 这次扩散隔多少刻执行 对应原版 getSpreadDelay
+    //GetSpreadDelay ticks until this spread runs, maps to vanilla getSpreadDelay
     public virtual int GetSpreadDelay(ServerLevel level, BlockPos pos, FluidState oldState, FluidState newState)
         => GetTickDelay(level);
 
-    //GetLegacyLevel 流体状态反推方块状态的 level 0-15 对应原版 getLegacyLevel
-    //0 是源 1-7 是逐级降低的流动水 8 是下落水
+    //GetLegacyLevel derives the block-state level 0-15 from the fluid state, maps to vanilla getLegacyLevel
+    //0 is the source, 1-7 are progressively lower flowing levels, 8 is falling water
     protected static int GetLegacyLevel(FluidState state)
         => state.IsSource ? 0 : 8 - Math.Min(state.Amount, 8) + (state.Falling ? 8 : 0);
 
-    //Tick 流体的计划刻 对应原版 FlowingFluid.tick
+    //Tick scheduled tick of the fluid, maps to vanilla FlowingFluid.tick
     public void Tick(ServerLevel level, BlockPos pos, BlockState blockState, FluidState fluidState)
     {
         if (!fluidState.IsSource)
@@ -93,7 +93,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
         Spread(level, pos, blockState, fluidState);
     }
 
-    //Spread 一次扩散 先试向下 下不去再试向四周 对应原版 spread
+    //Spread one spread step, try down first then the sides, maps to vanilla spread
     protected void Spread(ServerLevel level, BlockPos pos, BlockState state, FluidState fluidState)
     {
         if (fluidState.IsEmpty) return;
@@ -106,7 +106,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
             && CanHoldSpecificFluid(belowState, newBelow.Type))
         {
             SpreadTo(level, belowPos, belowState, Direction.Down, newBelow);
-            //上方三面都是源的地漏不必再向四周流 水会整柱灌下去 对应原版 sourceNeighborCount >= 3
+            //A drain whose three sides above are all sources need not spread sideways; the water pours down the whole column, maps to vanilla sourceNeighborCount >= 3
             if (SourceNeighborCount(level, pos) >= 3) SpreadToSides(level, pos, fluidState, state);
             return;
         }
@@ -114,7 +114,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
             SpreadToSides(level, pos, fluidState, state);
     }
 
-    //SpreadToSides 向四周扩散 先按落差减档 下落态固定 7 档 对应原版 spreadToSides
+    //SpreadToSides spread to the sides, drop levels by the fall first, falling fluid is pinned at level 7, maps to vanilla spreadToSides
     private void SpreadToSides(ServerLevel level, BlockPos pos, FluidState fluidState, BlockState state)
     {
         var amount = fluidState.Amount - GetDropOff(level);
@@ -127,8 +127,8 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
         }
     }
 
-    //GetNewLiquid 算这一格最终该是哪种流体状态 对应原版 getNewLiquid
-    //取四周同族流体的最高档减一次落差 上方直接压下来按满档下落 两格以上相邻源且允许转换时原地升成源
+    //GetNewLiquid computes the final fluid state for this cell, maps to vanilla getNewLiquid
+    //Takes the highest level among same-family neighbours minus one drop-off, a full dropping column above forces level 8, and two or more adjacent sources raise this cell to a source when conversion is allowed
     public FluidState GetNewLiquid(ServerLevel level, BlockPos pos, BlockState state)
     {
         var highest = 0;
@@ -164,7 +164,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
         return amount <= 0 ? FluidState.Empty : GetFlowingState(amount, false);
     }
 
-    //CanPassThroughWall 两面之间能不能让流体穿过 两个整块的遮挡形状互相挡死 对应原版 canPassThroughWall
+    //CanPassThroughWall whether a fluid can pass between two faces; two full blocks block each other, maps to vanilla canPassThroughWall
     private static bool CanPassThroughWall(Direction direction, BlockState sourceState, BlockState targetState)
     {
         var targetShape = OcclusionOf(targetState);
@@ -175,19 +175,19 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
         return !Shapes.MergedFaceOccludes(sourceShape, targetShape, direction);
     }
 
-    //OcclusionOf 该状态的遮挡形状 不遮挡光线的方块按空算
-    //与 Block.SolidRender 同一套语义 水与岩浆 CanOcclude 为假 不按整块挡住流体自身
+    //OcclusionOf occlusion shape of this state; blocks that do not occlude light count as empty
+    //Same semantics as Block.SolidRender; water and lava report CanOcclude false so they do not block themselves
     private static VoxelShape OcclusionOf(BlockState state)
         => state.Owner.CanOcclude ? state.Owner.GetOcclusionShape(state) : Shapes.Empty();
 
-    //SpreadTo 把流体写进目标格 对应原版 spreadTo
+    //SpreadTo writes the fluid into the target cell, maps to vanilla spreadTo
     protected virtual void SpreadTo(ServerLevel level, BlockPos pos, BlockState state, Direction direction, FluidState target)
     {
         if (!state.Owner.IsAir) BeforeDestroyingBlock(level, pos, state);
         level.SetBlock(pos, target.CreateLegacyBlock(), 3);
     }
 
-    //GetSlopeDistance 沿地形找落点的层数 找到地漏返回当前层 对应原版 getSlopeDistance
+    //GetSlopeDistance layers walked along the terrain to find a landing spot; returns the current layer once a hole is found, maps to vanilla getSlopeDistance
     private int GetSlopeDistance(ServerLevel level, BlockPos pos, int pass, Direction from, BlockState state)
     {
         var lowest = 1000;
@@ -206,7 +206,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
         return lowest;
     }
 
-    //IsWaterHole 该格底下是不是能直接漏下去 对应原版 isWaterHole
+    //IsWaterHole whether this cell can leak straight down, maps to vanilla isWaterHole
     private bool IsWaterHole(ServerLevel level, BlockPos topPos, BlockState topState, BlockPos bottomPos, BlockState bottomState)
     {
         if (!CanPassThroughWall(Direction.Down, topState, bottomState)) return false;
@@ -214,29 +214,29 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
         return CanHoldFluid(bottomState, FlowingType);
     }
 
-    //IsHole 该格正下方能漏 对应原版 SpreadContext.isHole
+    //IsHole whether the cell directly below can leak, maps to vanilla SpreadContext.isHole
     private bool IsHole(ServerLevel level, BlockPos pos)
     {
         var state = StateAt(level, pos);
         return IsWaterHole(level, pos, state, pos.Offset(Direction.Down), StateAt(level, pos.Offset(Direction.Down)));
     }
 
-    //CanPassThrough 这格能不能被该流体穿过去 对应原版 canPassThrough
+    //CanPassThrough whether this fluid can pass through the cell, maps to vanilla canPassThrough
     private bool CanPassThrough(Fluid fluid, BlockState sourceState, Direction direction, BlockState testState, FluidState testFluidState)
         => CanMaybePassThrough(sourceState, direction, testState, testFluidState)
             && CanHoldSpecificFluid(testState, fluid);
 
-    //CanMaybePassThrough 排除掉同族源格与容纳不了的形状 对应原版 canMaybePassThrough
+    //CanMaybePassThrough excludes same-family source cells and shapes that cannot hold fluid, maps to vanilla canMaybePassThrough
     private bool CanMaybePassThrough(BlockState sourceState, Direction direction, BlockState testState, FluidState testFluidState)
         => !IsSourceBlockOfThisType(testFluidState)
             && CanHoldAnyFluid(testState)
             && CanPassThroughWall(direction, sourceState, testState);
 
-    //IsSourceBlockOfThisType 该状态是不是本流体的源 对应原版 isSourceBlockOfThisType
+    //IsSourceBlockOfThisType whether the state is a source of this fluid, maps to vanilla isSourceBlockOfThisType
     private bool IsSourceBlockOfThisType(FluidState state)
         => state.Type.IsSame(this) && state.IsSource;
 
-    //SourceNeighborCount 四周有几个同族源 对应原版 sourceNeighborCount
+    //SourceNeighborCount number of same-family sources around, maps to vanilla sourceNeighborCount
     private int SourceNeighborCount(ServerLevel level, BlockPos pos)
     {
         var count = 0;
@@ -245,7 +245,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
         return count;
     }
 
-    //GetSpread 算出四周各自该被填成什么状态 落点越近的优先 对应原版 getSpread
+    //GetSpread computes the state each neighbour should receive; closer drops take priority, maps to vanilla getSpread
     protected Dictionary<Direction, FluidState> GetSpread(ServerLevel level, BlockPos pos, BlockState state)
     {
         var lowest = 1000;
@@ -268,7 +268,7 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
         return result;
     }
 
-    //CanHoldAnyFluid 该方块能不能装下任意流体 门 告示牌 梯子 甘蔗 传送门一类不算可容纳 对应原版 canHoldAnyFluid
+    //CanHoldAnyFluid whether the block can hold any fluid; doors, signs, ladders, sugar cane and portals do not count, maps to vanilla canHoldAnyFluid
     private static bool CanHoldAnyFluid(BlockState state)
     {
         var block = state.Owner;
@@ -279,29 +279,29 @@ public abstract class FlowingFluid : Fluid, IFluidBehaviour
             && !path.EndsWith("_sign") && !path.EndsWith("_door");
     }
 
-    //CanHoldFluid 该方块能不能装下这一种流体 对应原版 canHoldFluid
+    //CanHoldFluid whether the block can hold this particular fluid, maps to vanilla canHoldFluid
     private static bool CanHoldFluid(BlockState state, Fluid fluid)
         => CanHoldAnyFluid(state) && CanHoldSpecificFluid(state, fluid);
 
-    //CanHoldSpecificFluid 该方块对这种流体有没有额外限制
-    //原版问的是 LiquidBlockContainer 气泡柱与海带那类方块 本作还没有实现者 恒真
+    //CanHoldSpecificFluid any extra restriction this block places on the fluid
+    //Vanilla asks for LiquidBlockContainer (bubble columns, kelp); none are implemented yet so it is always true
     private static bool CanHoldSpecificFluid(BlockState state, Fluid fluid) => true;
 
-    //CanBeReplacedAt 问某格现有流体能不能被顶掉 对应原版 FluidState.canBeReplacedWith
-    //空流体总能被顶掉 原版走 EmptyFluid 的默认实现 本作 EmptyFluid 在注册表层挂不上行为接口 这里短路
+    //CanBeReplacedAt whether the fluid currently in a cell can be displaced, maps to vanilla FluidState.canBeReplacedWith
+    //An empty fluid is always displaceable via EmptyFluid's default in vanilla; here EmptyFluid cannot attach the behaviour interface at the registry layer so this short-circuits
     private static bool CanBeReplacedAt(FluidState state, ServerLevel level, BlockPos pos, Fluid other, Direction direction)
         => state.IsEmpty
             || (state.Type is IFluidBehaviour behaviour && behaviour.CanBeReplacedWith(state, level, pos, other, direction));
 
-    //IsSolid 该方块状态算不算固体 水源生成判定用它
+    //IsSolid whether this block state counts as solid, used by the source formation check
     private static bool IsSolid(BlockState state)
         => state.Owner is BlockBehaviour behaviour && behaviour.HasCollision;
 
-    //StateAt 读方块状态 区块不在内存时按空气处理 流体刻不会发生在未加载位置
+    //StateAt reads a block state, treating unloaded chunks as air; fluid ticks never run at unloaded positions
     private static BlockState StateAt(ServerLevel level, BlockPos pos)
         => level.GetBlockState(pos) ?? Blocks.AIR.DefaultBlockState;
 
-    //HasSameAbove 上方压着同族流体 对应原版 hasSameAbove
+    //HasSameAbove same-family fluid pressing from above, maps to vanilla hasSameAbove
     protected static bool HasSameAbove(FluidState fluidState, ServerLevel level, BlockPos pos)
         => fluidState.Type.IsSame(level.GetFluidState(pos.Offset(Direction.Up)).Type);
 }

@@ -5,8 +5,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//CountPlacement 数量放置对应原版 CountPlacement
-//按整数提供者采样次数在同一位置重复放置
+//CountPlacement count placement, maps to vanilla CountPlacement
+//Samples a count from an int provider and places that many at the same position
 public sealed class CountPlacement : RepeatingPlacement
 {
     public static readonly Codec<CountPlacement> Codec =
@@ -15,12 +15,12 @@ public sealed class CountPlacement : RepeatingPlacement
             count => new CountPlacement(count),
             placement => placement.CountProvider);
 
-    //CountProvider 数量提供者 属性名避开基类 Count 方法
+    //CountProvider count provider; the property name avoids the base class Count method
     public IntProvider CountProvider { get; }
 
     private CountPlacement(IntProvider count) => CountProvider = count;
 
-    //Of 构造入口对应原版 of
+    //Of construction entry, maps to vanilla of
     public static CountPlacement Of(IntProvider count) => new(count);
 
     public static CountPlacement Of(int count) => new(ConstantInt.Of(count));
@@ -30,7 +30,7 @@ public sealed class CountPlacement : RepeatingPlacement
     public override PlacementModifierType Type => CountPlacementType.Instance;
 }
 
-//CountPlacementType 对应原版 PlacementModifierType.COUNT
+//CountPlacementType, maps to vanilla PlacementModifierType.COUNT
 public sealed class CountPlacementType : PlacementModifierType<CountPlacement>
 {
     public static readonly CountPlacementType Instance = Register(

@@ -9,15 +9,15 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//EntitySelectorOptions 选择器选项注册表对应原版 net.minecraft.commands.arguments.selector.options.EntitySelectorOptions
-//17个[name=value]选项name/gamemode/type/team可反转其余按各自语法解析
-//team/tag/nbt/scores/advancements/predicate按玩家模型降级 team无队伍tag无标签nbt无序列化数据scores无计分板advancements无成就predicate无战利品谓词
+//EntitySelectorOptions selector option registry, maps to vanilla net.minecraft.commands.arguments.selector.options.EntitySelectorOptions
+//17 [name=value] options; name/gamemode/type/team can be inverted, the rest parse per their own syntax
+//team/tag/nbt/scores/advancements/predicate are downgraded to the player model: team has no team, tag no tags, nbt no serialized data, scores no scoreboard, advancements no advancements, predicate no loot predicate
 public static class EntitySelectorOptions
 {
-    //Modifier 选项处理器消费选项值改写解析器状态
+    //Modifier option handler consumes the option value and rewrites the parser state
     public delegate void Modifier(EntitySelectorParser parser);
 
-    //Option 单个选项 处理器与适用性谓词
+    //Option a single option, with a handler and an applicability predicate
     private sealed record Option(Modifier Handler, Predicate<EntitySelectorParser> CanUse);
 
     public static readonly DynamicCommandExceptionType ErrorUnknownOption =
@@ -37,7 +37,7 @@ public static class EntitySelectorOptions
     public static readonly DynamicCommandExceptionType ErrorEntityTypeInvalid =
         new(type => new TranslatableMessage("argument.entity.options.type.invalid", type));
 
-    //Options 全部选项表 原版bootStrap注册顺序
+    //Options the full option table, in the vanilla bootStrap registration order
     private static readonly Dictionary<string, Option> Options = BuildOptions();
 
     private static Dictionary<string, Option> BuildOptions()
@@ -69,7 +69,7 @@ public static class EntitySelectorOptions
         return options;
     }
 
-    //Get 按名取选项处理器 未知或当前选择器不可用回滚游标抛异常
+    //Get fetches the option handler by name; unknown or unavailable for the current selector rolls back the cursor and throws
     public static Modifier Get(EntitySelectorParser parser, string key, int start)
     {
         if (Options.TryGetValue(key, out var option))
@@ -81,7 +81,7 @@ public static class EntitySelectorOptions
         throw RollbackAndThrow(parser, start, ErrorUnknownOption, key);
     }
 
-    //RollbackAndThrow 回滚游标到选项起点再构造异常
+    //RollbackAndThrow rolls the cursor back to the option start then constructs the exception
     private static CommandSyntaxException RollbackAndThrow(EntitySelectorParser parser, int start,
         SimpleCommandExceptionType type)
     {
@@ -96,7 +96,7 @@ public static class EntitySelectorOptions
         return type.CreateWithContext(parser.Reader, argument);
     }
 
-    //HandleName 玩家名过滤支持引号与反转
+    //HandleName player name filter, supporting quotes and inversion
     private static void HandleName(EntitySelectorParser parser)
     {
         var start = parser.Reader.Cursor;
@@ -109,7 +109,7 @@ public static class EntitySelectorOptions
         parser.AddPredicate(e => (e.Name == name) != inverted);
     }
 
-    //HandleDistance 距离区间负值非法
+    //HandleDistance distance range; negative values are invalid
     private static void HandleDistance(EntitySelectorParser parser)
     {
         var start = parser.Reader.Cursor;
@@ -120,7 +120,7 @@ public static class EntitySelectorOptions
         parser.SetWorldLimited();
     }
 
-    //HandleLevel 经验等级区间负值非法 仅玩家有等级
+    //HandleLevel experience level range; negative values are invalid, only players have levels
     private static void HandleLevel(EntitySelectorParser parser)
     {
         var start = parser.Reader.Cursor;
@@ -173,7 +173,7 @@ public static class EntitySelectorOptions
     private static void HandleYRotation(EntitySelectorParser parser)
         => parser.SetRotY(MinMaxBounds.FloatDegrees.FromReader(parser.Reader));
 
-    //HandleLimit 结果上限至少1
+    //HandleLimit result limit is at least 1
     private static void HandleLimit(EntitySelectorParser parser)
     {
         var start = parser.Reader.Cursor;
@@ -184,7 +184,7 @@ public static class EntitySelectorOptions
         parser.LimitedOption.MarkParsed();
     }
 
-    //HandleSort 排序策略四值
+    //HandleSort the four sort policies
     private static void HandleSort(EntitySelectorParser parser)
     {
         var start = parser.Reader.Cursor;
@@ -201,7 +201,7 @@ public static class EntitySelectorOptions
         parser.SortedOption.MarkParsed();
     }
 
-    //HandleGamemode 游戏模式过滤 反转语义为不等于该模式
+    //HandleGamemode game type filter; inverted means not equal to that type
     private static void HandleGamemode(EntitySelectorParser parser)
     {
         var start = parser.Reader.Cursor;
@@ -218,7 +218,7 @@ public static class EntitySelectorOptions
         state.MarkParsedElement(inverted);
     }
 
-    //HandleTeam 队伍过滤 本作无队伍系统 玩家恒空队名
+    //HandleTeam team filter; this project has no team system, so players always have an empty team name
     private static void HandleTeam(EntitySelectorParser parser)
     {
         var start = parser.Reader.Cursor;
@@ -231,7 +231,7 @@ public static class EntitySelectorOptions
         state.MarkParsedElement(inverted);
     }
 
-    //HandleType 实体类型过滤 #前缀走类型标签 玩家类型正向取值时排除其他实体语义
+    //HandleType entity type filter; a # prefix goes through type tags; player type taken positively excludes other entities
     private static void HandleType(EntitySelectorParser parser)
     {
         var start = parser.Reader.Cursor;
@@ -244,7 +244,7 @@ public static class EntitySelectorOptions
             var tagId = IdentifierArgument.ReadIdentifier(parser.Reader);
             if (!state.CanParseTag(tagId))
                 throw RollbackAndThrow(parser, start, ErrorInapplicableOption, "type");
-            //本作无实体类型标签 玩家恒不命中 反转后恒通过
+            //This project has no entity type tags, so players never match; inverted always passes
             parser.AddPredicate(_ => inverted);
             state.MarkParsedTag(tagId);
             return;
@@ -263,7 +263,7 @@ public static class EntitySelectorOptions
         state.MarkParsedElement(inverted);
     }
 
-    //HandleTag 实体标签过滤 玩家恒无标签 空值表示无标签者
+    //HandleTag entity tag filter; players always have no tags; an empty value means those without tags
     private static void HandleTag(EntitySelectorParser parser)
     {
         var inverted = parser.ShouldInvertValue();
@@ -271,18 +271,18 @@ public static class EntitySelectorOptions
         parser.AddPredicate(_ => (tag.Length == 0) != inverted);
     }
 
-    //HandleNbt NBT过滤 SNBT语法照原版解析 玩家无序列化NBT恒不匹配 反转后恒通过
+    //HandleNbt NBT filter; SNBT syntax parsed like vanilla; players have no serialized NBT and never match; inverted always passes
     private static void HandleNbt(EntitySelectorParser parser)
     {
         var inverted = parser.ShouldInvertValue();
-        //SNBT解析器用独立读取器 解析后同步游标
+        //The SNBT parser uses a separate reader and syncs the cursor after parsing
         var nbtReader = new CommandStringReader(parser.Reader.String) { Cursor = parser.Reader.Cursor };
         TagParser<object>.ParseCompoundAsArgument(nbtReader);
         parser.Reader.SetCursor(nbtReader.Cursor);
         parser.AddPredicate(_ => inverted);
     }
 
-    //HandleScores 计分板过滤 {目标名=区间,...}语法照原版解析 本作无计分板条件恒不通过
+    //HandleScores scoreboard filter {objective=range,...} parsed like vanilla; this project has no scoreboard condition and always fails
     private static void HandleScores(EntitySelectorParser parser)
     {
         var reader = parser.Reader;
@@ -305,7 +305,7 @@ public static class EntitySelectorOptions
         parser.ScoresOption.MarkParsed();
     }
 
-    //HandleAdvancements 成就过滤 {成就id=布尔或{条件=布尔},...}语法照原版解析 本作无成就条件恒不通过
+    //HandleAdvancements advancement filter {advancement=bool or {criterion=bool},...} parsed like vanilla; no advancements here and always fails
     private static void HandleAdvancements(EntitySelectorParser parser)
     {
         var reader = parser.Reader;
@@ -353,7 +353,7 @@ public static class EntitySelectorOptions
         parser.AdvancementsOption.MarkParsed();
     }
 
-    //HandlePredicate 战利品谓词过滤 本作无谓词库条件恒不通过
+    //HandlePredicate loot predicate filter; no predicate library here and always fails
     private static void HandlePredicate(EntitySelectorParser parser)
     {
         parser.ShouldInvertValue();

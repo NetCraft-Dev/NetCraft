@@ -5,11 +5,11 @@ using NetCraft.Network.Inventory;
 
 namespace NetCraft.Game.World.Inventory;
 
-//DispenserMenu 发射器与投掷器的九格菜单 对应原版 net.minecraft.world.inventory.DispenserMenu
-//原版方块只有九格但共用 generic_3x3 菜单类型 客户端按该类型画出三乘三的界面
+//DispenserMenu nine-slot menu for dispensers and droppers, maps to vanilla net.minecraft.world.inventory.DispenserMenu
+//The vanilla block has only nine slots but shares the generic_3x3 menu type, the client draws a 3x3 screen from that type
 public sealed class DispenserMenu : AbstractContainerMenu
 {
-    //GridSize 九格容器的边长
+    //GridSize side length of the nine-slot grid
     private const int GridSize = 3;
 
     private readonly Container _container;
@@ -19,7 +19,7 @@ public sealed class DispenserMenu : AbstractContainerMenu
     {
         OwnerInventory = inventory;
         _container = container;
-        //九格槽位与玩家背包的像素位置照原版 DispenserMenu 构造里的常量
+        //Pixel positions of the nine slots and the player inventory follow the constants in the vanilla DispenserMenu constructor
         for (var row = 0; row < GridSize; row++)
             for (var column = 0; column < GridSize; column++)
                 AddSlot(new Slot(container, column + row * GridSize, 62 + column * 18, 17 + row * 18));
@@ -30,18 +30,18 @@ public sealed class DispenserMenu : AbstractContainerMenu
             AddSlot(new Slot(inventory, column, 8 + column * 18, 142));
     }
 
-    //Create 构造九格菜单
+    //Create builds a nine-slot menu
     public static DispenserMenu Create(int containerId, PlayerInventory inventory, Container container)
         => new(containerId, inventory, container);
 
-    //StillValid 容器方块还在原位且玩家没走远才有效
+    //StillValid valid while the container block remains and the player is close enough
     public override bool StillValid(ServerPlayer player) => _container switch
     {
         DispenserBlockEntity dispenser => dispenser.StillValid(player),
         _ => true,
     };
 
-    //QuickMoveStack 九格容器与背包之间对搬 对应原版 DispenserMenu.quickMoveStack
+    //QuickMoveStack moves items between the nine-slot container and the inventory, maps to vanilla DispenserMenu.quickMoveStack
     public override ItemStack QuickMoveStack(ServerPlayer player, int slotIndex)
     {
         var slot = GetSlot(slotIndex);

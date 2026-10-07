@@ -3,41 +3,41 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.World.Items.Component;
 
-//WritableBookContent 书与笔内容 一页一条可过筛文本 上限 100 页
-//对应原版 net.minecraft.world.item.component.WritableBookContent
+//WritableBookContent book and quill contents, one filterable text per page, limit 100 pages
+//Maps to vanilla net.minecraft.world.item.component.WritableBookContent
 public sealed class WritableBookContent : IEquatable<WritableBookContent>
 {
-    //PageEditLength 单页编辑长度上限 对应原版 PAGE_EDIT_LENGTH
+    //PageEditLength per-page edit length limit, maps to vanilla PAGE_EDIT_LENGTH
     public const int PageEditLength = 1024;
 
-    //MaxPages 页数上限 对应原版 MAX_PAGES
+    //MaxPages page limit, maps to vanilla MAX_PAGES
     public const int MaxPages = 100;
 
-    //Empty 空书 对应原版 EMPTY
+    //Empty empty book, maps to vanilla EMPTY
     public static readonly WritableBookContent Empty = new(Array.Empty<Filterable<string>>());
 
-    //PageCodec 单页编解码 对应原版 PAGE_CODEC
+    //PageCodec single page codec, maps to vanilla PAGE_CODEC
     private static readonly Codec<Filterable<string>> PageCodec = Filterable<string>.CodecOf(Codecs.String);
 
-    //Codec 持久化编解码 只有 pages 一个字段 对应原版 CODEC
+    //Codec persistence codec, only a pages field, maps to vanilla CODEC
     public static readonly Codec<WritableBookContent> Codec = RecordCodecBuilder.Of1(
         PageCodec.ListOf().OptionalFieldOf("pages", Array.Empty<Filterable<string>>())
             .ForGetter((WritableBookContent content) => content.Pages),
         pages => new WritableBookContent(pages));
 
-    //StreamCodec 网络编解码 页列表进出 对应原版 STREAM_CODEC
+    //StreamCodec network codec, the page list goes in and out, maps to vanilla STREAM_CODEC
     public static readonly StreamCodec<RegistryFriendlyByteBuf, WritableBookContent> StreamCodec =
         new WritableBookContentStreamCodec();
 
     public WritableBookContent(IReadOnlyList<Filterable<string>> pages)
     {
-        if (pages.Count > MaxPages) throw new ArgumentException($"页数 {pages.Count} 超过上限 {MaxPages}");
+        if (pages.Count > MaxPages) throw new ArgumentException($"page count {pages.Count} exceeds the limit {MaxPages}");
         Pages = pages;
     }
 
     public IReadOnlyList<Filterable<string>> Pages { get; }
 
-    //GetPages 取每页文本 过滤开关决定看哪一份
+    //GetPages returns the text of each page, the filter flag selects which copy is read
     public IEnumerable<string> GetPages(bool filterEnabled) => Pages.Select(page => page.Get(filterEnabled));
 
     public bool Equals(WritableBookContent? other) => other is not null && Pages.SequenceEqual(other.Pages);
@@ -49,7 +49,7 @@ public sealed class WritableBookContent : IEquatable<WritableBookContent>
     public override string ToString() => $"WritableBookContent[{Pages.Count} pages]";
 }
 
-//WritableBookContentStreamCodec 页列表进出 对应原版 STREAM_CODEC
+//WritableBookContentStreamCodec the page list goes in and out, maps to vanilla STREAM_CODEC
 internal sealed class WritableBookContentStreamCodec : StreamCodec<RegistryFriendlyByteBuf, WritableBookContent>
 {
     private static readonly StreamCodec<RegistryFriendlyByteBuf, Filterable<string>> PageCodec =

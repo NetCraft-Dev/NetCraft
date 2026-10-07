@@ -1,10 +1,10 @@
 namespace NetCraft.Gpu;
 
-//GpuBufferUsage buffer 用途
-//VertexBuffer 顶点缓冲
-//IndexBuffer 索引缓冲
-//UniformBuffer shader uniform 数据
-//StagingBuffer 暂存中转用于上传下载数据
+//GpuBufferUsage buffer usage
+//VertexBuffer vertex buffer
+//IndexBuffer index buffer
+//UniformBuffer shader uniform data
+//StagingBuffer staging area for uploading and downloading data
 public enum GpuBufferUsage
 {
     VertexBuffer,
@@ -13,13 +13,13 @@ public enum GpuBufferUsage
     StagingBuffer
 }
 
-//GpuBuffer GPU 显存缓冲抽象对应原版 blaze3d VertexBuffer/IndexBuffer/UniformBuffer
-//子类提供 Upload/Download 实现
+//GpuBuffer GPU memory buffer abstraction, corresponds to vanilla blaze3d VertexBuffer/IndexBuffer/UniformBuffer
+//Subclasses provide the Upload/Download implementations
 public abstract class GpuBuffer : IDisposable
 {
-    //Size 字节数
+    //Size byte size
     public int Size { get; }
-    //Usage 用途
+    //Usage usage
     public GpuBufferUsage Usage { get; }
 
     protected GpuBuffer(int size, GpuBufferUsage usage)
@@ -28,10 +28,10 @@ public abstract class GpuBuffer : IDisposable
         Usage = usage;
     }
 
-    //Upload 上传结构体数组到 GPU
+    //Upload uploads a struct array to the GPU
     public abstract void Upload<T>(ReadOnlySpan<T> data) where T : struct;
 
-    //Download 下载数据到 span 仅 StagingBuffer 适用
+    //Download downloads data into a span, only applicable to StagingBuffer
     public abstract void Download<T>(Span<T> data) where T : struct;
 
     public virtual void Dispose() { }

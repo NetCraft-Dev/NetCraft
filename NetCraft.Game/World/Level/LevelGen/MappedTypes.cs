@@ -2,12 +2,12 @@ using NetCraft.Game.World.Level.LevelGen.Synth;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//MappedTypes 一元变换密度函数子类对应原版 DensityFunctions.Mapped 的具体子类
-//Abs/Square/Cube/HalfNegative/QuarterNegative/Invert/Squeeze 七种变换
-//配合 DensityFunctions.Mapped 抽象基类支持 NoiseRouterData 密度树构建
+//MappedTypes the unary-transform density function subclasses, the concrete subclasses of vanilla DensityFunctions.Mapped
+//Seven transforms: Abs/Square/Cube/HalfNegative/QuarterNegative/Invert/Squeeze
+//Work with the DensityFunctions.Mapped abstract base to build the NoiseRouterData density tree
 public static class MappedTypes
 {
-    //MappedType 枚举对应原版 DensityFunctions.Mapped.Type
+    //MappedType enum, maps to vanilla DensityFunctions.Mapped.Type
     public enum MappedType
     {
         Abs,
@@ -19,7 +19,7 @@ public static class MappedTypes
         Squeeze
     }
 
-    //Abs 绝对值变换对应原版 Mapped.Type.ABS
+    //Abs absolute value, maps to vanilla Mapped.Type.ABS
     public sealed class Abs : Mapped
     {
         public Abs(DensityFunction input) : base(input) { }
@@ -29,7 +29,7 @@ public static class MappedTypes
         public override double MaxValue => Math.Max(Math.Abs(Input.MinValue), Math.Abs(Input.MaxValue));
     }
 
-    //Square 平方变换对应原版 Mapped.Type.SQUARE
+    //Square square, maps to vanilla Mapped.Type.SQUARE
     public sealed class Square : Mapped
     {
         public Square(DensityFunction input) : base(input) { }
@@ -43,7 +43,7 @@ public static class MappedTypes
         public override double MaxValue => Math.Max(Math.Abs(Input.MinValue), Math.Abs(Input.MaxValue));
     }
 
-    //Cube 三次方变换对应原版 Mapped.Type.CUBE
+    //Cube cube, maps to vanilla Mapped.Type.CUBE
     public sealed class Cube : Mapped
     {
         public Cube(DensityFunction input) : base(input) { }
@@ -77,8 +77,8 @@ public static class MappedTypes
         }
     }
 
-    //HalfNegative 负值减半对应原版 Mapped.Type.HALF_NEGATIVE
-    //正值原样返回负值乘 0.5
+    //HalfNegative halves negative values, maps to vanilla Mapped.Type.HALF_NEGATIVE
+    //Positive values pass through, negatives are multiplied by 0.5
     public sealed class HalfNegative : Mapped
     {
         public HalfNegative(DensityFunction input) : base(input) { }
@@ -92,8 +92,8 @@ public static class MappedTypes
         public override double MaxValue => Input.MaxValue;
     }
 
-    //QuarterNegative 负值减四分之一对应原版 Mapped.Type.QUARTER_NEGATIVE
-    //正值原样返回负值乘 0.25
+    //QuarterNegative quarters negative values, maps to vanilla Mapped.Type.QUARTER_NEGATIVE
+    //Positive values pass through, negatives are multiplied by 0.25
     public sealed class QuarterNegative : Mapped
     {
         public QuarterNegative(DensityFunction input) : base(input) { }
@@ -107,7 +107,7 @@ public static class MappedTypes
         public override double MaxValue => Input.MaxValue;
     }
 
-    //Invert 倒数对应原版 Mapped.Type.INVERT
+    //Invert reciprocal, maps to vanilla Mapped.Type.INVERT
     public sealed class Invert : Mapped
     {
         public Invert(DensityFunction input) : base(input) { }
@@ -117,8 +117,8 @@ public static class MappedTypes
         public override double MaxValue => double.PositiveInfinity;
     }
 
-    //Squeeze 挤压变换对应原版 Mapped.Type.SQUEEZE
-    //先 clamp 到 [-1,1]再 c/2 - c^3/24
+    //Squeeze squeeze transform, maps to vanilla Mapped.Type.SQUEEZE
+    //Clamp to [-1,1] then c/2 - c^3/24
     public sealed class Squeeze : Mapped
     {
         public Squeeze(DensityFunction input) : base(input) { }
@@ -133,7 +133,7 @@ public static class MappedTypes
         public override double MaxValue => 0.4583333333333333;
     }
 
-    //Create 工厂对应原版 Mapped.create
+    //Create factory, maps to vanilla Mapped.create
     public static Mapped Create(MappedType type, DensityFunction input) => type switch
     {
         MappedType.Abs => new Abs(input),
@@ -147,9 +147,9 @@ public static class MappedTypes
     };
 }
 
-//HolderHolder 直接持有 DensityFunction 引用对应原版 DensityFunctions.HolderHolder 简化版
-//原版用 Holder<DensityFunction> 包装支持 Codec 引用 ResourceKeyNetCraft 暂不做 Codec 持久化直接引用
-//RandomState 的 noiseFlattener 会展开 HolderHolder 为内部函数以减少调用层级
+//HolderHolder holds a DensityFunction reference directly, a simplified version of vanilla DensityFunctions.HolderHolder
+//Vanilla wraps it in Holder<DensityFunction> to support Codec references by ResourceKey; NetCraft does not persist through Codec yet and references directly
+//RandomState's noiseFlattener expands HolderHolder into the inner function to cut down call depth
 public sealed class HolderHolder : DensityFunction
 {
     public DensityFunction Function { get; }

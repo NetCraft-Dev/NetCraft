@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundRenameItemPacket 数据包对应原版 ServerboundRenameItemPacket
-//字段 Name(String)
+//ServerboundRenameItemPacket rename item packet, maps to vanilla ServerboundRenameItemPacket
+//Field: Name(String)
 public sealed record ServerboundRenameItemPacket(string Name) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundRenameItemPacket> StreamCodec { get; } = new RenameItemCodec();
@@ -12,7 +12,7 @@ public sealed record ServerboundRenameItemPacket(string Name) : Packet<ServerGam
 
     private sealed class RenameItemCodec : StreamCodec<FriendlyByteBuf, ServerboundRenameItemPacket>
     {
-        //铁砧改名界面提交时发送 只有一个新名称字符串
+        //Sent when submitting in the anvil rename screen, carrying only a single new name string
         public ServerboundRenameItemPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadString());
 

@@ -8,8 +8,8 @@ using StateHalf = NetCraft.Registry.Enums.Half;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//BlockAgeProcessor 把石砖结构做旧 对应原版 BlockAgeProcessor
-//按苔藓度决定换成苔藓变体 再按概率换成裂纹砖或随机朝向的楼梯
+//BlockAgeProcessor ages stone brick structures, maps to vanilla BlockAgeProcessor
+//Mossiness decides the mossy variant, then probability decides cracked bricks or randomly facing stairs
 public sealed class BlockAgeProcessor : StructureProcessor
 {
     public static readonly MapCodec<BlockAgeProcessor> MapCodec =
@@ -29,13 +29,13 @@ public sealed class BlockAgeProcessor : StructureProcessor
     private static readonly TagKey<RegBlock> WallsTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("walls"));
 
-    //水平四个朝向 顺序与原版 Direction.Plane.HORIZONTAL 一致
+    //The four horizontal directions, in the same order as vanilla Direction.Plane.HORIZONTAL
     private static readonly Direction[] HorizontalDirections =
         { Direction.North, Direction.East, Direction.South, Direction.West };
 
     private static BlockState[]? _nonMossyReplacements;
 
-    //NonMossyReplacements 非苔藓变体的两个候选 对应原版 NON_MOSSY_REPLACEMENTS
+    //NonMossyReplacements the two non-mossy candidates, maps to vanilla NON_MOSSY_REPLACEMENTS
     private static BlockState[] NonMossyReplacements
         => _nonMossyReplacements ??= new[]
         {
@@ -69,7 +69,7 @@ public sealed class BlockAgeProcessor : StructureProcessor
         return new StructureBlockInfo(processedBlockInfo.Pos, newState.Value, processedBlockInfo.Nbt);
     }
 
-    //MaybeReplaceFullStoneBlock 整块石砖的替换 对应原版 maybeReplaceFullStoneBlock
+    //MaybeReplaceFullStoneBlock replaces a full stone brick block, maps to vanilla maybeReplaceFullStoneBlock
     private BlockState? MaybeReplaceFullStoneBlock(RandomSource random)
     {
         if (random.NextFloat() >= ProbabilityOfReplacingFullBlock) return null;
@@ -86,7 +86,7 @@ public sealed class BlockAgeProcessor : StructureProcessor
         return GetRandomBlock(random, nonMossy, mossy);
     }
 
-    //MaybeReplaceStairs 楼梯的替换 对应原版 maybeReplaceStairs
+    //MaybeReplaceStairs replaces stairs, maps to vanilla maybeReplaceStairs
     private BlockState? MaybeReplaceStairs(BlockState blockState, RandomSource random)
     {
         if (random.NextFloat() >= ProbabilityOfReplacingStairs) return null;
@@ -98,25 +98,25 @@ public sealed class BlockAgeProcessor : StructureProcessor
         return GetRandomBlock(random, NonMossyReplacements, mossy);
     }
 
-    //MaybeReplaceSlab 台阶的替换 对应原版 maybeReplaceSlab
+    //MaybeReplaceSlab replaces slabs, maps to vanilla maybeReplaceSlab
     private BlockState? MaybeReplaceSlab(BlockState blockState, RandomSource random)
         => random.NextFloat() < Mossiness
             ? ProcessorBlockHelper.CopyProperties(blockState, ProcessorBlockHelper.StateOf("mossy_stone_brick_slab"))
             : null;
 
-    //MaybeReplaceWall 墙的替换 对应原版 maybeReplaceWall
+    //MaybeReplaceWall replaces walls, maps to vanilla maybeReplaceWall
     private BlockState? MaybeReplaceWall(BlockState blockState, RandomSource random)
         => random.NextFloat() < Mossiness
             ? ProcessorBlockHelper.CopyProperties(blockState, ProcessorBlockHelper.StateOf("mossy_stone_brick_wall"))
             : null;
 
-    //MaybeReplaceObsidian 黑曜石的替换 对应原版 maybeReplaceObsidian
+    //MaybeReplaceObsidian replaces obsidian, maps to vanilla maybeReplaceObsidian
     private BlockState? MaybeReplaceObsidian(RandomSource random)
         => random.NextFloat() < ProbabilityOfReplacingObsidian
             ? ProcessorBlockHelper.StateOf("crying_obsidian")
             : null;
 
-    //RandomFacingStairs 随机朝向与半砖位置的楼梯状态 对应原版 getRandomFacingStairs
+    //RandomFacingStairs stair state with random facing and top/bottom half, maps to vanilla getRandomFacingStairs
     private static BlockState RandomFacingStairs(RandomSource random, string path)
     {
         var state = ProcessorBlockHelper.StateOf(path);
@@ -132,7 +132,7 @@ public sealed class BlockAgeProcessor : StructureProcessor
         return state;
     }
 
-    //GetRandomBlock 按苔藓度在两组候选间挑一组 对应原版 getRandomBlock(random, nonMossy, mossy)
+    //GetRandomBlock picks one of two candidate groups by mossiness, maps to vanilla getRandomBlock(random, nonMossy, mossy)
     private BlockState GetRandomBlock(RandomSource random, BlockState[] nonMossyBlocks, BlockState[] mossyBlocks)
         => random.NextFloat() < Mossiness
             ? mossyBlocks[random.NextInt(mossyBlocks.Length)]

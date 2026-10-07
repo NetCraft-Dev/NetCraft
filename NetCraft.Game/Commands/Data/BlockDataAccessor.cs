@@ -9,13 +9,13 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Commands.Data;
 
-//BlockDataAccessor 方块实体数据访问对应原版 net.minecraft.server.commands.data.BlockDataAccessor
-//取的是方块实体自身的 NBT 目标位置没有方块实体时命令报错
+//BlockDataAccessor block entity data access, maps to vanilla net.minecraft.server.commands.data.BlockDataAccessor
+//Takes the block entity's own NBT; the command errors when the target position has no block entity
 public sealed class BlockDataAccessor : IDataAccessor
 {
-    //ErrorNotBlockEntity 目标位置没有方块实体 对应原版 ERROR_NOT_A_BLOCK_ENTITY
+    //ErrorNotBlockEntity no block entity at the target position, maps to vanilla ERROR_NOT_A_BLOCK_ENTITY
     public static readonly SimpleCommandExceptionType ErrorNotBlockEntity =
-        new(new LiteralMessage("目标位置没有方块实体"));
+        new(new LiteralMessage("no block entity at the target position"));
 
     private readonly PersistentServerLevel _level;
     private readonly PlayerList _players;
@@ -30,9 +30,9 @@ public sealed class BlockDataAccessor : IDataAccessor
         _pos = pos;
     }
 
-    //SetData 整份读回方块实体 对应原版 setData 的 loadWithComponents + sendBlockUpdated
-    //原版写完标记脏并广播 3 号更新 这里广播最新数据并通知邻居
-    //比较器这类输出强度存在方块实体里 不通知邻居就不会重新求值
+    //SetData reads the block entity back whole, maps to vanilla setData's loadWithComponents + sendBlockUpdated
+    //Vanilla marks dirty and broadcasts update 3 after writing; this broadcasts the latest data and notifies neighbors
+    //Output strength such as comparators lives in the block entity; without notifying neighbors it is not re-evaluated
     public void SetData(CompoundTag tag)
     {
         _entity.LoadCustomOnly(tag);
@@ -42,13 +42,13 @@ public sealed class BlockDataAccessor : IDataAccessor
 
     public CompoundTag GetData() => _entity.SaveWithFullMetadata();
 
-    public string ModifiedSuccess => $"已修改位置 {Format()} 的方块实体数据";
+    public string ModifiedSuccess => $"modified block entity data at {Format()}";
 
     public string PrintSuccess(Tag data)
-        => $"位置 {Format()} 的方块实体数据:\n{NbtUtils.PrettyPrint(data, false)}";
+        => $"block entity data at {Format()}:\n{NbtUtils.PrettyPrint(data, false)}";
 
     public string PrintSuccess(NbtPath path, double scale, int value)
-        => $"位置 {Format()} 的 {path} 乘以 {scale:0.00} 后为 {value}";
+        => $"the {path} at {Format()} times {scale:0.00} is {value}";
 
     private string Format() => $"{_pos.X} {_pos.Y} {_pos.Z}";
 }

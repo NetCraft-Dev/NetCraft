@@ -3,8 +3,8 @@ using NetCraft.Network.Protocol.Ping;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ClientGamePacketListener 客户端 play 监听器对应原版 net.minecraft.network.protocol.game.ClientGamePacketListener
-//继承 ClientCommonPacketListener 与 ClientPongPacketListener 加入 play 阶段所有 clientbound 包的 handle 方法
+//ClientGamePacketListener client play listener, maps to vanilla net.minecraft.network.protocol.game.ClientGamePacketListener
+//Extends ClientCommonPacketListener and ClientPongPacketListener, adding handle methods for all clientbound packets in the play phase
 public interface ClientGamePacketListener : ClientCommonPacketListener, ClientPongPacketListener
 {
     void HandleAddEntity(ClientboundAddEntityPacket packet);

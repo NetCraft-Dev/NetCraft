@@ -4,24 +4,24 @@ using GameDirection = NetCraft.Primitives.Direction;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//JigsawBlock 拼图方块语义辅助 对应原版 net.minecraft.world.level.block.JigsawBlock
-//项目还没注册 jigsaw 方块 这里只抽出连接判定需要的静态语义 接入方块时直接搬进方块类即可
+//JigsawBlock jigsaw block semantics helper, maps to vanilla net.minecraft.world.level.block.JigsawBlock
+//The jigsaw block is not registered yet; only the static semantics needed for connection checks are extracted here, to be moved into the block class once it exists
 public static class JigsawBlock
 {
-    //OrientationPropertyName 朝向属性名 对应原版 JigsawBlock.ORIENTATION
+    //OrientationPropertyName orientation property name, maps to vanilla JigsawBlock.ORIENTATION
     public const string OrientationPropertyName = "orientation";
 
-    //GetFrontFacing 取正面朝向 对应原版 getFrontFacing
-    //朝向属性缺失或值非法时退回方块默认朝向朝北
+    //GetFrontFacing returns the front facing, maps to vanilla getFrontFacing
+    //Falls back to the block default facing north when the orientation property is missing or invalid
     public static GameDirection GetFrontFacing(BlockState state)
         => GetOrientation(state) is { } orientation ? FrontOf(orientation) : GameDirection.North;
 
-    //GetTopFacing 取顶面朝向 对应原版 getTopFacing
+    //GetTopFacing returns the top facing, maps to vanilla getTopFacing
     public static GameDirection GetTopFacing(BlockState state)
         => GetOrientation(state) is { } orientation ? TopOf(orientation) : GameDirection.Up;
 
-    //CanAttach 判定两个拼图方块能不能接上 对应原版 canAttach
-    //三个条件同时成立：源正面是目标正面的反面 关节可滚动或顶面朝向一致 源的 target 等于目标的 name
+    //CanAttach whether two jigsaw blocks can attach, maps to vanilla canAttach
+    //Three conditions must all hold: the source front is the target front's opposite, the joint is rollable or the top facings match, and the source target equals the target name
     public static bool CanAttach(StructureTemplate.JigsawBlockInfo source, StructureTemplate.JigsawBlockInfo target)
     {
         var sourceFront = GetFrontFacing(source.Info.State);
@@ -34,7 +34,7 @@ public static class JigsawBlock
             && source.Target == target.Name;
     }
 
-    //GetOrientation 读朝向属性值 没有该属性时返回 null
+    //GetOrientation reads the orientation property value, returns null when the property is absent
     private static FrontAndTop? GetOrientation(BlockState state)
     {
         foreach (var entry in state.GetValues())
@@ -45,7 +45,7 @@ public static class JigsawBlock
         return null;
     }
 
-    //FrontOf 取朝向组合的正面 对应原版 FrontAndTop.getFront 枚举名的前半段
+    //FrontOf returns the front of an orientation pair, maps to vanilla FrontAndTop.getFront; the first half of the enum name
     public static GameDirection FrontOf(FrontAndTop orientation) => orientation switch
     {
         FrontAndTop.down_east or FrontAndTop.down_north or FrontAndTop.down_south or FrontAndTop.down_west
@@ -58,7 +58,7 @@ public static class JigsawBlock
         _ => GameDirection.South,
     };
 
-    //TopOf 取朝向组合的顶面 对应原版 FrontAndTop.getTop 枚举名的后半段
+    //TopOf returns the top of an orientation pair, maps to vanilla FrontAndTop.getTop; the second half of the enum name
     public static GameDirection TopOf(FrontAndTop orientation) => orientation switch
     {
         FrontAndTop.west_up or FrontAndTop.east_up or FrontAndTop.north_up or FrontAndTop.south_up
@@ -69,11 +69,11 @@ public static class JigsawBlock
         _ => GameDirection.West,
     };
 
-    //FromFrontAndTop 由正面与顶面反查朝向组合 对应原版 FrontAndTop.fromFrontAndTop
+    //FromFrontAndTop looks up the orientation pair from front and top, maps to vanilla FrontAndTop.fromFrontAndTop
     public static FrontAndTop FromFrontAndTop(GameDirection front, GameDirection top)
     {
         foreach (var candidate in Enum.GetValues<FrontAndTop>())
             if (FrontOf(candidate) == front && TopOf(candidate) == top) return candidate;
-        throw new ArgumentException($"没有正面 {front} 顶面 {top} 的朝向组合");
+        throw new ArgumentException($"no orientation pair with front {front} and top {top}");
     }
 }

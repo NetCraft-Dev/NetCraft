@@ -4,9 +4,9 @@ using NetCraft.Gpu.Pipeline;
 
 namespace NetCraft.Gpu;
 
-//ItemPipState PIP 物品渲染状态对标原版 OversizedItemRenderState
-//承载超出图集槽位的超大物品 3D 渲染到 offscreen 后 blit 到 GUI
-//PoC 用 ItemIdentity 标识物品 renderer 查 RegisterItem 映射到 ItemStackRenderState
+//ItemPipState PIP item render state, maps to vanilla OversizedItemRenderState
+//Carries oversized items that exceed their atlas slot; rendered 3D to offscreen then blitted to the GUI
+//The PoC identifies items by ItemIdentity; the renderer looks up RegisterItem to map to ItemStackRenderState
 public sealed record ItemPipState(
     int X0, int Y0, int X1, int Y1,
     float Scale,
@@ -19,11 +19,11 @@ public sealed record ItemPipState(
     public ScreenRectangle Bounds => PictureInPictureRenderState.GetBounds(X0, Y0, X1, Y1, ScissorArea);
 }
 
-//ItemPipRenderer PIP 物品渲染器子类对标原版 OversizedItemRenderer
-//RenderToTexture 用 PoseStack 把物品 translate/scale/rotate 到 offscreen 中心
-//item.submit 后 ItemFeatureRenderer.Execute 写顶点 然后上传 GPU+录制 Vulkan 命令渲染到 OffscreenTexture
-//EnsureTexturesAndProjection 创建 offscreen texture+depth+清屏+透视投影+编译 pipeline
-//BlitTexture 把 offscreen texture 作为 BlitRenderState 加到 guiRenderState
+//ItemPipRenderer PIP item renderer subclass, maps to vanilla OversizedItemRenderer
+//RenderToTexture uses PoseStack to translate/scale/rotate the item into the offscreen center
+//After item.submit, ItemFeatureRenderer.Execute writes vertices, then it uploads to the GPU + records Vulkan commands to render into the OffscreenTexture
+//EnsureTexturesAndProjection creates the offscreen texture+depth+clear+perspective projection+compiled pipeline
+//BlitTexture adds the offscreen texture as a BlitRenderState to guiRenderState
 public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
 {
     [StructLayout(LayoutKind.Sequential)]
@@ -39,10 +39,10 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
     private readonly Projection _projection = new();
     private readonly ItemSubmitCollector _collector = new();
     private readonly Dictionary<object, TrackingItemStackRenderState> _items = new();
-    //最近一次 RenderToTexture 的顶点数据供测试诊断
+    //Vertex data from the most recent RenderToTexture, for test diagnostics
     public VertexConsumer3D LastFrameVertices { get; } = new();
 
-    //GPU 渲染资源 EnsureTexturesAndProjection 时懒初始化 尺寸变化时重建
+    //GPU render resources are lazily initialized in EnsureTexturesAndProjection and rebuilt when the size changes
     private Lighting? _lighting;
     private LightTexture? _lightTexture;
     private ItemTextureAtlas? _itemAtlas;
@@ -56,13 +56,13 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
     private CompiledRenderPipeline? _pipeline;
     private GpuBuffer? _vertexBuffer;
     private GpuBuffer? _indexBuffer;
-    //_blitSampler offscreen→GUI blit 采样器线性过滤跨帧复用避免每帧 CreateSampler 泄漏
+    //_blitSampler the offscreen→GUI blit sampler with linear filtering, reused across frames to avoid leaking a CreateSampler every frame
     private GpuSampler? _blitSampler;
     private int _pipelineWidth;
     private int _pipelineHeight;
-    //双缓冲 offscreen texture+depth+encoder 乒乓本帧写 _writeIndex blit 读 _readIndex
-    //_readIndex=-1 首帧无历史 blit 当前写的同 queue submission order 保证 GPU 端依赖
-    //异步 SubmitAsync 不等 GPU CPU 继续录主 cmd 双 encoder 轮转避免 command buffer 复用竞争
+    //Double-buffered offscreen texture+depth+encoder ping-pong; this frame writes _writeIndex and blit reads _readIndex
+    //_readIndex=-1 the first frame has no history; blit the currently written one, and the queue submission order guarantees the GPU dependency
+    //Async SubmitAsync does not wait for the GPU so the CPU keeps recording the main cmd; the two encoders rotate to avoid command buffer reuse contention
     private readonly GpuImage?[] _offscreenTextures = new GpuImage[2];
     private readonly GpuImage?[] _offscreenDepths = new GpuImage[2];
     private readonly ICommandEncoder?[] _encoders = new ICommandEncoder[2];
@@ -73,7 +73,7 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
 
     public ItemPipRenderer(GpuDevice device) => _device = device;
 
-    //RegisterItem 注册物品 PoC 用 CubeModel 程序化生成模型
+    //RegisterItem registers an item; the PoC uses a procedurally generated CubeModel
     public TrackingItemStackRenderState RegisterItem(object identity, float modelSize = 1f)
     {
         if (_items.TryGetValue(identity, out var existing)) return existing;
@@ -84,15 +84,15 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         return state;
     }
 
-    //EnsureTexturesAndProjection 创建双 offscreen texture+depth+清屏+透视投影+编译 pipeline
-    //基类 Prepare 在 needsResize=false 时仍调本方法 此时双 texture 已存在只更新投影避免每帧重建
-    //每帧重建会导致 offscreen texture 泄漏+descriptor set 泄漏 pool 耗尽
-    //pipeline viewport 固定到 offscreen 尺寸 尺寸变化时重新编译
-    //SupportsGpuRendering=false 时仅创建 texture+设置投影走 CPU 路径供单测 不调 EnsureGpuResources/clear
-    //双 encoder 跨 resize 复用 不在 DisposeTextures 释放避免重建开销
+    //EnsureTexturesAndProjection creates the double offscreen texture+depth+clear+perspective projection+compiled pipeline
+    //The base Prepare still calls this method when needsResize=false; the double textures already exist so only the projection is updated to avoid rebuilding every frame
+    //Rebuilding every frame would leak offscreen textures + descriptor sets and exhaust the pool
+    //The pipeline viewport is fixed to the offscreen size and recompiled when the size changes
+    //With SupportsGpuRendering=false it only creates the texture+sets the projection, taking the CPU path for unit tests and not calling EnsureGpuResources/clear
+    //The two encoders are reused across resizes and not released in DisposeTextures to avoid rebuild cost
     protected override void EnsureTexturesAndProjection(int width, int height)
     {
-        //双 texture 都已创建复用只更新投影
+        //Both textures are already created and reused; only the projection is updated
         if (_offscreenTextures[0] is not null && _offscreenTextures[1] is not null)
         {
             _projection.SetupPerspective(0.05f, 1000f, MathF.PI / 4f, width, height);
@@ -115,17 +115,17 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
                 Usage = GpuImageUsage.DepthAttachment
             });
         }
-        //透视投影 offscreen 3D 渲染 MockDevice 也设置投影供测试
+        //Perspective projection for offscreen 3D rendering; MockDevice also sets the projection for tests
         _projection.SetupPerspective(0.05f, 1000f, MathF.PI / 4f, width, height);
-        //基类 OffscreenTexture 设为首个 texture 供基类 needsResize 判断非 null
+        //The base OffscreenTexture is set to the first texture so the base's needsResize sees non-null
         OffscreenTexture = _offscreenTextures[0];
         OffscreenDepth = _offscreenDepths[0];
-        //GPU 资源+初始 clear 仅 SupportsGpuRendering=true 时执行 MockDevice 走 CPU 路径仅生成顶点
+        //GPU resources+initial clear run only when SupportsGpuRendering=true; MockDevice takes the CPU path and only generates vertices
         if (!_device.SupportsGpuRendering) return;
-        //双 depth 初始 layout 转换 Undefined->DepthStencilAttachmentOptimal
+        //Both depths initial layout transition Undefined->DepthStencilAttachmentOptimal
         foreach (var depth in _offscreenDepths)
             depth!.Upload(ReadOnlySpan<byte>.Empty);
-        //pipeline 尺寸变化时重新编译 viewport 固定到 offscreen 尺寸
+        //The pipeline is recompiled when the size changes, with the viewport fixed to the offscreen size
         if (_pipeline == null || _pipelineWidth != width || _pipelineHeight != height)
         {
             _pipeline?.Dispose();
@@ -133,10 +133,10 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
             _pipelineHeight = height;
             EnsureGpuResources();
         }
-        //双 encoder 跨帧复用异步 Submit 乒乓 首次创建后续 resize 复用
+        //The two encoders are reused across frames with async Submit ping-pong; created on first use and reused after resize
         _encoders[0] ??= _device.CreateCommandEncoder();
         _encoders[1] ??= _device.CreateCommandEncoder();
-        //初始 clear 双 texture 到不透明黑避免首帧 blit 采样未定义内容
+        //Initially clears both textures to opaque black so the first frame's blit does not sample undefined content
         for (var i = 0; i < 2; i++)
         {
             using var initEncoder = _device.CreateCommandEncoder();
@@ -146,7 +146,7 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         }
     }
 
-    //EnsureGpuResources 创建 Lighting+LightTexture+ItemTextureAtlas+MVP UBO+descriptor sets+pipeline+index buffer
+    //EnsureGpuResources creates Lighting+LightTexture+ItemTextureAtlas+MVP UBO+descriptor sets+pipeline+index buffer
     private void EnsureGpuResources()
     {
         _lighting ??= new Lighting(_device);
@@ -200,7 +200,7 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
             _indexBuffer = _device.CreateHostVisibleBuffer(indices.Length * sizeof(ushort), GpuBufferUsage.IndexBuffer);
             _indexBuffer.Upload<ushort>(indices);
         }
-        //_blitSampler 线性过滤 offscreen 3D 渲染结果 blit 到 GUI 平滑跨帧复用
+        //_blitSampler linear filtering of the offscreen 3D render result blitted to the GUI, smoothly reused across frames
         _blitSampler ??= _device.CreateSampler(new GpuSamplerDescription
         {
             LinearFilter = true,
@@ -216,19 +216,19 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         _pipeline = _device.CreateRenderPipeline(item3dDesc);
     }
 
-    //RenderToTexture 渲染 3D 物品到 offscreen
-    //poseStack translate 到 offscreen 中心 + 后退 + scale + rotate
-    //item.submit 后 ItemFeatureRenderer.Execute 写顶点 然后上传 GPU + 录制 Vulkan 命令渲染
+    //RenderToTexture renders the 3D item to offscreen
+    //poseStack translates to the offscreen center + pulls back + scale + rotate
+    //After item.submit, ItemFeatureRenderer.Execute writes vertices, then it uploads to the GPU + records Vulkan commands to render
     protected override void RenderToTexture(ItemPipState renderState)
     {
         var width = _pipelineWidth;
         var height = _pipelineHeight;
         _poseStack.SetIdentity();
-        //translate 到 offscreen 中心 + 后退让物品在视口内
+        //Translate to the offscreen center + pull back so the item is inside the viewport
         _poseStack.Translate(width / 2f, height / 2f, -3f);
-        //按 Scale 缩放
+        //Scale by Scale
         _poseStack.Scale(renderState.Scale, renderState.Scale, renderState.Scale);
-        //按 RotationY 旋转 Y 轴
+        //Rotate around Y by RotationY
         if (renderState.RotationY != 0f)
             _poseStack.Rotate(Quaternion.CreateFromAxisAngle(Vector3.UnitY, renderState.RotationY));
 
@@ -242,17 +242,17 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         }
 
         if (LastFrameVertices.VertexCount == 0) return;
-        //SupportsGpuRendering=false 时仅生成顶点供单测不录制 GPU 命令 MockDevice.CreateCommandEncoder 抛 NotSupportedException
+        //With SupportsGpuRendering=false it only generates vertices for unit tests and records no GPU commands; MockDevice.CreateCommandEncoder throws NotSupportedException
         if (_device.SupportsGpuRendering)
             RenderToGpu();
     }
 
-    //RenderToGpu 上传顶点 + 更新 MVP UBO + 录制 Vulkan 命令渲染到 _offscreenTextures[_writeIndex]
-    //双 encoder 乒乓本帧用 _encoders[_writeIndex] 上轮该 encoder 的命令已 SubmitAsync
-    //WaitForCompletion 等上轮完成才能 Reset 复用首次未 SubmitAsync 跳过
-    //SubmitAsync 异步提交不等 GPU CPU 继续录主 cmd 同 queue submission order 保证 GPU 端依赖
-    //model=Identity 因 VertexConsumer3D.PutBakedQuad 已在 CPU 端 apply pose
-    //透视投影需翻转 Y 和转换 Z 范围匹配 Vulkan
+    //RenderToGpu uploads vertices + updates the MVP UBO + records Vulkan commands to render into _offscreenTextures[_writeIndex]
+    //Double encoder ping-pong; this frame uses _encoders[_writeIndex] whose last round's commands were already SubmitAsync'd
+    //WaitForCompletion waits for the last round before Reset and reuse; skipped on the first time when not SubmitAsync'd
+    //SubmitAsync submits asynchronously without waiting for the GPU so the CPU keeps recording the main cmd; the same queue submission order guarantees the GPU dependency
+    //model=Identity because VertexConsumer3D.PutBakedQuad already applies the pose on the CPU
+    //The perspective projection must flip Y and convert the Z range to match Vulkan
     private void RenderToGpu()
     {
         var vertices = LastFrameVertices.Vertices;
@@ -279,11 +279,11 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
 
         var idx = _writeIndex;
         var encoder = _encoders[idx]!;
-        //等上一轮该 encoder 完成才能 Reset command buffer 复用首次未 SubmitAsync 跳过
+        //Waits for the last round of this encoder before Reset and command buffer reuse; skipped on the first time when not SubmitAsync'd
         encoder.WaitForCompletion();
         encoder.BeginRecording();
-        //本帧写 texture 上帧末尾转 ShaderReadOnly 供 blit 本帧渲染前转回 ColorAttachment
-        //首次渲染初始 clear 后已 ColorAttachmentOptimal TransitionImageLayout 内部跳过 no-op
+        //This frame writes the texture; at the end of the previous frame it was transitioned to ShaderReadOnly for blit and is transitioned back to ColorAttachment before this frame's render
+        //After the first render's initial clear it is already ColorAttachmentOptimal; TransitionImageLayout internally skips it as a no-op
         encoder.TransitionImageLayout(_offscreenTextures[idx]!, GpuImageLayout.ColorAttachment);
         var clearColor = new Vector4(0f, 0f, 0f, 1f);
         using var pass = encoder.CreateRenderPass(_pipeline!, _offscreenTextures[idx]!, clearColor, _offscreenDepths[idx]!, 1.0f, GpuLoadOp.Clear);
@@ -293,21 +293,21 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         pass.BindDescriptorSet(_lighting!.CurrentDescriptorSet!, 1);
         pass.BindDescriptorSet(_lightmapSet!, 2);
         pass.BindDescriptorSet(_atlasSet!, 3);
-        //DynamicScissorEnabled=true 必须调 DisableScissor 设 scissor 到 pipeline extent 否则 DrawIndexed 崩溃
+        //With DynamicScissorEnabled=true, DisableScissor must be called to set the scissor to the pipeline extent or DrawIndexed crashes
         pass.DisableScissor();
-        //CubeModel 6 面 * 6 索引 = 36
+        //CubeModel 6 faces * 6 indices = 36
         pass.DrawIndexed(36);
         pass.Close();
-        //渲染后转 ShaderReadOnly 供 BlitTexture 采样 不转采样 ColorAttachmentOptimal 纹理驱动崩溃
+        //Transition to ShaderReadOnly after render for BlitTexture to sample; sampling ColorAttachmentOptimal would crash the driver
         encoder.TransitionImageLayout(_offscreenTextures[idx]!, GpuImageLayout.ShaderReadOnly);
-        //异步 Submit 不等 GPU 完成 CPU 继续录主 cmd blit 读上一帧 texture 无本帧依赖
+        //Async Submit does not wait for the GPU so the CPU keeps recording the main cmd; blit reads the previous frame's texture with no dependency on this frame
         encoder.SubmitAsync();
     }
 
-    //GetBlitTextureSetup 返回读 buffer 的 TextureSetup 供 BlitTexture blit 到 GUI
-    //_readIndex=-1 首帧无历史 blit 当前写的(_writeIndex)同 queue submission order 保证主 cmd 在 PIP 后
-    //_readIndex>=0 后续帧 blit 上一帧写的(_readIndex)已 SubmitAsync 完成无本帧依赖
-    //_blitSampler 跨帧复用避免每帧 CreateSampler 泄漏 EnsureGpuResources 时懒创建
+    //GetBlitTextureSetup returns the read buffer's TextureSetup for BlitTexture to blit to the GUI
+    //_readIndex=-1 the first frame has no history; blit the currently written one (_writeIndex) and the queue submission order keeps the main cmd after the PIP
+    //_readIndex>=0 later frames blit the previous frame's (_readIndex) already SubmitAsync'd with no dependency on this frame
+    //_blitSampler reused across frames to avoid leaking a CreateSampler every frame, lazily created in EnsureGpuResources
     protected override TextureSetup GetBlitTextureSetup()
     {
         var idx = _readIndex < 0 ? _writeIndex : _readIndex;
@@ -317,9 +317,9 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
             : TextureSetup.NoTexture;
     }
 
-    //BlitTexture override 基类加 BlitRenderState 后翻转读写索引实现乒乓
-    //本帧写的变读下次写另一个双 encoder 轮转避免 command buffer 复用竞争
-    //更新基类 OffscreenTexture 为新读 buffer 供基类 needsResize 判断
+    //BlitTexture override: after the base adds the BlitRenderState it flips the read/write indices for ping-pong
+    //What this frame wrote becomes the read one and the other is written next; the two encoders rotate to avoid command buffer reuse contention
+    //Updates the base OffscreenTexture to the new read buffer for the base's needsResize check
     protected override void BlitTexture(ItemPipState renderState, GuiRenderState guiRenderState)
     {
         base.BlitTexture(renderState, guiRenderState);
@@ -332,9 +332,9 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         }
     }
 
-    //DisposeTextures override 释放双 texture+depth 尺寸变化或 Dispose 时调
-    //先等双 encoder 完成才能释放 texture GPU 不再使用
-    //encoder 跨 resize 复用不在此时释放避免重建开销
+    //DisposeTextures override releases the double texture+depth, called on a size change or Dispose
+    //First waits for both encoders to finish before releasing the textures so the GPU no longer uses them
+    //The encoders are reused across resizes and not released here to avoid rebuild cost
     protected override void DisposeTextures()
     {
         foreach (var enc in _encoders)
@@ -376,7 +376,7 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
 
     protected override void OnDispose()
     {
-        //双 encoder 释放 DisposeTextures 已 WaitForCompletion 此处 Dispose 不再等 GPU
+        //Release both encoders; DisposeTextures already WaitForCompletion'd so Dispose here does not wait for the GPU again
         foreach (var enc in _encoders)
             enc?.Dispose();
         Array.Fill(_encoders, null);

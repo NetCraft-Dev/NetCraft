@@ -4,12 +4,12 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.World.Items.Component;
 
-//Bees 蜂巢物品里装的蜜蜂列表 对应原版 net.minecraft.world.item.component.Bees
+//Bees list of bees stored in a bee nest item, maps to vanilla net.minecraft.world.item.component.Bees
 public sealed record Bees(IReadOnlyList<Occupant> Occupants)
 {
     public static readonly Bees Empty = new(Array.Empty<Occupant>());
 
-    //Codec 持久化编解码 对应原版 Bees.CODEC
+    //Codec persistence codec, maps to vanilla Bees.CODEC
     public static readonly Codec<Bees> Codec = Occupant.ListCodec.ComapFlatMap(
         occupants => DataResult<Bees>.Success(new Bees(occupants)),
         bees => bees.Occupants);
@@ -17,7 +17,7 @@ public sealed record Bees(IReadOnlyList<Occupant> Occupants)
     public static readonly StreamCodec<RegistryFriendlyByteBuf, Bees> StreamCodec = new BeesStreamCodec();
 }
 
-//BeesStreamCodec 对应原版 STREAM_CODEC 先写数量再逐个写蜜蜂
+//BeesStreamCodec maps to vanilla STREAM_CODEC, writes the count then each bee
 internal sealed class BeesStreamCodec : StreamCodec<RegistryFriendlyByteBuf, Bees>
 {
     public Bees Decode(RegistryFriendlyByteBuf buf)

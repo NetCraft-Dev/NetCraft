@@ -6,21 +6,21 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//HeightProvider 高度提供者体系对应原版 net.minecraft.world.level.levelgen.heightproviders
-//HeightProvider.Codec 锚点对象或按 type 字段派发二选一
+//HeightProvider height provider system, maps to vanilla net.minecraft.world.level.levelgen.heightproviders
+//HeightProvider.Codec is either an anchor object or dispatch by the type field
 public abstract class HeightProvider
 {
-    //Codec 锚点或带 type 对象二选一对应原版 CODEC
+    //Codec either an anchor or an object with type, maps to vanilla CODEC
     public static readonly Codec<HeightProvider> Codec = new HeightProviderCodec();
 
-    //Sample 按随机源与上下文采样高度对应原版 sample
+    //Sample draws a height from the random source and context, maps to vanilla sample
     public abstract int Sample(RandomSource random, WorldGenerationContext context);
 }
 
-//ConstantHeight 常量高度提供者对应原版 ConstantHeight
+//ConstantHeight constant height provider, maps to vanilla ConstantHeight
 public class ConstantHeight : HeightProvider
 {
-    //Zero 零高度单例对应原版 ZERO
+    //Zero zero-height singleton, maps to vanilla ZERO
     public static readonly ConstantHeight Zero = new(VerticalAnchor.Absolute(0));
 
     public VerticalAnchor Value { get; }
@@ -34,7 +34,7 @@ public class ConstantHeight : HeightProvider
     public override string ToString() => Value.ToString();
 }
 
-//UniformHeight 均匀分布高度提供者对应原版 UniformHeight
+//UniformHeight uniform distribution height provider, maps to vanilla UniformHeight
 public class UniformHeight : HeightProvider
 {
     private readonly HashSet<long> _warnedFor = new();
@@ -52,7 +52,7 @@ public class UniformHeight : HeightProvider
     public static UniformHeight Of(VerticalAnchor minInclusive, VerticalAnchor maxInclusive)
         => new(minInclusive, maxInclusive);
 
-    //Sample 空区间返回下界并对每对上下界只警告一次对应原版 sample
+    //Sample returns the lower bound on an empty range and warns once per min/max pair, maps to vanilla sample
     public override int Sample(RandomSource random, WorldGenerationContext context)
     {
         var min = MinInclusive.ResolveY(context);
@@ -69,8 +69,8 @@ public class UniformHeight : HeightProvider
     public override string ToString() => $"[{MinInclusive}-{MaxInclusive}]";
 }
 
-//TrapezoidHeight 梯形分布高度提供者对应原版 TrapezoidHeight
-//区间中段有一段平台 采样落在平台附近概率更高
+//TrapezoidHeight trapezoid distribution height provider, maps to vanilla TrapezoidHeight
+//The middle of the range is a plateau, so samples near the plateau are more likely
 public class TrapezoidHeight : HeightProvider
 {
     public VerticalAnchor MinInclusive { get; }
@@ -90,7 +90,7 @@ public class TrapezoidHeight : HeightProvider
     public static TrapezoidHeight Of(VerticalAnchor minInclusive, VerticalAnchor maxInclusive)
         => new(minInclusive, maxInclusive, 0);
 
-    //Sample 平台宽度达到整个区间时退化成均匀分布对应原版 sample
+    //Sample degenerates to a uniform distribution when the plateau spans the whole range, maps to vanilla sample
     public override int Sample(RandomSource random, WorldGenerationContext context)
     {
         var min = MinInclusive.ResolveY(context);
@@ -113,8 +113,8 @@ public class TrapezoidHeight : HeightProvider
         : $"trapezoid({Plateau}) in [{MinInclusive}-{MaxInclusive}]";
 }
 
-//VeryBiasedToBottomHeight 强偏底高度提供者对应原版 VeryBiasedToBottomHeight
-//连续三次取上界并逐次收窄 结果强烈偏向区间底部
+//VeryBiasedToBottomHeight strongly bottom-biased height provider, maps to vanilla VeryBiasedToBottomHeight
+//Draws an upper bound three times and narrows each time, biasing the result strongly toward the bottom of the range
 public class VeryBiasedToBottomHeight : HeightProvider
 {
     public VerticalAnchor MinInclusive { get; }
@@ -131,7 +131,7 @@ public class VeryBiasedToBottomHeight : HeightProvider
     public static VeryBiasedToBottomHeight Of(VerticalAnchor minInclusive, VerticalAnchor maxInclusive, int inner)
         => new(minInclusive, maxInclusive, inner);
 
-    //Sample 区间容不下内缩量时直接退回下界对应原版 sample
+    //Sample falls back to the lower bound when the range cannot fit the inner inset, maps to vanilla sample
     public override int Sample(RandomSource random, WorldGenerationContext context)
     {
         var min = MinInclusive.ResolveY(context);
@@ -149,8 +149,8 @@ public class VeryBiasedToBottomHeight : HeightProvider
     public override string ToString() => $"biased[{MinInclusive}-{MaxInclusive} inner: {Inner}]";
 }
 
-//HeightProviderCodec 高度提供者编解码
-//VerticalAnchor 形式对象解为 ConstantHeight 其余按 type 字段派发
+//HeightProviderCodec height provider codec
+//A VerticalAnchor-form object decodes to ConstantHeight; the rest dispatch by the type field
 internal sealed class HeightProviderCodec : ScalarCodec<HeightProvider>
 {
     public override DataResult<HeightProvider> Parse<U>(DynamicOps<U> ops, U input)
@@ -203,7 +203,7 @@ internal sealed class HeightProviderCodec : ScalarCodec<HeightProvider>
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, HeightProvider value)
     {
-        //常量编码成裸锚点对象保持与原版 either 的编码方向一致
+        //Constants encode as a bare anchor object, keeping the same direction as vanilla either
         if (value is ConstantHeight constant)
             return VerticalAnchor.Codec.EncodeStart(ops, constant.Value);
         var builder = ops.MapBuilder();
@@ -233,11 +233,11 @@ internal sealed class HeightProviderCodec : ScalarCodec<HeightProvider>
         return builder.Build(ops.Empty());
     }
 
-    //AnchorValue 编码单个锚点失败直接抛出
+    //AnchorValue encodes a single anchor, throwing on failure
     private static U AnchorValue<U>(DynamicOps<U> ops, VerticalAnchor anchor)
         => VerticalAnchor.Codec.EncodeStart(ops, anchor).GetOrThrow();
 
-    //ReadAnchor 读锚点字段缺失或非法都返回错误
+    //ReadAnchor reads an anchor field; missing or invalid both return an error
     private static DataResult<VerticalAnchor> ReadAnchor<U>(DynamicOps<U> ops, MapLike<U> input, string name)
     {
         var tag = input.Get(name);
@@ -246,7 +246,7 @@ internal sealed class HeightProviderCodec : ScalarCodec<HeightProvider>
             : DataResult<VerticalAnchor>.Error(() => $"missing field: {name}");
     }
 
-    //ReadType 读 type 字符串字段缺失或非字符串返回空
+    //ReadType reads the type string field; missing or non-string returns empty
     private static Optional<string> ReadType<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var tag = input.Get("type");
@@ -255,14 +255,14 @@ internal sealed class HeightProviderCodec : ScalarCodec<HeightProvider>
         return text.Result().IsPresent ? Optional<string>.Of(text.GetOrThrow()) : Optional<string>.Empty();
     }
 
-    //PathOf 带命名空间的 type 只取路径段
+    //PathOf takes only the path segment of a namespaced type
     private static string PathOf(string type)
     {
         var id = Identifier.TryParse(type);
         return id is not null ? id.Value.Path : type;
     }
 
-    //ReadBounds 一次读出 min_inclusive 与 max_inclusive 两个锚点字段
+    //ReadBounds reads the min_inclusive and max_inclusive anchor fields together
     private static DataResult<(VerticalAnchor Min, VerticalAnchor Max)> ReadBounds<U>(
         DynamicOps<U> ops, MapLike<U> input)
     {
@@ -275,7 +275,7 @@ internal sealed class HeightProviderCodec : ScalarCodec<HeightProvider>
             : DataResult<(VerticalAnchor, VerticalAnchor)>.Error(() => Failure("max_inclusive", max));
     }
 
-    //ReadOptionalInt 读可选整数标量字段 缺失或非数字时用默认值
+    //ReadOptionalInt reads an optional integer scalar field, using the default when missing or non-numeric
     private static int ReadOptionalInt<U>(DynamicOps<U> ops, MapLike<U> input, string name, int defaultValue)
     {
         var tag = input.Get(name);
@@ -284,7 +284,7 @@ internal sealed class HeightProviderCodec : ScalarCodec<HeightProvider>
         return value.Result().IsPresent ? (int)value.GetOrThrow() : defaultValue;
     }
 
-    //Failure 组装字段解码失败的报错带上内层原因
+    //Failure builds the decode-failure message for a field, including the inner cause
     private static string Failure<T>(string name, DataResult<T> result)
     {
         var cause = string.Empty;

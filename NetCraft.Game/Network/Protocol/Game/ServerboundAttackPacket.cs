@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundAttackPacket 数据包对应原版 ServerboundAttackPacket
-//字段 EntityId(int)
+//ServerboundAttackPacket attack packet, maps to vanilla ServerboundAttackPacket
+//Field: EntityId(int)
 public sealed record ServerboundAttackPacket(int EntityId) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundAttackPacket> StreamCodec { get; } = new AttackCodec();
@@ -12,7 +12,7 @@ public sealed record ServerboundAttackPacket(int EntityId) : Packet<ServerGamePa
 
     private sealed class AttackCodec : StreamCodec<FriendlyByteBuf, ServerboundAttackPacket>
     {
-        //原版 STREAM_CODEC 只有一个 VAR_INT entityId
+        //The vanilla STREAM_CODEC has only one VAR_INT entityId
         public ServerboundAttackPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadVarInt());
 

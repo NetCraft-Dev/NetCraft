@@ -8,22 +8,22 @@ using T = NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Families;
 using NetCraft.DataFixer.Util;
 
-//CompoundList复合列表模板对应原版CompoundList
-//键值对的列表List<Pair<K,V>>模板形式
+//CompoundList compound list template maps to vanilla CompoundList
+//template form of a list of key-value pairs, List<Pair<K,V>>
 public sealed record CompoundList(TypeTemplate Key, TypeTemplate Element) : TypeTemplate
 {
     public int Size() => Math.Max(Key.Size(), Element.Size());
 
-    //apply每个index返回DSL.compoundList(key, element)包装
+    //apply returns DSL.compoundList(key, element)-wrapped types at each index
     public TypeFamily Apply(TypeFamily family)
         => new CompoundListFamily(this, family);
 
-    //applyO用元素applyO的结果cap包装为复合列表遍历
+    //applyO wraps the result of the element's applyO with cap as a compound list traversal
     public FamilyOptic<object, object> ApplyO<A, B>(FamilyOptic<A, B> input, T.Type<A> aType, T.Type<B> bType)
         => TypeFamily.FamilyOptic<object, object>(i => (TypedOptic<object, object, object, object>)(object)CapOptic(Element.ApplyO(input, aType, bType).Apply(i)));
 
-    //CapOptic把元素optic包装为复合列表元素遍历
-    //方法类型参数T2避免与using别名T冲突CS0704
+    //CapOptic wraps the element optic as a compound list element traversal
+    //method type parameter T2 avoids conflicting with the using alias T (CS0704)
     private static TypedOptic<object, object, A, B> CapOptic<S, T2, A, B>(TypedOptic<S, T2, A, B> concreteOptic)
     {
         var sTypeEntry = (T.Type<NetCraft.DataFixer.Util.Pair<string, S>>)(object)DSL.And(DSL.String(), concreteOptic.SType())!;
@@ -45,7 +45,7 @@ public sealed record CompoundList(TypeTemplate Key, TypeTemplate Element) : Type
             .Compose((TypedOptic<A, B, A, B>)(object)concreteOptic);
     }
 
-    //findFieldOrType委托给元素查找后用CompoundList包装
+    //findFieldOrType delegates to the element lookup, then wraps with CompoundList
     public Either<TypeTemplate, T.Type<object>.FieldNotFoundException> FindFieldOrType<A, B>(
         int index, string? name, T.Type<A> type, T.Type<B> resultType)
     {
@@ -57,7 +57,7 @@ public sealed record CompoundList(TypeTemplate Key, TypeTemplate Element) : Type
         return Either<TypeTemplate, T.Type<object>.FieldNotFoundException>.Right(either.GetRight().Get());
     }
 
-    //hmap对两侧元素应用hmap后用cap合并
+    //hmap applies hmap to both elements, then merges with cap
     public Func<int, RewriteResult<object, object>> Hmap(TypeFamily family, Func<int, RewriteResult<object, object>> function)
         => i =>
         {
@@ -66,13 +66,13 @@ public sealed record CompoundList(TypeTemplate Key, TypeTemplate Element) : Type
             return CapView(Apply(family).Apply(i), f1, f2);
         };
 
-    //CapView两侧元素重写结果用CompoundListType.mergeViews合并
+    //CapView merges the rewrite results of both elements via CompoundListType.mergeViews
     private static RewriteResult<object, object> CapView<L, R>(T.Type<object> type, RewriteResult<L, object> f1, RewriteResult<R, object> f2)
         => (RewriteResult<object, object>)(object)((CompoundListType<L, R>)(object)type).MergeViews(f1, f2);
 
     public override string ToString() => "CompoundList[" + Element + "]";
 
-    //CompoundListFamily按index返回DSL.compoundList包装的子类型
+    //CompoundListFamily returns the child type wrapped with DSL.compoundList at each index
     private sealed class CompoundListFamily : TypeFamily
     {
         private readonly CompoundList _template;
@@ -88,7 +88,7 @@ public sealed record CompoundList(TypeTemplate Key, TypeTemplate Element) : Type
                 (T.Type<object>)(object)_template.Element.Apply(_family).Apply(index)!);
     }
 
-    //CompoundListType复合列表类型持有key与value类型
+    //CompoundListType compound list type holding the key and value types
     public sealed class CompoundListType<K, V> : T.Type<List<NetCraft.DataFixer.Util.Pair<K, V>>>
     {
         private readonly T.Type<K> _key;
@@ -103,12 +103,12 @@ public sealed record CompoundList(TypeTemplate Key, TypeTemplate Element) : Type
         public T.Type<K> GetKey() => _key;
         public T.Type<V> GetElement() => _element;
 
-        //all对两侧元素应用规则后mergeViews合并
+        //all applies the rule to both elements, then merges via mergeViews
         public override RewriteResult<List<NetCraft.DataFixer.Util.Pair<K, V>>, object> All(object rule, bool recurse, bool checkIndex)
             => MergeViews(_key.RewriteOrNop(rule), _element.RewriteOrNop(rule));
 
-        //mergeViews分两步先fixKeys再fixValues后compose
-        //类型擦除后Compose类型不匹配用object强转对齐原版Java语义
+        //mergeViews works in two steps: fixKeys then fixValues, then compose
+        //after type erasure Compose types do not match; cast via object to align with vanilla Java semantics
         public RewriteResult<List<NetCraft.DataFixer.Util.Pair<K, V>>, object> MergeViews(
             RewriteResult<K, object> leftView, RewriteResult<V, object> rightView)
         {
@@ -117,7 +117,7 @@ public sealed record CompoundList(TypeTemplate Key, TypeTemplate Element) : Type
             return (RewriteResult<List<NetCraft.DataFixer.Util.Pair<K, V>>, object>)(object)v2.Compose((RewriteResult<object, List<NetCraft.DataFixer.Util.Pair<K, V>>>)(object)v1);
         }
 
-        //one先尝试key再尝试element任意命中即返回
+        //one tries the key then the element; returns on either match
         public override Optional<RewriteResult<List<NetCraft.DataFixer.Util.Pair<K, V>>, object>> One(object rule)
         {
             var keyOpt = ((TypeRewriteRule)rule).Rewrite(_key);
@@ -135,13 +135,13 @@ public sealed record CompoundList(TypeTemplate Key, TypeTemplate Element) : Type
             return Optional<RewriteResult<List<NetCraft.DataFixer.Util.Pair<K, V>>, object>>.Empty();
         }
 
-        //fixKeys把key侧重写结果用compoundListKeys投射到列表层
+        //fixKeys projects the key-side rewrite result into the list layer via compoundListKeys
         private static RewriteResult<List<NetCraft.DataFixer.Util.Pair<K, V>>, object> FixKeys(
             T.Type<List<NetCraft.DataFixer.Util.Pair<K, V>>> type, T.Type<K> first, T.Type<V> second, RewriteResult<K, object> view)
             => T.Type<List<NetCraft.DataFixer.Util.Pair<K, V>>>.OpticView(type, (RewriteResult<object, object>)(object)view,
                 (TypedOptic<List<NetCraft.DataFixer.Util.Pair<K, V>>, object, object, object>)(object)TypedOptics.CompoundListKeys<K, V, object>(first, (T.Type<object>)(object)view.View().NewType()!, second)!);
 
-        //fixValues把value侧重写结果用compoundListElements投射到列表层
+        //fixValues projects the value-side rewrite result into the list layer via compoundListElements
         private static RewriteResult<List<NetCraft.DataFixer.Util.Pair<K, V>>, object> FixValues(
             T.Type<List<NetCraft.DataFixer.Util.Pair<K, V>>> type, T.Type<K> first, T.Type<V> second, RewriteResult<V, object> view)
             => T.Type<List<NetCraft.DataFixer.Util.Pair<K, V>>>.OpticView(type, (RewriteResult<object, object>)(object)view,
@@ -159,7 +159,7 @@ public sealed record CompoundList(TypeTemplate Key, TypeTemplate Element) : Type
         protected override Codec<List<NetCraft.DataFixer.Util.Pair<K, V>>> BuildCodec()
             => new CompoundListCodec(this);
 
-        //CompoundListCodec复合列表codec用List<Pair<K,V>>结构对应原版Codec.compoundList
+        //CompoundListCodec compound list codec using a List<Pair<K,V>> structure, maps to vanilla Codec.compoundList
         private sealed class CompoundListCodec : ScalarCodec<List<NetCraft.DataFixer.Util.Pair<K, V>>>
         {
             private readonly CompoundListType<K, V> _type;
@@ -171,7 +171,7 @@ public sealed record CompoundList(TypeTemplate Key, TypeTemplate Element) : Type
                 {
                     var keyEncoded = _type._key.Codec().EncodeStart(ops, p.First);
                     var valueEncoded = _type._element.Codec().EncodeStart(ops, p.Second);
-                    //合并key/value为map后整体作为list元素
+                    //merges key/value into a map, then uses the whole as the list element
                     return ops.MergeToMap(ops.EmptyMap(), keyEncoded.GetOrThrow(), valueEncoded.GetOrThrow()).GetOrThrow();
                 });
                 return DataResult<U>.Success(ops.CreateList(stream));
@@ -183,7 +183,7 @@ public sealed record CompoundList(TypeTemplate Key, TypeTemplate Element) : Type
                     (List<NetCraft.DataFixer.Util.Pair<K, V>>)stream.Select(t =>
                     {
                         var map = ops.GetMap(t).GetOrThrow();
-                        //map中第一个entry作为key/value这里简化原版dispatch逻辑
+                        //the first entry in the map serves as key/value; this simplifies the vanilla dispatch logic
                         var entries = ops.GetMapValues(t).GetOrThrow().ToList();
                         if (entries.Count == 0)
                         {

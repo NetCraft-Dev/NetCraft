@@ -5,17 +5,17 @@ using System.Text;
 
 namespace NetCraft.Gpu.Font;
 
-//UnihexGlyphProvider 对标原版 UnihexProvider
-//hex_file 是 zip 包内含 *.hex 文件每行 <codepoint_hex>:<bitmap_hex>
-//codepoint_hex 4-6 位十六进制 bitmap_hex 32/64/96/128 位对应 8/16/24/32 像素宽度
-//16 行构成 16 像素高字形按位扫描 set=0xFFFFFFFF clear=0
+//UnihexGlyphProvider maps to vanilla UnihexProvider
+//hex_file is a zip containing *.hex files, one <codepoint_hex>:<bitmap_hex> per line
+//codepoint_hex is 4-6 hex digits; bitmap_hex is 32/64/96/128 bits for 8/16/24/32 pixel widths
+//16 rows form a 16-pixel-tall glyph scanned bit by bit; set=0xFFFFFFFF clear=0
 //Oversample=2.0 IsColored=true advance=width/2+1 BoldOffset/ShadowOffset=0.5
 public sealed class UnihexGlyphProvider : IGlyphProvider
 {
     private readonly ConcurrentDictionary<int, UnihexGlyph?> _glyphs = new();
 
-    //LoadFromStream 从 zip 或裸 .hex 流加载所有字形
-    //zip 时遍历 entries 解析 *.hex 文件否则按裸 .hex 处理
+    //LoadFromStream loads all glyphs from a zip or a raw .hex stream
+    //For a zip it iterates entries and parses *.hex files, otherwise treats it as a raw .hex
     public static UnihexGlyphProvider LoadFromStream(Stream input)
     {
         var provider = new UnihexGlyphProvider();
@@ -38,7 +38,7 @@ public sealed class UnihexGlyphProvider : IGlyphProvider
         return provider;
     }
 
-    //IsZipStream 检测 magic number PK\x03\x04 判断是否 zip
+    //IsZipStream checks the magic number PK\x03\x04 to detect a zip
     private static bool IsZipStream(Stream input)
     {
         if (!input.CanSeek) return false;
@@ -52,7 +52,7 @@ public sealed class UnihexGlyphProvider : IGlyphProvider
         return b0 == 0x50 && b1 == 0x4B && b2 == 0x03 && b3 == 0x04;
     }
 
-    //ReadHexStream 逐行解析 .hex 内容存入 provider
+    //ReadHexStream parses .hex content line by line into the provider
     private static void ReadHexStream(Stream stream, UnihexGlyphProvider provider)
     {
         using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
@@ -66,8 +66,8 @@ public sealed class UnihexGlyphProvider : IGlyphProvider
         }
     }
 
-    //ParseLine 解析单行 <codepoint_hex>:<bitmap_hex>
-    //codepoint 4-6 位 hex bitmap 32/64/96/128 位 hex 对应宽度 8/16/24/32
+    //ParseLine parses a single <codepoint_hex>:<bitmap_hex> line
+    //codepoint is 4-6 hex digits, bitmap is 32/64/96/128 hex bits for widths 8/16/24/32
     private static void ParseLine(string line, int lineNo, UnihexGlyphProvider provider)
     {
         int colon = line.IndexOf(':');
@@ -101,7 +101,7 @@ public sealed class UnihexGlyphProvider : IGlyphProvider
                 int lo = DecodeHex(bitmap[idx + 1], lineNo);
                 value = (value << 8) | (hi << 4) | lo;
             }
-            //每行 int 左移到 32 位高位对标原版 ByteContents<<24/ShortContents<<16/IntContents24<<8
+            //Each row's int is shifted left into the high 32 bits, maps to vanilla ByteContents<<24/ShortContents<<16/IntContents24<<8
             int shift = 32 - bitWidth;
             contents[i] = value << shift;
         }
@@ -131,12 +131,12 @@ public sealed class UnihexGlyphProvider : IGlyphProvider
 
     public void Dispose() { }
 
-    //UnihexGlyph 对标原版 UnihexProvider.Glyph
-    //contents 16 行 int 数据 left/right 通过 mask 计算实际像素范围
+    //UnihexGlyph maps to vanilla UnihexProvider.Glyph
+    //contents is 16 rows of int data; left/right compute the actual pixel range via masks
     private sealed class UnihexGlyph : IUnbakedGlyph
     {
-        //字段改 internal 因 C# 嵌套类不互访 private 与 Java 内部类不同
-        //UnihexGlyphBitmap 需读 _contents/_left/_right 解包像素对标原版 Glyph.2
+        //Fields changed to internal because C# nested classes cannot access each other's private members, unlike Java inner classes
+        //UnihexGlyphBitmap needs to read _contents/_left/_right to unpack pixels, maps to vanilla Glyph.2
         internal readonly int[] _contents;
         internal readonly int _left;
         internal readonly int _right;
@@ -168,8 +168,8 @@ public sealed class UnihexGlyphProvider : IGlyphProvider
             => stitcher.Stitch(_info, new UnihexGlyphBitmap(this));
     }
 
-    //UnihexGlyphInfo 对标原版 UnihexProvider.Glyph.1
-    //BoldOffset/ShadowOffset=0.5 非 IGlyphInfo 默认 1.0
+    //UnihexGlyphInfo maps to vanilla UnihexProvider.Glyph.1
+    //BoldOffset/ShadowOffset=0.5, not the IGlyphInfo default 1.0
     private sealed class UnihexGlyphInfo : IGlyphInfo
     {
         public float Advance { get; }
@@ -179,9 +179,9 @@ public sealed class UnihexGlyphProvider : IGlyphProvider
         public UnihexGlyphInfo(float advance) => Advance = advance;
     }
 
-    //UnihexGlyphBitmap 对标原版 UnihexProvider.Glyph.2
+    //UnihexGlyphBitmap maps to vanilla UnihexProvider.Glyph.2
     //PixelHeight=16 Oversample=2.0 IsColored=true
-    //GetPixels 把 16 行按 left/right 范围解包为 RGBA 像素 set=0xFFFFFFFF clear=0
+    //GetPixels unpacks the 16 rows into RGBA pixels over the left/right range; set=0xFFFFFFFF clear=0
     private sealed class UnihexGlyphBitmap : IGlyphBitmap
     {
         private readonly UnihexGlyph _glyph;

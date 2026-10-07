@@ -2,12 +2,12 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.Material;
 
-//Fluids 五个内置流体 对应原版 net.minecraft.world.level.material.Fluids
-//注册顺序照原版 empty flowing_water water flowing_lava lava 注册表 id 与网络同步都依赖它
-//静态字段按文本序初始化 所以 Empty 必须排在其余四个之前
+//Fluids the five built-in fluids, maps to vanilla net.minecraft.world.level.material.Fluids
+//Registration order follows vanilla empty flowing_water water flowing_lava lava; registry ids and network sync depend on it
+//Static fields initialise in textual order, so Empty must come before the other four
 public static class Fluids
 {
-    //Empty 空流体 与 Fluid.Empty 是同一个实例 空状态才能查到注册表身份
+    //Empty empty fluid, the same instance as Fluid.Empty; only the empty state resolves to a registry identity
     public static readonly Fluid Empty = Register(FluidIds.Empty, Fluid.Empty);
 
     public static readonly FlowingFluid FlowingWater = Register(FluidIds.FlowingWater, new WaterFluid.Flowing());

@@ -4,9 +4,9 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//Noises 噪声参数注册中心对应原版 net.minecraft.world.level.levelgen.Noises
-//定义 64 个内置 NoiseParameters 的 ResourceKey 并在 Bootstrap 注册实际值
-//原版值来自 data/minecraft/worldgen/noise/*.json 此处硬编码避免 data pack 加载
+//Noises noise parameter registry, maps to vanilla net.minecraft.world.level.levelgen.Noises
+//Defines the ResourceKeys of 64 built-in NoiseParameters and registers the actual values in Bootstrap
+//Vanilla values come from data/minecraft/worldgen/noise/*.json; here they are hard-coded to avoid data pack loading
 public static class Noises
 {
     public static readonly ResourceKey<NoiseParameters> Temperature = CreateKey("temperature");
@@ -18,7 +18,7 @@ public static class Noises
     public static readonly ResourceKey<NoiseParameters> ContinentalnessLarge = CreateKey("continentalness_large");
     public static readonly ResourceKey<NoiseParameters> ErosionLarge = CreateKey("erosion_large");
     public static readonly ResourceKey<NoiseParameters> Ridge = CreateKey("ridge");
-    //SHIFT 对应 json 路径 offset 原版常量名 SHIFT 保持一致
+    //SHIFT matches the json path offset; keeps the vanilla constant name SHIFT
     public static readonly ResourceKey<NoiseParameters> Shift = CreateKey("offset");
     public static readonly ResourceKey<NoiseParameters> TemperatureNether = CreateKey("nether/temperature");
     public static readonly ResourceKey<NoiseParameters> VegetationNether = CreateKey("nether/vegetation");
@@ -61,7 +61,7 @@ public static class Noises
     public static readonly ResourceKey<NoiseParameters> IcebergPillarRoof = CreateKey("iceberg_pillar_roof");
     public static readonly ResourceKey<NoiseParameters> IcebergSurface = CreateKey("iceberg_surface");
     public static readonly ResourceKey<NoiseParameters> SulfurCaveGradient = CreateKey("sulfur_cave_gradient");
-    //SWAMP 对应 json 路径 surface_swamp 原版常量名 SWAMP 保持一致
+    //SWAMP matches the json path surface_swamp; keeps the vanilla constant name SWAMP
     public static readonly ResourceKey<NoiseParameters> Swamp = CreateKey("surface_swamp");
     public static readonly ResourceKey<NoiseParameters> Calcite = CreateKey("calcite");
     public static readonly ResourceKey<NoiseParameters> Gravel = CreateKey("gravel");
@@ -75,15 +75,15 @@ public static class Noises
     public static readonly ResourceKey<NoiseParameters> NetherWart = CreateKey("nether_wart");
     public static readonly ResourceKey<NoiseParameters> NetherStateSelector = CreateKey("nether_state_selector");
 
-    //CreateKey 在 worldgen/noise 注册表内创建元素键对应原版 createKey
+    //CreateKey creates an element key in the worldgen/noise registry, maps to vanilla createKey
     private static ResourceKey<NoiseParameters> CreateKey(string path)
         => ResourceKey<NoiseParameters>.Create(Registries.NOISE, Identifier.WithDefaultNamespace(path));
 
-    //已注册标志避免重复注册对应原版注册表 freeze 后只读
+    //Bootstrapped flag avoids double registration, matching the vanilla registry being read-only after freeze
     private static bool _bootstrapped;
 
-    //Bootstrap 注册 64 个内置 NoiseParameters 到 BuiltInRegistries.NOISE
-    //GameBootstrap 调用以确保 RandomState 实例化前所有噪声参数就绪
+    //Bootstrap registers the 64 built-in NoiseParameters into BuiltInRegistries.NOISE
+    //Called by GameBootstrap to make sure every noise parameter is ready before RandomState instantiates
     public static void Bootstrap()
     {
         if (_bootstrapped) return;
@@ -153,8 +153,8 @@ public static class Noises
         Register(NetherStateSelector, -4, 1);
     }
 
-    //Register 构造 NoiseParameters 并注册到 NOISE 表对应原版 data pack 加载
-    //数据驱动已从 data/minecraft/worldgen/noise 加载同名项时跳过 让 JSON 里的原版真值优先
+    //Register builds NoiseParameters and registers it into the NOISE registry, mapping to vanilla data pack loading
+    //Skipped when data-driven loading already loaded an entry of the same name from data/minecraft/worldgen/noise, letting the vanilla truth in JSON win
     private static NoiseParameters Register(ResourceKey<NoiseParameters> key, int firstOctave, params double[] amplitudes)
     {
         var parameters = new NoiseParameters(firstOctave, amplitudes);
@@ -163,8 +163,8 @@ public static class Noises
         return parameters;
     }
 
-    //Instantiate 按 ResourceKey 查 NoiseParameters 构造 NormalNoise 对应原版 instantiate
-    //context 通过 FromHashOf 派生确定性 RandomSource 保证跨实例可复现
+    //Instantiate looks up NoiseParameters by ResourceKey and builds a NormalNoise, maps to vanilla instantiate
+    //context derives a deterministic RandomSource through FromHashOf so results reproduce across instances
     public static NormalNoise Instantiate(Registry<NoiseParameters> noises, PositionalRandomFactory context, ResourceKey<NoiseParameters> name)
     {
         var parameters = noises.GetValueOrThrow(name);

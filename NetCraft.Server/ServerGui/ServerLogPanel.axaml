@@ -9,17 +9,17 @@
     <Border Grid.Row="2" CornerRadius="4"
             Background="{DynamicResource ConsoleBackground}"
             BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
-      <!--日志不折行 超出宽度靠横向滚动条看 不设 Auto 的话长行会被直接裁掉-->
-      <!--用 ListBox 而不是 StackPanel 它自带虚拟化 一千行的文本布局常驻降到看得见的几十行-->
-      <!--行内容由 OnRowPrepared 按 LogRow 里的片段填 不用绑定是因为 TextBlock.Inlines 挂不上绑定-->
+      <!--Logs do not wrap; overflow is viewed via the horizontal scrollbar, and without Auto long lines are simply cut off-->
+      <!--Uses a ListBox rather than a StackPanel because it virtualizes, keeping the layout of a thousand lines down to the few dozen visible ones-->
+      <!--Row content is filled by OnRowPrepared from the fragments in LogRow; no binding because TextBlock.Inlines cannot be bound-->
       <ListBox x:Name="LogLines" Classes="plain" Padding="8,6"
                ScrollViewer.VerticalScrollBarVisibility="Auto"
                ScrollViewer.HorizontalScrollBarVisibility="Auto"
                ContainerPrepared="OnRowPrepared">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="gui:LogRow">
-            <!--片段靠附加属性灌进 Inlines 而不是在 ContainerPrepared 里手填
-                ItemTemplate 生成的控件不是 ListBoxItem.Content 它挂在 ContentPresenter 下-->
+            <!--Fragments are pushed into Inlines via an attached property rather than filled by hand in ContainerPrepared
+                the control produced by ItemTemplate is not ListBoxItem.Content; it hangs under a ContentPresenter-->
             <TextBlock Classes="logLine" gui:LogRowSpans.Spans="{Binding Spans}" />
           </DataTemplate>
         </ListBox.ItemTemplate>

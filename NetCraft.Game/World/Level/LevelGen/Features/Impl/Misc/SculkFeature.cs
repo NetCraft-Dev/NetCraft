@@ -11,7 +11,7 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Misc;
 
-//SculkPatchConfiguration 幽匿斑块配置 对应原版 SculkPatchConfiguration
+//SculkPatchConfiguration sculk patch configuration, maps to vanilla SculkPatchConfiguration
 public sealed class SculkPatchConfiguration : FeatureConfiguration
 {
     public static readonly Codec<SculkPatchConfiguration> Codec =
@@ -50,9 +50,9 @@ public sealed class SculkPatchConfiguration : FeatureConfiguration
     }
 }
 
-//SculkPatchFeature 幽匿斑块特征 对应原版 SculkPatchFeature
-//从原点撒若干携带电荷的游标 每轮让它们把附近的方块换成幽匿脉络或幽匿块
-//散播轮数与尝试次数决定随机消耗次数 数目对不上同种子铺出的斑块就不同
+//SculkPatchFeature sculk patch feature, maps to vanilla SculkPatchFeature
+//Scatters charge-carrying cursors from the origin and each round has them turn nearby blocks into sculk veins or sculk blocks
+//Spread rounds and attempt counts set how much random is consumed; a mismatch yields different patches for the same seed
 public sealed class SculkPatchFeature : Feature<SculkPatchConfiguration>
 {
     private const string FeatureId = "sculk_patch";
@@ -97,8 +97,8 @@ public sealed class SculkPatchFeature : Feature<SculkPatchConfiguration>
         return true;
     }
 
-    //CanSpreadFrom 该格能不能作为散播起点 对应原版 canSpreadFrom
-    //起点是幽匿方块 或者是空气水源且六个方向有整面实心 才算能长
+    //CanSpreadFrom whether the cell can act as a spread origin, maps to vanilla canSpreadFrom
+    //It can grow only if the origin is a sculk block, or is air/water and has a full solid face in all six directions
     private static bool CanSpreadFrom(WorldGenRegion level, BlockPos origin)
     {
         var start = level.GetBlockState(origin.X, origin.Y, origin.Z);
@@ -115,39 +115,39 @@ public sealed class SculkPatchFeature : Feature<SculkPatchConfiguration>
         return false;
     }
 
-    //IsCollisionShapeFullBlock 该状态碰撞形状是否占满整格
+    //IsCollisionShapeFullBlock whether the state's collision shape fills the whole cell
     private static bool IsCollisionShapeFullBlock(BlockState state, BlockPos pos)
         => state.Owner is BlockBehaviour behaviour
             && behaviour.IsCollisionShapeFullBlock(state, EmptyBlockGetter.Instance, pos);
 }
 
-//SculkSupport 幽匿子系统共用的方块判定与标签 对应原版散落各处的静态成员
+//SculkSupport block checks and tags shared by the sculk subsystem, maps to the static members scattered across vanilla
 internal static class SculkSupport
 {
-    //SculkReplaceableWorldGenTag 世界生成可被幽匿替换的方块 对应原版 BlockTags.SCULK_REPLACEABLE_WORLD_GEN
+    //SculkReplaceableWorldGenTag blocks replaceable by sculk during world generation, maps to vanilla BlockTags.SCULK_REPLACEABLE_WORLD_GEN
     public static readonly TagKey<RegBlock> ReplaceableWorldGenTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("sculk_replaceable_world_gen"));
 
-    //SculkReplaceableTag 可被幽匿替换的方块 对应原版 BlockTags.SCULK_REPLACEABLE
+    //SculkReplaceableTag blocks replaceable by sculk, maps to vanilla BlockTags.SCULK_REPLACEABLE
     public static readonly TagKey<RegBlock> ReplaceableTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("sculk_replaceable"));
 
-    //FireTag 火焰方块 幽匿脉络不长在火上 对应原版 BlockTags.FIRE
+    //FireTag fire blocks; sculk veins do not grow on fire. maps to vanilla BlockTags.FIRE
     public static readonly TagKey<RegBlock> FireTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("fire"));
 
-    //WaterBlock 水方块 流体状态体系只保留有无 世界生成里水恒为源
+    //WaterBlock the water block; the fluid state system only tracks presence, and water is always a source during world generation
     public static readonly RegBlock WaterBlock = VegetationSupport.BlockOf("water");
 
-    //GetState 读世界里的方块状态
+    //GetState read the block state from the world
     public static BlockState GetState(WorldGenRegion level, BlockPos pos)
         => level.GetBlockState(pos.X, pos.Y, pos.Z);
 
-    //SetState 写方块状态
+    //SetState write the block state
     public static void SetState(WorldGenRegion level, BlockPos pos, BlockState state)
         => level.SetBlockState(pos.X, pos.Y, pos.Z, state);
 
-    //HasFace 该状态某个面是否被点亮 对应原版 MultifaceBlock.hasFace
+    //HasFace whether a face of the state is lit, maps to vanilla MultifaceBlock.hasFace
     public static bool HasFace(BlockState state, Direction face)
     {
         var name = VegetationSupport.FaceName(face);
@@ -157,11 +157,11 @@ internal static class SculkSupport
         return false;
     }
 
-    //WithFace 改某个面的点亮状态 对应原版 setValue(getFaceProperty(...))
+    //WithFace change the lit state of one face, maps to vanilla setValue(getFaceProperty(...))
     public static BlockState WithFace(BlockState state, Direction face, bool value)
         => VegetationSupport.WithProperty(state, VegetationSupport.FaceName(face), value);
 
-    //HasAnyFace 至少有一个面被点亮 对应原版 MultifaceBlock.hasAnyFace
+    //HasAnyFace at least one face is lit, maps to vanilla MultifaceBlock.hasAnyFace
     public static bool HasAnyFace(BlockState state)
     {
         foreach (var direction in Direction.Values)
@@ -169,7 +169,7 @@ internal static class SculkSupport
         return false;
     }
 
-    //AvailableFaces 该状态点亮的面 对应原版 MultifaceBlock.availableFaces
+    //AvailableFaces the lit faces of the state, maps to vanilla MultifaceBlock.availableFaces
     public static HashSet<Direction>? AvailableFaces(BlockState state)
     {
         if (!VegetationSupport.IsState(state, "sculk_vein")) return null;
@@ -179,26 +179,26 @@ internal static class SculkSupport
         return faces;
     }
 
-    //AllShuffled 六个方向的洗牌副本 对应原版 Direction.allShuffled
+    //AllShuffled a shuffled copy of the six directions, maps to vanilla Direction.allShuffled
     public static List<Direction> AllShuffled(RandomSource random)
         => VegetationSupport.ShuffledCopy(Direction.Values, random);
 
-    //CanAttachTo 该面能否贴上幽匿脉络 对应原版 MultifaceBlock.canAttachTo
+    //CanAttachTo whether a sculk vein can attach to the face, maps to vanilla MultifaceBlock.canAttachTo
     public static bool CanAttachTo(WorldGenRegion level, BlockPos pos, Direction directionTowardsNeighbour)
     {
         var neighbourPos = pos.Offset(directionTowardsNeighbour);
         return VegetationSupport.IsFaceSturdy(GetState(level, neighbourPos), directionTowardsNeighbour.Opposite);
     }
 
-    //CanAttachTo 邻居状态已知时的重载
+    //CanAttachTo overload taking a known neighbor state
     public static bool CanAttachTo(BlockState neighbourState, Direction directionTowardsNeighbour)
         => VegetationSupport.IsFaceSturdy(neighbourState, directionTowardsNeighbour.Opposite);
 
-    //IsWaterSource 该状态是不是水源
+    //IsWaterSource whether the state is a water source
     public static bool IsWaterSource(BlockState state)
         => state.Owner == WaterBlock && !state.FluidState.IsEmpty;
 
-    //BetweenClosed 闭区间长方体遍历 z 外层 y 中间 x 内层 对应原版 BlockPos.betweenClosed
+    //BetweenClosed iteration over a closed bounding box: z outer, y middle, x inner. maps to vanilla BlockPos.betweenClosed
     public static IEnumerable<BlockPos> BetweenClosed(BlockPos from, BlockPos to)
     {
         for (var z = from.Z; z <= to.Z; z++)
@@ -208,7 +208,7 @@ internal static class SculkSupport
     }
 }
 
-//SpreadType 幽匿脉络的落位方式 对应原版 MultifaceSpreader.SpreadType
+//SpreadType how a sculk vein is placed, maps to vanilla MultifaceSpreader.SpreadType
 internal enum SpreadType
 {
     SamePosition,
@@ -216,11 +216,11 @@ internal enum SpreadType
     WrapAround,
 }
 
-//SpreadPos 一次落位的坐标与贴附面 对应原版 MultifaceSpreader.SpreadPos
+//SpreadPos the coordinate and attach face of one placement, maps to vanilla MultifaceSpreader.SpreadPos
 internal readonly record struct SpreadPos(BlockPos Pos, Direction Face);
 
-//MultifaceSpreader 多面方块散布器 对应原版 MultifaceSpreader
-//只保留幽匿脉络用到的形态 落位判定按 SculkVeinSpreaderConfig 走
+//MultifaceSpreader multiface block spreader, maps to vanilla MultifaceSpreader
+//Only the form used by sculk veins is kept; placement checks follow SculkVeinSpreaderConfig
 internal sealed class MultifaceSpreader
 {
     private static readonly SpreadType[] DefaultSpreadOrder =
@@ -228,17 +228,17 @@ internal sealed class MultifaceSpreader
         SpreadType.SamePosition, SpreadType.SamePlane, SpreadType.WrapAround,
     };
 
-    //SameSpace 只往同一格铺 对应原版 SculkVeinBlock.sameSpaceSpreader
+    //SameSpace spreads only within the same cell, maps to vanilla SculkVeinBlock.sameSpaceSpreader
     public static readonly MultifaceSpreader SameSpace = new(new[] { SpreadType.SamePosition });
 
-    //Vein 同一格 同平面 绕角三种都试 对应原版 SculkVeinBlock.veinSpreader
+    //Vein tries same-cell, same-plane and corner-around, maps to vanilla SculkVeinBlock.veinSpreader
     public static readonly MultifaceSpreader Vein = new(DefaultSpreadOrder);
 
     private readonly SpreadType[] _spreadTypes;
 
     private MultifaceSpreader(SpreadType[] spreadTypes) => _spreadTypes = spreadTypes;
 
-    //SpreadAll 从该状态的每个点亮面朝六个方向铺一遍 返回成功落位次数 对应原版 spreadAll
+    //SpreadAll spreads from each lit face of the state in all six directions and returns the number of successful placements, maps to vanilla spreadAll
     public int SpreadAll(BlockState state, WorldGenRegion level, BlockPos pos, bool postProcess)
     {
         var count = 0;
@@ -252,15 +252,15 @@ internal sealed class MultifaceSpreader
         return count;
     }
 
-    //CanSpreadFrom 该面能不能作为出发点 对应原版 SpreadConfig.canSpreadFrom
+    //CanSpreadFrom whether the face can act as a starting point, maps to vanilla SpreadConfig.canSpreadFrom
     private static bool CanSpreadFrom(BlockState state, Direction face)
         => IsOtherBlockValidAsSource(state) || SculkSupport.HasFace(state, face);
 
-    //IsOtherBlockValidAsSource 非幽匿脉络方块都可当源 对应原版 isOtherBlockValidAsSource
+    //IsOtherBlockValidAsSource any non-sculk-vein block can act as a source, maps to vanilla isOtherBlockValidAsSource
     private static bool IsOtherBlockValidAsSource(BlockState state)
         => !VegetationSupport.IsState(state, "sculk_vein");
 
-    //SpreadFromFaceTowardDirection 从某个面朝某方向落一次 对应原版 spreadFromFaceTowardDirection
+    //SpreadFromFaceTowardDirection place once from a face toward a direction, maps to vanilla spreadFromFaceTowardDirection
     private bool SpreadFromFaceTowardDirection(BlockState state, WorldGenRegion level, BlockPos pos,
         Direction fromFace, Direction spreadDirection, bool postProcess)
     {
@@ -268,7 +268,7 @@ internal sealed class MultifaceSpreader
         return spreadPos is { } target && SpreadToFace(level, target, postProcess);
     }
 
-    //GetSpreadFromFaceTowardDirection 逐种落位方式找第一个能放的位置 对应原版同名方法
+    //GetSpreadFromFaceTowardDirection try each spread type for the first placeable spot, maps to the vanilla method of the same name
     private SpreadPos? GetSpreadFromFaceTowardDirection(BlockState state, WorldGenRegion level, BlockPos pos,
         Direction startingFace, Direction spreadDirection)
     {
@@ -284,7 +284,7 @@ internal sealed class MultifaceSpreader
         return null;
     }
 
-    //GetSpreadPos 按落位方式算出目标坐标与贴附面 对应原版 SpreadType.getSpreadPos
+    //GetSpreadPos compute the target coordinate and attach face for a spread type, maps to vanilla SpreadType.getSpreadPos
     private static SpreadPos GetSpreadPos(SpreadType type, BlockPos pos, Direction spreadDirection,
         Direction fromFace)
         => type switch
@@ -295,7 +295,7 @@ internal sealed class MultifaceSpreader
             _ => new SpreadPos(pos, spreadDirection),
         };
 
-    //CanSpreadInto 该位置能否被铺上脉络 对应原版 canSpreadInto
+    //CanSpreadInto whether a vein can be placed at this position, maps to vanilla canSpreadInto
     private static bool CanSpreadInto(WorldGenRegion level, BlockPos sourcePos, SpreadPos spreadPos)
     {
         var existingState = SculkSupport.GetState(level, spreadPos.Pos);
@@ -303,7 +303,7 @@ internal sealed class MultifaceSpreader
             && IsValidStateForPlacement(level, existingState, spreadPos.Pos, spreadPos.Face);
     }
 
-    //VeinStateCanBeReplaced 目标格能否被脉络替换 对应原版 SculkVeinSpreaderConfig.stateCanBeReplaced
+    //VeinStateCanBeReplaced whether the target cell can be replaced by a vein, maps to vanilla SculkVeinSpreaderConfig.stateCanBeReplaced
     private static bool VeinStateCanBeReplaced(WorldGenRegion level, BlockPos sourcePos, SpreadPos spreadPos,
         BlockState existingState)
     {
@@ -327,12 +327,12 @@ internal sealed class MultifaceSpreader
         return false;
     }
 
-    //DefaultStateCanBeReplaced 空气 幽匿脉络 或水源可被替换 对应原版 DefaultSpreaderConfig.stateCanBeReplaced
+    //DefaultStateCanBeReplaced air, sculk veins or water sources are replaceable, maps to vanilla DefaultSpreaderConfig.stateCanBeReplaced
     private static bool DefaultStateCanBeReplaced(BlockState existingState)
         => existingState.Owner.IsAir || VegetationSupport.IsState(existingState, "sculk_vein")
             || SculkSupport.IsWaterSource(existingState);
 
-    //IsValidStateForPlacement 该面能否贴脉络 对应原版 MultifaceBlock.isValidStateForPlacement
+    //IsValidStateForPlacement whether a vein can attach to the face, maps to vanilla MultifaceBlock.isValidStateForPlacement
     private static bool IsValidStateForPlacement(WorldGenRegion level, BlockState oldState, BlockPos placementPos,
         Direction placementDirection)
     {
@@ -342,10 +342,10 @@ internal sealed class MultifaceSpreader
         return SculkSupport.CanAttachTo(SculkSupport.GetState(level, neighbourPos), placementDirection);
     }
 
-    //SpreadToFace 把脉络放上去 对应原版 spreadToFace
+    //SpreadToFace place the vein, maps to vanilla spreadToFace
     private static bool SpreadToFace(WorldGenRegion level, SpreadPos spreadPos, bool postProcess)
     {
-        //原版 postProcess 为真时登记区块后处理 本项目后处理链未接 这里只落方块
+        //Vanilla registers chunk post-processing when postProcess is true; the post-processing chain is not wired up here, so only the block is placed
         _ = postProcess;
         var oldState = SculkSupport.GetState(level, spreadPos.Pos);
         var newState = GetStateForPlacement(oldState, level, spreadPos.Pos, spreadPos.Face);
@@ -354,7 +354,7 @@ internal sealed class MultifaceSpreader
         return true;
     }
 
-    //GetStateForPlacement 由旧状态推出放了脉络后的状态 对应原版 MultifaceBlock.getStateForPlacement
+    //GetStateForPlacement derive the state after placing a vein from the old state, maps to vanilla MultifaceBlock.getStateForPlacement
     private static BlockState? GetStateForPlacement(BlockState oldState, WorldGenRegion level, BlockPos placementPos,
         Direction placementDirection)
     {
@@ -368,20 +368,20 @@ internal sealed class MultifaceSpreader
     }
 }
 
-//SculkBehaviourHandler 幽匿方块的行为 对应原版 SculkBehaviour 接口
-//世界生成里只有幽匿块与幽匿脉络两种方块带行为 其余方块走默认行为
+//SculkBehaviourHandler behavior of sculk blocks, maps to the vanilla SculkBehaviour interface
+//Only sculk blocks and sculk veins carry behavior during world generation; all other blocks use the default
 internal abstract class SculkBehaviourHandler
 {
-    //Default 非幽匿方块的行为 对应原版 SculkBehaviour.DEFAULT
+    //Default behavior of non-sculk blocks, maps to vanilla SculkBehaviour.DEFAULT
     public static readonly SculkBehaviourHandler Default = new DefaultSculkBehaviour();
 
-    //Sculk 幽匿块的行为 对应原版 SculkBlock
+    //Sculk behavior of sculk blocks, maps to vanilla SculkBlock
     public static readonly SculkBehaviourHandler Sculk = new SculkBlockBehaviour();
 
-    //Vein 幽匿脉络的行为 对应原版 SculkVeinBlock
+    //Vein behavior of sculk veins, maps to vanilla SculkVeinBlock
     public static readonly SculkBehaviourHandler Vein = new SculkVeinBehaviour();
 
-    //GetBlockBehaviour 按方块取行为 对应原版 ChargeCursor.getBlockBehaviour
+    //GetBlockBehaviour fetch the behavior for a block, maps to vanilla ChargeCursor.getBlockBehaviour
     public static SculkBehaviourHandler GetBlockBehaviour(BlockState state)
     {
         if (VegetationSupport.IsState(state, "sculk_vein")) return Vein;
@@ -389,32 +389,32 @@ internal abstract class SculkBehaviourHandler
         return Default;
     }
 
-    //IsSculkBlock 该方块是不是带幽匿行为的方块
+    //IsSculkBlock whether the block carries sculk behavior
     public static bool IsSculkBlock(BlockState state) => GetBlockBehaviour(state) != Default;
 
-    //AttemptUseCharge 结算一次电荷 返回剩余电荷 对应原版 attemptUseCharge
+    //AttemptUseCharge settle one charge and return the remainder, maps to vanilla attemptUseCharge
     public virtual int AttemptUseCharge(ChargeCursor cursor, WorldGenRegion level, BlockPos originPos,
         RandomSource random, SculkSpreader spreader, bool spreadVeins) => cursor.Charge;
 
-    //SculkSpreadDelay 本方块散播后的等待轮数 对应原版 getSculkSpreadDelay
+    //SculkSpreadDelay rounds to wait after this block spreads, maps to vanilla getSculkSpreadDelay
     public virtual int SculkSpreadDelay => 1;
 
-    //OnDischarged 电荷耗尽时的收尾 对应原版 onDischarged
+    //OnDischarged cleanup when the charge runs out, maps to vanilla onDischarged
     public virtual void OnDischarged(WorldGenRegion level, BlockState state, BlockPos pos, RandomSource random) { }
 
-    //AttemptSpreadVein 试着把脉络铺开 对应原版 attemptSpreadVein
+    //AttemptSpreadVein try to spread veins, maps to vanilla attemptSpreadVein
     public virtual bool AttemptSpreadVein(WorldGenRegion level, BlockPos pos, BlockState state,
         HashSet<Direction>? facings, bool postProcess)
         => MultifaceSpreader.Vein.SpreadAll(state, level, pos, postProcess) > 0;
 
-    //CanChangeBlockStateOnSpread 铺开后要不要重新读状态 对应原版 canChangeBlockStateOnSpread
+    //CanChangeBlockStateOnSpread whether the state must be re-read after spreading, maps to vanilla canChangeBlockStateOnSpread
     public virtual bool CanChangeBlockStateOnSpread => true;
 
-    //UpdateDecayDelay 下轮的衰减延迟 对应原版 updateDecayDelay
+    //UpdateDecayDelay decay delay for the next round, maps to vanilla updateDecayDelay
     public virtual int UpdateDecayDelay(int age) => 1;
 }
 
-//DefaultSculkBehaviour 非幽匿方块上的默认行为 对应原版 SculkBehaviour.DEFAULT
+//DefaultSculkBehaviour default behavior on non-sculk blocks, maps to vanilla SculkBehaviour.DEFAULT
 internal sealed class DefaultSculkBehaviour : SculkBehaviourHandler
 {
     public override bool AttemptSpreadVein(WorldGenRegion level, BlockPos pos, BlockState state,
@@ -436,7 +436,7 @@ internal sealed class DefaultSculkBehaviour : SculkBehaviourHandler
 
     public override int UpdateDecayDelay(int age) => Math.Max(age - 1, 0);
 
-    //Regrow 按已有面重新长出一株脉络 对应原版 SculkVeinBlock.regrow
+    //Regrow regrow one vein from the existing faces, maps to vanilla SculkVeinBlock.regrow
     private static bool Regrow(WorldGenRegion level, BlockPos pos, BlockState existing, HashSet<Direction> faces)
     {
         var hasAtLeastOneFace = false;
@@ -455,8 +455,8 @@ internal sealed class DefaultSculkBehaviour : SculkBehaviourHandler
     }
 }
 
-//SculkBlockBehaviour 幽匿块行为 对应原版 SculkBlock
-//电荷够且离原点够远时才往上长幽匿感测体或尖啸体
+//SculkBlockBehaviour sculk block behavior, maps to vanilla SculkBlock
+//Grows sculk sensors or shriekers upward only when there is enough charge and enough distance from the origin
 internal sealed class SculkBlockBehaviour : SculkBehaviourHandler
 {
     public override bool CanChangeBlockStateOnSpread => false;
@@ -484,7 +484,7 @@ internal sealed class SculkBlockBehaviour : SculkBehaviourHandler
         return Math.Max(0, charge - growthSpawnCost);
     }
 
-    //GetDecayPenalty 离原点越远扣得越多 对应原版 getDecayPenalty
+    //GetDecayPenalty the farther from the origin the larger the penalty, maps to vanilla getDecayPenalty
     private static int GetDecayPenalty(SculkSpreader spreader, BlockPos pos, BlockPos originPos, int charge)
     {
         var noGrowthRadius = spreader.NoGrowthRadius;
@@ -495,7 +495,7 @@ internal sealed class SculkBlockBehaviour : SculkBehaviourHandler
         return Math.Max(1, (int)(charge * distanceFactor * 0.5f));
     }
 
-    //GetRandomGrowthState 十一分之一长尖啸体 其余长感测体 对应原版 getRandomGrowthState
+    //GetRandomGrowthState one in eleven grows a shrieker, the rest grow sensors, maps to vanilla getRandomGrowthState
     private static BlockState GetRandomGrowthState(WorldGenRegion level, BlockPos pos, RandomSource random,
         bool isWorldGen)
     {
@@ -508,7 +508,7 @@ internal sealed class SculkBlockBehaviour : SculkBehaviourHandler
         return state;
     }
 
-    //CanPlaceGrowth 上方空且附近感测体不超过两个 对应原版 canPlaceGrowth
+    //CanPlaceGrowth air above and no more than two nearby sensors, maps to vanilla canPlaceGrowth
     private static bool CanPlaceGrowth(WorldGenRegion level, BlockPos pos)
     {
         var stateAbove = SculkSupport.GetState(level, pos.Offset(0, 1, 0));
@@ -527,8 +527,8 @@ internal sealed class SculkBlockBehaviour : SculkBehaviourHandler
     }
 }
 
-//SculkVeinBehaviour 幽匿脉络行为 对应原版 SculkVeinBlock
-//脉络挨着可替换方块时把它变成幽匿块并把脉络往外铺
+//SculkVeinBehaviour sculk vein behavior, maps to vanilla SculkVeinBlock
+//When a vein touches a replaceable block it turns it into a sculk block and spreads the vein outward
 internal sealed class SculkVeinBehaviour : SculkBehaviourHandler
 {
     public override int AttemptUseCharge(ChargeCursor cursor, WorldGenRegion level, BlockPos originPos,
@@ -557,7 +557,7 @@ internal sealed class SculkVeinBehaviour : SculkBehaviourHandler
         SculkSupport.SetState(level, pos, state);
     }
 
-    //AttemptPlaceSculk 试着把贴附面上的可替换方块换成幽匿块 对应原版 attemptPlaceSculk
+    //AttemptPlaceSculk try to turn replaceable blocks on the attach faces into sculk blocks, maps to vanilla attemptPlaceSculk
     private static bool AttemptPlaceSculk(SculkSpreader spreader, WorldGenRegion level, BlockPos pos,
         RandomSource random)
     {
@@ -586,7 +586,7 @@ internal sealed class SculkVeinBehaviour : SculkBehaviourHandler
         return false;
     }
 
-    //HasSubstrateAccess 脉络是否有面贴着可替换方块 对应原版 hasSubstrateAccess
+    //HasSubstrateAccess whether any vein face touches a replaceable block, maps to vanilla hasSubstrateAccess
     public static bool HasSubstrateAccess(WorldGenRegion level, BlockState state, BlockPos pos)
     {
         if (!VegetationSupport.IsState(state, "sculk_vein")) return false;
@@ -598,8 +598,8 @@ internal sealed class SculkVeinBehaviour : SculkBehaviourHandler
     }
 }
 
-//SculkSpreader 幽匿电荷游标管理器 对应原版 SculkSpreader
-//世界生成用的参数是 生长开销 50 禁长半径 1 衰减率 5 额外衰减率 10
+//SculkSpreader sculk charge cursor manager, maps to vanilla SculkSpreader
+//World generation uses growth cost 50, no-growth radius 1, decay rate 5 and extra decay rate 10
 internal sealed class SculkSpreader
 {
     private readonly List<ChargeCursor> _cursors = new();
@@ -625,10 +625,10 @@ internal sealed class SculkSpreader
     public int ChargeDecayRate { get; }
     public int AdditionalDecayRate { get; }
 
-    //Clear 清空全部游标 对应原版 clear
+    //Clear drop all cursors, maps to vanilla clear
     public void Clear() => _cursors.Clear();
 
-    //AddCursors 按电荷量撒游标 单个游标上限一千 对应原版 addCursors
+    //AddCursors scatter cursors by charge amount, capped at one thousand per cursor, maps to vanilla addCursors
     public void AddCursors(BlockPos startPos, int charge)
     {
         while (charge > 0)
@@ -639,14 +639,14 @@ internal sealed class SculkSpreader
         }
     }
 
-    //AddCursor 游标数上限三十二 对应原版 addCursor
+    //AddCursor cursor count cap of thirty-two, maps to vanilla addCursor
     private void AddCursor(ChargeCursor cursor)
     {
         if (_cursors.Count >= 32) return;
         _cursors.Add(cursor);
     }
 
-    //UpdateCursors 逐个推进游标并合并同格游标 对应原版 updateCursors
+    //UpdateCursors advance each cursor and merge those in the same cell, maps to vanilla updateCursors
     public void UpdateCursors(WorldGenRegion level, BlockPos originPos, RandomSource random, bool spreadVeins)
     {
         if (_cursors.Count == 0) return;
@@ -678,12 +678,12 @@ internal sealed class SculkSpreader
     }
 }
 
-//ChargeCursor 携带电荷的游标 对应原版 SculkSpreader.ChargeCursor
+//ChargeCursor charge-carrying cursor, maps to vanilla SculkSpreader.ChargeCursor
 internal sealed class ChargeCursor
 {
     public const int MaxCharge = 1000;
 
-    //NonCornerNeighbours 十八个非角邻居偏移 对应原版 NON_CORNER_NEIGHBOURS
+    //NonCornerNeighbours the eighteen non-corner neighbor offsets, maps to vanilla NON_CORNER_NEIGHBOURS
     private static readonly List<Vec3i> NonCornerNeighbours = BuildNonCornerNeighbours();
 
     public BlockPos Pos { get; private set; }
@@ -700,7 +700,7 @@ internal sealed class ChargeCursor
         UpdateDelay = 0;
     }
 
-    //IsPosUnreasonable 游标跑得太远直接丢弃 对应原版 isPosUnreasonable
+    //IsPosUnreasonable discard cursors that wander too far, maps to vanilla isPosUnreasonable
     public bool IsPosUnreasonable(BlockPos originPos)
     {
         var dx = Math.Abs(Pos.X - originPos.X);
@@ -709,7 +709,7 @@ internal sealed class ChargeCursor
         return Math.Max(dx, Math.Max(dy, dz)) > 1024;
     }
 
-    //MergeWith 合并另一个游标的电荷 对应原版 mergeWith
+    //MergeWith merge in another cursor's charge, maps to vanilla mergeWith
     public void MergeWith(ChargeCursor other)
     {
         Charge += other.Charge;
@@ -717,8 +717,8 @@ internal sealed class ChargeCursor
         UpdateDelay = Math.Min(UpdateDelay, other.UpdateDelay);
     }
 
-    //Update 推进一轮 对应原版 update
-    //随机消耗顺序 铺脉络 结算电荷 找下个落点 全部照原版
+    //Update advance one round, maps to vanilla update
+    //Random consumption order, vein spreading, charge settlement and finding the next position all follow vanilla
     public void Update(WorldGenRegion level, BlockPos originPos, RandomSource random, SculkSpreader spreader,
         bool spreadVeins)
     {
@@ -762,11 +762,11 @@ internal sealed class ChargeCursor
         UpdateDelay = behaviour.SculkSpreadDelay;
     }
 
-    //ShouldUpdate 电荷耗尽不更新 非世界生成时还要区块在刻范围内 对应原版 shouldUpdate
-    //本作接入的只有世界生成路径 非世界生成一律按不在刻范围内处理
+    //ShouldUpdate no update when the charge is spent; outside world generation the chunk must also be in tick range, maps to vanilla shouldUpdate
+    //Only the world generation path is wired up here, so anything outside it is treated as out of tick range
     private bool ShouldUpdate(bool isWorldGeneration) => Charge > 0 && isWorldGeneration;
 
-    //GetValidMovementPos 在非角邻居里找一个带幽匿行为的落点 对应原版 getValidMovementPos
+    //GetValidMovementPos find a landing spot with sculk behavior among the non-corner neighbors, maps to vanilla getValidMovementPos
     private static BlockPos? GetValidMovementPos(WorldGenRegion level, BlockPos pos, RandomSource random)
     {
         var sculkPosition = pos;
@@ -782,7 +782,7 @@ internal sealed class ChargeCursor
         return sculkPosition == pos ? null : sculkPosition;
     }
 
-    //IsMovementUnobstructed 斜向移动要求中间不被挡住 对应原版 isMovementUnobstructed
+    //IsMovementUnobstructed diagonal movement requires the path to be clear, maps to vanilla isMovementUnobstructed
     private static bool IsMovementUnobstructed(WorldGenRegion level, BlockPos from, BlockPos to)
     {
         if (from.AsVec3i().DistManhattan(to.AsVec3i()) == 1) return true;
@@ -798,15 +798,15 @@ internal sealed class ChargeCursor
         return IsUnobstructed(level, from, directionX) || IsUnobstructed(level, from, directionY);
     }
 
-    //IsUnobstructed 沿该方向下一格不是整面 对应原版 isUnobstructed
+    //IsUnobstructed the next cell along the direction is not a full face, maps to vanilla isUnobstructed
     private static bool IsUnobstructed(WorldGenRegion level, BlockPos from, Direction direction)
     {
         var testPos = from.Offset(direction);
         return !VegetationSupport.IsFaceSturdy(SculkSupport.GetState(level, testPos), direction.Opposite);
     }
 
-    //BuildNonCornerNeighbours 三乘三乘三里非角且非原点的偏移 对应原版 NON_CORNER_NEIGHBOURS
-    //顺序按 BlockPos.betweenClosed 的 z 外层 y 中间 x 内层
+    //BuildNonCornerNeighbours the non-corner, non-origin offsets in a 3x3x3 cube, maps to vanilla NON_CORNER_NEIGHBOURS
+    //Ordered like BlockPos.betweenClosed: z outer, y middle, x inner
     private static List<Vec3i> BuildNonCornerNeighbours()
     {
         var list = new List<Vec3i>();

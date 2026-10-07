@@ -2,19 +2,19 @@ using RenderPipeline = NetCraft.Gpu.Pipeline.RenderPipeline;
 
 namespace NetCraft.Gpu;
 
-//GuiElementRenderState GUI 元素渲染状态接口对标原版 GuiElementRenderState
-//RenderState 子类实现此接口提交到 GuiRenderState 参与 SortElements 排序合批
-//不可变值对象携带 pipeline/texture/pose 快照/scissor 快照
+//GuiElementRenderState GUI element render state interface, maps to vanilla GuiElementRenderState
+//RenderState subclasses implement this interface, submitting to GuiRenderState to participate in SortElements sorting and batching
+//Immutable value object carrying pipeline/texture/pose snapshot/scissor snapshot
 public interface GuiElementRenderState
 {
-    //BuildVertices 构造顶点到 consumer
+    //BuildVertices builds vertices into the consumer
     void BuildVertices(IVertexConsumer consumer);
-    //Pipeline 声明式渲染管线由 GuiRenderer 通过 PipelineCache 编译为 CompiledRenderPipeline
+    //Pipeline declarative render pipeline compiled by GuiRenderer via PipelineCache into a CompiledRenderPipeline
     RenderPipeline Pipeline { get; }
-    //TextureSetup 纹理绑定配置
+    //TextureSetup texture binding config
     TextureSetup TextureSetup { get; }
-    //ScissorArea 裁剪矩形
+    //ScissorArea scissor rectangle
     ScreenRectangle ScissorArea { get; }
-    //Bounds 用于层级相交判断由元素几何+pose+scissor 计算
+    //Bounds used for level intersection tests, computed from the element geometry+pose+scissor
     ScreenRectangle Bounds { get; }
 }

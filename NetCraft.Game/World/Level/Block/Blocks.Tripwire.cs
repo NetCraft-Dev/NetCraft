@@ -13,44 +13,44 @@ using Direction = NetCraft.Primitives.Direction;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//绊线系列 对应原版 net.minecraft.world.level.block.TripWireHookBlock 与 TripWireBlock
-//绊线钩挂在墙上当锚点 绊线在两点之间拉一条 有实体踩上去就让钩子输出 15 强度
-//两者互相调用算状态 钩子负责扫整条线 线负责在自己被踩时通知钩子
+//Tripwire family, maps to vanilla net.minecraft.world.level.block.TripWireHookBlock and TripWireBlock
+//Tripwire hooks mount on walls as anchors and tripwire spans between two points; an entity stepping on it makes the hook output strength 15
+//The two call each other to compute state: the hook scans the whole line and the wire notifies the hook when stepped on
 public static partial class Blocks
 {
     public static readonly TripWireHookBlock TRIPWIRE_HOOK = new();
     public static readonly TripWireBlock TRIPWIRE = new();
 
-    //RegisterTripwire 绊线系列登记进真实方块表
+    //RegisterTripwire registers the tripwire family into the real block table
     private static void RegisterTripwire(Dictionary<string, BlockBehaviour> real)
     {
         BlockBehaviour[] blocks = { TRIPWIRE_HOOK, TRIPWIRE };
         foreach (var block in blocks) real[block.Id.Path] = block;
     }
 
-    //TripWireHookBlock 绊线钩 对应原版 TripWireHookBlock
-    //扫描朝向那一侧最多 42 格 另一端也有个正对的钩子才算连上 连上后按线上是否被踩决定通电
+    //TripWireHookBlock tripwire hook, maps to vanilla TripWireHookBlock
+    //Scans up to 42 blocks on the facing side; it counts as connected only if the other end has a hook facing it, then powered depends on whether the line is stepped on
     public sealed class TripWireHookBlock : BlockBehaviour
     {
-        //WireDistMax 一条绊线的最大长度 对应原版 WIRE_DIST_MAX
+        //WireDistMax maximum length of a tripwire, maps to vanilla WIRE_DIST_MAX
         public const int WireDistMax = 42;
 
-        //RecheckPeriod 被踩住期间重新盘查的间隔 对应原版 RECHECK_PERIOD
+        //RecheckPeriod recheck interval while stepped on, maps to vanilla RECHECK_PERIOD
         public const int RecheckPeriod = 10;
 
-        //钩子形状 六像素宽十像素高 贴在朝向的反面 对应原版 SHAPES
+        //Hook shape, six pixels wide and ten high, attached to the back of the facing, maps to vanilla SHAPES
         private static readonly Dictionary<Direction, VoxelShape> HookShapes =
             Shapes.RotateHorizontal(NetCraft.Registry.Block.BoxZ(6.0, 0.0, 10.0, 10.0, 16.0));
 
         public override Identifier Id => Identifier.WithDefaultNamespace("tripwire_hook");
 
-        //原版绊线钩硬度 0 一碰就碎
+        //Vanilla tripwire hook hardness 0, breaks on touch
         public override float DestroySpeed => 0f;
 
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context)
             => HookShapes[state.GetValue(BlockStateProperties.HorizontalFacing).ToPrimitive()];
 
-        //CanSurvive 朝向的反面要有坚固面托着 对应原版 canSurvive
+        //CanSurvive the back of the facing needs a sturdy face to support it, maps to vanilla canSurvive
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             var direction = state.GetValue(BlockStateProperties.HorizontalFacing).ToPrimitive();
@@ -60,7 +60,7 @@ public static partial class Blocks
                 && behaviour.IsFaceSturdy(level, behind, support, direction);
         }
 
-        //UpdateShape 托着的方块没了就掉 对应原版 updateShape
+        //UpdateShape drops when the supporting block is gone, maps to vanilla updateShape
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
         {
@@ -70,7 +70,7 @@ public static partial class Blocks
             return state;
         }
 
-        //GetStateForPlacement 朝向取玩家水平朝向的反面 贴不住就放不下 对应原版 getStateForPlacement
+        //GetStateForPlacement the facing is the back of the player's horizontal facing and it cannot be placed without attachment, maps to vanilla getStateForPlacement
         public override BlockState? GetStateForPlacement(ServerLevel level, BlockPos pos, Direction face,
             Direction horizontalFacing, Direction lookingDirection)
         {
@@ -79,15 +79,15 @@ public static partial class Blocks
             return CanSurvive(level, pos, state) ? state : null;
         }
 
-        //SetPlacedBy 放下时盘查一次整条线 对应原版 setPlacedBy
+        //SetPlacedBy rechecks the whole line on placement, maps to vanilla setPlacedBy
         public override void SetPlacedBy(ServerLevel level, BlockPos pos, BlockState state, ServerPlayer player)
             => CalculateState(level, pos, state, false, false, -1, null);
 
-        //Tick 定期重新盘查 线被踩住期间靠它维持 对应原版 tick
+        //Tick periodically rechecks, which sustains the line while stepped on, maps to vanilla tick
         public override void Tick(ServerLevel level, BlockPos pos, BlockState state, RandomSource random)
             => CalculateState(level, pos, state, false, true, -1, null);
 
-        //AffectNeighborsAfterRemoval 拆钩子前先让整条线知道 对应原版 affectNeighborsAfterRemoval
+        //AffectNeighborsAfterRemoval lets the whole line know before the hook is removed, maps to vanilla affectNeighborsAfterRemoval
         public override void AffectNeighborsAfterRemoval(ServerLevel level, BlockPos pos, BlockState state,
             bool movedByPiston)
         {
@@ -97,20 +97,20 @@ public static partial class Blocks
 
         public override bool IsSignalSource => true;
 
-        //OwnSignal 通电时给满 对应原版 ownSignal
+        //OwnSignal gives full when powered, maps to vanilla ownSignal
         public override int OwnSignal(ServerLevel level, BlockPos pos, BlockState state)
             => state.GetValue(BlockStateProperties.Powered) ? 15 : 0;
 
-        //GetDirectSignal 只朝朝向那一面给 对应原版 getDirectSignal
+        //GetDirectSignal only gives toward the facing side, maps to vanilla getDirectSignal
         public override int GetDirectSignal(ServerLevel level, BlockPos pos, BlockState state, Direction direction)
             => state.GetValue(BlockStateProperties.Powered)
                 && state.GetValue(BlockStateProperties.HorizontalFacing).ToPrimitive() == direction
                 ? 15
                 : 0;
 
-        //CalculateState 从钩子出发扫整条线重算 attached 与 powered 对应原版同名方法
-        //isBeingDestroyed 为真表示钩子正在被拆 此时不再把自己写回去
-        //wireSource 是本次触发来自线上第几格 那一格用传入的状态参与计算而不是从世界读
+        //CalculateState scans the whole line from the hook and recomputes attached and powered, maps to the vanilla method of the same name
+        //isBeingDestroyed true means the hook is being removed, in which case it no longer writes itself back
+        //wireSource is which cell on the line triggered this; that cell takes part in the computation with the passed state instead of reading from the world
         public static void CalculateState(ServerLevel level, BlockPos pos, BlockState state,
             bool isBeingDestroyed, bool canUpdate, int wireSource, BlockState? wireSourceState)
         {
@@ -131,7 +131,7 @@ public static partial class Blocks
                     attached = false;
                     continue;
                 }
-                //另一端也有个正对着的钩子才算连成一条
+                //It counts as one line only if the other end also has a hook facing it
                 if (ReferenceEquals(wire.Owner, TRIPWIRE_HOOK))
                 {
                     if (wire.GetValue(BlockStateProperties.HorizontalFacing).ToPrimitive() != direction.Opposite) break;
@@ -154,7 +154,7 @@ public static partial class Blocks
                     attached &= armed;
                 }
             }
-            //两端都连着才算连上 只有一端绷不直 对应原版 attached &= receiverPos > 1
+            //It counts as attached only when both ends are connected; one end alone cannot pull it taut, maps to vanilla attached &= receiverPos > 1
             attached &= receiverPos > 1;
             powered &= attached;
             var newState = state.TrySetValue(BlockStateProperties.Attached, attached)
@@ -186,7 +186,7 @@ public static partial class Blocks
                 }
             }
 
-            //连上与否变了就把整条线的 attached 一起改掉 线才知道自己被绷直了
+            //When the attached state changes the whole line's attached is updated so the wire knows it is taut
             if (wasAttached == attached) return;
             for (var i = 1; i < receiverPos; i++)
             {
@@ -200,8 +200,8 @@ public static partial class Blocks
             }
         }
 
-        //OnRemoved 钩子被拆时的收尾 对应原版 onRemoved
-        //原版这里还播拆解音效 方块行为拿不到音效出口 与拉杆按钮一并留到音效出口开出来
+        //OnRemoved cleanup when the hook is removed, maps to vanilla onRemoved
+        //Vanilla also plays a detach sound here; block behaviors have no sound output, so it is deferred along with levers and buttons until the sound output opens up
         private static void OnRemoved(ServerLevel level, BlockPos pos, BlockState state)
         {
             var attached = state.GetValue(BlockStateProperties.Attached);
@@ -214,30 +214,30 @@ public static partial class Blocks
         }
     }
 
-    //TripWireBlock 绊线 对应原版 TripWireBlock
-    //两端连着钩子才算绷直(attached) 有实体踩在线上就置 powered 并通知钩子
+    //TripWireBlock tripwire, maps to vanilla TripWireBlock
+    //It counts as taut (attached) only when both ends connect to hooks; an entity stepping on the line sets powered and notifies the hooks
     public sealed class TripWireBlock : BlockBehaviour
     {
-        //被踩住期间重新盘查的间隔 对应原版 RECHECK_PERIOD
+        //Recheck interval while stepped on, maps to vanilla RECHECK_PERIOD
         private const int RecheckPeriod = 10;
 
-        //绷直与未绷直两种形状 绷直时线拉紧贴在自己那格下方 对应原版 SHAPE_ATTACHED/SHAPE_NOT_ATTACHED
+        //Two shapes for taut and slack; when taut the line is pulled tight under its own cell, maps to vanilla SHAPE_ATTACHED/SHAPE_NOT_ATTACHED
         private static readonly VoxelShape AttachedShape = NetCraft.Registry.Block.Column(16.0, 1.0, 2.5);
         private static readonly VoxelShape DroppedShape = NetCraft.Registry.Block.Column(16.0, 0.0, 8.0);
 
-        //实体检测盒 与上面两个形状一一对应 像素换格 对应原版 checkPressed 里用的形状包围盒
+        //Entity detection boxes corresponding one to one with the two shapes, pixels converted to blocks, maps to the shape bounding boxes used in vanilla checkPressed
         private static readonly AABB AttachedBox = new(0.0, 1 / 16.0, 0.0, 1.0, 2.5 / 16.0, 1.0);
         private static readonly AABB DroppedBox = new(0.0, 0.0, 0.0, 1.0, 0.5, 1.0);
 
         public override Identifier Id => Identifier.WithDefaultNamespace("tripwire");
 
-        //原版绊线硬度 0 一碰就碎
+        //Vanilla tripwire hardness 0, breaks on touch
         public override float DestroySpeed => 0f;
 
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context)
             => state.GetValue(BlockStateProperties.Attached) ? AttachedShape : DroppedShape;
 
-        //GetStateForPlacement 按四邻算出四向连接 对应原版 getStateForPlacement
+        //GetStateForPlacement computes the four connections from the four neighbors, maps to vanilla getStateForPlacement
         public override BlockState? GetStateForPlacement(ServerLevel level, BlockPos pos, Direction face,
             Direction horizontalFacing, Direction lookingDirection)
             => DefaultBlockState
@@ -246,7 +246,7 @@ public static partial class Blocks
                 .SetValue(BlockStateProperties.SouthConnected, Connects(level, pos, Direction.South))
                 .SetValue(BlockStateProperties.WestConnected, Connects(level, pos, Direction.West));
 
-        //UpdateShape 水平邻居变了就重算那一向的连接 对应原版 updateShape
+        //UpdateShape recomputes that direction's connection when a horizontal neighbor changes, maps to vanilla updateShape
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
         {
@@ -255,7 +255,7 @@ public static partial class Blocks
             return state.SetValue(property, ShouldConnectTo(neighbourState, directionToNeighbour));
         }
 
-        //OnPlace 线刚放好先让两端钩子盘查一次 对应原版 onPlace
+        //OnPlace makes the hooks at both ends recheck once right after placement, maps to vanilla onPlace
         public override void OnPlace(ServerLevel level, BlockPos pos, BlockState state, BlockState oldState,
             bool movedByPiston)
         {
@@ -263,7 +263,7 @@ public static partial class Blocks
             UpdateSource(level, pos, state);
         }
 
-        //AffectNeighborsAfterRemoval 线被拆时会漏气 通知两端钩子重算 对应原版 affectNeighborsAfterRemoval
+        //AffectNeighborsAfterRemoval removing the line breaks the circuit and notifies the hooks at both ends to recompute, maps to vanilla affectNeighborsAfterRemoval
         public override void AffectNeighborsAfterRemoval(ServerLevel level, BlockPos pos, BlockState state,
             bool movedByPiston)
         {
@@ -271,9 +271,9 @@ public static partial class Blocks
             UpdateSource(level, pos, state.SetValue(BlockStateProperties.Powered, true));
         }
 
-        //PlayerDestroy 手持剪刀拆线时先把这一格标成已剪断 对应原版 playerWillDestroy
-        //破坏是在本回调之后才发生的 所以同刻钩子重算时读到的还是这一格 DISARMED=true
-        //原版这里还发 GameEventSHEAR 本作没有游戏事件通道 表现上以音效出口为准
+        //PlayerDestroy marks this cell as cut before breaking the line with shears, maps to vanilla playerWillDestroy
+        //The break happens after this callback, so a hook rechecking in the same tick still reads this cell as DISARMED=true
+        //Vanilla also fires GameEventSHEAR here; this project has no game event channel, so the sound output is what matters
         public override void PlayerDestroy(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state)
         {
             var held = player.Inventory.GetSelectedItem();
@@ -282,23 +282,23 @@ public static partial class Blocks
                 BlockUpdateFlags.SkipBlockEntitySideEffects | BlockUpdateFlags.Invisible);
         }
 
-        //Tick 被踩住期间定期复查 实体走开就松开 对应原版 tick
+        //Tick rechecks periodically while stepped on and releases when the entity leaves, maps to vanilla tick
         public override void Tick(ServerLevel level, BlockPos pos, BlockState state, RandomSource random)
         {
             if (!state.GetValue(BlockStateProperties.Powered)) return;
             CheckPressed(level, pos, state);
         }
 
-        //OnEntityInside 有实体进到线所在格立即复查 对应原版 entityInside
-        //原版把踩上来的实体直接传进来 本作的钩子只给出位置 所以统一按形状范围查实体
+        //OnEntityInside rechecks immediately when an entity enters the wire's cell, maps to vanilla entityInside
+        //Vanilla passes the stepping entity in directly; hooks here only give a position, so entities are always queried by shape range
         public override void OnEntityInside(ServerLevel level, BlockPos pos, BlockState state)
         {
             if (state.GetValue(BlockStateProperties.Powered) || level.HasScheduledTick(pos, this)) return;
             CheckPressed(level, pos, state);
         }
 
-        //ShouldConnectTo 该方块能不能跟绊线对接 对应原版同名方法
-        //另一端绊线钩要正对着自己 朝相反方向
+        //ShouldConnectTo whether the block can connect with tripwire, maps to the vanilla method of the same name
+        //The tripwire hook at the other end must face toward itself, in the opposite direction
         public bool ShouldConnectTo(BlockState? other, Direction direction)
         {
             if (other is not { } state) return false;
@@ -307,8 +307,8 @@ public static partial class Blocks
             return ReferenceEquals(state.Owner, TRIPWIRE);
         }
 
-        //PropertyFor 方向到连接属性的映射 只处理水平四向
-        //方向是结构体不是枚举 不能用 switch 的模式匹配 只能逐项比
+        //PropertyFor maps direction to connection property, only the four horizontal directions are handled
+        //Direction is a struct not an enum so switch pattern matching cannot be used, only per-item comparison
         private static BooleanProperty PropertyFor(Direction direction)
         {
             if (direction == Direction.North) return BlockStateProperties.NorthConnected;
@@ -317,7 +317,7 @@ public static partial class Blocks
             return BlockStateProperties.WestConnected;
         }
 
-        //Connects 读邻居方块判断该方向是否相连
+        //Connects reads the neighboring block to decide whether that direction is connected
         private static bool Connects(ServerLevel level, BlockPos pos, Direction direction)
         {
             var neighbourPos = pos.Offset(direction);
@@ -328,7 +328,7 @@ public static partial class Blocks
             return ReferenceEquals(state.Owner, TRIPWIRE);
         }
 
-        //CheckPressed 按形状范围内的实体重判通电与否 变了自己写回并让两端钩子重算
+        //CheckPressed re-evaluates powered from entities within the shape range, writes back on change and makes the hooks at both ends recompute
         private void CheckPressed(ServerLevel level, BlockPos pos, BlockState state)
         {
             var template = state.GetValue(BlockStateProperties.Attached) ? AttachedBox : DroppedBox;
@@ -345,8 +345,8 @@ public static partial class Blocks
             else if (wasPressed) level.ScheduleTick(pos, this, 0);
         }
 
-        //UpdateSource 朝南与朝西两个方向各扫一遍 撞到钩子就让它重算整条线 对应原版 updateSource
-        //只扫两个方向是因为另外两个方向必然从对侧被扫到 两个方向就够覆盖整条线
+        //UpdateSource scans south and west once each and makes a hook it runs into recompute the whole line, maps to vanilla updateSource
+        //Only two directions are scanned because the other two are necessarily covered from the opposite side, two directions suffice to cover the whole line
         private void UpdateSource(ServerLevel level, BlockPos pos, BlockState state)
         {
             foreach (var direction in new[] { Direction.South, Direction.West })

@@ -8,15 +8,15 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//JigsawPlacement 拼图装配 对应原版 net.minecraft.world.level.levelgen.structure.pools.JigsawPlacement
-//从起始池的一个元素出发 按拼图方块逐层接出目标池的元素 直到深度耗尽
-//高度采样原版走 RandomState 的 WORLD_SURFACE_WG 缓存 这里用独立随机源调生成器求表面高度
+//JigsawPlacement jigsaw assembly, maps to vanilla net.minecraft.world.level.levelgen.structure.pools.JigsawPlacement
+//Starts from one element of the start pool and connects elements of target pools layer by layer through jigsaw blocks until depth is exhausted
+//Vanilla samples heights through the RandomState WORLD_SURFACE_WG cache; here a separate random source calls the generator for surface heights
 public static class JigsawPlacement
 {
-    //EmptyPoolId 内置空池名 对应原版 Pools.EMPTY 空池合法且不告警
+    //EmptyPoolId built-in empty pool name, maps to vanilla Pools.EMPTY; an empty pool is legal and does not warn
     private static readonly Identifier EmptyPoolId = Identifier.WithDefaultNamespace("empty");
 
-    //AddPieces 装配入口 返回生成点 无可用起始元素或越界时返回 null 对应原版 addPieces
+    //AddPieces assembly entry point returning the generation stub; returns null when there is no usable start element or it is out of bounds, maps to vanilla addPieces
     public static GenerationStub? AddPieces(GenerationContext context, StructureTemplateManager structureTemplateManager,
         Holder<NetCraft.Registry.StructureTemplatePool> startPool, Identifier? startJigsaw, int maxDepth,
         BlockPos position, bool doExpansionHack, NetCraft.Registry.Heightmap.Types? projectStartToHeightmap,
@@ -49,7 +49,7 @@ public static class JigsawPlacement
             anchor = position;
         }
 
-        //锚点相对结构原点的偏移 把元素整体挪回去让锚点落在原点
+        //Offset of the anchor relative to the structure origin; the element is shifted back so the anchor lands on the origin
         var localAnchorPosition = anchor.Offset(-position.X, -position.Y, -position.Z);
         var adjustedPosition = position.Offset(-localAnchorPosition.X, -localAnchorPosition.Y, -localAnchorPosition.Z);
         var centerPiece = new PoolElementStructurePiece(structureTemplateManager, centerElement, adjustedPosition,
@@ -68,25 +68,25 @@ public static class JigsawPlacement
             return null;
 
         var centerY = bottomY + localAnchorPosition.Y;
-        //原版 box 与片段的包围盒是同一个可变对象 平移后一并生效 这里改用平移后的盒
+        //In vanilla the box and the piece's bounding box are the same mutable object, so the move applies to both; here the already-moved box is used
         return new GenerationStub(new BlockPos(centerX, centerY, centerZ),
             builder => PlaceChildren(context, structureTemplateManager, chunkGenerator, heightAccessor, random,
                 centerPiece, maxDepth, doExpansionHack, centerX, centerY, centerZ, centerPiece.BoundingBox,
                 maxDistanceFromCenter, dimensionPadding, poolAliasLookup, liquidSettings, builder));
     }
 
-    //IsStartTooCloseToWorldHeightLimits 中心片段是否贴到维度上下界的留白里 对应原版同名方法
+    //IsStartTooCloseToWorldHeightLimits whether the center piece touches the dimension padding at the top or bottom, maps to the identically named vanilla method
     private static bool IsStartTooCloseToWorldHeightLimits(LevelHeightAccessor heightAccessor,
         DimensionPadding dimensionPadding, BoundingBoxInt centerPieceBox)
     {
         if (dimensionPadding == DimensionPadding.Zero) return false;
         var minYWithPadding = heightAccessor.MinBuildHeight + dimensionPadding.Bottom;
-        //原版 getMaxY 是最高可放方块 项目的 MaxBuildHeight 是开区间上界 这里减一
+        //Vanilla getMaxY is the highest placeable block; this project's MaxBuildHeight is an exclusive upper bound, so subtract one
         var maxYWithPadding = heightAccessor.MaxBuildHeight - 1 - dimensionPadding.Top;
         return centerPieceBox.MinY < minYWithPadding || centerPieceBox.MaxY > maxYWithPadding;
     }
 
-    //GetRandomNamedJigsaw 取洗牌后首个指定名的拼图方块坐标 对应原版 getRandomNamedJigsaw
+    //GetRandomNamedJigsaw returns the first jigsaw block position of the given name after shuffling, maps to vanilla getRandomNamedJigsaw
     private static BlockPos? GetRandomNamedJigsaw(StructurePoolElement element, Identifier targetJigsawId,
         BlockPos position, Rotation rotation, StructureTemplateManager structureTemplateManager, RandomSource random)
     {
@@ -97,7 +97,7 @@ public static class JigsawPlacement
         return null;
     }
 
-    //PlaceChildren 装配中心片段之外的其余片段 对应原版 addPieces 里延迟执行的那一段
+    //PlaceChildren assembles the pieces other than the center piece, maps to the deferred section of vanilla addPieces
     private static void PlaceChildren(GenerationContext context, StructureTemplateManager structureTemplateManager,
         ChunkGenerator chunkGenerator, LevelHeightAccessor heightAccessor, RandomSource random,
         PoolElementStructurePiece centerPiece, int maxDepth, bool doExpansionHack, int centerX, int centerY,
@@ -106,7 +106,7 @@ public static class JigsawPlacement
         StructurePiecesBuilder builder)
     {
         var pieces = new List<PoolElementStructurePiece> { centerPiece };
-        //深度为零时原版直接返回且一个片段都不交出去
+        //At zero depth vanilla returns immediately and hands out no pieces at all
         if (maxDepth <= 0) return;
 
         var limit = new AABB(
@@ -131,7 +131,7 @@ public static class JigsawPlacement
         foreach (var piece in pieces) builder.AddPiece(piece);
     }
 
-    //ResolvePool 起始池按别名改写后重新查注册表 对应原版 addPieces 开头的 flatMap
+    //ResolvePool rewrites the start pool by alias then looks it up again in the registry, maps to the flatMap at the start of vanilla addPieces
     private static StructureTemplatePool ResolvePool(Holder<NetCraft.Registry.StructureTemplatePool> startPool,
         PoolAliasLookup poolAliasLookup)
     {
@@ -141,30 +141,30 @@ public static class JigsawPlacement
             if (aliased is StructureTemplatePool aliasedPool) return aliasedPool;
         }
         return startPool.Value as StructureTemplatePool
-            ?? throw new InvalidOperationException("起始池不是 Game 层的模板池实现");
+            ?? throw new InvalidOperationException("start pool is not a Game layer template pool implementation");
     }
 
-    //GetFirstFreeHeight 取地表第一空高度 对应原版 ChunkGenerator.getFirstFreeHeight
-    //项目生成器没有该方法 用 GetBaseHeight 加一作等价实现 原版传的随机状态换成本地随机源
+    //GetFirstFreeHeight returns the first free height at the surface, maps to vanilla ChunkGenerator.getFirstFreeHeight
+    //This project's generator lacks that method, so GetBaseHeight plus one is the equivalent; the random state vanilla passes becomes a local random source
     private static int GetFirstFreeHeight(ChunkGenerator generator, int x, int z, LevelHeightAccessor heightAccessor,
         RandomSource random)
         => generator.GetBaseHeight(x, z, (int)NetCraft.Registry.Heightmap.Types.WorldSurfaceWg, heightAccessor, random) + 1;
 
-    //ToAabb 整数包围盒转浮点盒 对应原版 AABB.of 上界取闭区间右下角再加一
+    //ToAabb converts an integer bounding box to a float box, maps to vanilla AABB.of taking the inclusive upper corner plus one
     private static AABB ToAabb(BoundingBoxInt box)
         => new(box.MinX, box.MinY, box.MinZ, box.MaxX + 1, box.MaxY + 1, box.MaxZ + 1);
 
-    //IsInside 闭区间包含判定 对应原版 BoundingBox.isInside
+    //IsInside inclusive containment test, maps to vanilla BoundingBox.isInside
     private static bool IsInside(BoundingBoxInt box, BlockPos pos)
         => pos.X >= box.MinX && pos.X <= box.MaxX
             && pos.Y >= box.MinY && pos.Y <= box.MaxY
             && pos.Z >= box.MinZ && pos.Z <= box.MaxZ;
 
-    //Moved 包围盒沿 Y 平移 对应原版 BoundingBox.move
+    //Moved translates the bounding box along Y, maps to vanilla BoundingBox.move
     private static BoundingBoxInt Moved(BoundingBoxInt box, int dy)
         => box with { MinY = box.MinY + dy, MaxY = box.MaxY + dy };
 
-    //MutableShape 可变的形状引用 对应原版 MutableObject<VoxelShape>
+    //MutableShape a mutable shape reference, maps to vanilla MutableObject<VoxelShape>
     private sealed class MutableShape
     {
         public MutableShape(VoxelShape? value) => Value = value;
@@ -172,17 +172,17 @@ public static class JigsawPlacement
         public VoxelShape? Value { get; set; }
     }
 
-    //PieceState 待展开的片段与它下游可用的自由形状 对应原版 record PieceState
+    //PieceState a piece to expand with the free shape available downstream, maps to vanilla record PieceState
     private sealed record PieceState(PoolElementStructurePiece Piece, MutableShape Free, int Depth);
 
-    //Placer 装配器 按源片段的拼图方块逐层接出目标片段 对应原版 JigsawPlacement.Placer
+    //Placer the assembler; connects target pieces layer by layer through the source piece's jigsaw blocks, maps to vanilla JigsawPlacement.Placer
     private sealed class Placer
     {
         private readonly ChunkGenerator _chunkGenerator;
         private readonly StructureTemplateManager _structureTemplateManager;
         private readonly List<PoolElementStructurePiece> _pieces;
         private readonly RandomSource _random;
-        //高度采样专用随机源 原版用 RandomState 与洗牌随机源分开 这里单独派生避免扰动洗牌序列
+        //Random source dedicated to height sampling; vanilla separates it via RandomState from the shuffle random source, so here it is forked separately to avoid perturbing the shuffle sequence
         private readonly RandomSource _heightRandom;
 
         public Placer(ChunkGenerator chunkGenerator, StructureTemplateManager structureTemplateManager, int maxDepth,
@@ -196,13 +196,13 @@ public static class JigsawPlacement
             _heightRandom = RandomSource.Create(seed);
         }
 
-        //MaxDepth 最大装配深度
+        //MaxDepth maximum assembly depth
         public int MaxDepth { get; }
 
-        //Placing 待展开片段队列 按放置优先级出队 对应原版 SequencedPriorityIterator
+        //Placing queue of pieces to expand, dequeued by placement priority, maps to vanilla SequencedPriorityIterator
         public SequencedPriorityIterator<PieceState> Placing { get; } = new();
 
-        //TryPlacingChildren 从源片段的拼图方块接出目标片段 对应原版 tryPlacingChildren
+        //TryPlacingChildren connects target pieces from the source piece's jigsaw blocks, maps to vanilla tryPlacingChildren
         public void TryPlacingChildren(PoolElementStructurePiece sourcePiece, MutableShape contextFree, int depth,
             bool doExpansionHack, LevelHeightAccessor heightAccessor, PoolAliasLookup poolAliasLookup,
             LiquidSettings liquidSettings)
@@ -238,7 +238,7 @@ public static class JigsawPlacement
                     continue;
                 }
                 var fallbackHolder = targetPool.Fallback;
-                //引用还没绑上时按原版「空且不是内置空池」处理 保守跳过而不是让它抛
+                //When the reference is not bound yet, treat it as the vanilla "empty and not the built-in empty pool" case and conservatively skip rather than let it throw
                 var fallbackPool = fallbackHolder.IsBound() ? fallbackHolder.Value as StructureTemplatePool : null;
                 var fallbackName = fallbackHolder.UnwrapKey()?.Identifier;
                 if (fallbackPool is null || (fallbackPool.Size() == 0 && fallbackName != EmptyPoolId))
@@ -247,7 +247,7 @@ public static class JigsawPlacement
                     continue;
                 }
 
-                //目标拼图落在源包围盒里就用源片段自己的自由形状 否则用父级传下来的
+                //If the target jigsaw falls inside the source bounding box, use the source piece's own free shape; otherwise use the one passed down from the parent
                 var attachInsideSource = IsInside(sourceBox, targetJigsawPos);
                 MutableShape childrenFree;
                 if (attachInsideSource)
@@ -268,7 +268,7 @@ public static class JigsawPlacement
                 var placed = false;
                 foreach (var targetElement in targetPieces)
                 {
-                    //抽到空元素就不再往下看这个源拼图
+                    //Once an empty element is drawn, stop looking further at this source jigsaw
                     if (ReferenceEquals(targetElement, EmptyPoolElement.Instance)) break;
                     foreach (var targetRotation in StructureTransforms.GetShuffledRotations(_random))
                     {
@@ -297,7 +297,7 @@ public static class JigsawPlacement
                             }
                             else
                             {
-                                //非刚性连接要贴地表 源拼图列的表面高度按源拼图坐标缓存
+                                //A non-rigid connection snaps to the surface; the surface height of the source jigsaw column is cached per source jigsaw position
                                 if (sourceJigsawBaseHeight == int.MinValue)
                                 {
                                     sourceJigsawBaseHeight = GetFirstFreeHeight(_chunkGenerator, sourceJigsawPos.X,
@@ -315,7 +315,7 @@ public static class JigsawPlacement
                                 targetBox = Encapsulate(targetBox, targetBox.MinX, targetBox.MinY + newSize, targetBox.MinZ);
                             }
 
-                            //收缩四分之一格后与已有自由形状相交就说明挤在一起 换下一个候选
+                            //Deflating by a quarter block and intersecting an existing free shape means they overlap, so try the next candidate
                             if (Shapes.JoinIsNotEmpty(childrenFree.Value!, Shapes.Create(ToAabb(targetBox).Deflate(0.25)),
                                     BooleanOps.OnlySecond)) continue;
                             childrenFree.Value = Shapes.JoinUnoptimized(childrenFree.Value!,
@@ -355,7 +355,7 @@ public static class JigsawPlacement
                                 sourceJigsawPos.Z, -deltaY, sourceElement.Projection));
                             _pieces.Add(targetPiece);
 
-                            //到顶深度就不再入队 该源拼图整块跳过 对应原版 continue block0
+                            //At max depth it is not enqueued and this source jigsaw is skipped entirely, maps to vanilla continue block0
                             if (depth + 1 <= MaxDepth)
                                 Placing.Add(new PieceState(targetPiece, childrenFree, depth + 1), placementPriority);
                             placed = true;
@@ -368,8 +368,8 @@ public static class JigsawPlacement
             }
         }
 
-        //ComputeExpandTo 计算要塞进多少子内容才够高 只在开扩展且目标盒不高于 16 格时才做
-        //对应原版对每个目标拼图取子池与子兜底池最大尺寸的最大值
+        //ComputeExpandTo computes how much child content must fit to be tall enough; only done when expansion is on and the target box is at most 16 blocks tall
+        //Maps to vanilla taking the max of the child pool and child fallback pool max sizes for each target jigsaw
         private int ComputeExpandTo(bool doExpansionHack, BoundingBoxInt hackBox,
             List<StructureTemplate.JigsawBlockInfo> targetJigsaws, PoolAliasLookup poolAliasLookup)
         {
@@ -392,7 +392,7 @@ public static class JigsawPlacement
             return maxExpand;
         }
 
-        //Encapsulate 把点并入包围盒 对应原版 BoundingBox.encapsulate(BlockPos)
+        //Encapsulate merges a point into the bounding box, maps to vanilla BoundingBox.encapsulate(BlockPos)
         private static BoundingBoxInt Encapsulate(BoundingBoxInt box, int x, int y, int z)
             => new(Math.Min(box.MinX, x), Math.Min(box.MinY, y), Math.Min(box.MinZ, z),
                 Math.Max(box.MaxX, x), Math.Max(box.MaxY, y), Math.Max(box.MaxZ, z));

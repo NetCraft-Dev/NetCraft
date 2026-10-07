@@ -3,46 +3,46 @@ using NetCraft.Gpu.Pipeline;
 
 namespace NetCraft.Gpu;
 
-//IPictureInPictureRenderer PIP 渲染器非泛型接口供 GuiRenderer 按类型分派
-//C# 泛型 class 不支持协变 GuiRenderer 持此接口而非 PictureInPictureRenderer<T> 避免类型转换
+//IPictureInPictureRenderer PIP renderer non-generic interface for GuiRenderer to dispatch by type
+//C# generic classes do not support covariance; GuiRenderer holds this interface rather than PictureInPictureRenderer<T> to avoid casts
 public interface IPictureInPictureRenderer
 {
-    //RenderStateClass 子类对应的 PIP state 类型 GuiRenderer 按此分派
+    //RenderStateClass the PIP state type of the subclass; GuiRenderer dispatches by it
     Type RenderStateClass { get; }
 
-    //Prepare 非泛型入口内部转 T 调模板方法由 PictureInPictureRenderer<T> 显式实现
+    //Prepare non-generic entry that casts to T and calls the template method, explicitly implemented by PictureInPictureRenderer<T>
     void Prepare(PictureInPictureRenderState state, GuiRenderState guiRenderState, int guiScale);
 }
 
-//PictureInPictureRenderer<T> PIP 渲染器抽象基类对标原版 pip.PictureInPictureRenderer
-//模板方法定义 prepare 流程：计算尺寸→确保 offscreen texture→清屏+投影→renderToTexture→blit
-//GPU 操作（offscreen texture 管理/清屏/投影/3D 渲染）由子类实现注入 GpuDevice
-//NetCraft 无 RenderSystem 全局状态所有 GPU 操作显式注入不依赖全局
-//当前无 3D 渲染管线子类留待后续世界渲染补 先定义数据层和模板流程
+//PictureInPictureRenderer<T> PIP renderer abstract base class, maps to vanilla pip.PictureInPictureRenderer
+//The template method defines the prepare flow: compute size→ensure offscreen texture→clear+projection→renderToTexture→blit
+//GPU operations (offscreen texture management/clear/projection/3D rendering) are implemented by subclasses with an injected GpuDevice
+//NetCraft has no RenderSystem global state; all GPU operations are explicitly injected without global dependencies
+//There is no 3D render pipeline yet; subclasses are deferred to later world rendering, defining the data layer and template flow first
 public abstract class PictureInPictureRenderer<T> : IPictureInPictureRenderer, IDisposable
     where T : PictureInPictureRenderState
 {
-    //OffscreenTexture offscreen 颜色纹理 PIP 区域尺寸渲染 3D 内容后 blit 到 GUI
-    //null 表示未创建由子类 EnsureTexturesAndProjection 懒创建
+    //OffscreenTexture offscreen color texture, PIP-area sized, rendering 3D content then blitted to the GUI
+    //null means not created; lazily created by the subclass's EnsureTexturesAndProjection
     protected GpuImage? OffscreenTexture { get; set; }
-    //OffscreenDepth offscreen 深度纹理 3D 渲染深度测试用
+    //OffscreenDepth offscreen depth texture for 3D render depth testing
     protected GpuImage? OffscreenDepth { get; set; }
-    //_textureWidth/_textureHeight 当前 offscreen 尺寸 PIP 区域变化时重建
+    //_textureWidth/_textureHeight current offscreen size, rebuilt when the PIP area changes
     private int _textureWidth;
     private int _textureHeight;
 
     public abstract Type RenderStateClass { get; }
 
-    //IPictureInPictureRenderer.Prepare 非泛型入口转 T 调模板方法
+    //IPictureInPictureRenderer.Prepare non-generic entry that casts to T and calls the template method
     void IPictureInPictureRenderer.Prepare(PictureInPictureRenderState state, GuiRenderState guiRenderState, int guiScale)
         => Prepare((T)state, guiRenderState, guiScale);
 
-    //Prepare 模板方法对标原版 prepare 流程
-    //1 计算 PIP 区域尺寸（guiScale 缩放）
-    //2 尺寸没变且 TextureIsReadyToBlit 直接 blit 跳过 offscreen 渲染
-    //3 否则 EnsureTexturesAndProjection 重建/复用 texture+清屏+投影
-    //4 RenderToTexture 子类渲染 3D 内容到 offscreen
-    //5 BlitTexture 把 offscreen texture 作为 BlitRenderState 加到 guiRenderState
+    //Prepare template method, maps to the vanilla prepare flow
+    //1 compute the PIP area size (scaled by guiScale)
+    //2 if the size is unchanged and TextureIsReadyToBlit, blit directly and skip offscreen rendering
+    //3 otherwise EnsureTexturesAndProjection rebuilds/reuses the texture+clear+projection
+    //4 RenderToTexture lets the subclass render 3D content to offscreen
+    //5 BlitTexture adds the offscreen texture as a BlitRenderState to guiRenderState
     public void Prepare(T renderState, GuiRenderState guiRenderState, int guiScale)
     {
         var width = (renderState.X1 - renderState.X0) * guiScale;
@@ -68,23 +68,23 @@ public abstract class PictureInPictureRenderer<T> : IPictureInPictureRenderer, I
         BlitTexture(renderState, guiRenderState);
     }
 
-    //TextureIsReadyToBlit 是否可直接 blit 跳过 offscreen 渲染
-    //默认 false 每帧重新渲染子类可 override 缓存策略对标原版 textureIsReadyToBlit
+    //TextureIsReadyToBlit whether it can blit directly and skip offscreen rendering
+    //Defaults to false and re-renders every frame; subclasses may override the cache strategy, maps to vanilla textureIsReadyToBlit
     protected virtual bool TextureIsReadyToBlit(T renderState) => false;
 
-    //EnsureTexturesAndProjection 确保 offscreen texture 存在且尺寸匹配+清屏+设置正交投影
-    //子类创建 GpuImage（ColorAttachment|SampledImage）+ DepthAttachment + 清屏 + 投影矩阵
-    //对标原版 prepareTexturesAndProjection
+    //EnsureTexturesAndProjection ensures the offscreen texture exists and matches the size+clear+sets the orthographic projection
+    //The subclass creates the GpuImage (ColorAttachment|SampledImage) + DepthAttachment + clear + projection matrix
+    //maps to vanilla prepareTexturesAndProjection
     protected abstract void EnsureTexturesAndProjection(int width, int height);
 
-    //RenderToTexture 渲染 3D 内容到 offscreen texture 对标原版 renderToTexture
-    //子类用 GpuDevice 录制命令渲染模型/实体/皮肤等到 OffscreenTexture
+    //RenderToTexture renders 3D content into the offscreen texture, maps to vanilla renderToTexture
+    //Subclasses use GpuDevice to record commands rendering models/entities/skins etc. into OffscreenTexture
     protected abstract void RenderToTexture(T renderState);
 
-    //BlitTexture 把 offscreen texture 作为 BlitRenderState 加到 guiRenderState
-    //对标原版 blitTexture 用 GUI_TEXTURED_PREMULTIPLIED_ALPHA pipeline
-    //Vulkan 纹理 V=0 顶部 offscreen 渲染 Y 朝下 V0=0 配 Y0 顶部 V1=1 配 Y1 底部不翻转
-    //子类 EnsureTexturesAndProjection 后 OffscreenTexture 应就绪 GetBlitTextureSetup 提供纹理绑定
+    //BlitTexture adds the offscreen texture as a BlitRenderState to guiRenderState
+    //maps to vanilla blitTexture using the GUI_TEXTURED_PREMULTIPLIED_ALPHA pipeline
+    //Vulkan texture V=0 at the top; offscreen rendering has Y down, so V0=0 pairs with Y0 at the top and V1=1 with Y1 at the bottom, no flip
+    //After the subclass's EnsureTexturesAndProjection the OffscreenTexture should be ready and GetBlitTextureSetup provides the texture binding
     protected virtual void BlitTexture(T renderState, GuiRenderState guiRenderState)
     {
         var textureSetup = GetBlitTextureSetup();
@@ -99,12 +99,12 @@ public abstract class PictureInPictureRenderer<T> : IPictureInPictureRenderer, I
         guiRenderState.AddGuiElement(blit);
     }
 
-    //GetBlitTextureSetup 构造 offscreen texture 的 TextureSetup 对标原版 singleTexture
-    //子类提供 OffscreenTexture 的 TextureSetup（含 sampler）由 BlitTexture 调用
+    //GetBlitTextureSetup builds the offscreen texture's TextureSetup, maps to vanilla singleTexture
+    //The subclass provides the OffscreenTexture's TextureSetup (including the sampler) called by BlitTexture
     protected abstract TextureSetup GetBlitTextureSetup();
 
-    //DisposeTextures 释放 offscreen texture 尺寸变化或 Dispose 时调
-    //virtual 供双缓冲子类 override 释放多个 texture/encoder 基类只释放单个
+    //DisposeTextures releases the offscreen texture, called on a size change or Dispose
+    //virtual so double-buffered subclasses can override to release multiple textures/encoders; the base only releases one
     protected virtual void DisposeTextures()
     {
         OffscreenTexture?.Dispose();
@@ -120,6 +120,6 @@ public abstract class PictureInPictureRenderer<T> : IPictureInPictureRenderer, I
         GC.SuppressFinalize(this);
     }
 
-    //OnDispose 子类额外资源释放钩子
+    //OnDispose extra resource-release hook for subclasses
     protected virtual void OnDispose() { }
 }

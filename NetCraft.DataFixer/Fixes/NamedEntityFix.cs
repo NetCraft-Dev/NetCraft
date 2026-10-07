@@ -3,8 +3,8 @@ using NetCraft.DataFixer.Schemas;
 
 namespace NetCraft.DataFixer.Fixes;
 
-//命名实体修复父类对应原版net.minecraft.util.datafix.fixes.NamedEntityFix
-//按entityName匹配特定实体并应用fix方法子类实现具体修复逻辑
+//parent for named entity fixes, maps to vanilla net.minecraft.util.datafix.fixes.NamedEntityFix
+//matches a specific entity by entityName and applies fix; subclasses implement the concrete fix logic
 public abstract class NamedEntityFix : DataFix
 {
     private readonly string _name;

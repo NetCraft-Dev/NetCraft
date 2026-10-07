@@ -2,21 +2,21 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.World.Crafting;
 
-//RecipeInput 配方输入抽象对应原版 net.minecraft.world.item.crafting.RecipeInput
+//RecipeInput recipe input abstraction, maps to vanilla net.minecraft.world.item.crafting.RecipeInput
 public interface RecipeInput
 {
-    //Size 输入格总数
+    //Size total number of input slots
     int Size { get; }
 
-    //IsEmpty 输入是否全空
+    //IsEmpty whether all inputs are empty
     bool IsEmpty { get; }
 
-    //GetItem 按线性下标取输入物品
+    //GetItem returns the input item by linear index
     ItemStack GetItem(int index);
 }
 
-//SingleRecipeInput 单格配方输入对应原版 net.minecraft.world.item.crafting.SingleRecipeInput
-//切石机与熔炼这类只有一个输入槽的配方用它
+//SingleRecipeInput single-slot recipe input, maps to vanilla net.minecraft.world.item.crafting.SingleRecipeInput
+//Used by recipes with a single input slot such as stonecutting and cooking
 public sealed class SingleRecipeInput : RecipeInput
 {
     private readonly ItemStack _item;
@@ -30,11 +30,11 @@ public sealed class SingleRecipeInput : RecipeInput
     public ItemStack GetItem(int index) => index == 0 ? _item : ItemStack.Empty;
 }
 
-//CraftingInput 合成网格输入对应原版 CraftingInput
-//记录宽高与线性排列的物品 非空格数在构造时算好供配方快速淘汰
+//CraftingInput crafting grid input, maps to vanilla CraftingInput
+//Stores the width, height and linearly arranged items; the non-empty count is computed at construction so recipes can be eliminated quickly
 public sealed class CraftingInput : RecipeInput
 {
-    //Empty 空输入
+    //Empty empty input
     public static readonly CraftingInput Empty = new(0, 0, Array.Empty<ItemStack>());
 
     private readonly ItemStack[] _items;
@@ -53,11 +53,11 @@ public sealed class CraftingInput : RecipeInput
         IngredientCount = ingredientCount;
     }
 
-    //Width/Height 网格宽高
+    //Width/Height grid width and height
     public int Width { get; }
     public int Height { get; }
 
-    //IngredientCount 非空格数量 形状配方先比它能直接淘汰
+    //IngredientCount number of non-empty slots, shape recipes compare it first to eliminate quickly
     public int IngredientCount { get; }
 
     public int Size => _items.Length;
@@ -66,11 +66,11 @@ public sealed class CraftingInput : RecipeInput
 
     public ItemStack GetItem(int index) => (uint)index < _items.Length ? _items[index] : ItemStack.Empty;
 
-    //GetItem 按网格坐标取输入物品
+    //GetItem returns the input item by grid coordinates
     public ItemStack GetItem(int x, int y) => GetItem(x + y * Width);
 
-    //Of 建输入并把四周空行空列裁掉 对应原版 CraftingInput.of 的 ofPositioned 语义
-    //形状配方的图案是最小包围盒 网格里摆歪或留空必须裁到包围盒才比得上
+    //Of builds the input and trims the empty rows and columns around it, maps to the ofPositioned semantics of vanilla CraftingInput.of
+    //Shape recipes are defined as a minimal bounding box, so a grid placed off-center or with padding must be trimmed to the box to compare
     public static CraftingInput Of(int width, int height, IReadOnlyList<ItemStack> items)
     {
         if (width == 0 || height == 0) return Empty;

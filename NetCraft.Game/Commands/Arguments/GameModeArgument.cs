@@ -9,18 +9,18 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//GameModeArgument 游戏模式参数对应原版 net.minecraft.commands.arguments.GameModeArgument
-//解析游戏模式全名或短名 与 /gamemode 参数类型(gameMode)网络id 对齐
+//GameModeArgument game mode argument, maps to vanilla net.minecraft.commands.arguments.GameModeArgument
+//Parses the full or short game mode name, aligned with the /gamemode argument type (gameMode) network id
 public sealed class GameModeArgument : ArgumentType<GameType>
 {
     private static readonly IReadOnlyList<string> ExamplesList = new[] { "survival", "creative" };
 
-    //四个内置模式 供解析与补全遍历
+    //The four built-in modes, iterated for parsing and suggestions
     private static readonly GameType[] Values =
         { GameType.Survival, GameType.Creative, GameType.Adventure, GameType.Spectator };
 
     public static readonly DynamicCommandExceptionType ErrorInvalidGameMode =
-        new(name => new LiteralMessage($"未知游戏模式 {name}"));
+        new(name => new LiteralMessage($"unknown game mode {name}"));
 
     public static GameModeArgument GameMode() => new();
 
@@ -37,11 +37,11 @@ public sealed class GameModeArgument : ArgumentType<GameType>
         return mode;
     }
 
-    //GetGameMode 取解析出的游戏模式
+    //GetGameMode gets the parsed game mode
     public static GameType GetGameMode(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<GameType>(name);
 
-    //ListSuggestions 补全模式全名与短名 对应原版 GameModeArgument 的建议
+    //ListSuggestions suggests full and short mode names, maps to vanilla GameModeArgument suggestions
     public Task<Suggestions> ListSuggestions<S>(CommandContext<S> context, SuggestionsBuilder builder)
     {
         foreach (var mode in Values)

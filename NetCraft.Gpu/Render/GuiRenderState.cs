@@ -1,8 +1,8 @@
 namespace NetCraft.Gpu;
 
-//GuiRenderState RenderState 容器对标原版 GuiRenderState
-//管理 strata 横向分层和 up 纵向层级保证 z 顺序
-//每帧 Reset 不跨帧
+//GuiRenderState RenderState container, maps to vanilla GuiRenderState
+//Manages strata horizontal layering and up vertical levels to guarantee z order
+//Reset every frame, not cross-frame
 public sealed class GuiRenderState
 {
     private Node? _current;
@@ -12,14 +12,14 @@ public sealed class GuiRenderState
 
     public GuiRenderState() : this(skipInit: false) { }
 
-    //Snapshot 深拷贝 strata+Node 树供 Render 线程只读
-    //元素 record 不可变引用共享只复制 List 容器和 Node 结构
+    //Snapshot deep-copies the strata+Node tree for the Render thread to read
+    //Element records are immutable and shared by reference; only the List containers and Node structure are copied
     private GuiRenderState(bool skipInit)
     {
         if (!skipInit) NextStratum();
     }
 
-    //Snapshot 产出不可变快照 Tick 写完后调 Render 线程只读
+    //Snapshot produces an immutable snapshot, called after Tick writes and read-only on the Render thread
     public GuiRenderState Snapshot()
     {
         var copy = new GuiRenderState(skipInit: true);
@@ -28,7 +28,7 @@ public sealed class GuiRenderState
         return copy;
     }
 
-    //CloneNode 重建 Node 的 Up 链和 ElementStates/GlyphStates/PipStates 列表
+    //CloneNode rebuilds the Node's Up chain and ElementStates/GlyphStates/PipStates lists
     private static Node CloneNode(Node src)
     {
         var dst = new Node(src.Parent);
@@ -42,17 +42,17 @@ public sealed class GuiRenderState
         return dst;
     }
 
-    //NextStratum 开启新 stratum 横向分层背景层/内容层/覆盖层典型
+    //NextStratum opens a new stratum for horizontal layering: background/content/overlay is typical
     public void NextStratum()
     {
         _current = new Node(null);
         _strata.Add(_current);
     }
 
-    //HasBlurSplit 是否调用了 BlurBeforeThisStratum 需要 Prepare 分段+Draw 分段执行
+    //HasBlurSplit whether BlurBeforeThisStratum was called, requiring segmented Prepare+Draw execution
     public bool HasBlurSplit => _firstStratumAfterBlur != int.MaxValue;
 
-    //BlurBeforeThisStratum 标记当前 stratum 之前为 blur 前段一帧仅可调一次
+    //BlurBeforeThisStratum marks everything before the current stratum as the pre-blur segment; callable once per frame
     public void BlurBeforeThisStratum()
     {
         if (_firstStratumAfterBlur != int.MaxValue)
@@ -60,7 +60,7 @@ public sealed class GuiRenderState
         _firstStratumAfterBlur = _strata.Count - 1;
     }
 
-    //Up 在当前 Node 之上创建子节点 current 切到子节点保证后续元素绘制在上层
+    //Up creates a child node above the current Node and switches current to it, ensuring later elements draw on top
     public void Up()
     {
         if (_current!.Up == null)
@@ -68,29 +68,29 @@ public sealed class GuiRenderState
         _current = _current.Up;
     }
 
-    //AddGuiElement 添加普通元素经过 FindAppropriateNode 自动定位层级
+    //AddGuiElement adds an ordinary element, auto-positioned by FindAppropriateNode
     public void AddGuiElement(GuiElementRenderState element)
     {
         FindAppropriateNode(element);
         _current!.AddElement(element);
     }
 
-    //AddGlyphToCurrentLayer 直接添加字形到当前层不参与 bounds 树
-    //字形 Bounds 由字形纹理自身决定不参与层级相交判断
+    //AddGlyphToCurrentLayer adds glyphs directly to the current layer, not participating in the bounds tree
+    //Glyph bounds come from the glyph texture itself and do not participate in level intersection tests
     public void AddGlyphToCurrentLayer(GuiElementRenderState glyph)
     {
         _current!.AddGlyph(glyph);
     }
 
-    //AddPictureInPicture 添加 PIP 状态到当前层对标原版 addPicturesInPictureState
-    //PIP 不参与 bounds 树层级判断由 PictureInPictureRenderer 在 Prepare 阶段 offscreen 渲染后 blit
+    //AddPictureInPicture adds PIP state to the current layer, maps to vanilla addPicturesInPictureState
+    //PIP does not participate in bounds tree level tests; PictureInPictureRenderer renders offscreen and blits during Prepare
     public void AddPictureInPicture(PictureInPictureRenderState pip)
     {
         _current!.AddPip(pip);
     }
 
-    //ForEachPictureInPicture 遍历所有 strata 的 pipStates 对标原版 forEachPictureInPicture
-    //PIP 不参与 blur 分段遍历全部 strata Prepare 阶段调 PictureInPictureRenderer.prepare
+    //ForEachPictureInPicture iterates pipStates of all strata, maps to vanilla forEachPictureInPicture
+    //PIP does not participate in blur segmentation; it iterates all strata and calls PictureInPictureRenderer.prepare during Prepare
     public void ForEachPictureInPicture(Action<PictureInPictureRenderState> visitor)
     {
         foreach (var node in _strata)
@@ -104,7 +104,7 @@ public sealed class GuiRenderState
         if (node.Up != null) TraversePip(node.Up, visitor);
     }
 
-    //ForEachElement 按 range 遍历元素深度优先访问 elementStates + glyphStates
+    //ForEachElement iterates elements by range, depth-first over elementStates + glyphStates
     public void ForEachElement(Action<GuiElementRenderState> visitor, TraverseRange range)
     {
         Traverse(node =>
@@ -117,7 +117,7 @@ public sealed class GuiRenderState
         }, range);
     }
 
-    //SortElements 按 comparator 对每个 Node 的 elementStates 排序 glyphStates 不参与
+    //SortElements sorts each Node's elementStates by the comparator; glyphStates do not participate
     public void SortElements(Comparison<GuiElementRenderState> comparison)
     {
         Traverse(node =>
@@ -127,7 +127,7 @@ public sealed class GuiRenderState
         }, TraverseRange.All);
     }
 
-    //Reset 清空所有状态并开启首个 stratum 每帧调用
+    //Reset clears all state and opens the first stratum, called every frame
     public void Reset()
     {
         _strata.Clear();
@@ -136,8 +136,8 @@ public sealed class GuiRenderState
         NextStratum();
     }
 
-    //FindAppropriateNode 找到 element 应插入的 Node
-    //Bounds 非 nullable 永远继续若 lastElementBounds 包含当前 bounds 则 Up 否则向上找相交节点
+    //FindAppropriateNode finds the Node where the element should be inserted
+    //Bounds are non-nullable and always continue; if lastElementBounds contains the current bounds go Up, otherwise search upward for an intersecting node
     private void FindAppropriateNode(GuiElementRenderState element)
     {
         var bounds = element.Bounds;
@@ -152,8 +152,8 @@ public sealed class GuiRenderState
         _lastElementBounds = bounds;
     }
 
-    //NavigateToAboveHighestElementWithIntersectingBounds 从 strata 栈顶向上找最高相交节点
-    //找到则 current = 相交节点后 Up 在其之上加新层未找到则 current = root
+    //NavigateToAboveHighestElementWithIntersectingBounds searches up from the strata top for the highest intersecting node
+    //If found, current = after the intersecting node and Up adds a new layer above it; if not found, current = root
     private void NavigateToAboveHighestElementWithIntersectingBounds(ScreenRectangle bounds)
     {
         var node = _strata[^1];
@@ -200,14 +200,14 @@ public sealed class GuiRenderState
         if (node.Up != null) Traverse(node.Up, visitor);
     }
 
-    //Node 内部层级节点懒初始化各状态列表避免空容器内存开销
+    //Node inner level node with lazily initialized state lists to avoid empty-container memory cost
     private sealed class Node
     {
         public readonly Node? Parent;
         public Node? Up;
         public List<GuiElementRenderState>? ElementStates;
         public List<GuiElementRenderState>? GlyphStates;
-        //PipStates PIP 渲染状态列表懒初始化对标原版 picturesInPictureStates
+        //PipStates PIP render state list lazily initialized, maps to vanilla picturesInPictureStates
         public List<PictureInPictureRenderState>? PipStates;
 
         public Node(Node? parent) => Parent = parent;

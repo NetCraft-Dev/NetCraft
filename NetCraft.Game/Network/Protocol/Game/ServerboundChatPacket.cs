@@ -1,9 +1,9 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundChatPacket 聊天包对应原版 ServerboundChatPacket
-//原版字段 Message(string) TimeStamp(Instant) Salt(long) Signature(MessageSignature 可空) LastSeenMessages(LastSeenMessages.Update)
-//简化: TimeStamp 存毫秒 long Signature 存原版固定的 256 字节
-//LastSeenMessages.Update 展开为 offset + 20 位确认掩码 + 校验字节
+//ServerboundChatPacket chat packet, maps to vanilla ServerboundChatPacket
+//Vanilla fields: Message(string), TimeStamp(Instant), Salt(long), Signature(MessageSignature, nullable), LastSeenMessages(LastSeenMessages.Update)
+//Simplified: TimeStamp is stored as a millisecond long and Signature as the vanilla fixed 256 bytes
+//LastSeenMessages.Update is expanded into offset + 20-bit acknowledgment mask + checksum byte
 public sealed record ServerboundChatPacket(
     string Message,
     long TimeStamp,
@@ -14,9 +14,9 @@ public sealed record ServerboundChatPacket(
     byte LastSeenChecksum) : Packet<ServerGamePacketListener>
 {
     public const int MaxMessageLength = 256;
-    //SignatureLength 原版 MessageSignature 固定 256 字节
+    //SignatureLength the vanilla MessageSignature fixed 256 bytes
     public const int SignatureLength = 256;
-    //LastSeenBits 原版 writeFixedBitSet(acknowledged, 20) 的位数
+    //LastSeenBits the bit count of vanilla writeFixedBitSet(acknowledged, 20)
     public const int LastSeenBits = 20;
 
     public static StreamCodec<FriendlyByteBuf, ServerboundChatPacket> StreamCodec { get; } = new ChatCodec();
@@ -25,7 +25,7 @@ public sealed record ServerboundChatPacket(
 
     public void Handle(ServerGamePacketListener handler) => handler.HandleChat(this);
 
-    //WriteFixedBitSet 原版 writeFixedBitSet 低位在前 固定 ceil(bits/8) 字节无长度前缀
+    //WriteFixedBitSet vanilla writeFixedBitSet LSB first, a fixed ceil(bits/8) bytes with no length prefix
     private static void WriteFixedBitSet(FriendlyByteBuf buf, int mask, int bits)
     {
         var bytes = new byte[(bits + 7) / 8];
@@ -35,7 +35,7 @@ public sealed record ServerboundChatPacket(
         buf.WriteBytes(bytes);
     }
 
-    //ReadFixedBitSet 原版 readFixedBitSet 读入 ceil(bits/8) 字节还原位掩码
+    //ReadFixedBitSet vanilla readFixedBitSet reads ceil(bits/8) bytes and restores the bitmask
     private static int ReadFixedBitSet(FriendlyByteBuf buf, int bits)
     {
         var bytes = buf.ReadBytes((bits + 7) / 8);
@@ -48,8 +48,8 @@ public sealed record ServerboundChatPacket(
 
     private sealed class ChatCodec : StreamCodec<FriendlyByteBuf, ServerboundChatPacket>
     {
-        //原版 write 顺序: writeUtf(message,256) writeInstant(timeStamp) writeLong(salt)
-        //writeNullable(signature) 最后 LastSeenMessages.Update(VarInt offset + 3 字节 bitset + byte checksum)
+        //Vanilla write order: writeUtf(message,256), writeInstant(timeStamp), writeLong(salt)
+        //writeNullable(signature), then LastSeenMessages.Update(VarInt offset + 3-byte bitset + byte checksum)
         public ServerboundChatPacket Decode(FriendlyByteBuf buf)
         {
             var message = buf.ReadString(MaxMessageLength);

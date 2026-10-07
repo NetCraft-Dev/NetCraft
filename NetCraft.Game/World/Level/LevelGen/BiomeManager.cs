@@ -4,15 +4,15 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//BiomeManager 生物群系管理器 对应原版 net.minecraft.world.level.biome.BiomeManager
-//按方块坐标找最近的 quart 采样点 优先查已生成区块的群系调色板 出界才回退完整气候采样
-//地表阶段每一格都要问一次群系 原版正是靠这条调色板查询把代价压到常数级
-//直接把 BiomeSource 当 getter 传进去会退化成每格一次六维气候采样 区块生成慢到超时
+//BiomeManager biome manager, maps to vanilla net.minecraft.world.level.biome.BiomeManager
+//Finds the nearest quart sample point for a block coordinate, preferring the generated chunk's biome palette and only falling back to full climate sampling out of bounds
+//The surface stage queries a biome for every block; vanilla keeps the cost constant through this palette lookup
+//Passing BiomeSource as the getter would degenerate into a 6-dimensional climate sample per block and make chunk generation time out
 public sealed class BiomeManager
 {
-    //_chunk 当前正在生成的区块 群系调色板在 BIOMES 阶段已填好
+    //_chunk the chunk being generated; its biome palette is filled during the BIOMES stage
     private readonly ChunkAccess _chunk;
-    //_fallback 出界时的完整采样 入参用 quart 对应的方块坐标 与 BIOMES 阶段写入调色板的坐标一致
+    //_fallback full sampling when out of bounds; arguments are the block coordinates of the quart, matching those written into the palette during BIOMES
     private readonly Func<int, int, int, Biome> _fallback;
     private readonly long _biomeZoomSeed;
     private readonly int _minQuartY;
@@ -27,8 +27,8 @@ public sealed class BiomeManager
         _maxQuartY = (chunk.MinSectionY + chunk.SectionsCount) * 4;
     }
 
-    //ObfuscateSeed 打乱世界种子 对应原版 obfuscateSeed 的 sha256(seed).asLong()
-    //原版 HashCode.asLong 按小端读前八字节 输入也按小端写入 这里照做否则模糊距离全不一样
+    //ObfuscateSeed scrambles the world seed, maps to vanilla obfuscateSeed's sha256(seed).asLong()
+    //Vanilla HashCode.asLong reads the first eight bytes little-endian and writes the input little-endian too; match that or every fiddled distance differs
     public static long ObfuscateSeed(long seed)
     {
         Span<byte> input = stackalloc byte[8];
@@ -40,9 +40,9 @@ public sealed class BiomeManager
         return result;
     }
 
-    //GetBiome 按方块坐标取最近采样点的群系 对应原版 getBiome
-    //把坐标往负方向挪两格再按四格分块 八个角点各算一次模糊距离取最小
-    //挪两格是让采样点落在方块中心而不是边界 模糊距离避免大片规则网格
+    //GetBiome returns the biome of the nearest sample point for a block coordinate, maps to vanilla getBiome
+    //Shifts the coordinate two blocks negative then buckets by four, computing a fiddled distance for each of the eight corners and taking the minimum
+    //The two-block shift puts the sample at the block centre rather than the edge, and fiddled distance avoids large regular grids
     public Biome GetBiome(int blockX, int blockY, int blockZ)
     {
         var absoluteX = blockX - 2;
@@ -79,7 +79,7 @@ public sealed class BiomeManager
         return GetNoiseBiome(quartX, quartY, quartZ);
     }
 
-    //GetNoiseBiome 按 quart 坐标取群系 落在本区块内查调色板 出界回退完整采样 对应原版 LevelReader.getNoiseBiome
+    //GetNoiseBiome returns the biome for a quart coordinate, using the palette inside this chunk and falling back to full sampling, maps to vanilla LevelReader.getNoiseBiome
     private Biome GetNoiseBiome(int quartX, int quartY, int quartZ)
     {
         if (quartX >> 2 == _chunk.Pos.X && quartZ >> 2 == _chunk.Pos.Z
@@ -88,8 +88,8 @@ public sealed class BiomeManager
         return _fallback(quartX * 4, quartY * 4, quartZ * 4);
     }
 
-    //FiddledDistance 加了模糊偏移的平方距离 对应原版 getFiddledDistance
-    //六次线性同余叠乘把角点坐标与种子搅在一起 每轴偏移量限制在正负零点四五格内
+    //FiddledDistance squared distance with a fiddled offset, maps to vanilla getFiddledDistance
+    //Six chained linear congruential steps mix the corner coordinate with the seed; each axis offset stays within ±0.45 blocks
     private static double FiddledDistance(long seed, int x, int y, int z,
         double distanceX, double distanceY, double distanceZ)
     {
@@ -109,19 +109,19 @@ public sealed class BiomeManager
         return dz * dz + dy * dy + dx * dx;
     }
 
-    //LinearCongruentialNext 一次线性同余推进 对应原版 LinearCongruentialGenerator.next
-    //long 溢出即模 2^64 与原版 Java 一致 必须 unchecked
+    //LinearCongruentialNext one linear congruential step, maps to vanilla LinearCongruentialGenerator.next
+    //long overflow is modulo 2^64, matching Java vanilla, so unchecked is required
     private static long LinearCongruentialNext(long value, long addend)
         => unchecked(value * (value * 6364136223846793005L + 1442695040888963407L) + addend);
 
-    //Fiddle 取偏移量 对应原版 getFiddle 结果落在正负零点四五格
+    //Fiddle takes the offset, maps to vanilla getFiddle; the result stays within ±0.45 blocks
     private static double Fiddle(long value)
     {
         var uniform = FloorMod(value >> 24, 1024) / 1024.0;
         return (uniform - 0.5) * 0.9;
     }
 
-    //FloorMod 恒非负取模 对应原版 Math.floorMod
+    //FloorMod always-non-negative modulo, maps to vanilla Math.floorMod
     private static long FloorMod(long value, long modulus)
     {
         var result = value % modulus;

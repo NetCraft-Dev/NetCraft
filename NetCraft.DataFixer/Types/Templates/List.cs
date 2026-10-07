@@ -8,23 +8,23 @@ using T = NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Families;
 using NetCraft.DataFixer.Util;
 
-//List列表模板对应原版com.mojang.datafixers.types.templates.List
-//元素类型用List<A>包装
+//List list template maps to vanilla com.mojang.datafixers.types.templates.List
+//wraps the element type as List<A>
 public sealed record List(TypeTemplate Element) : TypeTemplate
 {
     public int Size() => Element.Size();
 
-    //apply每个index返回DSL.list包装
+    //apply returns DSL.list-wrapped types at each index
     public TypeFamily Apply(TypeFamily family)
         => new ListFamily(this, family);
 
-    //applyO用元素模板的applyO每个index后用cap包装为列表遍历
+    //applyO uses the element template's applyO at each index, then wraps with cap as a list traversal
     public FamilyOptic<object, object> ApplyO<A, B>(FamilyOptic<A, B> input, T.Type<A> aType, T.Type<B> bType)
         => TypeFamily.FamilyOptic<object, object>(i => (TypedOptic<object, object, object, object>)(object)CapOptic(Element.ApplyO(input, aType, bType).Apply(i)));
 
-    //CapOptic把元素optic用ListTraversal包装为列表遍历并compose
-    //原版capOptic aType/bType取AType()/BType()不是SType()/TType()
-    //DSL.List与Compose的强转都用Unsafe.As绕过C#严格泛型不变量对齐Java类型擦除
+    //CapOptic wraps the element optic with ListTraversal as a list traversal and composes it
+    //vanilla capOptic takes AType()/BType() for aType/bType, not SType()/TType()
+    //DSL.List and Compose casts both use Unsafe.As to bypass C# strict generic invariance, aligning with Java type erasure
     private static TypedOptic<object, object, A, B> CapOptic<S, T2, A, B>(TypedOptic<S, T2, A, B> concreteOptic)
     {
         var sListObj = (object)DSL.List(concreteOptic.SType())!;
@@ -46,7 +46,7 @@ public sealed record List(TypeTemplate Element) : TypeTemplate
             Optics.Optics.ListTraversal<A, B>()!).Compose(composeCast);
     }
 
-    //findFieldOrType委托给元素查找后用List包装
+    //findFieldOrType delegates to the element lookup, then wraps with List
     public Either<TypeTemplate, T.Type<object>.FieldNotFoundException> FindFieldOrType<A, B>(
         int index, string? name, T.Type<A> type, T.Type<B> resultType)
     {
@@ -58,7 +58,7 @@ public sealed record List(TypeTemplate Element) : TypeTemplate
         return Either<TypeTemplate, T.Type<object>.FieldNotFoundException>.Right(either.GetRight().Get());
     }
 
-    //hmap每个index对元素应用hmap后用cap包装
+    //hmap applies hmap to the element at each index, then wraps with cap
     public Func<int, RewriteResult<object, object>> Hmap(TypeFamily family, Func<int, RewriteResult<object, object>> function)
         => i =>
         {
@@ -66,19 +66,19 @@ public sealed record List(TypeTemplate Element) : TypeTemplate
             return CapView(Apply(family).Apply(i), view);
         };
 
-    //CapView把元素重写结果用ListType.fix包装为列表重写
+    //CapView wraps the element rewrite result into a list rewrite via ListType.fix
     private static RewriteResult<object, object> CapView<E>(T.Type<object> type, RewriteResult<E, object> view)
     {
         var fixResult = ((ListType<E>)(object)type).Fix<object>(view);
-        //Fix返回RewriteResult<List<E>,object>强转RewriteResult<object,object>在List<E>非object时失败
-        //用Unsafe.As绕过运行时类型检查对齐Java类型擦除
+        //Fix returns RewriteResult<List<E>,object>; casting to RewriteResult<object,object> fails when List<E> is not object
+        //use Unsafe.As to bypass the runtime type check and align with Java type erasure
         var fixObj = (object)fixResult;
         return System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<object, object>>(ref fixObj);
     }
 
     public override string ToString() => "List[" + Element + "]";
 
-    //ListFamily按index返回DSL.list包装的子类型
+    //ListFamily returns the child type wrapped with DSL.list at each index
     private sealed class ListFamily : TypeFamily
     {
         private readonly List _template;
@@ -90,8 +90,8 @@ public sealed record List(TypeTemplate Element) : TypeTemplate
         }
         public T.Type<object> Apply(int index)
         {
-            //element.Apply返回T.Type<A>包装为List<A>后强转T.Type<object>会失败
-            //两处都用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+            //element.Apply returns T.Type<A>; casting to T.Type<object> after wrapping as List<A> fails
+            //both places use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
             var elementObj = (object)_template.Element.Apply(_family).Apply(index)!;
             var elementType = System.Runtime.CompilerServices.Unsafe.As<object, T.Type<object>>(ref elementObj);
             var listType = DSL.List(elementType);
@@ -100,7 +100,7 @@ public sealed record List(TypeTemplate Element) : TypeTemplate
         }
     }
 
-    //ListType列表类型持有元素类型
+    //ListType list type holding the element type
     public sealed class ListType<A> : T.Type<List<A>>
     {
         private readonly T.Type<A> _element;
@@ -134,9 +134,9 @@ public sealed record List(TypeTemplate Element) : TypeTemplate
         public override Optional<List<A>> Point<T>(DynamicOps<T> ops)
             => Optional<List<A>>.Of(new List<A>());
 
-        //fix把元素重写结果通过ListTraversal投射到列表层
-        //TypedOptics.List返回TypedOptic<List<A>,List<B>,A,B>与OpticView期望的List<B>->object不一致
-        //用Unsafe.As绕过C#严格泛型不变量对齐Java类型擦除语义
+        //fix projects the element rewrite result into the list layer via ListTraversal
+        //TypedOptics.List returns TypedOptic<List<A>,List<B>,A,B>, inconsistent with the List<B>->object expected by OpticView
+        //use Unsafe.As to bypass C# strict generic invariance, aligning with Java type erasure semantics
         public RewriteResult<List<A>, object> Fix<B>(RewriteResult<A, B> view)
         {
             var viewObj = (object)view;
@@ -149,8 +149,8 @@ public sealed record List(TypeTemplate Element) : TypeTemplate
         protected override Codec<List<A>> BuildCodec()
             => new ListCodecAdapter(_element.Codec());
 
-        //ListCodecAdapter列表codec对应原版Codec.list
-        //走元素codec的Parse/EncodeStart逐项处理
+        //ListCodecAdapter list codec, maps to vanilla Codec.list
+        //processes items one by one through the element codec's Parse/EncodeStart
         private sealed class ListCodecAdapter : ScalarCodec<List<A>>
         {
             private readonly Codec<A> _elementCodec;

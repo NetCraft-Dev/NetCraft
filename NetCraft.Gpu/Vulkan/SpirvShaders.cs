@@ -1,11 +1,11 @@
-﻿//SpirvShaders 标准 Vulkan tutorial 三角形 shader 的 SPIR-V 字节码
-//vertex shader 硬编码顶点位置和颜色通过 gl_VertexIndex 索引
-//fragment shader 输出插值后的顶点颜色
+﻿//SpirvShaders SPIR-V bytecode of the standard Vulkan tutorial triangle shaders
+//The vertex shader hardcodes vertex positions and colors indexed by gl_VertexIndex
+//The fragment shader outputs the interpolated vertex color
 namespace NetCraft.Gpu.Vulkan;
 
 internal static class SpirvShaders
 {
-    //VertexShader 顶点着色器 SPIR-V 字节码
+    //VertexShader vertex shader SPIR-V bytecode
     public static readonly byte[] VertexShader = new byte[]
     {
         0x03, 0x02, 0x23, 0x07, 0x00, 0x00, 0x01, 0x00, 0x07, 0x00, 0x0d, 0x00,
@@ -139,7 +139,7 @@ internal static class SpirvShaders
         0x38, 0x00, 0x01, 0x00,
     };
 
-    //FragmentShader 片元着色器 SPIR-V 字节码
+    //FragmentShader fragment shader SPIR-V bytecode
     public static readonly byte[] FragmentShader = new byte[]
     {
         0x03, 0x02, 0x23, 0x07, 0x00, 0x00, 0x01, 0x00, 0x07, 0x00, 0x0d, 0x00,

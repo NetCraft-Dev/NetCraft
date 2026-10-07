@@ -1,7 +1,7 @@
 namespace NetCraft.Gpu;
 
-//EmptyGpuContext 空后端 GPU 上下文
-//所有方法抛 NotSupportedException 用于无 GPU 环境保持编译通过
+//EmptyGpuContext empty-backend GPU context
+//All methods throw NotSupportedException so the code still compiles without a GPU
 public sealed class EmptyGpuContext : GpuContext
 {
     public EmptyGpuContext() : base(GpuBackend.Empty) { }
@@ -10,11 +10,11 @@ public sealed class EmptyGpuContext : GpuContext
         => new EmptyGpuDevice(this);
 }
  
-//EmptyGpuDevice 空后端 GPU 设备
-//所有方法抛 NotSupportedException 占位骨架
+//EmptyGpuDevice empty-backend GPU device
+//All methods throw NotSupportedException, placeholder skeleton
 internal sealed class EmptyGpuDevice : GpuDevice
 {
-    //EmptyLimits 空后端默认 4096 占位保证无 Vulkan 环境也能编译运行
+    //EmptyLimits defaults to 4096 as a placeholder so it still compiles and runs without Vulkan
     public override DeviceLimits Limits { get; } = new(4096);
 
     public EmptyGpuDevice(GpuContext context) : base(context) { }
@@ -26,25 +26,25 @@ internal sealed class EmptyGpuDevice : GpuDevice
         => new EmptyRenderPipeline(description);
 
     public override GpuBuffer CreateBuffer(int size, GpuBufferUsage usage)
-        => throw new NotSupportedException("Empty 后端不支持创建 Buffer");
+        => throw new NotSupportedException("Empty backend does not support creating a Buffer");
 
     public override GpuImage CreateImage(GpuImageDescription desc)
-        => throw new NotSupportedException("Empty 后端不支持创建 Image");
+        => throw new NotSupportedException("Empty backend does not support creating an Image");
 
     public override GpuShader CreateShader(GpuShaderStage stage, byte[] spirvCode, string entryPoint = "main")
-        => throw new NotSupportedException("Empty 后端不支持创建 Shader");
+        => throw new NotSupportedException("Empty backend does not support creating a Shader");
 
     public override GpuDescriptorLayout CreateDescriptorLayout(GpuDescriptorLayoutDescription description)
-        => throw new NotSupportedException("Empty 后端不支持创建 DescriptorLayout");
+        => throw new NotSupportedException("Empty backend does not support creating a DescriptorLayout");
 
     public override GpuDescriptorSet AllocateDescriptorSet(GpuDescriptorLayout layout)
-        => throw new NotSupportedException("Empty 后端不支持分配 DescriptorSet");
+        => throw new NotSupportedException("Empty backend does not support allocating a DescriptorSet");
 
     public override GpuSampler CreateSampler(GpuSamplerDescription description)
-        => throw new NotSupportedException("Empty 后端不支持创建 Sampler");
+        => throw new NotSupportedException("Empty backend does not support creating a Sampler");
 }
 
-//EmptyGpuCommandBuffer 空后端命令缓冲
+//EmptyGpuCommandBuffer empty-backend command buffer
 internal sealed class EmptyGpuCommandBuffer : GpuCommandBuffer
 {
     public override void BeginRecording() { }
@@ -61,7 +61,7 @@ internal sealed class EmptyGpuCommandBuffer : GpuCommandBuffer
     public override void Submit() { }
 }
 
-//EmptyRenderPipeline 空后端渲染管线
+//EmptyRenderPipeline empty-backend render pipeline
 internal sealed class EmptyRenderPipeline : CompiledRenderPipeline
 {
     public EmptyRenderPipeline(RenderPipelineDescription description) : base(description) { }

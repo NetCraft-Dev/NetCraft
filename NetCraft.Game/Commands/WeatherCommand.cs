@@ -8,11 +8,11 @@ using IntProvider = NetCraft.Game.World.Level.LevelGen.IntProvider;
 
 namespace NetCraft.Game.Commands;
 
-//WeatherCommand weather 命令对应原版 net.minecraft.server.commands.WeatherCommand
-//clear/rain/thunder 三支 可选 duration 缺省时按对应时序常量采样
+//WeatherCommand weather command, maps to vanilla net.minecraft.server.commands.WeatherCommand
+//Three branches clear/rain/thunder; the optional duration samples the matching timing constant when omitted
 public static class WeatherCommand
 {
-    //DefaultTime 未给时长时的哨兵值 对应原版 DEFAULT_TIME
+    //DefaultTime sentinel when no duration is given, maps to vanilla DEFAULT_TIME
     private const int DefaultTime = -1;
 
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -36,31 +36,31 @@ public static class WeatherCommand
                         IntegerArgumentType.GetInteger(c, "duration"))))));
     }
 
-    //GetDuration 未给时长时按默认分布采样 对应原版 getDuration
+    //GetDuration samples the default distribution when no duration is given, maps to vanilla getDuration
     private static int GetDuration(ServerCommandSource source, int input, IntProvider defaultDistribution)
         => input == DefaultTime ? defaultDistribution.Sample(source.PlayerOrThrow.Level.Random) : input;
 
-    //SetClear 放晴指定刻数 对应原版 setClear
+    //SetClear clears the weather for the given ticks, maps to vanilla setClear
     private static int SetClear(ServerCommandSource source, int duration)
     {
         source.Server.SetWeatherParameters(GetDuration(source, duration, WeatherCycle.RainDelay), 0, false, false);
-        source.SendSuccess("已将天气设为晴朗");
+        source.SendSuccess("weather set to clear");
         return duration;
     }
 
-    //SetRain 下雨指定刻数 对应原版 setRain
+    //SetRain rains for the given ticks, maps to vanilla setRain
     private static int SetRain(ServerCommandSource source, int duration)
     {
         source.Server.SetWeatherParameters(0, GetDuration(source, duration, WeatherCycle.RainDuration), true, false);
-        source.SendSuccess("已将天气设为下雨");
+        source.SendSuccess("weather set to rain");
         return duration;
     }
 
-    //SetThunder 雷暴指定刻数 对应原版 setThunder
+    //SetThunder thunders for the given ticks, maps to vanilla setThunder
     private static int SetThunder(ServerCommandSource source, int duration)
     {
         source.Server.SetWeatherParameters(0, GetDuration(source, duration, WeatherCycle.ThunderDuration), true, true);
-        source.SendSuccess("已将天气设为雷暴");
+        source.SendSuccess("weather set to thunder");
         return duration;
     }
 }

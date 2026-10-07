@@ -5,15 +5,15 @@ using System.Collections.Generic;
 using NetCraft.DataFixer.Fixes;
 using NetCraft.DataFixer.Types.Templates;
 
-//V3818_3对应原版net.minecraft.util.datafix.schemas.V3818_3
-//注册1.20.5数据组件模板DATA_COMPONENTS覆盖13个组件类型
-//后续V4059/V4307继承覆写components方法扩展组件集
+//V3818_3 maps to vanilla net.minecraft.util.datafix.schemas.V3818_3
+//registers the 1.20.5 data component template DATA_COMPONENTS covering 13 component types
+//later V4059/V4307 inherit and override the components method to extend the component set
 public class V3818_3 : NamespacedSchema
 {
     public V3818_3(int versionKey, Schema? parent) : base(versionKey, parent) { }
 
-    //components构造13个数据组件模板Map供DATA_COMPONENTS注册用
-    //静态方法让V4059/V4307继承复用并扩展remove/put
+    //components builds a Map of 13 data component templates for DATA_COMPONENTS registration
+    //static method so V4059/V4307 can inherit, reuse, and extend with remove/put
     public static Dictionary<string, Func<TypeTemplate>> Components(Schema schema)
     {
         var map = new Dictionary<string, Func<TypeTemplate>>();

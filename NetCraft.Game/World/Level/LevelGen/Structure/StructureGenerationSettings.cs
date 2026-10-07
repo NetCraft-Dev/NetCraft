@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//TerrainAdjustment 结构周边地形适配方式 对应原版 TerrainAdjustment
-//决定结构周围地形要不要被抬平 以及用哪种核函数 装饰阶段之外的噪声阶段会读它
+//TerrainAdjustment terrain adaptation mode around a structure, maps to vanilla TerrainAdjustment
+//Decides whether the terrain around a structure gets raised flat and which kernel to use; the noise stage outside decoration reads it
 public enum TerrainAdjustment
 {
     None,
@@ -13,10 +13,10 @@ public enum TerrainAdjustment
     Encapsulate,
 }
 
-//TerrainAdjustments 适配方式的实现与名字映射
+//TerrainAdjustments adaptation mode implementation and name mapping
 public static class TerrainAdjustments
 {
-    //Name 取 JSON 名
+    //Name returns the JSON name
     public static string Name(this TerrainAdjustment adjustment) => adjustment switch
     {
         TerrainAdjustment.Bury => "bury",
@@ -26,7 +26,7 @@ public static class TerrainAdjustments
         _ => "none",
     };
 
-    //TryParse 按 JSON 名解析 非法返回 null
+    //TryParse parses by JSON name, returns null when invalid
     public static TerrainAdjustment? TryParse(string name) => name switch
     {
         "none" => TerrainAdjustment.None,
@@ -37,21 +37,21 @@ public static class TerrainAdjustments
         _ => null,
     };
 
-    //BeardEdgeNeeded 地形适配需要的额外边距 对应原版 12
-    //结构包围盒要按它外扩 拼图的最大范围校验也用同一个 12
+    //BeardEdgeNeeded extra margin needed by terrain adaptation, 12 in vanilla
+    //The structure bounding box is inflated by it, and the jigsaw max range check uses the same 12
     public static int BeardEdgeNeeded(this TerrainAdjustment adjustment)
         => adjustment == TerrainAdjustment.None ? 0 : 12;
 }
 
-//StructureGenerationSettings 结构生成设置 对应原版 Structure.StructureSettings
-//决定结构能长在哪些群系 挂在哪个装饰步骤 以及周边地形怎么适配
-//原版还有 spawn_overrides 本作不做刷怪覆盖 相关字段不解析
+//StructureGenerationSettings structure generation settings, maps to vanilla Structure.StructureSettings
+//Decides which biomes a structure can spawn in, which decoration step it hangs on, and how surrounding terrain adapts
+//Vanilla also has spawn_overrides; this project does not implement mob spawn overrides, so those fields are not parsed
 public sealed record StructureGenerationSettings(
     HolderSet<Biome> Biomes,
     Features.GenerationStep.Decoration Step,
     TerrainAdjustment TerrainAdaptation)
 {
-    //Default 群系为空 步骤取地表结构 不改编地形
+    //Default empty biomes, step set to surface structures, no terrain adaptation
     public static readonly StructureGenerationSettings Default = new(
         DirectHolderSet<Biome>.Empty,
         Features.GenerationStep.Decoration.SurfaceStructures,

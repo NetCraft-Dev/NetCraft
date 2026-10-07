@@ -2,17 +2,17 @@ using NetCraft.Gpu.Pipeline;
 
 namespace NetCraft.Gpu;
 
-//PipelineCache pipeline 编译缓存对标原版 VulkanDevice.pipelineCache
-//维护声明式 RenderPipeline → 编译产物 CompiledRenderPipeline 的映射
-//同一 RenderPipeline 对象二次 Precompile 直接命中零编译开销
-//保留 RenderPipelineDescription 重载兼容阶段 1 旧调用方
+//PipelineCache pipeline compile cache, maps to vanilla VulkanDevice.pipelineCache
+//Maintains the mapping from declarative RenderPipeline → compiled CompiledRenderPipeline
+//A second Precompile on the same RenderPipeline object hits directly with zero compile cost
+//Keeps the RenderPipelineDescription overload for stage 1 legacy callers
 public sealed class PipelineCache : IDisposable
 {
     private readonly GpuDevice _device;
     private readonly Dictionary<RenderPipeline, CompiledRenderPipeline> _declarations = new();
     private readonly Dictionary<RenderPipelineDescription, CompiledRenderPipeline> _descriptions = new();
     private bool _disposed;
-    //HitCount/MissCount 缓存命中/未命中次数供性能验收验证运行时无 shader 编译
+    //HitCount/MissCount cache hit/miss counts for perf acceptance to verify no shader compilation at runtime
     public int HitCount { get; private set; }
     public int MissCount { get; private set; }
 
@@ -21,7 +21,7 @@ public sealed class PipelineCache : IDisposable
         _device = device;
     }
 
-    //Precompile 声明式 RenderPipeline 编译或返回缓存编译产物
+    //Precompile compiles a declarative RenderPipeline or returns the cached compiled artifact
     public CompiledRenderPipeline Precompile(RenderPipeline declaration)
     {
         if (_declarations.TryGetValue(declaration, out var cached))
@@ -35,7 +35,7 @@ public sealed class PipelineCache : IDisposable
         return compiled;
     }
 
-    //Precompile 兼容旧 RenderPipelineDescription 调用方不缓存声明式映射
+    //Precompile legacy RenderPipelineDescription overload; callers do not cache the declarative mapping
     public CompiledRenderPipeline Precompile(RenderPipelineDescription description)
     {
         if (_descriptions.TryGetValue(description, out var cached))
@@ -49,7 +49,7 @@ public sealed class PipelineCache : IDisposable
         return compiled;
     }
 
-    //Clear 清空缓存并释放所有编译产物
+    //Clear empties the cache and releases all compiled artifacts
     public void Clear()
     {
         foreach (var p in _declarations.Values) p.Dispose();

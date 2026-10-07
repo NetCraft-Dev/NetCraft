@@ -6,8 +6,8 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.Commands;
 
-//SayCommand say 命令对应原版 net.minecraft.server.commands.SayCommand
-//把执行者说的话按 chat.type.announcement 装饰后广播给全服
+//SayCommand say command, maps to vanilla net.minecraft.server.commands.SayCommand
+//Decorates the executor's words with chat.type.announcement and broadcasts to the whole server
 public static class SayCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -18,7 +18,7 @@ public static class SayCommand
                 .Executes(context =>
                 {
                     var source = (ServerCommandSource)context.GetSource();
-                    //原版走 broadcastChatMessage 配 ChatType.SAY_COMMAND 的装饰就是 [发送者] 内容
+                    //Vanilla goes through broadcastChatMessage with ChatType.SAY_COMMAND; the decoration is [sender] content
                     source.Server.PlayerList.BroadcastSystemMessage(
                         Component.Translatable("chat.type.announcement",
                             Component.Literal(source.SenderName),

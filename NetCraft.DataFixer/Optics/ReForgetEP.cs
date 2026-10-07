@@ -5,29 +5,29 @@ using NetCraft.DataFixer.Kinds;
 using NetCraft.DataFixer.Optics.Profunctors;
 using NetCraft.DataFixer.Util;
 
-//ReForgetEPs容器存放Mu标记避免泛型嵌套
+//ReForgetEPs container holding the Mu marker, avoiding generic nesting
 public static class ReForgetEPs
 {
-    //二元HKT标记R为求值结果类型
+    //binary HKT marker; R is the evaluation result type
     public sealed class Mu<R> : K2 { }
 
-    //还原类型应用为ReForgetEP<R,A,B>
+    //recover the type application as ReForgetEP<R,A,B>
     public static ReForgetEP<R, A, B> Unbox<R, A, B>(App2<Mu<R>, A, B> box)
         => (ReForgetEP<R, A, B>)(object)box!;
 }
 
-//ReForgetEP带Either+Pair的反向遗忘光学对应原版com.mojang.datafixers.optics.ReForgetEP
-//求值器Either<A,Pair<A,R>>->B分支处理Affine写入用
+//ReForgetEP reverse forgetful optic with Either+Pair, maps to vanilla com.mojang.datafixers.optics.ReForgetEP
+//evaluator Either<A,Pair<A,R>>->B with branch handling, used for Affine writes
 public interface ReForgetEP<R, A, B> : App2<ReForgetEPs.Mu<R>, A, B>
 {
-    //run接收Either<A,Pair<A,R>>返回B
+    //run takes Either<A,Pair<A,R>> and returns B
     B Run(Either<A, Pair<A, R>> e);
 
-    //Name标识用于调试
+    //Name identifier used for debugging
     string Name { get; }
 }
 
-//ReForgetEP具体实现持有委托与name
+//ReForgetEP concrete implementation holding the delegate and name
 internal sealed class ReForgetEPImpl<R, A, B> : ReForgetEP<R, A, B>
 {
     private readonly Func<Either<A, Pair<A, R>>, B> _function;
@@ -42,15 +42,15 @@ internal sealed class ReForgetEPImpl<R, A, B> : ReForgetEP<R, A, B>
     public override string ToString() => "ReForgetEP_" + _name;
 }
 
-//ReForgetEPInstance作为AffineP实例
-//用reForgetEP工厂方法构造新ReForgetEP包装dimap/first/second/left/right组合
+//ReForgetEPInstance as the AffineP instance
+//uses the reForgetEP factory to build a new ReForgetEP wrapping the dimap/first/second/left/right combination
 public sealed class ReForgetEPInstance<R> : AffineP<ReForgetEPs.Mu<R>, ReForgetEPInstance<R>.Mu>, App<ReForgetEPInstance<R>.Mu, ReForgetEPs.Mu<R>>
 {
     public sealed class Mu : IAffinePMu { }
     public static readonly ReForgetEPInstance<R> InstanceOf = new();
     private ReForgetEPInstance() { }
 
-    //dimap用g前处理输入h后处理输出组合原ReForgetEP.run
+    //dimap preprocesses the input with g and postprocesses the output with h, composing the original ReForgetEP.run
     public Func<App2<ReForgetEPs.Mu<R>, A, B>, App2<ReForgetEPs.Mu<R>, C, D>> Dimap<A, B, C, D>(Func<C, A> g, Func<B, D> h)
     {
         return input => Optics.ReForgetEP<R, C, D>("dimap", e =>
@@ -61,7 +61,7 @@ public sealed class ReForgetEPInstance<R> : AffineP<ReForgetEPs.Mu<R>, ReForgetE
         });
     }
 
-    //first把ReForgetEP扩展到Pair第一分量处理嵌套Pair
+    //first extends ReForgetEP to the first component of Pair, handling the nested Pair
     public App2<ReForgetEPs.Mu<R>, Pair<A, C>, Pair<B, C>> First<A, B, C>(App2<ReForgetEPs.Mu<R>, A, B> input)
     {
         var reForgetEP = ReForgetEPs.Unbox<R, A, B>(input);
@@ -73,7 +73,7 @@ public sealed class ReForgetEPInstance<R> : AffineP<ReForgetEPs.Mu<R>, ReForgetE
         );
     }
 
-    //second把ReForgetEP扩展到Pair第二分量处理嵌套Pair
+    //second extends ReForgetEP to the second component of Pair, handling the nested Pair
     public new App2<ReForgetEPs.Mu<R>, Pair<C, A>, Pair<C, B>> Second<A, B, C>(App2<ReForgetEPs.Mu<R>, A, B> input)
     {
         var reForgetEP = ReForgetEPs.Unbox<R, A, B>(input);
@@ -85,7 +85,7 @@ public sealed class ReForgetEPInstance<R> : AffineP<ReForgetEPs.Mu<R>, ReForgetE
         );
     }
 
-    //left把ReForgetEP扩展到Either左分支处理嵌套Either
+    //left extends ReForgetEP to the either left branch, handling the nested Either
     public App2<ReForgetEPs.Mu<R>, Either<A, C>, Either<B, C>> Left<A, B, C>(App2<ReForgetEPs.Mu<R>, A, B> input)
     {
         var reForgetEP = ReForgetEPs.Unbox<R, A, B>(input);
@@ -97,7 +97,7 @@ public sealed class ReForgetEPInstance<R> : AffineP<ReForgetEPs.Mu<R>, ReForgetE
         );
     }
 
-    //right把ReForgetEP扩展到Either右分支处理嵌套Either
+    //right extends ReForgetEP to the either right branch, handling the nested Either
     public new App2<ReForgetEPs.Mu<R>, Either<C, A>, Either<C, B>> Right<A, B, C>(App2<ReForgetEPs.Mu<R>, A, B> input)
     {
         var reForgetEP = ReForgetEPs.Unbox<R, A, B>(input);

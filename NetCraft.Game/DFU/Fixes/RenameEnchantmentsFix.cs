@@ -7,9 +7,9 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//附魔重命名修复对应原版RenameEnchantmentsFix
-//1.20.5前重命名ItemStack.tag下Enchantments与StoredEnchantments列表中id字段
-//renames为旧ID到新ID映射表
+//Enchantment rename fix, maps to vanilla RenameEnchantmentsFix
+//Before 1.20.5 it renames the id field in the Enchantments and StoredEnchantments lists under ItemStack.tag
+//renames is the old ID to new ID mapping table
 public class RenameEnchantmentsFix : DataFix
 {
     private readonly string _name;
@@ -30,11 +30,11 @@ public class RenameEnchantmentsFix : DataFix
             input.UpdateTyped(tagFinder, tag => tag.Update(DSL.RemainderFinder(), FixTag)));
     }
 
-    //fixTag对Enchantments与StoredEnchantments两个字段应用修复
+    //fixTag applies the fix to the Enchantments and StoredEnchantments fields
     private Dynamic<object> FixTag(Dynamic<object> tag)
         => FixEnchantmentList(FixEnchantmentList(tag, "Enchantments"), "StoredEnchantments");
 
-    //fixEnchantmentList对itemStack的field字段列表逐项修复id字段
+    //fixEnchantmentList fixes the id field of each entry in itemStack's field list
     private Dynamic<object> FixEnchantmentList(Dynamic<object> itemStack, string field)
         => itemStack.Update(field, tag =>
         {

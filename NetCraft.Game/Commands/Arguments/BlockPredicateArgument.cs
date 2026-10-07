@@ -13,26 +13,26 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//BlockInWorld 谓词求值上下文对应原版 BlockInWorld
-//方块实体不在 level 上 由调用方带上供 nbt 谓词使用
+//BlockInWorld predicate evaluation context, maps to vanilla BlockInWorld
+//The block entity is not on the level; the caller passes it in for the nbt predicate
 public sealed record BlockInWorld(PersistentServerLevel Level, BlockPos Pos, BlockEntityManager? BlockEntities)
 {
     public BlockState? State => Level.GetBlockState(Pos);
 }
 
-//BlockPredicateArgument 方块谓词参数对应原版 net.minecraft.commands.arguments.blocks.BlockPredicateArgument
-//语法 <方块> | #<标签> 之后可接 [属性=值,...] 与 {方块实体nbt}
-//属性段只要求列出的属性匹配 没列出的忽略 nbt 段按部分匹配 给出的标签要落在实际标签里
+//BlockPredicateArgument block predicate argument, maps to vanilla net.minecraft.commands.arguments.blocks.BlockPredicateArgument
+//Syntax: <block> | #<tag>, optionally followed by [property=value,...] and {block entity nbt}
+//The property section only requires the listed properties to match and ignores the rest; the nbt section matches partially; given tags must be present in the actual tags
 public sealed class BlockPredicateArgument : ArgumentType<Predicate<BlockInWorld>>
 {
     public static readonly DynamicCommandExceptionType ErrorUnknownBlock =
-        new(id => new LiteralMessage($"未知方块 {id}"));
+        new(id => new LiteralMessage($"unknown block {id}"));
 
     public static readonly DynamicCommandExceptionType ErrorUnknownTag =
-        new(id => new LiteralMessage($"未知方块标签 {id}"));
+        new(id => new LiteralMessage($"unknown block tag {id}"));
 
     public static readonly SimpleCommandExceptionType ErrorInvalidState =
-        new(new LiteralMessage("方块谓词格式非法"));
+        new(new LiteralMessage("invalid block predicate syntax"));
 
     public static BlockPredicateArgument BlockPredicate() => new();
 
@@ -40,7 +40,7 @@ public sealed class BlockPredicateArgument : ArgumentType<Predicate<BlockInWorld
     {
         var text = ReadToken(reader);
 
-        //谓词头部截止到首个属性段或nbt段 之后按顺序各解析一次
+        //The predicate head ends at the first property or nbt section; the rest are parsed once each in order
         var headEnd = text.Length;
         var bracket = text.IndexOf('[');
         var brace = text.IndexOf('{');
@@ -82,18 +82,18 @@ public sealed class BlockPredicateArgument : ArgumentType<Predicate<BlockInWorld
         };
     }
 
-    //ParseBlockMatch 按方块 id 匹配 未知 id 直接报错
+    //ParseBlockMatch matches by block id; an unknown id errors out
     private static Func<BlockState, bool> ParseBlockMatch(string text)
     {
         var id = text.Contains(':') ? Identifier.TryParse(text) : Identifier.TryParse("minecraft:" + text);
-        //BLOCK 是带默认值的注册表 未知 id 取出来会是 air 必须先用 ContainsKey 拦住
+        //BLOCK is a defaulted registry, so an unknown id resolves to air and must be caught with ContainsKey first
         if (id is null || !BuiltInRegistries.BLOCK.ContainsKey(id.Value))
             throw ErrorUnknownBlock.Create(text);
         var block = BuiltInRegistries.BLOCK.GetValue(id.Value)!;
         return state => ReferenceEquals(state.Owner, block);
     }
 
-    //ParseTagMatch 按方块标签匹配 标签未注册直接报错
+    //ParseTagMatch matches by block tag; an unregistered tag errors out
     private static Func<BlockState, bool> ParseTagMatch(string text)
     {
         var id = text.Contains(':') ? Identifier.TryParse(text) : Identifier.TryParse("minecraft:" + text);
@@ -104,7 +104,7 @@ public sealed class BlockPredicateArgument : ArgumentType<Predicate<BlockInWorld
         return state => set.IsBound && set.Any(holder => ReferenceEquals(holder.Value, state.Owner));
     }
 
-    //ParsePropertyMatch 逐条匹配属性 带等号的要值相等 不带的只要求属性存在
+    //ParsePropertyMatch matches properties one by one; entries with = require equal values, entries without only require the property to exist
     private static Func<BlockState, bool> ParsePropertyMatch(string text)
     {
         if (text.Length == 0) return _ => true;
@@ -132,8 +132,8 @@ public sealed class BlockPredicateArgument : ArgumentType<Predicate<BlockInWorld
         };
     }
 
-    //MatchesTag 部分匹配 给出的每个条目都要在实际标签里存在且相等 对应原版 NbtPredicate
-    //列表要求长度相等逐元素匹配 其余类型走相等比较
+    //MatchesTag partial match: every given entry must exist in the actual tag and be equal, maps to vanilla NbtPredicate
+    //Lists require equal length and element-wise matching; other types use equality
     private static bool MatchesTag(Tag expected, Tag actual)
     {
         if (expected is CompoundTag expectedCompound)
@@ -158,7 +158,7 @@ public sealed class BlockPredicateArgument : ArgumentType<Predicate<BlockInWorld
         return expected.Equals(actual);
     }
 
-    //ReadToken 读整段谓词参数 带引号走转义解析 否则读到空白为止
+    //ReadToken reads the whole predicate argument; quoted input goes through escape parsing, otherwise it reads to whitespace
     private static string ReadToken(StringReader reader)
     {
         if (reader.CanRead() && StringReader.IsQuotedStringStart(reader.Peek()))
@@ -169,11 +169,11 @@ public sealed class BlockPredicateArgument : ArgumentType<Predicate<BlockInWorld
         return reader.String[start..reader.Cursor];
     }
 
-    //GetBlockPredicate 取解析出的谓词
+    //GetBlockPredicate gets the parsed predicate
     public static Predicate<BlockInWorld> GetBlockPredicate(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<Predicate<BlockInWorld>>(name);
 
-    //ListSuggestions 按当前游标给方块或标签候选
+    //ListSuggestions suggests blocks or tags for the current cursor
     public Task<Suggestions> ListSuggestions<S>(CommandContext<S> context, SuggestionsBuilder builder)
     {
         var remaining = builder.Remaining;

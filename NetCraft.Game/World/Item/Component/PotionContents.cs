@@ -5,11 +5,11 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items.Component;
 
-//PotionContents 药水内容 基础药水加自定颜色加自定效果加自定名字
-//对应原版 net.minecraft.world.item.component.PotionContents
+//PotionContents potion contents: base potion plus custom color plus custom effects plus custom name
+//Maps to vanilla net.minecraft.world.item.component.PotionContents
 public sealed class PotionContents : IEquatable<PotionContents>
 {
-    //Codec 持久化编解码 四个字段全可选 对应原版 CODEC
+    //Codec persistence codec, all four fields are optional, maps to vanilla CODEC
     public static readonly Codec<PotionContents> Codec = RecordCodecBuilder.Of4(
         HolderSetCodecs.PotionRef.OptionalFieldOf("potion").ForGetter((PotionContents contents) => contents.Potion),
         Codecs.Int.OptionalFieldOf("custom_color").ForGetter((PotionContents contents) => contents.CustomColor),
@@ -19,11 +19,11 @@ public sealed class PotionContents : IEquatable<PotionContents>
         (potion, customColor, customEffects, customName)
             => new PotionContents(potion, customColor, customEffects, customName));
 
-    //StreamCodec 网络编解码 逐字段可选进出 对应原版 STREAM_CODEC
+    //StreamCodec network codec, each field is optional, maps to vanilla STREAM_CODEC
     public static readonly StreamCodec<RegistryFriendlyByteBuf, PotionContents> StreamCodec =
         new PotionContentsStreamCodec();
 
-    //Empty 空药水内容 对应原版 EMPTY
+    //Empty empty potion contents, maps to vanilla EMPTY
     public static readonly PotionContents Empty = new(
         Optional<Holder<Potion>>.Empty(), Optional<int>.Empty(),
         Array.Empty<MobEffectInstance>(), Optional<string>.Empty());
@@ -59,7 +59,7 @@ public sealed class PotionContents : IEquatable<PotionContents>
     public override string ToString() => $"PotionContents[effects={CustomEffects.Count}]";
 }
 
-//PotionContentsStreamCodec 药水可选加颜色可选加效果列表加名字可选 对应原版 STREAM_CODEC
+//PotionContentsStreamCodec optional potion plus optional color plus effect list plus optional name, maps to vanilla STREAM_CODEC
 internal sealed class PotionContentsStreamCodec : StreamCodec<RegistryFriendlyByteBuf, PotionContents>
 {
     private static readonly StreamCodec<RegistryFriendlyByteBuf, Holder<Potion>> PotionStream =

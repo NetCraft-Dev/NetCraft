@@ -2,17 +2,17 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.World.Scores;
 
-//ScoreAccess 可写分数视图 对应原版 net.minecraft.world.scores.ScoreAccess
-//命令侧拿到它就能读写分数 只读 objective 上拿到的实现会挡住写操作
+//ScoreAccess writable score view, maps to vanilla net.minecraft.world.scores.ScoreAccess
+//Commands get it to read and write scores; the implementation obtained from a read-only objective blocks writes
 public interface ScoreAccess
 {
-    //Get 读当前分数 对应原版 get
+    //Get reads the current score, maps to vanilla get
     int Get();
 
-    //Set 写分数 对应原版 set
+    //Set writes the score, maps to vanilla set
     void Set(int value);
 
-    //Add 加一个增量并返回新值 对应原版 add
+    //Add adds a delta and returns the new value, maps to vanilla add
     int Add(int amount)
     {
         var value = Get() + amount;
@@ -20,24 +20,24 @@ public interface ScoreAccess
         return value;
     }
 
-    //Increment 自增一并返回新值 对应原版 increment
+    //Increment increments by one and returns the new value, maps to vanilla increment
     int Increment() => Add(1);
 
-    //Reset 分数归零 对应原版 reset
+    //Reset resets the score to zero, maps to vanilla reset
     void Reset() => Set(0);
 
-    //Locked 分数是否锁定 对应原版 locked
+    //Locked whether the score is locked, maps to vanilla locked
     bool Locked();
 
-    //Unlock 解锁分数 对应原版 unlock
+    //Unlock unlocks the score, maps to vanilla unlock
     void Unlock();
 
-    //Lock 锁定分数 对应原版 lock
+    //Lock locks the score, maps to vanilla lock
     void Lock();
 
-    //Display 读自定义显示文本 没有给 null 对应原版 display
+    //Display reads the custom display text, null when none, maps to vanilla display
     Component? Display();
 
-    //Display 写自定义显示文本 对应原版 display
+    //Display writes the custom display text, maps to vanilla display
     void Display(Component? display);
 }

@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundChatAckPacket 聊天消息确认对应原版 ServerboundChatAckPacket
-//26.2 签名系统精简后只剩 Offset(VarInt) 表示客户端已读到的消息位
+//ServerboundChatAckPacket chat message acknowledgment, maps to vanilla ServerboundChatAckPacket
+//After the 26.2 signing system was slimmed down, only Offset(VarInt) remains, the message position the client has read
 public sealed record ServerboundChatAckPacket(int Offset) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundChatAckPacket> StreamCodec { get; } = new ChatAckCodec();

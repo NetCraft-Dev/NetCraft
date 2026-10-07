@@ -67,30 +67,30 @@ public abstract class Functions
         return System.Runtime.CompilerServices.Unsafe.As<object, PointFree<Func<object, object>>>(ref obj);
     }
 
-    //fun命名包装普通函数
+    //fun wraps a plain function with a name
     public static PointFree<Func<A, B>> Fun<A, B>(string name, Func<DynamicOps<object>, Func<A, B>> fun, T.Type<A> input, T.Type<B> output)
         => new FunctionWrapper<A, B>(name, fun, input, output);
 
-    //app函数应用
+    //app function application
     public static PointFree<B> App<A, B>(PointFree<Func<A, B>> fun, PointFree<A> arg)
         => new Apply<A, B>(fun, arg);
 
-    //profunctorTransformer构造optic的profunctor变换
+    //profunctorTransformer builds the profunctor transform of an optic
     public static PointFree<Func<Func<A, B>, Func<S, T>>> ProfunctorTransformer<S, T, A, B>(TypedOptic<S, T, A, B> lens)
         => new ProfunctorTransformer<S, T, A, B>(lens);
 
-    //bang构造丢弃函数
+    //bang builds the discard function
     public static Bang<TA> Bang<TA>(T.Type<TA> type) => new(type);
 
-    //in构造递归点的入向View
+    //in builds the incoming View of a recursive point
     public static PointFree<Func<TA, TA>> In<TA>(NetCraft.DataFixer.Types.Templates.RecursivePoint.RecursivePointType<TA> type)
         => new In<TA>(type);
 
-    //out构造递归点的出向View
+    //out builds the outgoing View of a recursive point
     public static PointFree<Func<TA, TA>> Out<TA>(NetCraft.DataFixer.Types.Templates.RecursivePoint.RecursivePointType<TA> type)
         => new Out<TA>(type);
 
-    //fold构造递归折叠
+    //fold builds a recursive fold
     public static PointFree<Func<TA, TB>> Fold<TA, TB>(
         NetCraft.DataFixer.Types.Templates.RecursivePoint.RecursivePointType<TA> aType,
         NetCraft.DataFixer.Types.Templates.RecursivePoint.RecursivePointType<TB> bType,
@@ -98,15 +98,15 @@ public abstract class Functions
         int index)
         => new Fold<TA, TB>(aType, bType, algebra, index);
 
-    //id构造单位函数
+    //id builds the identity function
     public static PointFree<Func<TA, TA>> Id<TA>(T.Type<TA> type)
         => new Id<TA>(DSL.Func(type, type));
 
-    //isId判断是否为单位函数对齐原版function instanceof Id<?>
+    //isId checks whether it is the identity function, aligning with vanilla function instanceof Id<?>
     public static bool IsId(PointFree<object>? function)
         => IsIdUnchecked(function);
 
-    //isIdUnchecked反射检查任意Id<X>避免PointFree泛型强转异常
+    //isIdUnchecked reflectively checks any Id<X>, avoiding a PointFree generic cast exception
     internal static bool IsIdUnchecked(object? function)
     {
         if (function is null) return false;

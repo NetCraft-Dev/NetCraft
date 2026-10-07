@@ -3,9 +3,9 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.World.Inventory;
 
-//CraftingMenu 工作台菜单对应原版 net.minecraft.world.inventory.CraftingMenu
-//槽位布局照原版: 0 结果 1-9 合成格 10-36 主物品栏 37-45 快捷栏 共 46 槽
-//工作台没有护甲与副手槽 这两样只在背包菜单里有
+//CraftingMenu crafting table menu, maps to vanilla net.minecraft.world.inventory.CraftingMenu
+//Slot layout follows vanilla: 0 result, 1-9 crafting grid, 10-36 main inventory, 37-45 hotbar, 46 slots total
+//The crafting table has no armor or offhand slots, those exist only in the inventory menu
 public sealed class CraftingMenu : AbstractCraftingMenu
 {
     public const int ResultSlotIndex = 0;
@@ -20,13 +20,13 @@ public sealed class CraftingMenu : AbstractCraftingMenu
         : base(MenuTypes.CRAFTING, containerId, 3, 3)
     {
         OwnerInventory = inventory;
-        //0 结果槽 取走时要结算合成格材料
+        //0 result slot, taking it consumes ingredients from the crafting grid
         AddSlot(new ResultSlot(this, ResultSlots, 0, 124, 35));
-        //1-9 合成格 3x3
+        //1-9 crafting grid, 3x3
         for (var y = 0; y < 3; y++)
             for (var x = 0; x < 3; x++)
                 AddSlot(new Slot(CraftSlots, x + y * 3, 30 + x * 18, 17 + y * 18));
-        //10-36 主物品栏 37-45 快捷栏 对应原版 addStandardInventorySlots(inventory, 8, 84)
+        //10-36 main inventory, 37-45 hotbar, maps to vanilla addStandardInventorySlots(inventory, 8, 84)
         for (var i = 0; i < PlayerInventory.MainSlots; i++)
             AddSlot(new Slot(inventory, PlayerInventory.HotbarSlots + i, 8 + i % 9 * 18, 84 + i / 9 * 18));
         for (var i = 0; i < PlayerInventory.HotbarSlots; i++)
@@ -35,7 +35,7 @@ public sealed class CraftingMenu : AbstractCraftingMenu
 
     public override bool StillValid(ServerPlayer player) => true;
 
-    //QuickMoveStack 快捷搬运 结果槽搬进背包 背包物品优先塞合成格 塞不下再在背包两区之间挪
+    //QuickMoveStack quick move: the result slot goes to the inventory, inventory items fill the crafting grid first and otherwise shift between the two inventory ranges
     public override ItemStack QuickMoveStack(ServerPlayer player, int slotIndex)
     {
         var slot = GetSlot(slotIndex);
@@ -44,14 +44,14 @@ public sealed class CraftingMenu : AbstractCraftingMenu
         var stack = slot.GetItem();
         if (slotIndex == ResultSlotIndex)
         {
-            //搬走了才结算材料 背包塞不下(搬不动)不该白扣 与原版 moveItemStackTo 失败即返回一致
+            //Ingredients are only consumed when a move happened; an item that does not fit must not be charged, matching vanilla moveItemStackTo returning early on failure
             if (MoveItemStackTo(stack, InvSlotStart, HotbarSlotEnd, true)) OnCraftingTaken();
         }
         else if (slotIndex < CraftSlotEnd)
             MoveItemStackTo(stack, InvSlotStart, HotbarSlotEnd, false);
         else if (slotIndex < HotbarSlotEnd)
         {
-            //主区与快捷栏之间互相倒 对应原版 index < 37 与 else 两条分支
+            //Shifts between the main range and the hotbar, matching vanilla's index < 37 and else branches
             if (!MoveItemStackTo(stack, CraftSlotStart, CraftSlotEnd, false))
                 MoveItemStackTo(stack, slotIndex < HotbarSlotStart ? HotbarSlotStart : InvSlotStart,
                     slotIndex < HotbarSlotStart ? HotbarSlotEnd : InvSlotEnd, false);

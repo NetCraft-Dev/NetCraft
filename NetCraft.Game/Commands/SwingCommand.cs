@@ -6,8 +6,8 @@ using NetCraft.Game.Network.Protocol.Game;
 
 namespace NetCraft.Game.Commands;
 
-//SwingCommand swing 命令对应原版 net.minecraft.server.commands.SwingCommand
-//让目标做出挥手动画 动作编号与原版 ClientboundAnimatePacket 一致 0 主手 3 副手
+//SwingCommand swing command, maps to vanilla net.minecraft.server.commands.SwingCommand
+//Makes the targets play the swing animation; the action id matches vanilla ClientboundAnimatePacket; 0 main hand, 3 offhand
 public static class SwingCommand
 {
     private const int SwingMainHand = 0;
@@ -25,21 +25,21 @@ public static class SwingCommand
                     .Executes(context => Swing(context, SwingOffHand)))));
     }
 
-    //Swing 把动画包广播给全服 对应原版 broadcastAnimate
+    //Swing broadcasts the animation packet to the whole server, maps to vanilla broadcastAnimate
     private static int Swing(CommandContext<CommandSourceStack> context, int action)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var targets = EntityArgument.GetPlayers(context, "targets");
         if (targets.Count == 0)
         {
-            source.SendFailure("没有找到匹配的玩家");
+            source.SendFailure("no matching player found");
             return 0;
         }
 
         foreach (var target in targets)
             source.Server.PlayerList.BroadcastAll(new ClientboundAnimatePacket(target.EntityId, action));
 
-        source.SendSuccess($"已让 {targets.Count} 名玩家挥手");
+        source.SendSuccess($"made {targets.Count} players swing");
         return targets.Count;
     }
 }

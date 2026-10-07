@@ -8,12 +8,12 @@ using NetCraft.Game.Server;
 
 namespace NetCraft.Game.Commands;
 
-//ExperienceCommand experience 命令对应原版 net.minecraft.server.commands.ExperienceCommand
-//add/set/query 三个动作作用于玩家的经验值与等级
-//原版 add 走 giveExperiencePoints 会顺带 increaseScore 记分板加分 nc 无记分板故省略该副作用
+//ExperienceCommand experience command, maps to vanilla net.minecraft.server.commands.ExperienceCommand
+//The add/set/query actions act on a player's xp and level
+//Vanilla add goes through giveExperiencePoints and also does increaseScore for the scoreboard; nc has no scoreboard so that side effect is omitted
 public static class ExperienceCommand
 {
-    //经验计量维度 points=当前等级内经验点数 levels=等级
+    //Xp measurement dimension: points = xp points within the current level, levels = level
     private enum Kind
     {
         Points,
@@ -48,13 +48,13 @@ public static class ExperienceCommand
                         .Executes(context => Query(context, Kind.Levels))))));
     }
 
-    //XpNeededForNextLevel 升到下一级还需的经验点数 对应原版 Player.getXpNeededForNextLevel 的三段公式
+    //XpNeededForNextLevel xp points needed to reach the next level, maps to vanilla Player.getXpNeededForNextLevel's three-segment formula
     private static int XpNeededForNextLevel(int level)
         => level >= 30 ? 112 + (level - 30) * 9
         : level >= 15 ? 37 + (level - 15) * 5
         : 7 + level * 2;
 
-    //Add 按维度增加经验 改完补发经验包否则客户端看不到变化
+    //Add adds xp by dimension; re-sends the xp packet after, or the client sees no change
     private static int Add(CommandContext<CommandSourceStack> context, Kind kind)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -68,13 +68,13 @@ public static class ExperienceCommand
         }
 
         if (players.Count == 1)
-            source.SendSuccess($"已为 {players[0].Profile.Name} 增加 {amount} {(kind == Kind.Levels ? "等级" : "经验点")}");
+            source.SendSuccess($"gave {players[0].Profile.Name} {amount} {(kind == Kind.Levels ? "levels" : "xp")}");
         else
-            source.SendSuccess($"已为 {players.Count} 名玩家增加 {amount} {(kind == Kind.Levels ? "等级" : "经验点")}");
+            source.SendSuccess($"gave {players.Count} players {amount} {(kind == Kind.Levels ? "levels" : "xp")}");
         return players.Count;
     }
 
-    //Set 按维度设置经验 设点数时达到升级阈值按原版判失败
+    //Set sets xp by dimension; when setting points, reaching the level-up threshold fails like vanilla
     private static int Set(CommandContext<CommandSourceStack> context, Kind kind)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -91,7 +91,7 @@ public static class ExperienceCommand
             {
                 var needed = XpNeededForNextLevel(player.XpLevel);
                 if (amount >= needed) continue;
-                //原版 setExperiencePoints 把进度钳到 0..(f-1)/f 保证不满级
+                //Vanilla setExperiencePoints clamps the progress to 0..(f-1)/f to keep it below the level
                 player.XpProgress = Math.Clamp((float)amount / needed, 0f, (needed - 1f) / needed);
             }
             success++;
@@ -100,18 +100,18 @@ public static class ExperienceCommand
 
         if (success == 0)
         {
-            source.SendFailure("经验点数不能达到升级阈值");
+            source.SendFailure("xp points cannot reach the level-up threshold");
             return 0;
         }
 
         if (players.Count == 1)
-            source.SendSuccess($"已将 {players[0].Profile.Name} 的{kind switch { Kind.Levels => "等级", _ => "经验点" }}设为 {amount}");
+            source.SendSuccess($"set {players[0].Profile.Name}'s {kind switch { Kind.Levels => "level", _ => "xp" }} to {amount}");
         else
-            source.SendSuccess($"已将 {players.Count} 名玩家的{kind switch { Kind.Levels => "等级", _ => "经验点" }}设为 {amount}");
+            source.SendSuccess($"set {players.Count} players' {kind switch { Kind.Levels => "level", _ => "xp" }} to {amount}");
         return success;
     }
 
-    //Query 回读经验 点数按进度乘升级需求取整 对应原版 queryExperience
+    //Query reads xp back; points are the progress times the level-up requirement rounded, maps to vanilla queryExperience
     private static int Query(CommandContext<CommandSourceStack> context, Kind kind)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -119,11 +119,11 @@ public static class ExperienceCommand
         var result = kind == Kind.Levels
             ? target.XpLevel
             : (int)Math.Floor(target.XpProgress * XpNeededForNextLevel(target.XpLevel));
-        source.SendSuccess($"{target.Profile.Name} 的{(kind == Kind.Levels ? "等级" : "经验点")}为 {result}");
+        source.SendSuccess($"{target.Profile.Name}'s {(kind == Kind.Levels ? "level" : "xp")} is {result}");
         return result;
     }
 
-    //GiveExperiencePoints 按原版给总经验并处理跨级结转 对应原版 Player.giveExperiencePoints
+    //GiveExperiencePoints gives total xp like vanilla and handles level carry-over, maps to vanilla Player.giveExperiencePoints
     private static void GiveExperiencePoints(ServerPlayer player, int amount)
     {
         player.XpProgress += (float)amount / XpNeededForNextLevel(player.XpLevel);
@@ -149,7 +149,7 @@ public static class ExperienceCommand
         }
     }
 
-    //SyncExperience 改完经验补发一包 与原版经验变更即同步一致
+    //SyncExperience re-sends a packet after xp changes, consistent with vanilla syncing on xp change
     private static void SyncExperience(ServerPlayer player)
         => player.Connection.Send(new ClientboundSetExperiencePacket(player.XpProgress, player.XpTotal, player.XpLevel));
 }

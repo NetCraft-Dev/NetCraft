@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundClientTickEndPacket 数据包对应原版 ServerboundClientTickEndPacket
-//字段 
+//ServerboundClientTickEndPacket client tick end packet, maps to vanilla ServerboundClientTickEndPacket
+//Fields:
 public sealed record ServerboundClientTickEndPacket() : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundClientTickEndPacket> StreamCodec { get; } = new ClientTickEndCodec();

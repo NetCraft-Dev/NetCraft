@@ -3,11 +3,11 @@ using StbImageSharp;
 
 namespace NetCraft.Gpu.Font;
 
-//BitmapGlyphProvider 对标原版 BitmapProvider
-//从 PNG 纹理按 codepointGrid 网格切割每个字形
-//chars 字符串数组每行解码为 codepoint 序列对应纹理网格行
-//actualGlyphWidth 从右向左扫描首个非0像素列计算 advance
-//pixelScale = height / glyphHeight 把整图坐标换算到字形高度
+//BitmapGlyphProvider maps to vanilla BitmapProvider
+//Slices each glyph from the PNG texture using the codepointGrid
+//Each chars string is decoded into a codepoint sequence for the matching texture grid row
+//actualGlyphWidth scans from right to left for the first non-zero pixel column to compute advance
+//pixelScale = height / glyphHeight converts whole-image coordinates to the glyph height
 public sealed unsafe class BitmapGlyphProvider : IGlyphProvider
 {
     private readonly byte[] _imageBytes;
@@ -48,7 +48,7 @@ public sealed unsafe class BitmapGlyphProvider : IGlyphProvider
         return _cache.GetOrAdd(codepoint, LoadGlyph);
     }
 
-    //LoadGlyph 遍历 codepointGrid 找 codepoint 所在行列构造字形度量
+    //LoadGlyph scans codepointGrid for the codepoint's row and column and builds the glyph metrics
     private IUnbakedGlyph? LoadGlyph(int codepoint)
     {
         int glyphWidth = _imageWidth / _codepointGrid[0].Length;
@@ -69,8 +69,8 @@ public sealed unsafe class BitmapGlyphProvider : IGlyphProvider
         return null;
     }
 
-    //GetActualGlyphWidth 从右向左扫描 glyphWidth 列找首个非0 alpha 像素列
-    //对标原版 BitmapProvider.Definition.getActualGlyphWidth
+    //GetActualGlyphWidth scans glyphWidth columns from right to left for the first non-zero alpha pixel column
+    //maps to vanilla BitmapProvider.Definition.getActualGlyphWidth
     private int GetActualGlyphWidth(int glyphWidth, int glyphHeight, int slotX, int slotY)
     {
         int width = glyphWidth - 1;
@@ -90,7 +90,7 @@ public sealed unsafe class BitmapGlyphProvider : IGlyphProvider
 
     public void Dispose() { }
 
-    //BitmapGlyph 对标原版 BitmapProvider.Glyph 持有偏移/尺寸/advance/ascent
+    //BitmapGlyph maps to vanilla BitmapProvider.Glyph, holds offset/size/advance/ascent
     private sealed class BitmapGlyph : IUnbakedGlyph
     {
         internal readonly BitmapGlyphProvider _owner;
@@ -122,9 +122,9 @@ public sealed unsafe class BitmapGlyphProvider : IGlyphProvider
             => stitcher.Stitch(_info, new BitmapGlyphBitmap(this));
     }
 
-    //BitmapGlyphBitmap 对标原版 BitmapProvider.Glyph 的 GlyphBitmap
-    //PixelWidth/Height 用完整 glyphWidth/glyphHeight 保持网格对齐
-    //GetPixels 从原图裁剪 offsetX/offsetY 起 glyphWidth×glyphHeight 的 RGBA 像素
+    //BitmapGlyphBitmap maps to GlyphBitmap of vanilla BitmapProvider.Glyph
+    //PixelWidth/Height use the full glyphWidth/glyphHeight to keep grid alignment
+    //GetPixels crops glyphWidth×glyphHeight RGBA pixels starting at offsetX/offsetY from the source image
     private sealed class BitmapGlyphBitmap : IGlyphBitmap
     {
         private readonly BitmapGlyph _glyph;

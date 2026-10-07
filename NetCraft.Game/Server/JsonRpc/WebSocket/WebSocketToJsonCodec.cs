@@ -2,11 +2,11 @@ using System.Text.Json;
 
 namespace NetCraft.Game.Server.JsonRpc.WebSocket;
 
-//WebSocketToJsonCodec 管理服务 websocket 文本帧转 JSON 对应原版 net.minecraft.server.jsonrpc.websocket.WebSocketToJsonCodec
-//原版继承 netty MessageToMessageDecoder 这里直接给出文本到 JSON 元素的转换
+//WebSocketToJsonCodec converts a service websocket text frame to JSON, maps to vanilla net.minecraft.server.jsonrpc.websocket.WebSocketToJsonCodec
+//Vanilla extends netty MessageToMessageDecoder; this directly provides the text to JSON element conversion
 public static class WebSocketToJsonCodec
 {
-    //Decode 把 websocket 文本帧内容解析为 JSON 元素 脱离文档生命周期需克隆
+    //Decode parses the websocket text frame content into a JSON element; clone is needed when outliving the document
     public static JsonElement Decode(string message)
     {
         using var document = JsonDocument.Parse(message);

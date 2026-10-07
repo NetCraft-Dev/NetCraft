@@ -4,7 +4,7 @@
              x:Class="NetCraft.Server.Gui.ServerChunkPage">
 
   <Grid ColumnDefinitions="168,12,*">
-    <!--左上列出正在推进的生成任务 左下是玩家名单 再下面是跳到指定区块的入口-->
+    <!--Top-left lists in-progress generation tasks, bottom-left is the player list, and below that is the entry to jump to a given chunk-->
     <Border Grid.Column="0" Classes="card">
       <Grid RowDefinitions="Auto,6,Auto,10,*,10,Auto,6,Auto,10,Auto,6,Auto,6,Auto">
         <TextBlock Grid.Row="0" Classes="cardTitle" Text="{x:Static gui:GuiText.ChunkTerrain}" />
@@ -28,7 +28,7 @@
       </Grid>
     </Border>
 
-    <!--右边是方格图 上边一条信息带放中心坐标、悬停格、缩放与图例-->
+    <!--Right side is the grid map; a strip on top holds the center coordinates, hovered cell, zoom, and legend-->
     <Grid Grid.Column="2" RowDefinitions="Auto,10,*">
       <Border Classes="card" Padding="10,7">
         <Grid ColumnDefinitions="*,Auto">

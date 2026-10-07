@@ -8,8 +8,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Commands;
 
-//StopSoundCommand stopsound 命令对应原版 net.minecraft.server.commands.StopSoundCommand
-//停止目标身上正在播放的音效 省略音源时停全部音源
+//StopSoundCommand stopsound command, maps to vanilla net.minecraft.server.commands.StopSoundCommand
+//Stops the sound currently playing on the targets; without a source it stops all sources
 public static class StopSoundCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -22,21 +22,21 @@ public static class StopSoundCommand
                     .Executes(context => Stop(context, ParseSource(context))))));
     }
 
-    //ParseSource 词参数转音源枚举 名字不匹配按全部音源处理
+    //ParseSource converts the word argument to the sound source enum; a name mismatch is treated as all sources
     private static SoundSource? ParseSource(CommandContext<CommandSourceStack> context)
     {
         var name = StringArgumentType.GetString(context, "source");
         return Enum.TryParse<SoundSource>(name, true, out var parsed) ? parsed : null;
     }
 
-    //Stop 发停止音效包 音源为 null 时停该玩家所有音源
+    //Stop sends the stop-sound packet; a null source stops all sources for that player
     private static int Stop(CommandContext<CommandSourceStack> context, SoundSource? source)
     {
         if (context.GetSource() is not ServerCommandSource source2) return 0;
         var targets = EntityArgument.GetPlayers(context, "targets");
         if (targets.Count == 0)
         {
-            source2.SendFailure("没有找到匹配的玩家");
+            source2.SendFailure("no matching player found");
             return 0;
         }
 
@@ -44,8 +44,8 @@ public static class StopSoundCommand
             target.Connection.Send(new ClientboundStopSoundPacket(null, source));
 
         source2.SendSuccess(source is null
-            ? $"已停止 {targets.Count} 名玩家的全部音效"
-            : $"已停止 {targets.Count} 名玩家的 {source} 音源");
+            ? $"stopped all sounds for {targets.Count} players"
+            : $"stopped the {source} source for {targets.Count} players");
         return targets.Count;
     }
 }

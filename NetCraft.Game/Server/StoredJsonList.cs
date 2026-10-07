@@ -3,9 +3,9 @@ using NetCraft.Logging;
 
 namespace NetCraft.Game.Server;
 
-//StoredJsonList 名单文件读写基类 对应原版 net.minecraft.server.players.StoredUserList
-//负责 JSON 数组的加载与落盘 单条记录的字段读写由子类实现
-//文件缺失生成空名单 解析失败按空名单处理不阻断启动 与 OpList 同策略
+//StoredJsonList base class for list file read/write, maps to vanilla net.minecraft.server.players.StoredUserList
+//Handles loading and persisting the JSON array; per-record field read/write is implemented by subclasses
+//A missing file creates an empty list and a parse failure is treated as empty without blocking startup, the same strategy as OpList
 public abstract class StoredJsonList<TEntry> where TEntry : class
 {
     private readonly string _path;
@@ -17,23 +17,23 @@ public abstract class StoredJsonList<TEntry> where TEntry : class
         Load();
     }
 
-    //Path 名单文件路径
+    //Path the list file path
     public string Path => _path;
 
-    //Count 名单条目数
+    //Count the number of list entries
     public int Count => _entries.Count;
 
-    //Entries 条目只读视图 供 banlist 命令列出
+    //Entries a read-only view of entries, listed by the banlist command
     public IReadOnlyList<TEntry> Entries => _entries;
 
-    //AddEntry 追加一条记录并落盘
+    //AddEntry appends a record and persists it
     protected void AddEntry(TEntry entry)
     {
         _entries.Add(entry);
         Save();
     }
 
-    //RemoveEntry 移除首条命中记录并落盘 返回是否命中
+    //RemoveEntry removes the first matching record and persists it; returns whether one was hit
     protected bool RemoveEntry(Predicate<TEntry> match)
     {
         var index = _entries.FindIndex(match);
@@ -43,16 +43,16 @@ public abstract class StoredJsonList<TEntry> where TEntry : class
         return true;
     }
 
-    //ReadEntry 从 JSON 对象读出一条记录 字段缺失返回 null 表示跳过该条
+    //ReadEntry reads a record from a JSON object; a missing field returns null meaning skip that entry
     protected abstract TEntry? ReadEntry(JsonElement element);
 
-    //WriteEntry 把一条记录写成 JSON 对象
+    //WriteEntry writes a record as a JSON object
     protected abstract void WriteEntry(Utf8JsonWriter writer, TEntry entry);
 
-    //FileName 名单文件名 日志用
+    //FileName the list file name, for logging
     private string FileName => System.IO.Path.GetFileName(_path);
 
-    //Load 读名单 文件缺失生成空名单 解析失败按空名单处理
+    //Load reads the list; a missing file creates an empty list and a parse failure is treated as empty
     private void Load()
     {
         _entries.Clear();
@@ -83,7 +83,7 @@ public abstract class StoredJsonList<TEntry> where TEntry : class
         }
     }
 
-    //Save 写名单 写盘失败只记日志不影响运行
+    //Save writes the list; a write failure only logs and does not affect running
     private void Save()
     {
         try

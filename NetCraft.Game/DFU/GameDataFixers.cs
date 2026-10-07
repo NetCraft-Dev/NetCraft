@@ -4,30 +4,30 @@ using NetCraft.Game.DFU.Schemas;
 
 namespace NetCraft.Game.DFU;
 
-//GameDataFixers业务层DFU注册器
-//DFU内核只提供框架不主动注册Schema或Fix
-//本类按V1_21版本段顺序注册13个Schema与18个具体Fix类构建可用的DataFixer
-//覆盖1.20.2到1.21.4存档升级链
+//GameDataFixers business-layer DFU registrar
+//The DFU core only provides the framework and does not register schemas or fixes on its own
+//This class registers 13 schemas and 18 concrete fix classes in V1_21 version-segment order to build a usable DataFixer
+//Covers the save upgrade chain from 1.20.2 to 1.21.4
 public static class GameDataFixers
 {
-    //V1_21段最大版本号对应1.21.4
+    //The maximum version number in the V1_21 segment corresponds to 1.21.4
     public const int V1_21_VERSION = 4312;
 
-    //BuildV1_21Fixer按版本顺序注册全部Schema与Fix返回DataFixer实例
-    //Schema按版本递增注册parent链自动链接到上一个Schema
-    //Fix按版本递增注册每个Fix用对应的输出Schema
-    //返回类型用全限定名避免与NetCraft.DataFixer命名空间同名冲突
+    //BuildV1_21Fixer registers all schemas and fixes in version order and returns a DataFixer instance
+    //Schemas are registered in increasing version order; each parent chain links automatically to the previous schema
+    //Fixes are registered in increasing version order; each fix uses its corresponding output schema
+    //The return type uses the fully qualified name to avoid a name clash with the NetCraft.DataFixer namespace
     public static NetCraft.DataFixer.DataFixer BuildV1_21Fixer()
     {
         var builder = new DataFixerBuilder(V1_21_VERSION);
 
-        //Schema注册顺序v99基础到v4312末尾
-        //V1Foundation注册ENTITY/BLOCK_ENTITY等递归类型
+        //Schema registration order: from the v99 foundation to v4312 at the end
+        //V1Foundation registers recursive types such as ENTITY/BLOCK_ENTITY
         var v99 = builder.AddSchema(99, 0, (key, parent) => new V1Foundation(key, parent));
         var v2505 = builder.AddSchema(2505, 0, (key, parent) => new V2505(key, parent));
         var v3448 = builder.AddSchema(3448, 0, (key, parent) => new V3448(key, parent));
         var v3685 = builder.AddSchema(3685, 0, (key, parent) => new V3685(key, parent));
-        //V3818_3原版是3818带subVersion 3
+        //V3818_3 is vanilla 3818 with subVersion 3
         var v3818_3 = builder.AddSchema(3818, 3, (key, parent) => new V3818_3(key, parent));
         var v3825 = builder.AddSchema(3825, 0, (key, parent) => new V3825(key, parent));
         var v3938 = builder.AddSchema(3938, 0, (key, parent) => new V3938(key, parent));
@@ -38,8 +38,8 @@ public static class GameDataFixers
         var v4307 = builder.AddSchema(4307, 0, (key, parent) => new V4307(key, parent));
         var v4312 = builder.AddSchema(4312, 0, (key, parent) => new V4312(key, parent));
 
-        //Fix注册按版本递增每个Fix用对应输出Schema
-        //renames参数传identity函数让流程跑通实际rename映射由Game业务层后续补全
+        //Fix registration in increasing version order; each fix uses its corresponding output schema
+        //The renames argument passes an identity function to make the flow work; the actual rename mapping is filled in later by the Game business layer
         builder.AddFixer(new MemoryExpiryDataFix(v2505, "minecraft:villager"));
         builder.AddFixer(new AttributesRenameLegacy(v3818_3, "Attributes rename (legacy)", id => id));
         builder.AddFixer(new DecoratedPotFieldRenameFix(v3448));

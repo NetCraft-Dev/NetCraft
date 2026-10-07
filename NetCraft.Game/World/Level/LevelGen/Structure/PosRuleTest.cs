@@ -6,34 +6,34 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//PosRuleTest 规则位置判定 对应原版 PosRuleTest
-//按模板内坐标 世界坐标 参考坐标三者的相对关系决定这条规则是否生效
+//PosRuleTest rule position test, maps to vanilla PosRuleTest
+//Decides whether a rule applies from the relative relation among the in-template position, world position and reference position
 public abstract class PosRuleTest
 {
-    //Codec 多态入口 按 predicate_type 派发到 POS_RULE_TEST 注册表里的具体类型
+    //Codec polymorphic entry, dispatches by predicate_type to a concrete type in the POS_RULE_TEST registry
     public static readonly Codec<PosRuleTest> Codec = new PosRuleTestDispatchCodec();
 
-    //Test 判定位置关系 对应原版 test
+    //Test evaluates the position relation, maps to vanilla test
     public abstract bool Test(BlockPos inTemplatePos, BlockPos worldPos, BlockPos worldReference, RandomSource random);
 
-    //Type 所属类型单例
+    //Type the owning type singleton
     public abstract PosRuleTestType Type { get; }
 }
 
-//PosRuleTestType 位置判定类型 对应原版 PosRuleTestType
+//PosRuleTestType position test type, maps to vanilla PosRuleTestType
 public abstract class PosRuleTestType : NetCraft.Registry.PosRuleTestType<object>
 {
     public Identifier Id { get; }
 
     protected PosRuleTestType(Identifier id) => Id = id;
 
-    //DecodeTest 从 map 解出一条位置判定
+    //DecodeTest decodes a position test from a map
     public abstract DataResult<PosRuleTest> DecodeTest<U>(DynamicOps<U> ops, MapLike<U> input);
 
     public override string ToString() => $"PosRuleTestType[{Id}]";
 }
 
-//PosRuleTestType<T> 强类型位置判定类型
+//PosRuleTestType<T> strongly typed position test type
 public sealed class PosRuleTestType<T> : PosRuleTestType where T : PosRuleTest
 {
     private readonly MapCodec<T> _codec;
@@ -44,7 +44,7 @@ public sealed class PosRuleTestType<T> : PosRuleTestType where T : PosRuleTest
         => _codec.Decode(ops, input).Map(v => (PosRuleTest)v);
 }
 
-//PosRuleTestTypes 位置判定类型登记 对应原版 PosRuleTestType 的静态字段
+//PosRuleTestTypes position test type registration, maps to the static fields of vanilla PosRuleTestType
 public static class PosRuleTestTypes
 {
     public static readonly PosRuleTestType<PosAlwaysTrueTest> AlwaysTrue =
@@ -56,7 +56,7 @@ public static class PosRuleTestTypes
     public static readonly PosRuleTestType<AxisAlignedLinearPosTest> AxisAlignedLinearPos =
         Register("axis_aligned_linear_pos", AxisAlignedLinearPosTest.MapCodec);
 
-    //Register 登记进 POS_RULE_TEST 并返回类型实例
+    //Register registers into POS_RULE_TEST and returns the type instance
     private static PosRuleTestType<T> Register<T>(string path, MapCodec<T> codec) where T : PosRuleTest
     {
         var type = new PosRuleTestType<T>(Identifier.WithDefaultNamespace(path), codec);
@@ -65,7 +65,7 @@ public static class PosRuleTestTypes
     }
 }
 
-//PosAlwaysTrueTest 恒真位置判定 对应原版 PosAlwaysTrueTest
+//PosAlwaysTrueTest always-true position test, maps to vanilla PosAlwaysTrueTest
 public sealed class PosAlwaysTrueTest : PosRuleTest
 {
     public static readonly PosAlwaysTrueTest Instance = new();
@@ -80,7 +80,7 @@ public sealed class PosAlwaysTrueTest : PosRuleTest
     public override PosRuleTestType Type => PosRuleTestTypes.AlwaysTrue;
 }
 
-//LinearPosTest 按曼哈顿距离线性插值概率的位置判定 对应原版 LinearPosTest
+//LinearPosTest position test with probability linearly interpolated by Manhattan distance, maps to vanilla LinearPosTest
 public sealed class LinearPosTest : PosRuleTest
 {
     public static readonly MapCodec<LinearPosTest> MapCodec =
@@ -98,7 +98,7 @@ public sealed class LinearPosTest : PosRuleTest
 
     public LinearPosTest(float minChance, float maxChance, int minDist, int maxDist)
     {
-        if (minDist >= maxDist) throw new ArgumentException($"距离区间非法: [{minDist},{maxDist}]");
+        if (minDist >= maxDist) throw new ArgumentException($"invalid distance range: [{minDist},{maxDist}]");
         MinChance = minChance;
         MaxChance = maxChance;
         MinDist = minDist;
@@ -112,14 +112,14 @@ public sealed class LinearPosTest : PosRuleTest
         return rnd <= Mth.ClampedLerp(Mth.InverseLerp(dist, MinDist, MaxDist), MinChance, MaxChance);
     }
 
-    //DistManhattan 两点的曼哈顿距离 对应原版 BlockPos.distManhattan
+    //DistManhattan Manhattan distance between two points, maps to vanilla BlockPos.distManhattan
     internal static int DistManhattan(BlockPos a, BlockPos b)
         => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) + Math.Abs(a.Z - b.Z);
 
     public override PosRuleTestType Type => PosRuleTestTypes.LinearPos;
 }
 
-//AxisAlignedLinearPosTest 沿单轴距离线性插值概率的位置判定 对应原版 AxisAlignedLinearPosTest
+//AxisAlignedLinearPosTest position test with probability linearly interpolated by single-axis distance, maps to vanilla AxisAlignedLinearPosTest
 public sealed class AxisAlignedLinearPosTest : PosRuleTest
 {
     public static readonly MapCodec<AxisAlignedLinearPosTest> MapCodec =
@@ -143,7 +143,7 @@ public sealed class AxisAlignedLinearPosTest : PosRuleTest
 
     public AxisAlignedLinearPosTest(float minChance, float maxChance, int minDist, int maxDist, Direction.Axis axis)
     {
-        if (minDist >= maxDist) throw new ArgumentException($"距离区间非法: [{minDist},{maxDist}]");
+        if (minDist >= maxDist) throw new ArgumentException($"invalid distance range: [{minDist},{maxDist}]");
         MinChance = minChance;
         MaxChance = maxChance;
         MinDist = minDist;
@@ -165,29 +165,29 @@ public sealed class AxisAlignedLinearPosTest : PosRuleTest
     public override PosRuleTestType Type => PosRuleTestTypes.AxisAlignedLinearPos;
 }
 
-//PosRuleTestDispatchCodec 位置判定多态 codec 对应原版 PosRuleTest.CODEC 的 dispatch
+//PosRuleTestDispatchCodec position test polymorphic codec, maps to the dispatch of vanilla PosRuleTest.CODEC
 internal sealed class PosRuleTestDispatchCodec : ScalarCodec<PosRuleTest>
 {
     public override DataResult<PosRuleTest> Parse<U>(DynamicOps<U> ops, U input)
         => ops.GetMap(input).FlatMap(map => DecodeTest(ops, map));
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, PosRuleTest value)
-        => DataResult<U>.Error(() => "位置判定编码暂未实现");
+        => DataResult<U>.Error(() => "position test encoding not implemented yet");
 
-    //DecodeTest 读 predicate_type 查表再交给该类型的 codec
+    //DecodeTest reads predicate_type, looks it up, then hands off to that type's codec
     internal static DataResult<PosRuleTest> DecodeTest<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var typeTag = input.Get("predicate_type");
-        if (!typeTag.IsPresent) return DataResult<PosRuleTest>.Error(() => "位置判定缺少 predicate_type");
+        if (!typeTag.IsPresent) return DataResult<PosRuleTest>.Error(() => "position test is missing predicate_type");
         var text = ops.GetStringValue(typeTag.Get());
-        if (!text.Result().IsPresent) return DataResult<PosRuleTest>.Error(() => "predicate_type 必须是字符串");
+        if (!text.Result().IsPresent) return DataResult<PosRuleTest>.Error(() => "predicate_type must be a string");
         var id = Identifier.TryParse(text.GetOrThrow());
-        if (id is null) return DataResult<PosRuleTest>.Error(() => $"非法的位置判定类型: {text.GetOrThrow()}");
+        if (id is null) return DataResult<PosRuleTest>.Error(() => $"invalid position test type: {text.GetOrThrow()}");
         if (!BuiltInRegistries.POS_RULE_TEST.ContainsKey(id.Value))
-            return DataResult<PosRuleTest>.Error(() => $"未注册的位置判定类型: {id}");
+            return DataResult<PosRuleTest>.Error(() => $"unregistered position test type: {id}");
         var type = BuiltInRegistries.POS_RULE_TEST.GetValue(id.Value) as PosRuleTestType;
         return type is null
-            ? DataResult<PosRuleTest>.Error(() => $"位置判定类型 {id} 无法解析")
+            ? DataResult<PosRuleTest>.Error(() => $"position test type {id} cannot be parsed")
             : type.DecodeTest(ops, input);
     }
 }

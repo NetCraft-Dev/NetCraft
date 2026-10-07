@@ -1,20 +1,20 @@
 namespace NetCraft.Gpu;
 
-//GuiWindow 顶层 GUI 窗口
-//承载控件树并对外暴露事件输入和 Render 接口
-//不直接管理 Vulkan 资源由外部调用者传入 IGuiRenderContext 渲染
+//GuiWindow top-level GUI window
+//Hosts the widget tree and exposes event input and the Render interface
+//Does not manage Vulkan resources directly; an external caller passes in an IGuiRenderContext for rendering
 public sealed class GuiWindow : GuiContainer
 {
     private GuiControl? _hoveredControl;
     private GuiControl? _focusedControl;
-    //_shiftDown/_ctrlDown 由 ProcessKeyDown/Up 根据 Shift/Ctrl 键码维护
-    //TextBox 检测 e.Modifiers 扩展选区或 Ctrl+C/V/X 组合键
+    //_shiftDown/_ctrlDown maintained by ProcessKeyDown/Up from the Shift/Ctrl key codes
+    //TextBox checks e.Modifiers to extend the selection or handle Ctrl+C/V/X combos
     private bool _shiftDown;
     private bool _ctrlDown;
 
-    //SurfaceWidth/Height swapchain 实际像素 scissor/pipeline extent 用
-    //ScaledWidth/Height 逻辑像素 floor(Surface/GuiScale) 控件布局用
-    //GuiScale 整数倍 max(1, min(SurfaceW/320, SurfaceH/240)) 控件等比放大不模糊
+    //SurfaceWidth/Height swapchain actual pixels, used for scissor/pipeline extent
+    //ScaledWidth/Height logical pixels floor(Surface/GuiScale), used for widget layout
+    //GuiScale integer factor max(1, min(SurfaceW/320, SurfaceH/240)) scaling widgets uniformly without blur
     public int SurfaceWidth { get; set; }
     public int SurfaceHeight { get; set; }
     public int GuiScale { get; private set; } = 1;
@@ -22,16 +22,16 @@ public sealed class GuiWindow : GuiContainer
     public int ScaledHeight { get; private set; }
 
     private GuiColor _backgroundColor = GuiColor.FromRgb(30, 30, 30);
-    //BackgroundColor 背景色 setter MarkDirty 变化时整窗口重 Render 录制新背景 quad
+    //BackgroundColor background color; the setter MarkDirty's so a change re-Renders the whole window and records a new background quad
     public GuiColor BackgroundColor
     {
         get => _backgroundColor;
         set { _backgroundColor = value; MarkDirty(); }
     }
 
-    //RenderBackgroundHook 屏幕级背景回调由 ScreenManager.SetScreen 注入
-    //Screen 在 Game 层 Window 在 Gpu 层不能直接调通过此 hook 桥接
-    //Render 时背景 quad 之后控件之前调用让 dirt 背景覆盖纯色背景
+    //RenderBackgroundHook screen-level background callback injected by ScreenManager.SetScreen
+    //Screen is in the Game layer and Window in the GPU layer; they cannot call each other directly, so this hook bridges them
+    //Called on Render after the background quad and before widgets so a dirt background covers the solid color
     private Action<IGuiRenderContext>? _renderBackgroundHook;
     public Action<IGuiRenderContext>? RenderBackgroundHook
     {
@@ -39,8 +39,8 @@ public sealed class GuiWindow : GuiContainer
         set { _renderBackgroundHook = value; MarkDirty(); }
     }
 
-    //RenderForegroundHook 屏幕级前景回调由 ScreenManager.SetScreen 注入
-    //Render 时控件之后调用不录 cache 每帧直接画 HUD 心动画每帧变化不走 retained mode cache
+    //RenderForegroundHook screen-level foreground callback injected by ScreenManager.SetScreen
+    //Called on Render after widgets, not cached; HUD hearts animate every frame and skip the retained-mode cache
     private Action<IGuiRenderContext>? _renderForegroundHook;
     public Action<IGuiRenderContext>? RenderForegroundHook
     {
@@ -48,12 +48,12 @@ public sealed class GuiWindow : GuiContainer
         set => _renderForegroundHook = value;
     }
 
-    //WantsBlur 当前 Screen 是否需要 blur 后处理由 ScreenManager.SetScreen 从 Screen.WantsBlur 注入
-    //blur 帧强制不走 retained mode cache BlurBeforeThisStratum 不录制到 cache 每帧须重新调
+    //WantsBlur whether the current Screen needs blur post-processing, injected by ScreenManager.SetScreen from Screen.WantsBlur
+    //Blur frames skip the retained-mode cache; BlurBeforeThisStratum is not recorded and must be called every frame
     public bool WantsBlur { get; set; }
 
-    //FocusedControl 当前接收键盘输入的控件
-    //ProcessMouseDown 命中控件后自动设为焦点 ProcessKeyDown 派发到此控件
+    //FocusedControl the widget currently receiving keyboard input
+    //ProcessMouseDown sets the hit widget as focus; ProcessKeyDown dispatches to it
     public GuiControl? FocusedControl
     {
         get => _focusedControl;
@@ -65,9 +65,9 @@ public sealed class GuiWindow : GuiContainer
         UpdateSurfaceSize(surfaceWidth, surfaceHeight);
     }
 
-    //UpdateSurfaceSize 由 VulkanGuiApp 在创建和 swapchain 重建时调用
-    //按实际像素计算 GuiScale 更新 Scaled 尺寸自身 Width/Height 用 scaled 供布局
-    //MinScaled 320x240 对应原版 GUI 最小可读尺寸 guiScale 不会让控件小于此
+    //UpdateSurfaceSize called by VulkanGuiApp on creation and swapchain recreation
+    //Computes GuiScale from actual pixels and updates the Scaled sizes; its own Width/Height use scaled for layout
+    //MinScaled 320x240 corresponds to the vanilla GUI minimum readable size; guiScale will not shrink widgets below this
     public void UpdateSurfaceSize(int actualW, int actualH)
     {
         const int MinScaledWidth = 320;
@@ -86,9 +86,9 @@ public sealed class GuiWindow : GuiContainer
         Height = ScaledHeight;
     }
 
-    //ProcessMouseDown 处理鼠标按下事件自动派发给命中控件
-    //Silk 回调给的是 actual 像素除 GuiScale 转 scaled 再 HitTest 与控件布局坐标一致
-    //切换焦点时调旧控件 OnLostFocus 新控件 OnGotFocus 让 TextBox 启停光标闪烁
+    //ProcessMouseDown handles the mouse-down event and dispatches it to the hit widget automatically
+    //The Silk callback gives actual pixels; divide by GuiScale to scaled, then HitTest to match widget layout coordinates
+    //On focus change it calls OnLostFocus on the old widget and OnGotFocus on the new, letting TextBox start/stop caret blinking
     public void ProcessMouseDown(GuiMouseButton button, int x, int y)
     {
         x /= GuiScale;
@@ -111,8 +111,8 @@ public sealed class GuiWindow : GuiContainer
         }
     }
 
-    //ProcessMouseUp 处理鼠标抬起
-    //click 触发由控件自己决定 GuiButton 在 OnMouseUp 内判断按下位置一致后调 OnMouseClick
+    //ProcessMouseUp handles mouse-up
+    //Click firing is up to the widget; GuiButton calls OnMouseClick in OnMouseUp after checking the press position matches
     public void ProcessMouseUp(GuiMouseButton button, int x, int y)
     {
         x /= GuiScale;
@@ -130,7 +130,7 @@ public sealed class GuiWindow : GuiContainer
         }
     }
 
-    //ProcessMouseMove 处理鼠标移动并维护 hover 状态切换 enter/leave 事件
+    //ProcessMouseMove handles mouse movement and maintains hover state, firing enter/leave events
     public void ProcessMouseMove(int x, int y)
     {
         x /= GuiScale;
@@ -160,12 +160,12 @@ public sealed class GuiWindow : GuiContainer
         }
     }
 
-    //GLFW_KEY_TAB 键码 Tab 键触发焦点导航不派发到焦点控件
+    //GLFW_KEY_TAB key code; Tab triggers focus navigation and is not dispatched to the focused widget
     private const int TabKey = 258;
 
-    //ProcessKeyDown 处理键盘按下并派发给焦点控件
-    //Tab 键触发 FocusNext 焦点导航有字符输入时调 OnKeyPress 触发 TextBox 文本累积
-    //先 UpdateModifiers 维护 Shift/Ctrl 状态构造 KeyEventArgs 传 Modifiers 供 TextBox 检测组合键
+    //ProcessKeyDown handles key-down and dispatches to the focused widget
+    //Tab triggers FocusNext focus navigation; with character input it calls OnKeyPress for TextBox text accumulation
+    //First UpdateModifiers maintains the Shift/Ctrl state, builds KeyEventArgs and passes Modifiers for TextBox to detect combos
     public void ProcessKeyDown(int key, char ch = '\0')
     {
         UpdateModifiers(key, true);
@@ -190,15 +190,15 @@ public sealed class GuiWindow : GuiContainer
         }
     }
 
-    //UpdateModifiers 根据 key 更新 _shiftDown/_ctrlDown 状态
-    //Shift/Ctrl 按下设 true 抬起设 false Alt 暂未追踪 TextBox 不需要
+    //UpdateModifiers updates the _shiftDown/_ctrlDown state from key
+    //Shift/Ctrl set true on press and false on release; Alt is not tracked as TextBox does not need it
     private void UpdateModifiers(int key, bool down)
     {
         if (key == GuiKeys.LeftShift || key == GuiKeys.RightShift) _shiftDown = down;
         else if (key == GuiKeys.LeftControl || key == GuiKeys.RightControl) _ctrlDown = down;
     }
 
-    //CurrentModifiers 把 _shiftDown/_ctrlDown 组合成 KeyModifiers 标志位
+    //CurrentModifiers combines _shiftDown/_ctrlDown into KeyModifiers flags
     private KeyModifiers CurrentModifiers()
     {
         var m = KeyModifiers.None;
@@ -207,7 +207,7 @@ public sealed class GuiWindow : GuiContainer
         return m;
     }
 
-    //ProcessKeyUp 处理键盘抬起
+    //ProcessKeyUp handles key-up
     public void ProcessKeyUp(int key, char ch = '\0')
     {
         UpdateModifiers(key, false);
@@ -222,8 +222,8 @@ public sealed class GuiWindow : GuiContainer
         }
     }
 
-    //ProcessKeyChar 处理字符输入只派发 OnKeyPress 到焦点控件用于 TextBox 文本累积
-    //_ctrlDown 时短路 Ctrl 组合键不触发文本输入避免 Ctrl+V 粘贴同时插入 'v'
+    //ProcessKeyChar handles character input, dispatching OnKeyPress only to the focused widget for TextBox accumulation
+    //Short-circuits when _ctrlDown so Ctrl combos do not insert text, avoiding Ctrl+V pasting while also inserting 'v'
     public void ProcessKeyChar(char ch)
     {
         if (_ctrlDown) return;
@@ -234,8 +234,8 @@ public sealed class GuiWindow : GuiContainer
             base.OnKeyPress(args);
     }
 
-    //FocusNext 按 TabIndex 顺序切换焦点到下一个 TabStop 控件循环回到第一个
-    //切换前调旧控件 OnLostFocus 新控件 OnGotFocus 让 TextBox 启停光标闪烁
+    //FocusNext moves focus to the next TabStop widget by TabIndex order, wrapping back to the first
+    //Before switching it calls OnLostFocus on the old widget and OnGotFocus on the new, letting TextBox start/stop caret blinking
     public void FocusNext()
     {
         var tabStops = new List<GuiControl>();
@@ -252,7 +252,7 @@ public sealed class GuiWindow : GuiContainer
         if (prevFocused != next) next.OnGotFocus();
     }
 
-    //CollectTabStops 深度遍历控件树收集 TabStop=true 且 Visible 且 Enabled 的控件
+    //CollectTabStops depth-walks the widget tree collecting widgets with TabStop=true, Visible and Enabled
     private static void CollectTabStops(GuiContainer container, List<GuiControl> result)
     {
         foreach (var child in container.Children)
@@ -266,8 +266,8 @@ public sealed class GuiWindow : GuiContainer
 
     public override void Render(IGuiRenderContext context)
     {
-        //顶层窗口 cache 整窗口 dirty 时重 Render 录制 否则 ReplayRange 重放跳过 Render
-        //WantsBlur 帧强制重 Render BlurBeforeThisStratum 不录制到 cache replay 会丢失 blur 标记
+        //Top-level window cache: when the whole window is dirty it re-Renders and records, otherwise ReplayRange replays and skips Render
+        //Blur frames force a re-Render; BlurBeforeThisStratum is not recorded, so replay would lose the blur marker
         if (!_isDirty && _renderCache is not null && !WantsBlur)
         {
             context.ReplayRange(_renderCache);
@@ -277,15 +277,15 @@ public sealed class GuiWindow : GuiContainer
             _renderCache ??= new();
             _renderCache.Clear();
             context.BeginRecording(_renderCache);
-            //背景用 ScaledWidth/Height 逻辑像素 ToClip 转换以 scaled 为分母保证全屏覆盖
+            //The background uses ScaledWidth/Height logical pixels; the ToClip conversion uses scaled as the denominator for full coverage
             context.DrawQuad(0, 0, ScaledWidth, ScaledHeight, BackgroundColor);
-            //RenderBackgroundHook 画屏幕级背景纹理覆盖纯色背景
+            //RenderBackgroundHook draws the screen-level background texture over the solid color
             RenderBackgroundHook?.Invoke(context);
             base.Render(context);
             context.EndRecording();
             ClearDirtyTree();
         }
-        //RenderForegroundHook 控件之后每帧直接画不录 cache HUD 心动画每帧变化
+        //RenderForegroundHook draws directly every frame after widgets without caching; HUD hearts change every frame
         RenderForegroundHook?.Invoke(context);
     }
 }

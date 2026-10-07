@@ -5,15 +5,15 @@ using Veldrid.SPIRV;
 
 namespace NetCraft.Gpu.Pipeline;
 
-//ShaderManager 嵌入资源 GLSL 加载并编译为 SPIR-V 注入 defines 缓存编译结果
-//对标原版 GlslCompiler 阶段 8 补完阶段 3 声明式 pipeline shader 编译遗留
-//按 name+suffix 后缀匹配嵌入资源名不依赖 RootNamespace 前缀避免 MSBuild 资源名生成规则差异
+//ShaderManager loads embedded GLSL, compiles it to SPIR-V, injects defines and caches the compiled result
+//maps to vanilla GlslCompiler; stage 8 finishes the stage 3 declarative pipeline shader compilation leftover
+//Matches embedded resource names by the name+suffix suffix without relying on the RootNamespace prefix, avoiding differences in MSBuild resource name generation
 public sealed class ShaderManager
 {
     private readonly Assembly _assembly;
-    //缓存 key = shader name + stage + defines 内容
+    //Cache key = shader name + stage + defines content
     private readonly Dictionary<string, byte[]> _cache = new();
-    //启动时一次性收集所有嵌入资源名避免每帧遍历
+    //Collects all embedded resource names once at startup to avoid per-frame enumeration
     private readonly HashSet<string> _resourceNames;
 
     public ShaderManager()
@@ -22,15 +22,15 @@ public sealed class ShaderManager
         _resourceNames = new HashSet<string>(_assembly.GetManifestResourceNames());
     }
 
-    //LoadVertexShader 加载并编译 vertex shader 注入 defines 返回 SPIR-V 字节码
+    //LoadVertexShader loads and compiles the vertex shader, injects defines and returns SPIR-V bytecode
     public byte[] LoadVertexShader(string name, ShaderDefines? defines = null)
         => LoadOrCompile(name, ShaderStages.Vertex, defines);
 
-    //LoadFragmentShader 加载并编译 fragment shader 注入 defines 返回 SPIR-V 字节码
+    //LoadFragmentShader loads and compiles the fragment shader, injects defines and returns SPIR-V bytecode
     public byte[] LoadFragmentShader(string name, ShaderDefines? defines = null)
         => LoadOrCompile(name, ShaderStages.Fragment, defines);
 
-    //LoadOrCompile 按 name+stage+defines 查缓存未命中则从嵌入资源加载 GLSL 编译为 SPIR-V
+    //LoadOrCompile checks the cache by name+stage+defines; on a miss it loads GLSL from the embedded resource and compiles it to SPIR-V
     private byte[] LoadOrCompile(string name, ShaderStages stage, ShaderDefines? defines)
     {
         var cacheKey = BuildCacheKey(name, stage, defines);
@@ -40,7 +40,7 @@ public sealed class ShaderManager
         var suffix = stage == ShaderStages.Vertex ? ".vert.glsl" : ".frag.glsl";
         var resourceName = FindResourceName(name.Replace('/', '.'), suffix);
         using var stream = _assembly.GetManifestResourceStream(resourceName)
-            ?? throw new FileNotFoundException($"嵌入 shader 资源不存在 {name}{suffix}");
+            ?? throw new FileNotFoundException($"Embedded shader resource not found {name}{suffix}");
         using var reader = new StreamReader(stream);
         var source = reader.ReadToEnd();
 
@@ -53,19 +53,19 @@ public sealed class ShaderManager
         return spirv;
     }
 
-    //FindResourceName 按 normalized name + suffix 后缀匹配嵌入资源名
-    //不依赖 RootNamespace 前缀容忍 MSBuild 把 NetCraft.Gpu 变成 NetCraftGpu 的资源名生成差异
+    //FindResourceName matches an embedded resource name by normalized name + suffix
+    //Does not rely on the RootNamespace prefix, tolerating MSBuild turning NetCraft.Gpu into NetCraftGpu in resource names
     private string FindResourceName(string normalized, string suffix)
     {
         var target = normalized + suffix;
         foreach (var rn in _resourceNames)
             if (rn.EndsWith(target, StringComparison.Ordinal))
                 return rn;
-        throw new FileNotFoundException($"嵌入 shader 资源不存在 {target}");
+        throw new FileNotFoundException($"Embedded shader resource not found {target}");
     }
 
-    //BuildMacros 把 ShaderDefines 转 Veldrid MacroDefinition 数组
-    //Flags 无值宏 Values 带值宏
+    //BuildMacros converts ShaderDefines into a Veldrid MacroDefinition array
+    //Flags valueless macros Values value-carrying macros
     private static MacroDefinition[] BuildMacros(ShaderDefines? defines)
     {
         if (defines == null) return Array.Empty<MacroDefinition>();
@@ -77,7 +77,7 @@ public sealed class ShaderManager
         return list.ToArray();
     }
 
-    //BuildCacheKey 由 name + stage + defines 内容生成确定性缓存键
+    //BuildCacheKey generates a deterministic cache key from name + stage + defines content
     private static string BuildCacheKey(string name, ShaderStages stage, ShaderDefines? defines)
     {
         var sb = new StringBuilder(name);

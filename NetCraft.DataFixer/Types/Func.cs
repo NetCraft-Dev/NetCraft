@@ -4,9 +4,9 @@ using System;
 using NetCraft.Codec;
 using NetCraft.DataFixer.Types.Templates;
 
-//Func函数类型对应原版com.mojang.datafixers.types.Func
-//表示A->B的函数类型无法编解码只用于View内部
-//Func<A,B>继承Type<System.Func<A,B>>此处Func类与System.Func同名需全限定
+//Func function type maps to vanilla com.mojang.datafixers.types.Func
+//represents the A->B function type; not encodable, used only inside View
+//Func<A,B> inherits Type<System.Func<A,B>>; here the Func class shares a name with System.Func and must be fully qualified
 public sealed class Func<A, B> : Type<System.Func<A, B>>
 {
     private readonly Type<A> _first;
@@ -18,11 +18,11 @@ public sealed class Func<A, B> : Type<System.Func<A, B>>
         _second = second;
     }
 
-    //函数类型不构建模板
+    //function types do not build a template
     public override TypeTemplate BuildTemplate()
         => throw new NotSupportedException("No template for function types");
 
-    //函数类型不可编解码编解码均返回错误
+    //function types are not encodable; both encode and decode return an error
     protected override Codec<System.Func<A, B>> BuildCodec()
         => new FunctionCodec();
 
@@ -39,7 +39,7 @@ public sealed class Func<A, B> : Type<System.Func<A, B>>
 
     public override string ToString() => "(" + _first + " -> " + _second + ")";
 
-    //FunctionCodec函数类型编解码器编解码均返回错误
+    //FunctionCodec function type codec; both encode and decode return an error
     private sealed class FunctionCodec : ScalarCodec<System.Func<A, B>>
     {
         public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, System.Func<A, B> value)

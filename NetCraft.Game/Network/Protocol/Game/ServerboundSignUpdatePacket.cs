@@ -2,8 +2,8 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundSignUpdatePacket 数据包对应原版 ServerboundSignUpdatePacket
-//字段 Pos(方块坐标) IsFrontText(boolean) Line0-3(四行文本 每行上限 384)
+//ServerboundSignUpdatePacket sign update packet, maps to vanilla ServerboundSignUpdatePacket
+//Fields: Pos (block position), IsFrontText(boolean), Line0-3 (four lines of text, each capped at 384)
 public sealed record ServerboundSignUpdatePacket(BlockPos Pos, bool IsFrontText, string Line0, string Line1, string Line2, string Line3)
     : Packet<ServerGamePacketListener>
 {
@@ -15,7 +15,7 @@ public sealed record ServerboundSignUpdatePacket(BlockPos Pos, bool IsFrontText,
 
     private sealed class SignUpdateCodec : StreamCodec<FriendlyByteBuf, ServerboundSignUpdatePacket>
     {
-        //告示牌编辑界面完成时发送 坐标与正反面标志后跟四行文本
+        //Sent when the sign edit screen is done; the position and front/back flag are followed by four lines of text
         public ServerboundSignUpdatePacket Decode(FriendlyByteBuf buf)
         {
             var pos = buf.ReadBlockPos();

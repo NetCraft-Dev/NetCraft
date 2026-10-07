@@ -4,13 +4,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//NoiseRouterData 密度路由数据对应原版 net.minecraft.world.level.levelgen.NoiseRouterData
-//构造 overworld/nether/end/caves/floatingIslands/none 六个维度的 NoiseRouter 密度树
-//主世界树按 shift/continents/erosion/ridge -> spline offset/factor/jaggedness -> depth -> initialDensity -> slopedCheese -> caves -> postProcess -> FinalDensity 链路组装
-//不写入 DENSITY_FUNCTION 注册表直接返回 NoiseRouterNetCraft 暂不做 Codec 持久化
+//NoiseRouterData density router data, maps to vanilla net.minecraft.world.level.levelgen.NoiseRouterData
+//Builds the NoiseRouter density trees for the six dimensions overworld/nether/end/caves/floatingIslands/none
+//The overworld tree is assembled along shift/continents/erosion/ridge -> spline offset/factor/jaggedness -> depth -> initialDensity -> slopedCheese -> caves -> postProcess -> FinalDensity
+//Not written into the DENSITY_FUNCTION registry and returned directly as a NoiseRouter; NetCraft does not persist through Codec yet
 public static class NoiseRouterData
 {
-    //常量对齐原版 NoiseRouterData 静态字段
+    //Constants aligned with the vanilla NoiseRouterData static fields
     public const float GlobalOffset = -0.50375f;
     private const float OreThickness = 0.08f;
     private const double VeininessFrequency = 1.5d;
@@ -27,13 +27,13 @@ public static class NoiseRouterData
     private const int OverworldBottomSlideHeight = 24;
     private const double BaseDensityMultiplier = 4.0d;
 
-    //BlendingFactor 默认混合目标常量对应原版 BLENDING_FACTOR
+    //BlendingFactor default blending target constant, maps to vanilla BLENDING_FACTOR
     private static readonly DensityFunction BlendingFactor = DensityFunctions.ConstantValue(10.0d);
-    //BlendingJaggedness 默认混合锯齿常量对应原版 BLENDING_JAGGEDNESS = zero
+    //BlendingJaggedness default blending jaggedness constant, maps to vanilla BLENDING_JAGGEDNESS = zero
     private static readonly DensityFunction BlendingJaggedness = DensityFunctions.Zero();
 
-    //Overworld 主世界路由对应原版 overworld
-    //largeBiomes=true 切换 TEMPERATURE_LARGE 等大尺度噪声amplified=true 切换 OFFSET_AMPLIFIED 等放大样条
+    //Overworld overworld router, maps to vanilla overworld
+    //largeBiomes=true switches to large-scale noise such as TEMPERATURE_LARGE; amplified=true switches to amplified splines such as OFFSET_AMPLIFIED
     public static NoiseRouter Overworld(Registry<NoiseParameters> noises, bool largeBiomes, bool amplified)
     {
         var barrierNoise = DensityFunctions.Noise(noises.GetValueOrThrow(Noises.AquiferBarrier), 0.5);
@@ -68,7 +68,7 @@ public static class NoiseRouterData
             surfaceWithEntrances, Underground(noises, slopedCheeseCached));
         var fullNoise = DensityFunctions.Min(PostProcess(SlideOverworld(amplified, caves)), Noodle(noises));
 
-        //VeinToggle/VeinRidged/VeinGap 矿物脉相关密度函数对应原版 overworld 末段
+        //VeinToggle/VeinRidged/VeinGap ore vein density functions, matching the tail of vanilla overworld
         var veinMinY = -64;
         var veinMaxY = 320;
         var y = DensityFunctions.YClampedGradient(-2048, 2048, -2048, 2048);
@@ -84,7 +84,7 @@ public static class NoiseRouterData
             preliminarySurfaceLevel, fullNoise, veinToggle, veinRidged, veinGap);
     }
 
-    //Nether 下界路由对应原版 nether
+    //Nether the Nether router, maps to vanilla nether
     public static NoiseRouter Nether(Registry<NoiseParameters> noises)
     {
         var temperature = DensityFunctions.ShiftedNoise2d(DensityFunctions.Zero(), DensityFunctions.Zero(), 0.25,
@@ -96,14 +96,14 @@ public static class NoiseRouterData
         return SimpleRouter(fullNoise, temperature, vegetation);
     }
 
-    //Caves 洞穴维度路由对应原版 caves
+    //Caves the caves dimension router, maps to vanilla caves
     public static NoiseRouter Caves(Registry<NoiseParameters> noises)
     {
         var slide = SlideNetherLike(noises, -64, 192);
         return SimpleRouter(PostProcess(slide));
     }
 
-    //FloatingIslands 浮空岛维度路由对应原版 floatingIslands
+    //FloatingIslands the floating islands dimension router, maps to vanilla floatingIslands
     public static NoiseRouter FloatingIslands(Registry<NoiseParameters> noises)
     {
         var baseNoise = BlendedNoise.CreateUnseeded(0.25, 0.25, 80.0, 160.0, 4.0);
@@ -111,7 +111,7 @@ public static class NoiseRouterData
         return SimpleRouter(PostProcess(slide));
     }
 
-    //End 末地路由对应原版 end
+    //End the End router, maps to vanilla end
     public static NoiseRouter End(Registry<NoiseParameters> noises)
     {
         var islands = DensityFunctions.Cache2D(DensityFunctions.EndIslands(0L));
@@ -125,12 +125,12 @@ public static class NoiseRouterData
             DensityFunctions.Zero(), DensityFunctions.Zero(), DensityFunctions.Zero());
     }
 
-    //None 空路由对应原版 none
+    //None empty router, maps to vanilla none
     public static NoiseRouter None()
         => SimpleRouter(DensityFunctions.Zero());
 
-    //SimpleRouter 简化路由器对应原版 simpleRouter
-    //15 字段除 fullNoise 全置 zerotemperature/vegetation 可选注入
+    //SimpleRouter simplified router, maps to vanilla simpleRouter
+    //All 15 fields are zero except fullNoise; temperature/vegetation are optional injections
     private static NoiseRouter SimpleRouter(DensityFunction fullNoise,
         DensityFunction? temperature = null, DensityFunction? vegetation = null)
         => new(
@@ -140,8 +140,8 @@ public static class NoiseRouterData
             DensityFunctions.Zero(), fullNoise,
             DensityFunctions.Zero(), DensityFunctions.Zero(), DensityFunctions.Zero());
 
-    //RegisterTerrainNoises 构造 offset/factor/jaggedness/depth/slopedCheese 五元组对应原版 registerTerrainNoises
-    //返回元组供 Overworld 主流程引用中间函数不写入注册表
+    //RegisterTerrainNoises builds the offset/factor/jaggedness/depth/slopedCheese tuple, maps to vanilla registerTerrainNoises
+    //Returns the tuple for the Overworld main flow to reference the intermediate functions without registering them
     private static (DensityFunction offset, DensityFunction factor, DensityFunction jaggedness, DensityFunction depth, DensityFunction slopedCheese) RegisterTerrainNoises(
         Registry<NoiseParameters> noises,
         DensityFunction jaggedNoise,
@@ -169,12 +169,12 @@ public static class NoiseRouterData
         return (offset, factor, jaggedness, depth, slopedCheese);
     }
 
-    //OffsetToDepth 把 offset 加到 Y 梯度上得到 depth 对应原版 offsetToDepth
+    //OffsetToDepth adds offset to the Y gradient to get depth, maps to vanilla offsetToDepth
     private static DensityFunction OffsetToDepth(DensityFunction offset)
         => DensityFunctions.Add(DensityFunctions.YClampedGradient(DensityYAnchorBottom, DensityYAnchorTop, DensityYBottom, DensityYTop), offset);
 
-    //PeaksAndValleys 山峰山谷变换对应原版 peaksAndValleys
-    //公式 (|(|ridge| - 0.6667) - 0.3333|) * -3
+    //PeaksAndValleys peaks-and-valleys transform, maps to vanilla peaksAndValleys
+    //Formula (|(|ridge| - 0.6667) - 0.3333|) * -3
     private static DensityFunction PeaksAndValleys(DensityFunction weirdness)
         => DensityFunctions.Mul(
             DensityFunctions.Add(
@@ -182,14 +182,14 @@ public static class NoiseRouterData
                 DensityFunctions.ConstantValue(-0.3333333333333333)),
             DensityFunctions.ConstantValue(-3.0));
 
-    //SplineWithBlending 样条混合 + 二级缓存对应原版 splineWithBlending
+    //SplineWithBlending spline blending + two-level caching, maps to vanilla splineWithBlending
     private static DensityFunction SplineWithBlending(DensityFunction spline, DensityFunction blendingTarget)
     {
         var blended = DensityFunctions.Lerp(DensityFunctions.BlendAlpha(), blendingTarget, spline);
         return DensityFunctions.FlatCache(DensityFunctions.Cache2D(blended));
     }
 
-    //NoiseGradientDensity 噪声梯度密度对应原版 noiseGradientDensity
+    //NoiseGradientDensity noise gradient density, maps to vanilla noiseGradientDensity
     //output = 4 * ((depthWithJaggedness * factor).quarterNegative())
     private static DensityFunction NoiseGradientDensity(DensityFunction factor, DensityFunction depthWithJaggedness)
     {
@@ -197,24 +197,24 @@ public static class NoiseRouterData
         return DensityFunctions.Mul(DensityFunctions.ConstantValue(BaseDensityMultiplier), DensityFunctions.QuarterNegative(gradientUnscaled));
     }
 
-    //SlideOverworld 主世界 Y 轴滑变对应原版 slideOverworld
-    //amplified 模式用更陡的 topSlide 与更柔的 bottomSlide
+    //SlideOverworld overworld Y-axis slide, maps to vanilla slideOverworld
+    //Amplified mode uses a steeper topSlide and a softer bottomSlide
     private static DensityFunction SlideOverworld(bool isAmplified, DensityFunction caves)
         => Slide(caves, -64, 384, isAmplified ? 16 : 80, isAmplified ? 0 : 64, -0.078125d, 0, OverworldBottomSlideHeight, isAmplified ? 0.4d : 0.1171875d);
 
-    //SlideNetherLike 下界式滑变对应原版 slideNetherLike
+    //SlideNetherLike Nether-style slide, maps to vanilla slideNetherLike
     private static DensityFunction SlideNetherLike(Registry<NoiseParameters> noises, int minY, int height)
     {
         var baseNoise = BlendedNoise.CreateUnseeded(0.25, 0.375, 80.0, 60.0, 8.0);
         return Slide(baseNoise, minY, height, 24, 0, 0.9375d, -8, 24, 2.5d);
     }
 
-    //SlideEndLike 末地式滑变对应原版 slideEndLike
+    //SlideEndLike End-style slide, maps to vanilla slideEndLike
     private static DensityFunction SlideEndLike(DensityFunction caves, int minY, int height)
         => Slide(caves, minY, height, 72, -184, -23.4375d, 4, 32, -0.234375d);
 
-    //Slide Y 轴双向滑变对应原版 slide
-    //上方按 topFactor 从 1 到 0 lerp 到 topTarget下方按 bottomFactor 从 0 到 1 lerp 到 bottomTarget
+    //Slide bidirectional Y-axis slide, maps to vanilla slide
+    //The top lerps from 1 to 0 by topFactor toward topTarget; the bottom lerps from 0 to 1 by bottomFactor toward bottomTarget
     private static DensityFunction Slide(DensityFunction caves, int minY, int height,
         int topStartY, int topEndY, double topTarget,
         int bottomStartY, int bottomEndY, double bottomTarget)
@@ -225,16 +225,16 @@ public static class NoiseRouterData
         return DensityFunctions.Lerp(bottomFactor, bottomTarget, noiseValue);
     }
 
-    //PostProcess 后处理对应原版 postProcess
-    //blendDensity + 插值 + 0.64 缩放 + squeeze 挤压
+    //PostProcess post-processing, maps to vanilla postProcess
+    //blendDensity + interpolation + 0.64 scaling + squeeze
     private static DensityFunction PostProcess(DensityFunction slide)
     {
         var blended = DensityFunctions.BlendDensity(slide);
         return DensityFunctions.Squeeze(DensityFunctions.Mul(DensityFunctions.Interpolated(blended), DensityFunctions.ConstantValue(0.64d)));
     }
 
-    //Underground 地下密度对应原版 underground
-    //组合 spaghetti2D/entrances/cave_cheese/cave_layer 形成洞穴主密度
+    //Underground underground density, maps to vanilla underground
+    //Combines spaghetti2D/entrances/cave_cheese/cave_layer into the main cave density
     private static DensityFunction Underground(Registry<NoiseParameters> noises, DensityFunction slopedCheese)
     {
         var spaghetti2DFunction = Spaghetti2D(noises);
@@ -254,7 +254,7 @@ public static class NoiseRouterData
         return DensityFunctions.Max(undergroundSubtractions, pillars);
     }
 
-    //Entrances 入口密度对应原版 entrances
+    //Entrances entrance density, maps to vanilla entrances
     private static DensityFunction Entrances(Registry<NoiseParameters> noises, DensityFunction slopedCheese)
     {
         var spaghetti3DRarityModulator = DensityFunctions.CacheOnce(DensityFunctions.Noise(noises.GetValueOrThrow(Noises.Spaghetti3DRarity), 2.0, 1.0));
@@ -270,7 +270,7 @@ public static class NoiseRouterData
         return DensityFunctions.CacheOnce(DensityFunctions.Min(bigEntrancesFunction, DensityFunctions.Add(spaghettiRoughnessFunction, spaghetti3DFunction)));
     }
 
-    //Noodle 面条洞穴密度对应原版 noodle
+    //Noodle noodle cave density, maps to vanilla noodle
     private static DensityFunction Noodle(Registry<NoiseParameters> noises)
     {
         var y = DensityFunctions.YClampedGradient(-2048, 2048, -2048, 2048);
@@ -282,7 +282,7 @@ public static class NoiseRouterData
         return DensityFunctions.RangeChoice(noodleToggle, -1000000.0d, 0.0d, DensityFunctions.ConstantValue(64.0d), DensityFunctions.Add(noodleThickness, noodleRidged));
     }
 
-    //Pillars 柱状密度对应原版 pillars
+    //Pillars pillar density, maps to vanilla pillars
     private static DensityFunction Pillars(Registry<NoiseParameters> noises)
     {
         var pillarNoiseSource = DensityFunctions.Noise(noises.GetValueOrThrow(Noises.Pillar), 25.0, 0.3);
@@ -292,7 +292,7 @@ public static class NoiseRouterData
         return DensityFunctions.CacheOnce(DensityFunctions.Mul(pillarsWithRareness, DensityFunctions.Cube(pillarThicknessModulator)));
     }
 
-    //Spaghetti2D 二维意面洞穴密度对应原版 spaghetti2D
+    //Spaghetti2D 2D spaghetti cave density, maps to vanilla spaghetti2D
     private static DensityFunction Spaghetti2D(Registry<NoiseParameters> noises)
     {
         var spaghetti2DRarityModulator = DensityFunctions.Noise(noises.GetValueOrThrow(Noises.Spaghetti2DModulator), 2.0, 1.0);
@@ -306,7 +306,7 @@ public static class NoiseRouterData
         return DensityFunctions.Max(caveNoise, layerRidged).Clamp(-1.0d, 1.0d);
     }
 
-    //SpaghettiRoughnessFunction 意面粗糙度函数对应原版 spaghettiRoughnessFunction
+    //SpaghettiRoughnessFunction spaghetti roughness function, maps to vanilla spaghettiRoughnessFunction
     private static DensityFunction SpaghettiRoughnessFunction(Registry<NoiseParameters> noises)
     {
         var spaghettiRoughnessNoise = DensityFunctions.Noise(noises.GetValueOrThrow(Noises.SpaghettiRoughness));
@@ -314,7 +314,7 @@ public static class NoiseRouterData
         return DensityFunctions.CacheOnce(DensityFunctions.Mul(spaghettiRoughnessModulator, DensityFunctions.Add(spaghettiRoughnessNoise.Abs(), DensityFunctions.ConstantValue(-0.4d))));
     }
 
-    //PreliminarySurfaceLevel 预备表面等级对应原版 preliminarySurfaceLevel
+    //PreliminarySurfaceLevel preliminary surface level, maps to vanilla preliminarySurfaceLevel
     private static DensityFunction PreliminarySurfaceLevel(DensityFunction offset, DensityFunction factor, bool amplified)
     {
         var cachedFactor = DensityFunctions.Cache2D(factor);
@@ -331,15 +331,15 @@ public static class NoiseRouterData
         return DensityFunctions.FindTopSurface(density, upperBound, -64, NoiseSettings.Overworld.GetCellHeight());
     }
 
-    //YLimitedInterpolatable Y 限制插值对应原版 yLimitedInterpolatable
-    //y 落在 [minYInclusive, maxYInclusive] 时返回 whenInRange 否则返回常量 whenOutOfRange
+    //YLimitedInterpolatable Y-limited interpolation, maps to vanilla yLimitedInterpolatable
+    //Returns whenInRange when y falls in [minYInclusive, maxYInclusive], otherwise the constant whenOutOfRange
     private static DensityFunction YLimitedInterpolatable(DensityFunction y, DensityFunction whenInRange,
         int minYInclusive, int maxYInclusive, int whenOutOfRange)
         => DensityFunctions.Interpolated(
             DensityFunctions.RangeChoice(y, minYInclusive, maxYInclusive + 1, whenInRange, DensityFunctions.ConstantValue(whenOutOfRange)));
 
-    //Remap 线性重映射对应原版 remap
-    //把 input 从 [fromMin, fromMax] 映射到 [toMin, toMax]
+    //Remap linear remapping, maps to vanilla remap
+    //Maps input from [fromMin, fromMax] to [toMin, toMax]
     private static DensityFunction Remap(DensityFunction input, double fromMin, double fromMax, double toMin, double toMax)
     {
         var factor = (toMax - toMin) / (fromMax - fromMin);
@@ -347,11 +347,11 @@ public static class NoiseRouterData
         return DensityFunctions.Add(DensityFunctions.Mul(input, DensityFunctions.ConstantValue(factor)), DensityFunctions.ConstantValue(offset));
     }
 
-    //QuantizedSpaghettiRarity 量化意面稀有度对应原版 QuantizedSpaghettiRarity 嵌套类
-    //按 input 值分段选择不同稀有度的噪声函数
+    //QuantizedSpaghettiRarity quantized spaghetti rarity, maps to the vanilla QuantizedSpaghettiRarity nested class
+    //Selects a noise function of different rarity by segments of the input value
     private static class QuantizedSpaghettiRarity
     {
-        //WrapRarity2d 二维意面稀有度包装对应原版 wrapRarity2d
+        //WrapRarity2d 2D spaghetti rarity wrapper, maps to vanilla wrapRarity2d
         public static DensityFunction WrapRarity2d(DensityFunction input, NoiseParameters noise)
             => DensityFunctions.Abs(DensityFunctions.IntervalSelect(input,
                 new[] { -0.75d, -0.5d, 0.5d, 0.75d },
@@ -364,7 +364,7 @@ public static class NoiseRouterData
                     NoiseFunctionForRarity(noise, 3.0d)
                 }));
 
-        //WrapRarity3d 三维意面稀有度包装对应原版 wrapRarity3d
+        //WrapRarity3d 3D spaghetti rarity wrapper, maps to vanilla wrapRarity3d
         public static DensityFunction WrapRarity3d(DensityFunction input, NoiseParameters noise)
             => DensityFunctions.Abs(DensityFunctions.IntervalSelect(input,
                 new[] { -0.5d, 0.0d, 0.5d },
@@ -376,8 +376,8 @@ public static class NoiseRouterData
                     NoiseFunctionForRarity(noise, 2.0d)
                 }));
 
-        //NoiseFunctionForRarity 稀有度噪声函数对应原版 noiseFunctionForRarity
-        //rarity 控制频率倒数与缩放
+        //NoiseFunctionForRarity rarity noise function, maps to vanilla noiseFunctionForRarity
+        //rarity controls the reciprocal of frequency and the scale
         private static DensityFunction NoiseFunctionForRarity(NoiseParameters noise, double rarity)
             => DensityFunctions.Mul(DensityFunctions.ConstantValue(rarity), DensityFunctions.Noise(noise, 1.0 / rarity, 1.0 / rarity));
     }

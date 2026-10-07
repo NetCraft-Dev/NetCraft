@@ -7,8 +7,8 @@ using Silk.NET.Windowing;
 
 namespace NetCraft.Gpu.Vulkan;
 
-//VulkanGpuContext Vulkan 后端 GPU 上下文
-//包装 Vk API + Instance + PhysicalDevice 提供给 VulkanGpuDevice 创建入口
+//VulkanGpuContext Vulkan backend GPU context
+//Wraps Vk API + Instance + PhysicalDevice providing the creation entry point for VulkanGpuDevice
 public sealed unsafe class VulkanGpuContext : GpuContext
 {
     private readonly Vk _vk;
@@ -24,7 +24,7 @@ public sealed unsafe class VulkanGpuContext : GpuContext
     public PhysicalDevice PhysicalDevice => _physicalDevice;
     public KhrSurface SurfaceExtension => _khrSurface;
 
-    //Surface 平台 surface 由 VulkanTriangleApp 创建后注入用于查询 present 队列族
+    //Surface the platform surface created and injected by VulkanTriangleApp, used to query the present queue family
     public SurfaceKHR Surface
     {
         get => _surface;
@@ -41,22 +41,22 @@ public sealed unsafe class VulkanGpuContext : GpuContext
         CreateInstance(window, enableValidation);
         if (!_vk.TryGetInstanceExtension(_instance, out _khrSurface))
         {
-            throw new NotSupportedException("KHR_surface 扩展不可用");
+            throw new NotSupportedException("The KHR_surface extension is unavailable");
         }
     }
 
-    //CreateDevice 创建逻辑设备并返回 VulkanGpuDevice
-    //调用前必须已设置 Surface 属性
+    //CreateDevice creates the logical device and returns a VulkanGpuDevice
+    //The Surface property must be set before calling
     public override GpuDevice CreateDevice(GpuDeviceOptions options)
     {
         if (!_surfaceCreated)
         {
-            throw new InvalidOperationException("Surface 未设置无法创建 device");
+            throw new InvalidOperationException("Surface is not set, cannot create the device");
         }
         return new VulkanGpuDevice(this, options);
     }
 
-    //FindQueueFamilies 查找物理设备的 graphics 和 present 队列族
+    //FindQueueFamilies finds the physical device's graphics and present queue families
     public QueueFamilyIndices FindQueueFamilies(PhysicalDevice device)
     {
         var indices = new QueueFamilyIndices();
@@ -83,7 +83,7 @@ public sealed unsafe class VulkanGpuContext : GpuContext
         return indices;
     }
 
-    //IsDeviceSuitable 判断物理设备是否支持 graphics 队列和 swapchain 扩展
+    //IsDeviceSuitable checks whether the physical device supports the graphics queue and swapchain extension
     public bool IsDeviceSuitable(PhysicalDevice device)
     {
         var indices = FindQueueFamilies(device);
@@ -94,7 +94,7 @@ public sealed unsafe class VulkanGpuContext : GpuContext
     {
         if (window.VkSurface is null)
         {
-            throw new NotSupportedException("窗口平台不支持 Vulkan");
+            throw new NotSupportedException("The window platform does not support Vulkan");
         }
         byte** requiredExts = window.VkSurface.GetRequiredExtensions(out uint extCount);
         var appInfo = new ApplicationInfo
@@ -122,7 +122,7 @@ public sealed unsafe class VulkanGpuContext : GpuContext
         Instance instance;
         if (_vk.CreateInstance(&createInfo, null, &instance) != Result.Success)
         {
-            throw new InvalidOperationException("VkInstance 创建失败");
+            throw new InvalidOperationException("VkInstance creation failed");
         }
         _instance = instance;
         _vk.CurrentInstance = _instance;
@@ -130,15 +130,15 @@ public sealed unsafe class VulkanGpuContext : GpuContext
         Marshal.FreeHGlobal((nint)appInfo.PEngineName);
     }
 
-    //PickPhysicalDevice 选择支持 graphics + present 的物理 GPU
-    //必须在 Surface 设置后调用否则 FindQueueFamilies 取不到 present 队列
+    //PickPhysicalDevice selects a physical GPU supporting graphics + present
+    //Must be called after Surface is set, otherwise FindQueueFamilies cannot get the present queue
     public void PickPhysicalDevice()
     {
         uint deviceCount = 0;
         _vk.EnumeratePhysicalDevices(_instance, &deviceCount, null);
         if (deviceCount == 0)
         {
-            throw new NotSupportedException("未找到支持 Vulkan 的 GPU");
+            throw new NotSupportedException("No GPU supporting Vulkan was found");
         }
         var devices = stackalloc PhysicalDevice[(int)deviceCount];
         _vk.EnumeratePhysicalDevices(_instance, &deviceCount, devices);
@@ -150,7 +150,7 @@ public sealed unsafe class VulkanGpuContext : GpuContext
                 return;
             }
         }
-        throw new NotSupportedException("没有合适的图形 GPU 设备");
+        throw new NotSupportedException("No suitable graphics GPU device");
     }
 
     public override void Dispose()
@@ -170,7 +170,7 @@ public sealed unsafe class VulkanGpuContext : GpuContext
     }
 }
 
-//QueueFamilyIndices graphics 和 present 队列族索引
+//QueueFamilyIndices graphics and present queue family indices
 public struct QueueFamilyIndices
 {
     public uint? GraphicsFamily;

@@ -5,8 +5,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//SurfaceWaterDepthFilter 地表水深过滤对应原版 SurfaceWaterDepthFilter
-//水面与海底高差不超过上限才保留
+//SurfaceWaterDepthFilter surface water depth filter, maps to vanilla SurfaceWaterDepthFilter
+//Keep the position only when the difference between water surface and floor is within the cap
 public sealed class SurfaceWaterDepthFilter : PlacementFilter
 {
     public static readonly Codec<SurfaceWaterDepthFilter> Codec =
@@ -19,7 +19,7 @@ public sealed class SurfaceWaterDepthFilter : PlacementFilter
 
     private SurfaceWaterDepthFilter(int maxWaterDepth) => MaxWaterDepth = maxWaterDepth;
 
-    //ForMaxDepth 构造入口对应原版 forMaxDepth
+    //ForMaxDepth construction entry, maps to vanilla forMaxDepth
     public static SurfaceWaterDepthFilter ForMaxDepth(int maxWaterDepth) => new(maxWaterDepth);
 
     protected override bool ShouldPlace(PlacementContext context, RandomSource random, BlockPos origin)
@@ -32,7 +32,7 @@ public sealed class SurfaceWaterDepthFilter : PlacementFilter
     public override PlacementModifierType Type => SurfaceWaterDepthFilterType.Instance;
 }
 
-//SurfaceWaterDepthFilterType 对应原版 PlacementModifierType.SURFACE_WATER_DEPTH_FILTER
+//SurfaceWaterDepthFilterType, maps to vanilla PlacementModifierType.SURFACE_WATER_DEPTH_FILTER
 public sealed class SurfaceWaterDepthFilterType : PlacementModifierType<SurfaceWaterDepthFilter>
 {
     public static readonly SurfaceWaterDepthFilterType Instance = Register(

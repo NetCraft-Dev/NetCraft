@@ -10,25 +10,25 @@ using GameMobEffectInstance = NetCraft.Game.World.Effect.MobEffectInstance;
 
 namespace NetCraft.Game.Commands;
 
-//EffectCommand effect 命令对应原版 net.minecraft.server.commands.EffectCommands
-//clear 清除目标效果 give 施加效果 之后可跟时长/等级/是否隐藏粒子三段
+//EffectCommand effect command, maps to vanilla net.minecraft.server.commands.EffectCommands
+//clear removes target effects; give applies an effect, optionally followed by duration/level/hide-particles
 public static class EffectCommand
 {
-    //ErrorGiveFailed 没有任何目标成功施加效果 对应原版 commands.effect.give.failed
+    //ErrorGiveFailed no target had the effect applied, maps to vanilla commands.effect.give.failed
     private static readonly SimpleCommandExceptionType ErrorGiveFailed =
-        new(new LiteralMessage("该效果未能施加于任何目标"));
+        new(new LiteralMessage("the effect could not be applied to any target"));
 
-    //ErrorClearEverythingFailed 没有任何目标被清除全部效果 对应原版 commands.effect.clear.everything.failed
+    //ErrorClearEverythingFailed no target had all effects cleared, maps to vanilla commands.effect.clear.everything.failed
     private static readonly SimpleCommandExceptionType ErrorClearEverythingFailed =
-        new(new LiteralMessage("未能清除任何效果"));
+        new(new LiteralMessage("could not clear any effects"));
 
-    //ErrorClearSpecificFailed 没有任何目标被清除指定效果 对应原版 commands.effect.clear.specific.failed
+    //ErrorClearSpecificFailed no target had the given effect cleared, maps to vanilla commands.effect.clear.specific.failed
     private static readonly SimpleCommandExceptionType ErrorClearSpecificFailed =
-        new(new LiteralMessage("未能清除该效果"));
+        new(new LiteralMessage("could not clear that effect"));
 
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
-        //clear [<targets>] [<effect>] 不传 targets 时作用于执行者自己
+        //clear [<targets>] [<effect>]; without targets it applies to the executor
         var clearEffect = RequiredArgumentBuilder<CommandSourceStack, Identifier>.Argument("effect", EffectArgument())
             .Executes(c => ClearEffect(c, EntityArgument.GetEntities(c, "targets"), ResourceArgument.GetMobEffect(c, "effect")));
         var clearTargets = RequiredArgumentBuilder<CommandSourceStack, EntitySelector>.Argument("targets", EntityArgument.Entities())
@@ -75,22 +75,22 @@ public static class EffectCommand
             .Then(give));
     }
 
-    //EffectArgument effect 参数挂 mob_effect 注册表
+    //EffectArgument effect argument bound to the mob_effect registry
     private static ResourceArgument EffectArgument() => new(Registries.MOB_EFFECT.Identifier);
 
-    //SelfTargets 无参数 clear 的目标是执行者自己 对应原版 getEntityOrException
+    //SelfTargets the target of a parameterless clear is the executor, maps to vanilla getEntityOrException
     private static IReadOnlyList<CommandTarget> SelfTargets(CommandContext<CommandSourceStack> context)
     {
         var source = (ServerCommandSource)context.GetSource();
         return new[] { CommandTarget.OfPlayer(source.PlayerOrThrow) };
     }
 
-    //GiveEffect 给每个玩家目标施加效果 对应原版 giveEffect
+    //GiveEffect applies the effect to each player target, maps to vanilla giveEffect
     private static int GiveEffect(CommandContext<CommandSourceStack> context, IReadOnlyList<CommandTarget> targets,
         Holder<NetCraft.Registry.MobEffect> effectHolder, int? seconds, int amplifier, bool particles)
     {
         var source = (ServerCommandSource)context.GetSource();
-        //瞬时效果只生效一刻 普通效果按秒折算 600 刻为默认 20 秒 -1 表示无限
+        //An instantaneous effect lasts one tick; a normal effect is converted to seconds, 600 ticks is the default 20 seconds, -1 means infinite
         var instantaneous = effectHolder.Value is GameMobEffect effect && effect.IsInstantaneous;
         var duration = seconds != null
             ? (instantaneous ? seconds.Value : (seconds == -1 ? -1 : seconds.Value * 20))
@@ -98,7 +98,7 @@ public static class EffectCommand
         var count = 0;
         foreach (var target in targets)
         {
-            //关卡实体没有效果存储 只处理玩家目标
+            //Level entities have no effect storage; only player targets are handled
             if (target.Player is not { } player) continue;
             var instance = new GameMobEffectInstance(effectHolder, duration, amplifier, ambient: false, visible: particles);
             if (player.AddEffect(instance)) count++;
@@ -106,13 +106,13 @@ public static class EffectCommand
         if (count == 0) throw ErrorGiveFailed.Create();
         var name = EffectName(effectHolder);
         if (targets.Count == 1)
-            source.SendSuccess($"已将 {name} 效果施加于 {targets[0].Name}，时长 {duration / 20} 秒");
+            source.SendSuccess($"applied {name} to {targets[0].Name} for {duration / 20} seconds");
         else
-            source.SendSuccess($"已将 {name} 效果施加于 {targets.Count} 个目标");
+            source.SendSuccess($"applied {name} to {targets.Count} targets");
         return count;
     }
 
-    //ClearEffects 清除目标全部效果 对应原版 clearEffects
+    //ClearEffects clears all effects on the targets, maps to vanilla clearEffects
     private static int ClearEffects(CommandContext<CommandSourceStack> context, IReadOnlyList<CommandTarget> targets)
     {
         var source = (ServerCommandSource)context.GetSource();
@@ -124,13 +124,13 @@ public static class EffectCommand
         }
         if (count == 0) throw ErrorClearEverythingFailed.Create();
         if (targets.Count == 1)
-            source.SendSuccess($"已清除 {targets[0].Name} 的全部效果");
+            source.SendSuccess($"cleared all effects on {targets[0].Name}");
         else
-            source.SendSuccess($"已清除 {targets.Count} 个目标的全部效果");
+            source.SendSuccess($"cleared all effects on {targets.Count} targets");
         return count;
     }
 
-    //ClearEffect 清除目标指定效果 对应原版 clearEffect
+    //ClearEffect clears the given effect on the targets, maps to vanilla clearEffect
     private static int ClearEffect(CommandContext<CommandSourceStack> context, IReadOnlyList<CommandTarget> targets,
         Holder<NetCraft.Registry.MobEffect> effectHolder)
     {
@@ -144,13 +144,13 @@ public static class EffectCommand
         if (count == 0) throw ErrorClearSpecificFailed.Create();
         var name = EffectName(effectHolder);
         if (targets.Count == 1)
-            source.SendSuccess($"已清除 {targets[0].Name} 的 {name} 效果");
+            source.SendSuccess($"cleared {name} from {targets[0].Name}");
         else
-            source.SendSuccess($"已清除 {targets.Count} 个目标的 {name} 效果");
+            source.SendSuccess($"cleared {name} from {targets.Count} targets");
         return count;
     }
 
-    //EffectName 取效果的注册名短形式 用于回执
+    //EffectName gets the effect's short registry name, for the reply
     private static string EffectName(Holder<NetCraft.Registry.MobEffect> effectHolder)
-        => BuiltInRegistries.MOB_EFFECT.GetKey(effectHolder.Value)?.ToShortString() ?? "未知效果";
+        => BuiltInRegistries.MOB_EFFECT.GetKey(effectHolder.Value)?.ToShortString() ?? "unknown effect";
 }

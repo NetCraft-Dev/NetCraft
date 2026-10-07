@@ -16,42 +16,42 @@ using NetCraft.Network.Protocol;
 using NetCraft.Primitives;
 using NetCraft.Storage;
 using NetCraft.Util;
-//别名避免 NetCraft.Registry 里的 Entity/Block 等 stub 与业务类型撞名
+//Aliases avoid the Entity/Block stubs in NetCraft.Registry clashing with the business types
 using SoundEvents = NetCraft.Registry.SoundEvents;
 using SoundSource = NetCraft.Registry.SoundSource;
 using BlockState = NetCraft.Registry.State.BlockState;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerGamePacketListenerImpl 服务端 play 阶段监听器实现
-//对应原版 ServerGamePacketListenerImpl
-//核心 HandleChat/HandleMovePlayer/HandleClientCommand/HandleAcceptTeleportation 等注册包 Log.Debug
-//其余继承自 ServerCommonPacketListener/ServerCookiePacketListener/ServerPingPacketListener 的方法暂空实现
-//Protocol 显式返回 Play 因继承链默认是 Configuration
+//ServerGamePacketListenerImpl server play phase listener implementation
+//Maps to vanilla ServerGamePacketListenerImpl
+//Core registered packets such as HandleChat/HandleMovePlayer/HandleClientCommand/HandleAcceptTeleportation log at Debug
+//The remaining methods inherited from ServerCommonPacketListener/ServerCookiePacketListener/ServerPingPacketListener are empty for now
+//Protocol explicitly returns Play because the inherited default is Configuration
 public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, TickablePacketListener
 {
     private readonly Connection _connection;
     private readonly GameProfile _profile;
-    //_ackBlockChangesUpTo 待回执的方块变更序号 -1 表示无 对应原版 ackBlockChangesUpTo
+    //_ackBlockChangesUpTo block change sequence pending acknowledgment, -1 means none, maps to vanilla ackBlockChangesUpTo
     private int _ackBlockChangesUpTo = -1;
-    //_tickCount 监听器自身刻计数 对应原版 ServerGamePacketListenerImpl.tickCount
+    //_tickCount the listener's own tick count, maps to vanilla ServerGamePacketListenerImpl.tickCount
     private int _tickCount;
-    //_awaitingTeleport 等待客户端确认的传送 id -1 表示无 对应原版 awaitingTeleport
+    //_awaitingTeleport teleport id awaiting client acknowledgment, -1 means none, maps to vanilla awaitingTeleport
     private int _awaitingTeleport = -1;
-    //_awaitingPositionFromClient 等待确认的目标位置 对应原版 awaitingPositionFromClient
-    //非空期间客户端上报的坐标一律按传送前的在途包处理 位置不予采纳
+    //_awaitingPositionFromClient target position awaiting acknowledgment, maps to vanilla awaitingPositionFromClient
+    //While non-null, client-reported coordinates are all treated as in-flight packets from before the teleport and the position is not adopted
     private Vec3? _awaitingPositionFromClient;
-    //_awaitingTeleportTime 上次发送位置包的刻号 超过 20 刻未确认重发 对应原版 awaitingTeleportTime
+    //_awaitingTeleportTime tick of the last position packet sent; if unacknowledged for over 20 ticks it is resent, maps to vanilla awaitingTeleportTime
     private int _awaitingTeleportTime;
-    //_isDestroyingBlock 是否正在挖掘 对应原版 isDestroyingBlock
+    //_isDestroyingBlock whether a block is being mined, maps to vanilla isDestroyingBlock
     private bool _isDestroyingBlock;
-    //_destroyPos 当前挖掘目标 对应原版 destroyPos
+    //_destroyPos current mining target, maps to vanilla destroyPos
     private BlockPos _destroyPos = BlockPos.Zero;
-    //_destroyProgressStart 本次挖掘的起始刻号 进度按它与当前刻号的差值算 对应原版 destroyProgressStart
+    //_destroyProgressStart start tick of this mining; progress is computed from its difference with the current tick, maps to vanilla destroyProgressStart
     private int _destroyProgressStart;
-    //_lastSentDestroyState 上次下发的裂纹阶段 0-10 阶段不变不重发 对应原版 lastSentState
+    //_lastSentDestroyState last crack stage sent, 0-10; the stage is not resent when unchanged, maps to vanilla lastSentState
     private int _lastSentDestroyState = -1;
-    //_hasDelayedDestroy 客户端已松手但服务端估算进度还没到时挂起的收尾破坏 对应原版 hasDelayedDestroy
+    //_hasDelayedDestroy a pending finish-destroy for when the client has released but the server-estimated progress is not yet reached, maps to vanilla hasDelayedDestroy
     private bool _hasDelayedDestroy;
     private BlockPos _delayedDestroyPos = BlockPos.Zero;
     private int _delayedDestroyTickStart;
@@ -62,15 +62,15 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         _profile = profile;
     }
 
-    //显式返回 Play 因 ServerCookiePacketListener 默认 Protocol 是 Configuration
+    //Explicitly returns Play because ServerCookiePacketListener's default Protocol is Configuration
     ConnectionProtocol PacketListener.Protocol => ConnectionProtocol.Play;
 
-    //TickListener 每 tick 把累积的方块变更序号回执客户端 对应原版 ServerGamePacketListenerImpl.tick
-    //客户端靠它结束本地预测 缺回执时预测的方块会一直留在客户端直到区块重新加载
+    //TickListener acks the accumulated block change sequence to the client every tick, maps to vanilla ServerGamePacketListenerImpl.tick
+    //The client uses it to end its local prediction; without the ack, predicted blocks stay on the client until the chunk is reloaded
     public void TickListener()
     {
         _tickCount++;
-        //传送迟迟没被确认就原地重发 对应原版 updateAwaitingTeleport
+        //If the teleport stays unacknowledged it is resent in place, maps to vanilla updateAwaitingTeleport
         if (_awaitingPositionFromClient is not null && _tickCount - _awaitingTeleportTime > AwaitingTeleportTimeoutTicks)
             ResendTeleport();
         TickDestroyProgress();
@@ -79,13 +79,13 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         _ackBlockChangesUpTo = -1;
     }
 
-    //AwaitingTeleportTimeoutTicks 传送重发间隔 对应原版 20 刻
+    //AwaitingTeleportTimeoutTicks teleport resend interval, maps to vanilla 20 ticks
     private const int AwaitingTeleportTimeoutTicks = 20;
 
-    //Teleport 服务端发起传送 对应原版 ServerGamePacketListenerImpl.teleport
-    //target/yaw/pitch 是换算好的绝对量 先落到玩家状态并记为等待确认的目标
-    //包内下发相对分量 客户端按 relatives 叠加自身当前值复原绝对位置
-    //等待期间客户端上报的旧坐标不再采纳 在途包不会把玩家打回传送前的位置
+    //Teleport initiates a teleport from the server, maps to vanilla ServerGamePacketListenerImpl.teleport
+    //target/yaw/pitch are the converted absolute values; they are applied to the player state and recorded as the position awaiting acknowledgment
+    //Relative components are sent in the packet; the client adds them to its own current values per relatives to recover the absolute position
+    //During the wait, stale client-reported coordinates are no longer adopted, so in-flight packets cannot push the player back to the pre-teleport position
     public void Teleport(Vec3 target, float yaw, float pitch,
         double relX, double relY, double relZ, float relYaw, float relPitch, int relatives)
     {
@@ -99,8 +99,8 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         SendPositionPacket(relX, relY, relZ, relYaw, relPitch, relatives);
     }
 
-    //ResendTeleport 超时重发 对应原版 updateAwaitingTeleport 的重发分支
-    //重发走绝对量 relatives 清空 客户端按自身当前朝向直接吸附到目标位置
+    //ResendTeleport timeout resend, maps to the resend branch of vanilla updateAwaitingTeleport
+    //The resend uses absolute values with relatives cleared, so the client snaps directly to the target position using its own current rotation
     private void ResendTeleport()
     {
         var player = Player;
@@ -109,47 +109,47 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         SendPositionPacket(target.X, target.Y, target.Z, player.Yaw, player.Pitch, 0);
     }
 
-    //NextTeleportId 传送 id 自增 溢出回到 0 对应原版 teleport 的取值
+    //NextTeleportId increments the teleport id, wrapping to 0 on overflow, matching the vanilla teleport value
     private int NextTeleportId()
         => _awaitingTeleport == int.MaxValue ? 0 : _awaitingTeleport + 1;
 
-    //SendPositionPacket 下发位置包并记录发送刻号
+    //SendPositionPacket sends the position packet and records the send tick
     private void SendPositionPacket(double x, double y, double z, float yRot, float xRot, int relatives)
     {
         _awaitingTeleportTime = _tickCount;
         _connection.Send(new ClientboundPlayerPositionPacket(x, y, z, yRot, xRot, relatives, _awaitingTeleport));
     }
 
-    //AckBlockChanges 记录待回执的方块变更序号取最大值 对应原版 ackBlockChangesUpTo
+    //AckBlockChanges records the maximum pending block change sequence, maps to vanilla ackBlockChangesUpTo
     private void AckBlockChanges(int sequence)
     {
         if (sequence > _ackBlockChangesUpTo) _ackBlockChangesUpTo = sequence;
     }
 
-    //Player 关联的玩家对象 由 DedicatedServer.TransitionToGame 注入
-    //用于把客户端回包落到玩家状态上
+    //Player the associated player object, injected by DedicatedServer.TransitionToGame
+    //Used to apply client response packets to the player state
     public ServerPlayer? Player { get; set; }
 
-    //Players 玩家列表 由 DedicatedServer.TransitionToGame 注入
-    //方块变更需要向在线玩家广播
+    //Players player list, injected by DedicatedServer.TransitionToGame
+    //Block changes must be broadcast to online players
     public PlayerList? Players { get; set; }
 
-    //BlockEntities 方块实体集合 由 DedicatedServer.TransitionToGame 注入
-    //方块被替换或破坏时要同步清理旧方块实体
+    //BlockEntities block entity collection, injected by DedicatedServer.TransitionToGame
+    //Old block entities must be cleaned up in sync when a block is replaced or destroyed
     public BlockEntityManager? BlockEntities { get; set; }
 
-    //Commands 命令管理器 由 DedicatedServer.TransitionToGame 注入
+    //Commands command manager, injected by DedicatedServer.TransitionToGame
     public CommandManager? Commands { get; set; }
 
-    //HandlePlayerAction 玩家动作 对应原版 handlePlayerAction
-    //START 分支: 创造模式是瞬时破坏 客户端挖完不再发 STOP 必须在此处理
-    //生存模式先算一次进度 够 1 的瞬时方块立即破坏 否则进入每刻推进的挖掘状态
-    //ABORT/STOP 分支按原版清状态并收尾 破坏进度包由本类统一广播
+    //HandlePlayerAction player action, maps to vanilla handlePlayerAction
+    //START branch: creative mode is instant break and the client does not send STOP after breaking, so it must be handled here
+    //Survival first computes progress once; blocks with progress >= 1 break immediately, otherwise a per-tick mining state is entered
+    //The ABORT/STOP branches clear the state and finish up like vanilla; destroy progress packets are broadcast uniformly by this class
     public void HandlePlayerAction(ServerboundPlayerActionPacket packet)
     {
         if (Player is null || Players is null) return;
         if (Player.Level is not PersistentServerLevel level) return;
-        //原版对三种破坏动作都先记回执 由 TickListener 统一发出
+        //Vanilla records an ack for all three destroy actions, sent uniformly by TickListener
         AckBlockChanges(packet.Sequence);
         switch (packet.Action)
         {
@@ -177,13 +177,13 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         }
     }
 
-    //StartDestroyBlock 开始破坏方块 对应原版 handleBlockBreakAction 的 START 分支
-    //创造模式瞬时破坏 生存模式把目标记入挖掘状态由 TickDestroyProgress 每刻推进
-    //瞬时方块(进度一次就够 1) 直接破坏不发裂纹包
+    //StartDestroyBlock starts breaking a block, maps to the START branch of vanilla handleBlockBreakAction
+    //Creative breaks instantly; survival records the target into the mining state advanced each tick by TickDestroyProgress
+    //Instant blocks (progress >= 1 in one step) break directly without sending crack packets
     private void StartDestroyBlock(PersistentServerLevel level, BlockPos pos)
     {
         var player = Player!;
-        //原版在开始挖的这一刻先给方块一次 attack 回调 音符盒靠它左键试听
+        //Vanilla gives the block an attack callback at the moment mining starts; the note block relies on it for left-click audition
         if (level.GetBlockState(pos) is { Owner: BlockBehaviour behaviour } attacked)
             behaviour.OnAttack(level, player, pos, attacked);
         if (player.GameType == GameType.Creative)
@@ -194,7 +194,7 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         }
         _destroyProgressStart = _tickCount;
         var state = level.GetBlockState(pos);
-        //空位置按原版进度 1 处理 不进挖掘状态
+        //An empty position is treated as progress 1 like vanilla and does not enter the mining state
         var progress = 1f;
         if (state is not null && state.Value != Blocks.AIR.DefaultBlockState)
             progress = BlockBehaviour.GetDestroyProgress(state.Value);
@@ -203,7 +203,7 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
             DestroyBlockAndAck(pos);
             return;
         }
-        //换了目标但上一个还没收尾 先把旧位置的裂纹清掉 免得留在别人屏幕上
+        //The target changed but the previous one was not finished; clear the old position's cracks first so they do not linger on other players' screens
         if (_isDestroyingBlock) BroadcastDestroyProgress(level, _destroyPos, -1);
         _isDestroyingBlock = true;
         _destroyPos = pos;
@@ -212,9 +212,9 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         _lastSentDestroyState = stage;
     }
 
-    //StopDestroyBlock 客户端松手 对应原版 handleBlockBreakAction 的 STOP 分支
-    //目标不是正在挖的那个就忽略 服务端估算进度到 0.7 直接破坏
-    //不到 0.7 挂起延迟破坏 由后续刻继续推完 对应原版 hasDelayedDestroy
+    //StopDestroyBlock client released, maps to the STOP branch of vanilla handleBlockBreakAction
+    //If the target is not the one being mined it is ignored; at a server-estimated progress of 0.7 it breaks directly
+    //Below 0.7 a delayed destroy is parked and finished over later ticks, maps to vanilla hasDelayedDestroy
     private void StopDestroyBlock(PersistentServerLevel level, BlockPos pos)
     {
         if (!_isDestroyingBlock || _destroyPos != pos) return;
@@ -236,8 +236,8 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         _delayedDestroyTickStart = _destroyProgressStart;
     }
 
-    //AbortDestroyBlock 中断挖掘 对应原版 handleBlockBreakAction 的 ABORT 分支
-    //挖到一半移开视线走这里 清掉自家裂纹 目标对不上时旧位置的也一并清掉
+    //AbortDestroyBlock aborts mining, maps to the ABORT branch of vanilla handleBlockBreakAction
+    //Looking away mid-mine goes here; it clears the cracks it owns, and also clears the old position's when the target does not match
     private void AbortDestroyBlock(PersistentServerLevel level, BlockPos pos)
     {
         _isDestroyingBlock = false;
@@ -246,9 +246,9 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         _lastSentDestroyState = -1;
     }
 
-    //TickDestroyProgress 每刻推进挖掘进度 对应原版 ServerPlayerGameMode.tick
-    //延迟破坏分支: 客户端已松手 继续把服务端认定还欠的那份挖完
-    //正常分支: 方块中途被换成空气就取消并清裂纹 否则累加进度并广播裂纹阶段
+    //TickDestroyProgress advances mining progress every tick, maps to vanilla ServerPlayerGameMode.tick
+    //Delayed destroy branch: the client has released, so finish the remainder the server considers still owed
+    //Normal branch: if the block is replaced by air mid-way, cancel and clear the cracks; otherwise accumulate progress and broadcast the crack stage
     private void TickDestroyProgress()
     {
         if (Player is null) return;
@@ -280,8 +280,8 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         IncrementDestroyProgress(level, state.Value, _destroyPos, _destroyProgressStart);
     }
 
-    //IncrementDestroyProgress 累加破坏进度 返回累计值 对应原版 incrementDestroyProgress
-    //进度按每刻增量乘已挖刻数 裂纹阶段取 0-10 的整数 阶段没变就不重发
+    //IncrementDestroyProgress accumulates destroy progress and returns the total, maps to vanilla incrementDestroyProgress
+    //Progress is the per-tick increment times ticks spent; the crack stage is an integer 0-10 and is not resent when unchanged
     private float IncrementDestroyProgress(PersistentServerLevel level, BlockState state, BlockPos pos, int startTick)
     {
         var ticksSpent = _tickCount - startTick;
@@ -295,9 +295,9 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         return progress;
     }
 
-    //BroadcastDestroyProgress 广播方块破坏进度 对应原版 ServerLevel.destroyBlockProgress
-    //破坏者本人不收 客户端对自己挖的方块有本地预测动画 收了会打架
-    //只发给 32 格内的同维度玩家 再远看不见裂纹
+    //BroadcastDestroyProgress broadcasts block destroy progress, maps to vanilla ServerLevel.destroyBlockProgress
+    //The breaker does not receive it; the client has a local prediction animation for the block it is mining and receiving it would conflict
+    //Only sent to same-dimension players within 32 blocks; further away the cracks are not visible
     private void BroadcastDestroyProgress(PersistentServerLevel level, BlockPos pos, int progress)
     {
         if (Players is null || Player is null) return;
@@ -313,8 +313,8 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         }
     }
 
-    //DestroyBlockAndAck 破坏方块并把失败结果同步回客户端 对应原版 destroyAndAck
-    //破坏没生效(比如方块已被换掉)就把服务端真实状态回发 结束客户端那边的本地预测
+    //DestroyBlockAndAck destroys the block and syncs the failure result back to the client, maps to vanilla destroyAndAck
+    //If the destroy did not take effect (e.g. the block was already replaced) the true server state is sent back, ending the client's local prediction
     private void DestroyBlockAndAck(BlockPos pos)
     {
         var player = Player;
@@ -325,17 +325,17 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         if (state is not null) player.Connection.Send(new ClientboundBlockUpdatePacket(pos, state.Value.Id));
     }
 
-    //HandleUseItemOn 玩家对区块使用 先交给方块自身行为 未处理再走手持方块放置
+    //HandleUseItemOn player using on a block; first handed to the block's own behavior, then to held block placement if unhandled
     public void HandleUseItemOn(ServerboundUseItemOnPacket packet)
     {
         if (Player is null || Players is null) return;
         if (Player.Level is not PersistentServerLevel level) return;
-        //原版在进入放置流程前先记回执 无论成功与否都要结束客户端预测
+        //Vanilla records the ack before entering the placement flow; the client prediction must end regardless of success
         AckBlockChanges(packet.Sequence);
         var pos = packet.BlockHit.BlockPos;
         var face = packet.BlockHit.Direction;
-        //建筑高度越界只回动作栏提示不落地 对应原版 handleUseItemOn 里的 maxY/minY 检查
-        //上限取 319 下限取 -64 与客户端 F3 看到的高度一致
+        //Out-of-range build height only shows an action bar message and does not take effect, maps to the maxY/minY checks in vanilla handleUseItemOn
+        //The upper bound is 319 and the lower bound is -64, matching the height shown by the client's F3
         var maxY = level.MaxBuildHeight - 1;
         var minY = level.MinBuildHeight;
         if (pos.Y > maxY)
@@ -348,9 +348,9 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
             Player.SendBuildLimitMessage(false, minY);
             return;
         }
-        //原版顺序: 方块自身行为 -> 物品 useOn -> 方块物品放置
-        //潜行且手里拿着东西时跳过方块自身行为 对应原版 suppressUsingBlock
-        //不然潜行按按钮开箱子照样会触发 原版这时只走物品使用与放置
+        //Vanilla order: block's own behavior -> item useOn -> block item placement
+        //When sneaking and holding something, the block's own behavior is skipped, maps to vanilla suppressUsingBlock
+        //Otherwise sneaking to press a button or open a chest would still trigger it; vanilla then only uses the item and places
         var haveSomethingInOurHands = !Player.Inventory.GetSelectedItem().IsEmpty()
             || !Player.Inventory.GetItem(PlayerInventory.OffhandSlot).IsEmpty();
         var suppressUsingBlock = Player.IsSneaking && haveSomethingInOurHands;
@@ -361,40 +361,40 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
             var hit = packet.BlockHit.Location;
             handled = ServerBlockUpdates.PlaceHeldBlock(level, Players, Player, pos, face, packet.Hand,
                 new NetCraft.Primitives.Vec3(hit.X - pos.X, hit.Y - pos.Y, hit.Z - pos.Z));
-            //贴面方块的朝向全由这一格的状态决定 客户端显示与它不符就说明问题在状态编码或下发的包上
+            //The facing of the attached block is entirely determined by this cell's state; if the client display does not match, the problem is in state encoding or the packet sent
             var placePos = pos.Offset(face);
             if (handled && level.GetBlockState(placePos) is { } placed)
                 Log.Debug($"Place result {placed.Owner.Id}[{placed.Id}] pos={placePos} face={face} yaw={Player.Yaw} properties={string.Join(",", placed.GetValues().Select(pv => $"{pv.Property.Name}={pv.Value}"))}");
         }
-        //放置没成又贴着上下界就是高度不够 对应原版 wasBlockPlacementAttempt 之后的两支提示
+        //Placement failed while hugging the bounds means the height is insufficient, maps to the two messages after vanilla wasBlockPlacementAttempt
         if (!handled && face == Direction.Up && pos.Y >= maxY) Player.SendBuildLimitMessage(true, maxY);
         else if (!handled && face == Direction.Down && pos.Y <= minY) Player.SendBuildLimitMessage(false, minY);
         Log.Debug($"Use block {pos} handled={handled} profile={_profile.Name}");
     }
 
-    //HandleChat 玩家聊天广播 对应原版 handleChat
-    //未接入签名链 走 system_chat 广播 chat.type.text 显示效果与原版玩家聊天一致
+    //HandleChat player chat broadcast, maps to vanilla handleChat
+    //Not wired into the signing chain; broadcasts chat.type.text via system_chat, displaying the same as vanilla player chat
     public void HandleChat(ServerboundChatPacket packet)
     {
         if (Player is null || Players is null) return;
         var message = packet.Message;
         if (string.IsNullOrEmpty(message)) return;
-        //原版 writeUtf(message,256) 超出长度客户端编码阶段就该失败 这里再挡一次
+        //Vanilla writeUtf(message,256) should fail at the client encoding stage when too long; this blocks it once more
         if (message.Length > ServerboundChatPacket.MaxMessageLength) return;
         var name = Player.Profile.Name;
         Log.Info($"Chat {name}: {message}");
         Players.BroadcastSystemMessage(CreateChatMessage(name, message), false);
     }
 
-    //CreateChatMessage 构造玩家聊天组件 对应原版 ChatType.bind(CHAT,player) 的 chat.type.text 装饰
+    //CreateChatMessage builds the player chat component, maps to the chat.type.text decoration of vanilla ChatType.bind(CHAT,player)
     public static Component CreateChatMessage(string senderName, string message)
         => Component.Translatable("chat.type.text", Component.Literal(senderName), Component.Literal(message));
 
-    //HandleMovePlayer 玩家移动包 同步坐标朝向到 ServerPlayer
-    //玩家坐标是客户端权威 服务端只回填 跨块触发的视野更新由 ServerPlayer.Tick 检测
-    //接触地面也要回填 实体追踪按它决定是否补发 onGround 变化包
-    //传送等待确认期间只接受朝向 客户端上报的坐标还是传送前的在途值
-    //采纳它会把玩家打回旧坐标 实体追踪随即把旧坐标广播出去 观察者那边的模型就停在旧位置
+    //HandleMovePlayer player movement packet; syncs coordinates and rotation to ServerPlayer
+    //Player coordinates are client-authoritative and the server only writes them back; view updates from crossing chunks are detected by ServerPlayer.Tick
+    //On-ground must also be written back; entity tracking uses it to decide whether to send an onGround change packet
+    //While a teleport awaits acknowledgment only rotation is accepted; client-reported coordinates are still in-flight values from before the teleport
+    //Adopting them would push the player back to the old coordinates and entity tracking would immediately broadcast the old position, leaving observers' models stuck at the old spot
     public void HandleMovePlayer(ServerboundMovePlayerPacket packet)
     {
         var player = Player;
@@ -417,24 +417,24 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         player.OnGround = packet.OnGround;
     }
 
-    //HandleClientCommand 客户端命令包如请求 respawn Log.Debug
+    //HandleClientCommand client command packet such as requesting respawn, logs at Debug
     public void HandleClientCommand(ServerboundClientCommandPacket packet)
     {
         Log.Debug($"HandleClientCommand profile={_profile.Name}");
     }
 
-    //HandleAcceptTeleportPacket 客户端确认传送 对应原版 handleAcceptTeleportation
-    //id 匹配才把玩家吸附到等待的目标位置并解除等待 之后上报的位置重新被采纳
-    //id 不符说明确认包与当前这轮传送不同轮 保持等待交给 TickListener 重发
+    //HandleAcceptTeleportPacket client acknowledges the teleport, maps to vanilla handleAcceptTeleportation
+    //Only a matching id snaps the player to the awaited target position and clears the wait; afterwards reported positions are adopted again
+    //A mismatched id means the ack belongs to a different teleport round; the wait is kept and TickListener resends
     public void HandleAcceptTeleportPacket(ServerboundAcceptTeleportationPacket packet)
     {
         var player = Player;
         if (player is null || _awaitingPositionFromClient is not { } target) return;
         if (packet.Id != _awaitingTeleport)
         {
-            //不符时玩家一直停在等待状态 期间每次移动上报的位置都被丢弃
-            //每 20 刻又被重发的位置包按绝对量拽回目标 表现就是传送后一动就被拉走
-            //这条告警是该现象的唯一入口 一条都不出现说明确认包压根没到服务端
+            //On mismatch the player stays in the waiting state and every reported movement position is discarded
+            //Every 20 ticks the resent position packet yanks them back to the target with absolute values, so any movement after the teleport pulls them back
+            //This warning is the only entry point for that symptom; if none appears, the ack never reached the server
             Log.Warning($"Teleport ack id mismatch received={packet.Id} waiting={_awaitingTeleport} profile={_profile.Name}");
             return;
         }
@@ -443,8 +443,8 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         _awaitingTeleport = -1;
     }
 
-    //HandleAnimate 挥手动画 对应原版 handleAnimate 的广播分支
-    //发 animate 给其他玩家 自己的挥手动画客户端本地已播放不再回发
+    //HandleAnimate swing animation, maps to the broadcast branch of vanilla handleAnimate
+    //Sends animate to other players; the client already played its own swing locally so it is not echoed
     public void HandleAnimate(ServerboundSwingPacket packet)
     {
         var player = Player;
@@ -453,21 +453,21 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
             new ClientboundAnimatePacket(player.EntityId, AnimateAction(packet.Hand)));
     }
 
-    //AnimateAction 挥手动作编号 对应原版 ClientboundAnimatePacket 的主手/副手常量
+    //AnimateAction swing action id, maps to the main hand/off hand constants of vanilla ClientboundAnimatePacket
     private static int AnimateAction(InteractionHand hand)
         => hand == InteractionHand.OffHand ? ClientboundAnimatePacket.SwingOffHand : ClientboundAnimatePacket.SwingMainHand;
 
-    //以下 54 个 ServerGamePacketListener 自有方法本轮未注册对应 PacketType 不会解码到空实现
+    //The following 54 methods of ServerGamePacketListener have no registered PacketType this round and will not decode to the empty implementations
 
-    //HandleChatCommand 玩家执行斜杠命令 交给命令管理器解析执行
+    //HandleChatCommand player executing a slash command; handed to the command manager to parse and run
     public void HandleChatCommand(ServerboundChatCommandPacket packet)
         => ExecuteChatCommand(packet.Command);
 
-    //HandleSignedChatCommand 带签名命令不验签 与无签名命令走同一条执行路径
+    //HandleSignedChatCommand signed commands are not verified and go down the same execution path as unsigned ones
     public void HandleSignedChatCommand(ServerboundChatCommandSignedPacket packet)
         => ExecuteChatCommand(packet.Command);
 
-    //ExecuteChatCommand 聊天命令统一入口
+    //ExecuteChatCommand unified entry for chat commands
     private void ExecuteChatCommand(string command)
     {
         var player = Player;
@@ -477,8 +477,8 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
     }
 
     public void HandleChatAck(ServerboundChatAckPacket packet) { }
-    //HandleContainerButtonClick 容器按钮点击 交给当前菜单处理
-    //切石机选配方这类不走槽位号的交互走它 对应原版 handleContainerButtonClick 的 clickMenuButton
+    //HandleContainerButtonClick container button click; handed to the current menu
+    //Interactions without slot numbers like selecting a stonecutter recipe go here, maps to clickMenuButton in vanilla handleContainerButtonClick
     public void HandleContainerButtonClick(ServerboundContainerButtonClickPacket packet)
     {
         var player = Player;
@@ -487,8 +487,8 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         menu.ClickMenuButton(player, packet.ButtonId);
     }
 
-    //HandleContainerClick 容器点击 交给玩家当前菜单处理
-    //原版在此比对 stateId 与 carriedItem 哈希防作弊 本作只按完整栈处理不做校验
+    //HandleContainerClick container click; handed to the player's current menu
+    //Vanilla compares stateId and the carriedItem hash here for anti-cheat; this project processes the full stack without validation
     public void HandleContainerClick(ServerboundContainerClickPacket packet)
     {
         var player = Player;
@@ -502,26 +502,26 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
             Log.Warning($"[Container] click packet container id mismatch packet={packet.ContainerId} server={menu.ContainerId} profile={_profile.Name}");
             return;
         }
-        //容器点击是低频操作 打 Info 便于对照客户端行为排查 槽位与点击类型要和客户端按 Q 时对得上
+        //Container clicks are low-frequency, so an Info log helps cross-check client behavior; the slot and click type must match the client pressing Q
         Log.Info($"[Container] click slot={packet.SlotNum} button={packet.ButtonNum} type={packet.Input} profile={_profile.Name}");
         menu.Clicked(packet.SlotNum, packet.ButtonNum, packet.Input, player);
     }
 
     public void HandlePlaceRecipe(ServerboundPlaceRecipePacket packet) { }
 
-    //HandleContainerClose 客户端关闭菜单对应原版 handleContainerClose 里的 player.doCloseContainer
-    //只切回背包菜单 不回发 container_close 客户端已经自己关掉了界面
+    //HandleContainerClose client closing a menu, maps to player.doCloseContainer in vanilla handleContainerClose
+    //Only switches back to the inventory menu and does not echo container_close; the client already closed the screen itself
     public void HandleContainerClose(ServerboundContainerClosePacket packet) => Player?.DoCloseContainer();
-    //HandleAttack 左键攻击实体 26.2 的 attack 包与挥手包分开
-    //目标先在在线玩家里找再落到关卡实体 玩家不在实体管理器里故两条路都要查
-    //未实现攻击冷却系数/暴击/横扫 对齐原版 Player.attack 的基础伤害
+    //HandleAttack left-click attacking an entity; the 26.2 attack packet is separate from the swing packet
+    //The target is looked up among online players first, then in level entities; players are not in the entity manager, so both paths must be checked
+    //Attack cooldown/critical/hit sweep are not implemented; it aligns with the base damage of vanilla Player.attack
     public void HandleAttack(ServerboundAttackPacket packet)
     {
         var attacker = Player;
         if (attacker is null || Players is null) return;
-        //打自己不发伤害 对应原版 isAttackable 里的 self 排除
+        //Attacking yourself deals no damage, maps to the self exclusion in vanilla isAttackable
         if (packet.EntityId == attacker.EntityId) return;
-        //伤害取攻击者的 attack_damage 属性 对应原版 Player.attack 读 ATTACK_DAMAGE
+        //Damage comes from the attacker's attack_damage attribute, maps to vanilla Player.attack reading ATTACK_DAMAGE
         var damage = attacker.AttackDamage;
         var playerTarget = Players.GetPlayerByEntityId(packet.EntityId);
         if (playerTarget is not null)
@@ -534,13 +534,13 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         if (attacker.Level is not PersistentServerLevel level) return;
         var entity = level.EntityManager.GetByEntityId(packet.EntityId);
         if (entity is null) return;
-        //带上攻击者位置 目标会沿攻击者指向目标的方向被击退 对应原版 Player.attack 的 knockback
+        //Carries the attacker's position so the target is knocked back along the attacker-to-target direction, maps to the knockback in vanilla Player.attack
         var hurt = entity.Hurt(damage, attacker.Position);
-        //生物受伤动画走实体事件 2 对应原版 LivingEntity.hurt 的 broadcastEntityEvent(2)
+        //The mob hurt animation uses entity event 2, maps to broadcastEntityEvent(2) in vanilla LivingEntity.hurt
         if (hurt)
         {
             Players.BroadcastAll(new ClientboundEntityEventPacket(entity.EntityId, 2));
-            //受伤声按生物自身位置播 本作没有实体音效表统一用通用受伤声
+            //The hurt sound plays at the mob's own position; this project has no per-entity sound table so the generic hurt sound is used
             ServerSounds.PlaySound(Players, SoundEvents.GenericHurt, SoundSource.Neutral,
                 entity.Pos.X, entity.Pos.Y, entity.Pos.Z, 1f, 1f);
         }
@@ -548,15 +548,15 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         Log.Debug($"Attack entity target={entity.Id} damage={damage} hit={hurt} health={entity.Health} profile={_profile.Name}");
     }
 
-    //PlayAttackSound 挥击音效命中用重击声落空用轻击声 对应原版 Player.attack 收尾的播放分支
+    //PlayAttackSound swing sound: strong hit on hit, weak on miss, maps to the playback branch at the end of vanilla Player.attack
     private void PlayAttackSound(ServerPlayer attacker, bool hit)
     {
         if (Players is null) return;
         ServerSounds.PlaySound(Players, hit ? SoundEvents.PlayerAttackStrong : SoundEvents.PlayerAttackWeak,
             SoundSource.Players, attacker.Position.X, attacker.Position.Y, attacker.Position.Z, 1f, 1f);
     }
-    //HandleInteract 右键实体 骑乘/交易/喂食等都走这个包
-    //本作没有实体交互行为 按原版先播挥手动画再记日志 目标是否存在都照发
+    //HandleInteract right-click entity; mounting/trading/feeding all go through this packet
+    //This project has no entity interaction behavior; like vanilla it plays the swing animation first then logs, regardless of whether the target exists
     public void HandleInteract(ServerboundInteractPacket packet)
     {
         var player = Player;
@@ -566,15 +566,15 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         Log.Debug($"Interact entity target={packet.EntityId} hand={packet.Hand} secondary={packet.UsingSecondaryAction} profile={_profile.Name}");
     }
     public void HandleSpectatorAction(ServerboundSpectatorActionPacket packet) { }
-    //HandlePlayerAbilities 客户端上报自己开始/停止飞行 对应原版 handlePlayerAbilities
-    //没有 mayfly 许可时上报也当没飞 生存模式客户端改包飞不起来
+    //HandlePlayerAbilities client reports starting/stopping flight, maps to vanilla handlePlayerAbilities
+    //Without mayfly permission the report is treated as not flying; a survival client editing the packet cannot fly
     public void HandlePlayerAbilities(ServerboundPlayerAbilitiesPacket packet)
     {
         if (Player is not { } player) return;
         player.Abilities.Flying = packet.IsFlying && player.Abilities.MayFly;
     }
-    //HandlePlayerCommand 玩家状态切换 本作只接疾跑起停 其余动作(骑乘跳跃/打开背包/鞘翅)无对应系统
-    //状态变化由 EntityTracker 每 tick 检测并下发给其他玩家
+    //HandlePlayerCommand player state switches; this project only handles sprint start/stop, other actions (riding jump/open inventory/elytra) have no corresponding system
+    //State changes are detected by EntityTracker each tick and sent to other players
     public void HandlePlayerCommand(ServerboundPlayerCommandPacket packet)
     {
         var player = Player;
@@ -590,8 +590,8 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         }
     }
 
-    //HandlePlayerInput 玩家键盘输入 潜行状态由输入位驱动 对应原版 handlePlayerInput 设置 shift 键状态
-    //疾跑不在这里处理 由 player_command 的起停动作管理 否则输入位会覆盖已开启的疾跑
+    //HandlePlayerInput player keyboard input; the sneak state is driven by the input bit, maps to vanilla handlePlayerInput setting the shift key state
+    //Sprint is not handled here but managed by the player_command start/stop action; otherwise the input bit would override an active sprint
     public void HandlePlayerInput(ServerboundPlayerInputPacket packet)
     {
         Player?.SetSneaking(packet.Input.Shift);
@@ -600,7 +600,7 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
     {
         var player = Player;
         if (player is null) return;
-        //槽位不落位会导致后续放置与使用一直读旧槽物品 与客户端实际手持不一致
+        //Not applying the slot would make later placement and use keep reading the old slot's item, mismatching the client's actual held item
         if (packet.Slot >= 0 && packet.Slot < PlayerInventory.HotbarSlots)
         {
             player.Inventory.SelectedSlot = packet.Slot;
@@ -610,9 +610,9 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         player.Disconnect("Invalid hotbar selection (Hacking?)");
     }
 
-    //HandleSetCreativeModeSlot 创造背包槽位设置对应原版 handleSetCreativeModeSlot
-    //slotNum<0 为丢出物品 本作暂无世界掉落实体 忽略丢弃分支
-    //槽位校验 1-45 与数量上限对齐原版 设置后广播变更
+    //HandleSetCreativeModeSlot creative inventory slot set, maps to vanilla handleSetCreativeModeSlot
+    //slotNum<0 means dropping an item; this project has no world drop entities yet, so the drop branch is ignored
+    //Slot validation 1-45 and the count cap align with vanilla; changes are broadcast after setting
     public void HandleSetCreativeModeSlot(ServerboundSetCreativeModeSlotPacket packet)
     {
         var player = Player;
@@ -628,14 +628,14 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
     }
     public void HandleSignUpdate(ServerboundSignUpdatePacket packet) { }
 
-    //HandleUseItem 玩家对空气使用物品 对应原版 handleUseItem
-    //取对应手物品 空栈忽略 朝向以客户端上报为准校正
-    //投掷类物品在这里出手 其余物品使用行为待物品系统接入
+    //HandleUseItem player using an item into the air, maps to vanilla handleUseItem
+    //Takes the item from the corresponding hand, ignores an empty stack, and corrects rotation from the client report
+    //Throwable items are released here; other item use behavior awaits the item system
     public void HandleUseItem(ServerboundUseItemPacket packet)
     {
         var player = Player;
         if (player is null) return;
-        //对空气使用也带方块变更序号 同样要结束客户端预测
+        //Using into the air also carries a block change sequence and must likewise end the client prediction
         AckBlockChanges(packet.Sequence);
         var stack = packet.Hand == InteractionHand.OffHand
             ? player.Inventory.GetItem(PlayerInventory.OffhandSlot)
@@ -648,11 +648,11 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
             player.Yaw = yRot;
             player.Pitch = xRot;
         }
-        //雪球鸡蛋末影珍珠火焰弹这类直接出手 对应原版 SnowballItem.use 里的 spawnProjectileFromRotation
+        //Snowballs, eggs, ender pearls and fireballs are thrown directly, maps to spawnProjectileFromRotation in vanilla SnowballItem.use
         if (player.Level is PersistentServerLevel level && stack.GetItem() is ProjectileItem projectileItem)
         {
             projectileItem.Use(level, player, stack);
-            //创造模式投掷不消耗 对应原版 abilities.instabuild 分支
+            //Creative throws are not consumed, maps to the vanilla abilities.instabuild branch
             if (player.GameType != GameType.Creative)
             {
                 stack.SetCount(stack.GetCount() - 1);
@@ -666,21 +666,21 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
     public void HandleMoveVehicle(ServerboundMoveVehiclePacket packet) { }
     public void HandleAcceptPlayerLoad(ServerboundPlayerLoadedPacket packet)
     {
-        //客户端退出加载地形进入世界的信号
+        //Signal that the client finished loading terrain and entered the world
         Log.Info($"Client finished loading and entered the world profile={_profile.Name}");
     }
     public void HandleRecipeBookSeenRecipePacket(ServerboundRecipeBookSeenRecipePacket packet) { }
     public void HandleBundleItemSelectedPacket(ServerboundSelectBundleItemPacket packet) { }
     public void HandleRecipeBookChangeSettingsPacket(ServerboundRecipeBookChangeSettingsPacket packet) { }
     public void HandleSeenAdvancements(ServerboundSeenAdvancementsPacket packet) { }
-    //HandleCustomCommandSuggestions 客户端按 tab 请求命令补全 服务端算完回建议包
-    //原版同名方法 不实现这个客户端只剩本地补全(literal 与坐标) 实体/物品这类候选一个都不显示
+    //HandleCustomCommandSuggestions client requests command completion with tab; the server computes and replies with a suggestions packet
+    //Vanilla has the same-named method; without implementing this the client is left with local completion only (literals and coordinates) and shows none of the entity/item candidates
     public void HandleCustomCommandSuggestions(ServerboundCommandSuggestionPacket packet)
     {
         var player = Player;
         if (player is null || Commands is null) return;
         var suggestions = Commands.GetCompletions(player, packet.Command);
-        //排查 time 补全缺失用 只对 time 命令打 定位完就撤
+        //For troubleshooting missing time completion; only logs for the time command and will be removed once located
         if (packet.Command.StartsWith("time", StringComparison.OrdinalIgnoreCase))
             Log.Info($"Command suggestions request id={packet.Id} command=\"{packet.Command}\" candidates={suggestions.List.Count} range=[{suggestions.Range.Start},{suggestions.Range.Length}]");
         var entries = new List<CommandSuggestionEntry>(suggestions.List.Count);
@@ -691,21 +691,21 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
     }
     public void HandleSetCommandBlock(ServerboundSetCommandBlockPacket packet) { }
     public void HandleSetCommandMinecart(ServerboundSetCommandMinecartPacket packet) { }
-    //HandlePickItemFromBlock 中键选方块 对应原版 handlePickItemFromBlock 接 tryPickItem
-    //IncludeData 附带方块实体数据的变体待方块实体组件序列化补齐后扩展
+    //HandlePickItemFromBlock middle-click pick block, maps to vanilla handlePickItemFromBlock following tryPickItem
+    //The IncludeData variant carrying block entity data will be extended once block entity component serialization is complete
     public void HandlePickItemFromBlock(ServerboundPickItemFromBlockPacket packet)
     {
         var player = Player;
         if (player?.Level is not PersistentServerLevel level) return;
         var state = level.GetBlockState(packet.Pos);
-        //未加载区块或空气等无 Owner 状态直接忽略
+        //States without an Owner such as unloaded chunks or air are ignored
         if (state?.Owner is not { } block) return;
-        //方块注册名查同名物品 绝大多数方块都有对应 BlockItem
+        //Looks up the same-named item by block registry name; the vast majority of blocks have a corresponding BlockItem
         var holder = BuiltInRegistries.ITEM.Get(block.Id);
         if (holder is null) return;
         var inventory = player.Inventory;
         var stack = new ItemStack(holder, 1, DataComponentPatch.Empty);
-        //原版 tryPickItem 顺序: 全背包找同物品 -> 热键栏里就切过去 主背包里就换出来 -> 都没有且创造模式才新给一个
+        //Vanilla tryPickItem order: find the same item in the whole inventory -> switch to it if in the hotbar, swap it out if in the main inventory -> only give a new one if neither and in creative mode
         var matching = inventory.FindSlotMatchingItem(stack);
         if (matching != -1)
         {
@@ -720,7 +720,7 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         player.ContainerMenu?.BroadcastChanges();
     }
 
-    //HandlePickItemFromEntity 中键选实体 实体到掉落物映射补齐后扩展
+    //HandlePickItemFromEntity middle-click pick entity; will be extended once the entity-to-drop mapping is complete
     public void HandlePickItemFromEntity(ServerboundPickItemFromEntityPacket packet) { }
     public void HandleRenameItem(ServerboundRenameItemPacket packet) { }
     public void HandleSetBeaconPacket(ServerboundSetBeaconPacket packet) { }
@@ -736,9 +736,9 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
     public void HandleSetJigsawBlock(ServerboundSetJigsawBlockPacket packet) { }
     public void HandleJigsawGenerate(ServerboundJigsawGeneratePacket packet) { }
     public void HandleChangeDifficulty(ServerboundChangeDifficultyPacket packet) { }
-    //HandleChangeGameMode 客户端 F3+F4 切换游戏模式 需权限 2 级
-    //客户端入口已按权限等级关闭 这里是防伪造的服务端校验
-    //切换后只给操作者本人回执 对应原版 F3+F4 的 commands.gamemode.success.self 私人提示
+    //HandleChangeGameMode client switching game mode with F3+F4, requires permission level 2
+    //The client entry is disabled by permission level; this is the server-side check against spoofing
+    //After switching, only the operator is acked, maps to the private commands.gamemode.success.self message of vanilla F3+F4
     public void HandleChangeGameMode(ServerboundChangeGameModePacket packet)
     {
         if (Player is null || Players is null) return;
@@ -746,7 +746,7 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
         if (Player.GameType == packet.Mode) return;
         Players.ChangeGameMode(Player, packet.Mode);
         Player.Connection.Send(new ClientboundSystemChatPacket(
-            Component.Literal($"已将您的游戏模式设置为 {packet.Mode.Name}"), false));
+            Component.Literal($"Your game mode has been set to {packet.Mode.Name}"), false));
     }
     public void HandleLockDifficulty(ServerboundLockDifficultyPacket packet) { }
     public void HandleChatSessionUpdate(ServerboundChatSessionUpdatePacket packet) { }
@@ -755,12 +755,12 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
     public void HandleDebugSubscriptionRequest(ServerboundDebugSubscriptionRequestPacket packet) { }
     public void HandleClientTickEnd(ServerboundClientTickEndPacket packet) { }
 
-    //以下继承自 ServerCommonPacketListener 的 6 个方法本轮空实现
+    //The following 6 methods inherited from ServerCommonPacketListener are empty this round
     public void HandleClientInformation(ServerboundClientInformationPacket packet) { }
     public void HandleCustomPayload(ServerboundCustomPayloadPacket packet) { }
     public void HandleKeepAlive(ServerboundKeepAlivePacket packet)
     {
-        //打印回包 id 与关联玩家 心跳异常时用于区分回包缺失与玩家未关联
+        //Logs the response id and associated player; when keepalive is abnormal this distinguishes a missing response from an unassociated player
         Log.Debug($"HandleKeepAlive received id={packet.Id} player={(Player is null ? "null" : Player.Profile.Name)}");
         Player?.HandleKeepAliveResponse(packet.Id);
     }
@@ -768,12 +768,12 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
     public void HandleResourcePack(ServerboundResourcePackPacket packet) { }
     public void HandleCustomClickAction(ServerboundCustomClickActionPacket packet) { }
 
-    //继承自 ServerCookiePacketListener
+    //Inherited from ServerCookiePacketListener
     public void HandleCookieResponse(ServerboundCookieResponsePacket packet) { }
 
-    //继承自 ServerPingPacketListener
-    //客户端 PingDebugMonitor 周期性发 ping_request 回传同一时间戳供客户端算往返延迟
-    //Play 的 pong 协议 id 与 Status 不同 由当前出站协议表按包类定 ID 无需在此指定
+    //Inherited from ServerPingPacketListener
+    //The client's PingDebugMonitor periodically sends ping_request; the same timestamp is echoed back for the client to compute round-trip latency
+    //The play pong protocol id differs from Status; the current outbound protocol table assigns the ID by packet class, so it need not be specified here
     public void HandlePingRequest(ServerboundPingRequestPacket packet)
         => Player?.Connection.Send(new ClientboundPongResponsePacket(packet.Time));
 

@@ -5,8 +5,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//FixedPlacement 固定位置放置对应原版 FixedPlacement
-//只保留与原点同一区块的预设位置
+//FixedPlacement fixed placement, maps to vanilla FixedPlacement
+//Keeps only the preset positions in the same chunk as the origin
 public sealed class FixedPlacement : PlacementModifier
 {
     public static readonly Codec<FixedPlacement> Codec =
@@ -19,7 +19,7 @@ public sealed class FixedPlacement : PlacementModifier
 
     private FixedPlacement(IReadOnlyList<BlockPos> positions) => Positions = positions;
 
-    //Of 构造入口对应原版 of
+    //Of construction entry, maps to vanilla of
     public static FixedPlacement Of(params BlockPos[] positions) => new(positions);
 
     public override IEnumerable<BlockPos> GetPositions(PlacementContext context, RandomSource random, BlockPos origin)
@@ -32,7 +32,7 @@ public sealed class FixedPlacement : PlacementModifier
     public override PlacementModifierType Type => FixedPlacementType.Instance;
 }
 
-//FixedPlacementType 对应原版 PlacementModifierType.FIXED_PLACEMENT
+//FixedPlacementType, maps to vanilla PlacementModifierType.FIXED_PLACEMENT
 public sealed class FixedPlacementType : PlacementModifierType<FixedPlacement>
 {
     public static readonly FixedPlacementType Instance = Register(
@@ -42,8 +42,8 @@ public sealed class FixedPlacementType : PlacementModifierType<FixedPlacement>
         : base(Identifier.WithDefaultNamespace("fixed_placement"), FixedPlacement.Codec) { }
 }
 
-//BlockPosCodec 方块位置编解码对应原版 BlockPos.CODEC
-//JSON 形态是 [x, y, z] 三个整数
+//BlockPosCodec block position codec, maps to vanilla BlockPos.CODEC
+//JSON form is three ints [x, y, z]
 internal sealed class BlockPosCodec : ScalarCodec<BlockPos>
 {
     public static readonly BlockPosCodec Instance = new();
@@ -52,17 +52,17 @@ internal sealed class BlockPosCodec : ScalarCodec<BlockPos>
     {
         var streamResult = ops.GetStream(input);
         if (!streamResult.Result().IsPresent)
-            return DataResult<BlockPos>.Error(() => "方块位置必须是 [x, y, z] 数组");
+            return DataResult<BlockPos>.Error(() => "block position must be an [x, y, z] array");
         var components = new List<int>();
         foreach (var element in streamResult.GetOrThrow())
         {
             var numberResult = ops.GetNumberValue(element);
             if (!numberResult.Result().IsPresent)
-                return DataResult<BlockPos>.Error(() => "方块位置分量必须是整数");
+                return DataResult<BlockPos>.Error(() => "block position components must be integers");
             components.Add((int)numberResult.GetOrThrow());
         }
         if (components.Count != 3)
-            return DataResult<BlockPos>.Error(() => $"方块位置需要 3 个分量 实际 {components.Count}");
+            return DataResult<BlockPos>.Error(() => $"block position needs 3 components, got {components.Count}");
         return DataResult<BlockPos>.Success(new BlockPos(components[0], components[1], components[2]));
     }
 

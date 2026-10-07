@@ -3,11 +3,11 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundContainerClickPacket 容器点击包对应原版 ServerboundContainerClickPacket
-//字段 ContainerId(VarInt) StateId(VarInt) SlotNum(Short) ButtonNum(Byte) Input(VarInt id)
-//ChangedSlots 为槽号(Short)到 HashedStack 的映射 原版上限 128 项
-//CarriedItem 为鼠标拖着的栈摘要
-//字段名 Input 避免与 ContainerInput 类型名冲突
+//ServerboundContainerClickPacket container click packet, maps to vanilla ServerboundContainerClickPacket
+//Fields: ContainerId(VarInt), StateId(VarInt), SlotNum(Short), ButtonNum(Byte), Input(VarInt id)
+//ChangedSlots is a map from slot number (Short) to HashedStack, with a vanilla cap of 128 entries
+//CarriedItem is the summary of the stack held by the cursor
+//The field is named Input to avoid clashing with the ContainerInput type name
 public sealed record ServerboundContainerClickPacket(
     int ContainerId,
     int StateId,
@@ -17,7 +17,7 @@ public sealed record ServerboundContainerClickPacket(
     Dictionary<int, HashedStack> ChangedSlots,
     HashedStack CarriedItem) : Packet<ServerGamePacketListener>
 {
-    //MaxSlotCount 变更槽位数量上限对应原版 128
+    //MaxSlotCount changed slot count cap, maps to vanilla 128
     public const int MaxSlotCount = 128;
 
     public static StreamCodec<RegistryFriendlyByteBuf, ServerboundContainerClickPacket> StreamCodec { get; } = new ContainerClickCodec();
@@ -38,7 +38,7 @@ public sealed record ServerboundContainerClickPacket(
 
             int count = buf.ReadVarInt();
             if (count > MaxSlotCount)
-                throw new InvalidOperationException($"容器点击变更槽位超限: {count}");
+                throw new InvalidOperationException($"Container click changed slots exceed the limit: {count}");
             var changedSlots = new Dictionary<int, HashedStack>(Math.Min(count, ByteBufCodecs.MaxInitialCollectionSize));
             for (int i = 0; i < count; i++)
             {

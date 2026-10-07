@@ -3,8 +3,8 @@ using NetCraft.DataFixer.Schemas;
 
 namespace NetCraft.DataFixer.Fixes;
 
-//唱片机播放计时字段修复对应原版JukeboxTicksSinceSongStartedFix
-//1.21移除IsPlaying/TickCount/RecordStartTick改用ticks_since_song_started记录已播放tick
+//jukebox playback timer field fix, maps to vanilla JukeboxTicksSinceSongStartedFix
+//1.21 removes IsPlaying/TickCount/RecordStartTick and uses ticks_since_song_started to record the played ticks
 public class JukeboxTicksSinceSongStartedFix : NamedEntityFix
 {
     public JukeboxTicksSinceSongStartedFix(Schema outputSchema)

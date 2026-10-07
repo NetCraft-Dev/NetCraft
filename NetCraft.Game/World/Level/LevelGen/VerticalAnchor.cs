@@ -2,11 +2,11 @@ using NetCraft.Codec;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//VerticalAnchor 垂直锚点对应原版 net.minecraft.world.level.levelgen.VerticalAnchor
-//JSON 三选一 absolute/above_bottom/below_top 供表面规则把锚点解算成绝对 y
+//VerticalAnchor vertical anchor, maps to vanilla net.minecraft.world.level.levelgen.VerticalAnchor
+//JSON picks one of absolute/above_bottom/below_top; surface rules use it to resolve the anchor into an absolute y
 public sealed class VerticalAnchor
 {
-    //AnchorKind 锚点三种形式对应原版 Absolute/AboveBottom/BelowTop
+    //AnchorKind the three anchor forms, maps to vanilla Absolute/AboveBottom/BelowTop
     public enum AnchorKind
     {
         Absolute,
@@ -16,7 +16,7 @@ public sealed class VerticalAnchor
 
     public AnchorKind Kind { get; }
 
-    //Value absolute 时是绝对 y 其余是相对底部/顶部的偏移
+    //Value is the absolute y when absolute, otherwise the offset from the bottom/top
     public int Value { get; }
 
     private VerticalAnchor(AnchorKind kind, int value)
@@ -31,7 +31,7 @@ public sealed class VerticalAnchor
 
     public static VerticalAnchor BelowTop(int offset) => new(AnchorKind.BelowTop, offset);
 
-    //ResolveY 把锚点解算成绝对 y 对应原版 resolveY
+    //ResolveY resolves the anchor into an absolute y, maps to vanilla resolveY
     public int ResolveY(int minY, int height) => Kind switch
     {
         AnchorKind.Absolute => Value,
@@ -39,10 +39,10 @@ public sealed class VerticalAnchor
         _ => minY + height - 1 - Value
     };
 
-    //ResolveY 用世界生成上下文解算对应原版 resolveY(WorldGenerationContext)
+    //ResolveY resolves using the world generation context, maps to vanilla resolveY(WorldGenerationContext)
     public int ResolveY(WorldGenerationContext context) => ResolveY(context.GetMinGenY(), context.GetGenDepth());
 
-    //Codec 三选一单键对象编解码对应原版 VerticalAnchor.CODEC
+    //Codec single-key object codec, maps to vanilla VerticalAnchor.CODEC
     public static readonly Codec<VerticalAnchor> Codec = new VerticalAnchorCodec();
 
     public override string ToString() => Kind switch
@@ -53,8 +53,8 @@ public sealed class VerticalAnchor
     };
 }
 
-//VerticalAnchorCodec 单键对象编解码
-//三选一按原版 xor codec 顺序 absolute/above_bottom/below_top 尝试
+//VerticalAnchorCodec single-key object codec
+//Tries the three options in vanilla xor codec order absolute/above_bottom/below_top
 internal sealed class VerticalAnchorCodec : ScalarCodec<VerticalAnchor>
 {
     public override DataResult<VerticalAnchor> Parse<U>(DynamicOps<U> ops, U input)
@@ -71,7 +71,7 @@ internal sealed class VerticalAnchorCodec : ScalarCodec<VerticalAnchor>
         return DataResult<VerticalAnchor>.Error(() => "VerticalAnchor requires one of absolute/above_bottom/below_top");
     }
 
-    //ReadValue 读单键整数值 字段缺失返回 null 非数字返回 null 由调用方统一报错
+    //ReadValue reads a single-key integer value; a missing field returns null and a non-number returns null, letting the caller report the error uniformly
     private static int? ReadValue<U>(DynamicOps<U> ops, MapLike<U> input, string name)
     {
         var tag = input.Get(name);

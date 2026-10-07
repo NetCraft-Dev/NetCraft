@@ -5,8 +5,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items.Component.Predicates;
 
-//DamagePredicate 耐久与损坏值谓词 对应原版 net.minecraft.core.component.predicates.DamagePredicate
-//耐久按最大耐久减当前损坏值算 两项区间都满足才算匹配
+//DamagePredicate durability and damage predicate, maps to vanilla net.minecraft.core.component.predicates.DamagePredicate
+//Durability is the max damage minus the current damage, both ranges must hold to match
 public sealed record DamagePredicate(MinMaxBounds.Ints Durability, MinMaxBounds.Ints Damage) : DataComponentPredicate
 {
     public static readonly Codec<DamagePredicate> Codec = RecordCodecBuilder.Of2(
@@ -18,7 +18,7 @@ public sealed record DamagePredicate(MinMaxBounds.Ints Durability, MinMaxBounds.
 
     public bool Matches(DataComponentGetter components)
     {
-        //没有损坏值组件就谈不上耐久 直接不匹配 对应原版 damage == null 分支
+        //Without a damage component there is no durability, so it does not match, maps to the vanilla damage == null branch
         if (components.Get(DataComponents.DAMAGE) is not int damage) return false;
         var maxDamage = components.GetOrDefault(DataComponents.MAX_DAMAGE, 0) is int value ? value : 0;
         return Durability.Matches(maxDamage - damage) && Damage.Matches(damage);

@@ -3,15 +3,15 @@ using NetCraft.Logging;
 
 namespace NetCraft.Game.Server.JsonRpc.Security;
 
-//JsonRpcSslContextProvider 管理服务 TLS 证书加载 对应原版 net.minecraft.server.jsonrpc.security.JsonRpcSslContextProvider
-//原版基于 netty SslContext 这里用 X509Certificate2 直接从 PKCS12 密钥库加载
+//JsonRpcSslContextProvider manages service TLS certificate loading, maps to vanilla net.minecraft.server.jsonrpc.security.JsonRpcSslContextProvider
+//Vanilla uses netty SslContext; this uses X509Certificate2 loaded directly from a PKCS12 keystore
 public static class JsonRpcSslContextProvider
 {
     private const string PasswordEnvVariableKey = "MINECRAFT_MANAGEMENT_TLS_KEYSTORE_PASSWORD";
     private const string PasswordAppContextKey = "management.tls.keystore.password";
 
-    //CreateFrom 从 PKCS12 密钥库加载服务端证书
-    //路径为空或文件不存在直接抛参数异常 密码优先级 环境变量 > AppContext > server.properties
+    //CreateFrom loads the server certificate from a PKCS12 keystore
+    //An empty path or missing file throws an argument exception; password priority: environment variable > AppContext > server.properties
     public static X509Certificate2 CreateFrom(string keystorePath, string keystorePasswordFromServerProperties)
     {
         if (string.IsNullOrEmpty(keystorePath))
@@ -26,7 +26,7 @@ public static class JsonRpcSslContextProvider
         return X509CertificateLoader.LoadPkcs12FromFile(keystorePath, password, X509KeyStorageFlags.Exportable);
     }
 
-    //GetKeystorePassword 按优先级取密钥库口令 都没配则回退 server.properties 的值
+    //GetKeystorePassword takes the keystore password by priority; falls back to the server.properties value when none is set
     private static string? GetKeystorePassword(string keystorePasswordFromServerProperties)
     {
         var fromEnvironment = Environment.GetEnvironmentVariable(PasswordEnvVariableKey);
@@ -35,7 +35,7 @@ public static class JsonRpcSslContextProvider
         return keystorePasswordFromServerProperties;
     }
 
-    //PrintInstructions 打印启用 TLS 所需步骤
+    //PrintInstructions prints the steps needed to enable TLS
     public static void PrintInstructions()
     {
         Log.Info("To use TLS for the management server, please follow these steps:");

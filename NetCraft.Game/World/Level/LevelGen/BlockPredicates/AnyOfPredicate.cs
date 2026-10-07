@@ -3,7 +3,7 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//AnyOfPredicate 任一满足对应原版 AnyOfPredicate
+//AnyOfPredicate any match suffices, maps to vanilla AnyOfPredicate
 public class AnyOfPredicate : CombiningPredicate
 {
     public static readonly Codec<AnyOfPredicate> Codec = CreateCodec<AnyOfPredicate>(predicates => new AnyOfPredicate(predicates));

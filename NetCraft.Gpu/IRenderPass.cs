@@ -1,26 +1,26 @@
 namespace NetCraft.Gpu;
 
-//IRenderPass 渲染通道对标原版 RenderPass
-//CreateRenderPass 返回后录制渲染命令 Close 结束 render pass
-//替代旧 GpuCommandBuffer 的 BeginRenderPass/EndRenderPass 混合
+//IRenderPass render pass, maps to vanilla RenderPass
+//After CreateRenderPass returns, render commands are recorded; Close ends the render pass
+//Replaces the BeginRenderPass/EndRenderPass mix of the legacy GpuCommandBuffer
 public interface IRenderPass : IDisposable
 {
-    //SetPipeline 绑定 graphics pipeline
+    //SetPipeline binds the graphics pipeline
     void SetPipeline(CompiledRenderPipeline pipeline);
-    //SetVertexBuffer 绑定顶点缓冲到 binding 槽
+    //SetVertexBuffer binds a vertex buffer to a binding slot
     void SetVertexBuffer(int slot, GpuBuffer buffer, ulong offset = 0);
-    //SetIndexBuffer 绑定索引缓冲
+    //SetIndexBuffer binds an index buffer
     void SetIndexBuffer(GpuBuffer buffer, GpuIndexType indexType, ulong offset = 0);
-    //BindDescriptorSet 绑定描述符集到管线 layout 的 setIndex 槽
+    //BindDescriptorSet binds a descriptor set to the setIndex slot of the pipeline layout
     void BindDescriptorSet(GpuDescriptorSet set, uint setIndex = 0);
-    //EnableScissor 启用动态裁剪矩形像素坐标左上原点 y 向下
+    //EnableScissor enables the dynamic scissor rectangle, pixel coordinates with the top-left origin and y downward
     void EnableScissor(int x, int y, int width, int height);
-    //DisableScissor 禁用裁剪全屏渲染
+    //DisableScissor disables clipping for full-screen rendering
     void DisableScissor();
-    //Draw 非索引绘制
+    //Draw non-indexed draw
     void Draw(int vertexCount, int instanceCount = 1, int firstVertex = 0, int firstInstance = 0);
-    //DrawIndexed 索引绘制 vertexOffset 是基础顶点偏移
+    //DrawIndexed indexed draw; vertexOffset is the base vertex offset
     void DrawIndexed(int indexCount, int instanceCount = 1, int firstIndex = 0, int vertexOffset = 0, int firstInstance = 0);
-    //Close 结束 render pass 后续命令录制到所属 CommandEncoder
+    //Close ends the render pass; later commands are recorded into the owning CommandEncoder
     void Close();
 }

@@ -1,8 +1,8 @@
 namespace NetCraft.Gpu;
 
-//TextureSetup 纹理绑定配置对标原版 TextureSetup
-//最多 3 个 texture+sampler 对参与合批排序
-//Equals 引用相等用于 SortElements 合批判断
+//TextureSetup texture binding config, maps to vanilla TextureSetup
+//At most 3 texture+sampler pairs participating in batching and sorting
+//Equals reference equality used for SortElements batching decisions
 public sealed class TextureSetup
 {
     public GpuImage? Texture0 { get; }
@@ -19,14 +19,14 @@ public sealed class TextureSetup
         Texture2 = t2; Sampler2 = s2;
     }
 
-    //NoTexture 无纹理纯色管线用共享单例
+    //NoTexture shared singleton for solid-color pipelines with no texture
     public static readonly TextureSetup NoTexture = new(null, null, null, null, null, null);
 
-    //SingleTexture 单纹理绑定
+    //SingleTexture single texture binding
     public static TextureSetup SingleTexture(GpuImage texture, GpuSampler sampler)
         => new(texture, sampler, null, null, null, null);
 
-    //SingleTextureWithLightmap 单纹理+光照图双纹理
+    //SingleTextureWithLightmap single texture + lightmap two textures
     public static TextureSetup SingleTextureWithLightmap(GpuImage texture, GpuSampler sampler, GpuImage lightmap, GpuSampler lightmapSampler)
         => new(texture, sampler, lightmap, lightmapSampler, null, null);
 

@@ -10,8 +10,8 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//EntityAnchorArgument 实体锚点参数对应原版 EntityAnchorArgument
-//feet脚部eyes眼睛 决定tp facing实体时取目标哪个基准点
+//EntityAnchorArgument entity anchor argument, maps to vanilla EntityAnchorArgument
+//feet / eyes decide which reference point is used when tp facing an entity
 public sealed class EntityAnchorArgument : ArgumentType<EntityAnchorArgument.Anchor>
 {
     private static readonly IReadOnlyList<string> ExamplesList = new[] { "eyes", "feet" };
@@ -21,7 +21,7 @@ public sealed class EntityAnchorArgument : ArgumentType<EntityAnchorArgument.Anc
 
     public static EntityAnchorArgument EntityAnchor() => new();
 
-    //Anchor 锚点 feet取脚位置 eyes在脚位置上抬眼高
+    //Anchor anchor; feet is the foot position, eyes raises the eye height above it
     public enum Anchor
     {
         Feet,
@@ -34,7 +34,7 @@ public sealed class EntityAnchorArgument : ArgumentType<EntityAnchorArgument.Anc
         ["eyes"] = Anchor.Eyes,
     };
 
-    //玩家站立眼高 实体系统接入前按玩家常量处理
+    //Player standing eye height; treated as the player constant before the entity system is wired up
     private const float PlayerEyeHeight = 1.62f;
 
     public Anchor Parse(StringReader reader)
@@ -49,15 +49,15 @@ public sealed class EntityAnchorArgument : ArgumentType<EntityAnchorArgument.Anc
         return anchor;
     }
 
-    //GetAnchor 取解析结果
+    //GetAnchor gets the parse result
     public static Anchor GetAnchor(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<Anchor>(name);
 
-    //Apply 求执行者按该锚点的世界坐标
+    //Apply resolves the executor's world coordinate for the anchor
     public static Vec3 Apply(Anchor anchor, ServerCommandSource source)
         => Apply(anchor, source.PlayerOrThrow);
 
-    //Apply 求玩家按该锚点的世界坐标
+    //Apply resolves the player's world coordinate for the anchor
     public static Vec3 Apply(Anchor anchor, ServerPlayer player)
     {
         var pos = player.Position;

@@ -6,30 +6,30 @@ using DimensionTypeConstants = NetCraft.Game.World.Level.LevelGen.Dimension.Dime
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//JigsawStructure 拼图结构 对应原版 net.minecraft.world.level.levelgen.structure.structures.JigsawStructure
-//结构本体只负责把起始池与各类参数交给 JigsawPlacement 装配 真正的连接算法在那边
+//JigsawStructure jigsaw structure, maps to vanilla net.minecraft.world.level.levelgen.structure.structures.JigsawStructure
+//The structure itself only hands the start pool and parameters to JigsawPlacement for assembly; the actual connection algorithm lives there
 public sealed class JigsawStructure : Structure
 {
-    //DefaultDimensionPadding 默认不留白 对应原版 DEFAULT_DIMENSION_PADDING
+    //DefaultDimensionPadding no padding by default, maps to vanilla DEFAULT_DIMENSION_PADDING
     public static readonly DimensionPadding DefaultDimensionPadding = DimensionPadding.Zero;
 
-    //DefaultLiquidSettings 默认按含水方块铺液体 对应原版 DEFAULT_LIQUID_SETTINGS
+    //DefaultLiquidSettings spreads liquid through waterloggable blocks by default, maps to vanilla DEFAULT_LIQUID_SETTINGS
     public const LiquidSettings DefaultLiquidSettings = LiquidSettings.ApplyWaterlogging;
 
-    //MaxTotalStructureRange 水平方向连同地形适配的总范围上限 对应原版 MAX_TOTAL_STRUCTURE_RANGE
+    //MaxTotalStructureRange cap on the horizontal range including terrain adaptation, maps to vanilla MAX_TOTAL_STRUCTURE_RANGE
     public const int MaxTotalStructureRange = 128;
 
-    //MinDepth/MaxDepth 深度允许区间 对应原版 MIN_DEPTH / MAX_DEPTH
+    //MinDepth/MaxDepth allowed depth range, maps to vanilla MIN_DEPTH / MAX_DEPTH
     public const int MinDepth = 0;
     public const int MaxDepth = 20;
 
-    //TypeId 结构类型注册名 minecraft:jigsaw
+    //TypeId structure type registry name minecraft:jigsaw
     public static readonly Identifier TypeId = Identifier.WithDefaultNamespace("jigsaw");
 
-    //ElementCodec 结构注册表元素 codec 解析含生成设置的整份 json
+    //ElementCodec structure registry element codec, parses the whole json including generation settings
     public static readonly Codec<NetCraft.Registry.Structure> ElementCodec = new JigsawStructureCodec();
 
-    //JigsawType 结构类型 登记进 STRUCTURE_TYPE 供 STRUCTURE 装载时按 type 派发
+    //JigsawType structure type registered into STRUCTURE_TYPE so STRUCTURE loading can dispatch by type
     public static readonly StructureType JigsawType = RegisterType();
 
     private readonly Holder<NetCraft.Registry.StructureTemplatePool> _startPool;
@@ -62,12 +62,12 @@ public sealed class JigsawStructure : Structure
         _liquidSettings = liquidSettings;
     }
 
-    //Id 结构注册名 项目还没做结构注册表的数据驱动装载 先按类型名兜底
+    //Id structure registry name; data-driven loading of the structure registry is not implemented yet, so it falls back to the type name
     public override Identifier Id => TypeId;
 
     public override StructureType Type => JigsawType;
 
-    //TemplateManager 结构模板管理器 生成期由世界装配注入 没注入时无法读模板也就不生成
+    //TemplateManager structure template manager injected by world assembly during generation; without it templates cannot be read and nothing generates
     public StructureTemplateManager? TemplateManager { get; set; }
 
     public Holder<NetCraft.Registry.StructureTemplatePool> StartPool => _startPool;
@@ -80,7 +80,7 @@ public sealed class JigsawStructure : Structure
 
     public IReadOnlyList<PoolAliasBinding> PoolAliases => _poolAliases;
 
-    //Padding 维度边界留白 属性名避开与类型名同名
+    //Padding dimension boundary padding; the property name avoids clashing with the type name
     public DimensionPadding Padding => _dimensionPadding;
 
     public LiquidSettings LiquidSetting => _liquidSettings;
@@ -91,7 +91,7 @@ public sealed class JigsawStructure : Structure
 
     public HeightProvider StartHeight => _startHeight;
 
-    //FindGenerationPoint 取起始高度算出结构原点再交给拼图装配 对应原版 findGenerationPoint
+    //FindGenerationPoint takes the start height, computes the structure origin then hands off to jigsaw assembly, maps to vanilla findGenerationPoint
     public override GenerationStub? FindGenerationPoint(GenerationContext context)
     {
         var manager = TemplateManager;
@@ -105,7 +105,7 @@ public sealed class JigsawStructure : Structure
             PoolAliasLookup.Create(_poolAliases, startPos, context.Seed), _dimensionPadding, _liquidSettings);
     }
 
-    //RegisterType 把 minecraft:jigsaw 登记进 STRUCTURE_TYPE 已登记就复用 静态初始化幂等
+    //RegisterType registers minecraft:jigsaw into STRUCTURE_TYPE, reusing an existing registration; static init is idempotent
     private static StructureType RegisterType()
     {
         if (BuiltInRegistries.STRUCTURE_TYPE.GetValue(TypeId) is StructureType existing) return existing;
@@ -113,10 +113,10 @@ public sealed class JigsawStructure : Structure
             BuiltInRegistries.STRUCTURE_TYPE, TypeId, new StructureType(TypeId, ElementCodec));
     }
 
-    //MaxDistance 结构离原点的最大水平与竖直距离 对应原版 JigsawStructure.MaxDistance
+    //MaxDistance max horizontal and vertical distance from the structure origin, maps to vanilla JigsawStructure.MaxDistance
     public sealed record MaxDistance(int Horizontal, int Vertical)
     {
-        //Codec 裸整数表示水平竖直同值 对象形态分别指定 对应原版 CODEC
+        //Codec a bare int means horizontal and vertical equal, the object form sets them separately, maps to vanilla CODEC
         public static readonly Codec<MaxDistance> Codec = new MaxDistanceCodec();
 
         public MaxDistance(int value)
@@ -126,10 +126,10 @@ public sealed class JigsawStructure : Structure
     }
 }
 
-//MaxDistanceCodec 最大距离编解码 裸整数或 horizontal/vertical 对象二选一
+//MaxDistanceCodec max distance codec, either a bare int or a horizontal/vertical object
 internal sealed class MaxDistanceCodec : ScalarCodec<JigsawStructure.MaxDistance>
 {
-    //HorizontalMin/HorizontalMax 水平距离区间 对应原版 Codec.intRange(1, 128)
+    //HorizontalMin/HorizontalMax horizontal distance range, maps to vanilla Codec.intRange(1, 128)
     private const int HorizontalMin = 1;
     private const int HorizontalMax = 128;
 
@@ -140,7 +140,7 @@ internal sealed class MaxDistanceCodec : ScalarCodec<JigsawStructure.MaxDistance
         {
             var value = (int)number.GetOrThrow();
             return value is < HorizontalMin or > HorizontalMax
-                ? DataResult<JigsawStructure.MaxDistance>.Error(() => $"水平距离越界 必须在 {HorizontalMin}..{HorizontalMax} 之间")
+                ? DataResult<JigsawStructure.MaxDistance>.Error(() => $"horizontal distance out of range, must be between {HorizontalMin}..{HorizontalMax}")
                 : DataResult<JigsawStructure.MaxDistance>.Success(new JigsawStructure.MaxDistance(value));
         }
 
@@ -159,16 +159,16 @@ internal sealed class MaxDistanceCodec : ScalarCodec<JigsawStructure.MaxDistance
     private static DataResult<JigsawStructure.MaxDistance> ParseRecord<U>(DynamicOps<U> ops, MapLike<U> map)
     {
         var horizontal = ReadInt(ops, map, "horizontal");
-        if (!horizontal.Result().IsPresent) return DataResult<JigsawStructure.MaxDistance>.Error(() => "max_distance_from_center 缺少 horizontal");
+        if (!horizontal.Result().IsPresent) return DataResult<JigsawStructure.MaxDistance>.Error(() => "max_distance_from_center is missing horizontal");
         var horizontalValue = horizontal.GetOrThrow();
         if (horizontalValue is < HorizontalMin or > HorizontalMax)
-            return DataResult<JigsawStructure.MaxDistance>.Error(() => $"水平距离越界 必须在 {HorizontalMin}..{HorizontalMax} 之间");
+            return DataResult<JigsawStructure.MaxDistance>.Error(() => $"horizontal distance out of range, must be between {HorizontalMin}..{HorizontalMax}");
 
-        //竖直缺省取维度最大高度 对应原版 optionalFieldOf("vertical", DimensionType.Y_SIZE)
+        //Vertical defaults to the dimension max height, maps to vanilla optionalFieldOf("vertical", DimensionType.Y_SIZE)
         var vertical = ReadInt(ops, map, "vertical");
         var verticalValue = vertical.Result().IsPresent ? vertical.GetOrThrow() : DimensionTypeConstants.MaxHeight;
         if (verticalValue is < 1 or > DimensionTypeConstants.MaxHeight)
-            return DataResult<JigsawStructure.MaxDistance>.Error(() => $"竖直距离越界 必须在 1..{DimensionTypeConstants.MaxHeight} 之间");
+            return DataResult<JigsawStructure.MaxDistance>.Error(() => $"vertical distance out of range, must be between 1..{DimensionTypeConstants.MaxHeight}");
 
         return DataResult<JigsawStructure.MaxDistance>.Success(
             new JigsawStructure.MaxDistance(horizontalValue, verticalValue));
@@ -177,49 +177,49 @@ internal sealed class MaxDistanceCodec : ScalarCodec<JigsawStructure.MaxDistance
     private static DataResult<int> ReadInt<U>(DynamicOps<U> ops, MapLike<U> map, string key)
     {
         var tag = map.Get(key);
-        if (!tag.IsPresent) return DataResult<int>.Error(() => $"缺少字段 {key}");
+        if (!tag.IsPresent) return DataResult<int>.Error(() => $"missing field {key}");
         return ops.GetNumberValue(tag.Get()).Map(value => (int)value);
     }
 }
 
-//JigsawStructureCodec 拼图结构元素 codec 对应原版 JigsawStructure.CODEC
-//公共生成设置走 StructureCodecs.ReadSettings 其余字段逐个读 可选字段按原版默认值兜底
+//JigsawStructureCodec jigsaw structure element codec, maps to vanilla JigsawStructure.CODEC
+//Common generation settings go through StructureCodecs.ReadSettings; the remaining fields are read one by one, optional fields falling back to the vanilla defaults
 internal sealed class JigsawStructureCodec : ScalarCodec<NetCraft.Registry.Structure>
 {
     public override DataResult<NetCraft.Registry.Structure> Parse<U>(DynamicOps<U> ops, U input)
     {
         var mapResult = ops.GetMap(input);
-        if (!mapResult.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "拼图结构必须是对象");
+        if (!mapResult.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "jigsaw structure must be an object");
         var map = mapResult.GetOrThrow();
 
         var settings = StructureCodecs.ReadSettings(ops, map);
-        if (!settings.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "拼图结构的生成设置解析失败");
+        if (!settings.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "failed to parse jigsaw structure generation settings");
 
         var startPoolTag = map.Get("start_pool");
-        if (!startPoolTag.IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "拼图结构缺少 start_pool");
+        if (!startPoolTag.IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "jigsaw structure is missing start_pool");
         var startPool = StructurePoolCodecs.TemplatePoolRef.Parse(ops, startPoolTag.Get());
-        if (!startPool.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "start_pool 解析失败");
+        if (!startPool.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "failed to parse start_pool");
 
-        //可选字段缺失时值为空 不能靠 DataResult.Result() 判定 它对成功但值为空的情况返回不present
+        //A missing optional field yields an empty value; DataResult.Result() cannot judge it since it returns not-present for a success with an empty value
         if (!TryReadOptionalIdentifier(ops, map, "start_jigsaw_name", out var startJigsawName,
                 out var nameError))
             return DataResult<NetCraft.Registry.Structure>.Error(() => $"start_jigsaw_name {nameError}");
 
         var size = StructurePlacementCodecs.ReadIntField(ops, map, "size");
-        if (!size.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "拼图结构缺少 size");
+        if (!size.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "jigsaw structure is missing size");
         var maxDepth = size.GetOrThrow();
         if (maxDepth is < JigsawStructure.MinDepth or > JigsawStructure.MaxDepth)
             return DataResult<NetCraft.Registry.Structure>.Error(() =>
-                $"size 越界 必须在 {JigsawStructure.MinDepth}..{JigsawStructure.MaxDepth} 之间 实际 {maxDepth}");
+                $"size out of range, must be between {JigsawStructure.MinDepth}..{JigsawStructure.MaxDepth}, got {maxDepth}");
 
         var startHeightTag = map.Get("start_height");
-        if (!startHeightTag.IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "拼图结构缺少 start_height");
+        if (!startHeightTag.IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "jigsaw structure is missing start_height");
         var startHeight = HeightProvider.Codec.Parse(ops, startHeightTag.Get());
-        if (!startHeight.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "start_height 解析失败");
+        if (!startHeight.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "failed to parse start_height");
 
         var useExpansionHack = ReadBool(ops, map, "use_expansion_hack", false);
         if (!useExpansionHack.Result().IsPresent)
-            return DataResult<NetCraft.Registry.Structure>.Error(() => "use_expansion_hack 解析失败");
+            return DataResult<NetCraft.Registry.Structure>.Error(() => "failed to parse use_expansion_hack");
 
         if (!TryReadOptionalHeightmap(ops, map, "project_start_to_heightmap", out var heightmap,
                 out var heightmapError))
@@ -227,38 +227,38 @@ internal sealed class JigsawStructureCodec : ScalarCodec<NetCraft.Registry.Struc
 
         var maxDistanceTag = map.Get("max_distance_from_center");
         if (!maxDistanceTag.IsPresent)
-            return DataResult<NetCraft.Registry.Structure>.Error(() => "拼图结构缺少 max_distance_from_center");
+            return DataResult<NetCraft.Registry.Structure>.Error(() => "jigsaw structure is missing max_distance_from_center");
         var maxDistance = JigsawStructure.MaxDistance.Codec.Parse(ops, maxDistanceTag.Get());
         if (!maxDistance.Result().IsPresent)
-            return DataResult<NetCraft.Registry.Structure>.Error(() => "max_distance_from_center 解析失败");
+            return DataResult<NetCraft.Registry.Structure>.Error(() => "failed to parse max_distance_from_center");
 
         var poolAliases = ReadPoolAliases(ops, map);
-        if (!poolAliases.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "pool_aliases 解析失败");
+        if (!poolAliases.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "failed to parse pool_aliases");
 
         var dimensionPadding = ReadDimensionPadding(ops, map);
         if (!dimensionPadding.Result().IsPresent)
-            return DataResult<NetCraft.Registry.Structure>.Error(() => "dimension_padding 解析失败");
+            return DataResult<NetCraft.Registry.Structure>.Error(() => "failed to parse dimension_padding");
 
         var liquidSettings = ReadLiquidSettings(ops, map);
-        if (!liquidSettings.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "liquid_settings 解析失败");
+        if (!liquidSettings.Result().IsPresent) return DataResult<NetCraft.Registry.Structure>.Error(() => "failed to parse liquid_settings");
 
         var structure = new JigsawStructure(settings.GetOrThrow(), startPool.GetOrThrow(),
             startJigsawName, maxDepth, startHeight.GetOrThrow(), useExpansionHack.GetOrThrow(),
             heightmap, maxDistance.GetOrThrow(), poolAliases.GetOrThrow(),
             dimensionPadding.GetOrThrow(), liquidSettings.GetOrThrow());
 
-        //水平范围连同地形适配边距不得超过 128 对应原版 verifyRange
+        //Horizontal range including the terrain adaptation margin must not exceed 128, maps to vanilla verifyRange
         var edgeNeeded = structure.Settings.TerrainAdaptation.BeardEdgeNeeded();
         if (structure.MaxDistanceFromCenter.Horizontal + edgeNeeded > JigsawStructure.MaxTotalStructureRange)
-            return DataResult<NetCraft.Registry.Structure>.Error(() => "水平范围连同地形适配不得超过 128");
+            return DataResult<NetCraft.Registry.Structure>.Error(() => "horizontal range including terrain adaptation must not exceed 128");
 
         return DataResult<NetCraft.Registry.Structure>.Success(structure);
     }
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, NetCraft.Registry.Structure value)
-        => DataResult<U>.Error(() => "拼图结构编码暂未实现");
+        => DataResult<U>.Error(() => "jigsaw structure encoding not implemented yet");
 
-    //TryReadOptionalIdentifier 读可省的标识符字段 字段缺失算成功且值留空
+    //TryReadOptionalIdentifier reads an optional identifier field; a missing field counts as success with an empty value
     private static bool TryReadOptionalIdentifier<U>(DynamicOps<U> ops, MapLike<U> map, string key,
         out Identifier? value, out string error)
     {
@@ -269,27 +269,27 @@ internal sealed class JigsawStructureCodec : ScalarCodec<NetCraft.Registry.Struc
         var text = ops.GetStringValue(tag.Get());
         if (!text.Result().IsPresent)
         {
-            error = "必须是字符串";
+            error = "must be a string";
             return false;
         }
         var id = Identifier.TryParse(text.GetOrThrow());
         if (id is null)
         {
-            error = "不是合法标识符";
+            error = "is not a valid identifier";
             return false;
         }
         value = id.Value;
         return true;
     }
 
-    //ReadBool 读布尔字段缺失取默认值
+    //ReadBool reads a boolean field, defaulting when missing
     private static DataResult<bool> ReadBool<U>(DynamicOps<U> ops, MapLike<U> map, string key, bool defaultValue)
     {
         var tag = map.Get(key);
         return tag.IsPresent ? ops.GetBooleanValue(tag.Get()) : DataResult<bool>.Success(defaultValue);
     }
 
-    //TryReadOptionalHeightmap 读可省的高度图类型 字段缺失算成功且值留空
+    //TryReadOptionalHeightmap reads an optional heightmap type; a missing field counts as success with an empty value
     private static bool TryReadOptionalHeightmap<U>(DynamicOps<U> ops, MapLike<U> map, string key,
         out NetCraft.Registry.Heightmap.Types? value, out string error)
     {
@@ -300,37 +300,37 @@ internal sealed class JigsawStructureCodec : ScalarCodec<NetCraft.Registry.Struc
         var text = ops.GetStringValue(tag.Get());
         if (!text.Result().IsPresent)
         {
-            error = "必须是字符串";
+            error = "must be a string";
             return false;
         }
         var type = NetCraft.Registry.Heightmap.FromSerializationKey(text.GetOrThrow());
         if (type is null)
         {
-            error = $"未知的高度图类型 {text.GetOrThrow()}";
+            error = $"unknown heightmap type {text.GetOrThrow()}";
             return false;
         }
         value = type.Value;
         return true;
     }
 
-    //ReadPoolAliases 读池别名列表 缺省为空 对应原版 optionalFieldOf("pool_aliases", List.of())
+    //ReadPoolAliases reads the pool alias list, empty by default, maps to vanilla optionalFieldOf("pool_aliases", List.of())
     private static DataResult<List<PoolAliasBinding>> ReadPoolAliases<U>(DynamicOps<U> ops, MapLike<U> map)
     {
         var tag = map.Get("pool_aliases");
         if (!tag.IsPresent) return DataResult<List<PoolAliasBinding>>.Success(new List<PoolAliasBinding>());
         var stream = ops.GetStream(tag.Get());
-        if (!stream.Result().IsPresent) return DataResult<List<PoolAliasBinding>>.Error(() => "pool_aliases 必须是数组");
+        if (!stream.Result().IsPresent) return DataResult<List<PoolAliasBinding>>.Error(() => "pool_aliases must be an array");
         var result = new List<PoolAliasBinding>();
         foreach (var element in stream.GetOrThrow())
         {
             var parsed = PoolAliasBinding.Codec.Parse(ops, element);
-            if (!parsed.Result().IsPresent) return DataResult<List<PoolAliasBinding>>.Error(() => "pool_aliases 里的别名解析失败");
+            if (!parsed.Result().IsPresent) return DataResult<List<PoolAliasBinding>>.Error(() => "failed to parse an alias in pool_aliases");
             result.Add(parsed.GetOrThrow());
         }
         return DataResult<List<PoolAliasBinding>>.Success(result);
     }
 
-    //ReadDimensionPadding 读维度留白 缺省不留白
+    //ReadDimensionPadding reads the dimension padding, no padding by default
     private static DataResult<DimensionPadding> ReadDimensionPadding<U>(DynamicOps<U> ops, MapLike<U> map)
     {
         var tag = map.Get("dimension_padding");
@@ -339,7 +339,7 @@ internal sealed class JigsawStructureCodec : ScalarCodec<NetCraft.Registry.Struc
             : DataResult<DimensionPadding>.Success(JigsawStructure.DefaultDimensionPadding);
     }
 
-    //ReadLiquidSettings 读液体处理方式 缺省按含水方块铺
+    //ReadLiquidSettings reads the liquid handling, spreading through waterloggable blocks by default
     private static DataResult<LiquidSettings> ReadLiquidSettings<U>(DynamicOps<U> ops, MapLike<U> map)
     {
         var tag = map.Get("liquid_settings");

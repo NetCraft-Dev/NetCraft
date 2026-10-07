@@ -3,9 +3,9 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Server;
 
-//ServerWorldBorderListener 边界变化经玩家集合同步客户端
-//对应原版 PlayerList.addWorldborderListener 里挂的那个匿名监听器
-//伤害与免伤缓冲是服务端逻辑 不改变客户端状态 空实现
+//ServerWorldBorderListener syncs border changes to clients through the player set
+//maps to the anonymous listener attached in vanilla PlayerList.addWorldborderListener
+//Damage and buffer are server logic that do not change client state, so the implementation is empty
 public sealed class ServerWorldBorderListener(PlayerList players) : IBorderChangeListener
 {
     public void OnSetSize(WorldBorder border, double newSize)

@@ -13,24 +13,24 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//ParticleArgument 粒子参数对应原版 net.minecraft.commands.arguments.ParticleArgument
-//语法 <粒子名>[{参数}] 参数段用 SNBT 与网络编码的字段名一致
-//参数依赖未移植子系统的粒子直接拒绝 不会构造出无法编码的选项
+//ParticleArgument particle argument, maps to vanilla net.minecraft.commands.arguments.ParticleArgument
+//Syntax: <particle name>[{parameters}]; the parameter section uses SNBT with field names matching the network encoding
+//Particles whose parameters depend on unported subsystems are rejected outright, so no unencodable option is constructed
 public sealed class ParticleArgument : ArgumentType<ParticleOptions>
 {
     private static readonly IReadOnlyList<string> ExamplesList = new[] { "foo", "foo:bar", "particle{foo:bar}" };
 
     public static readonly DynamicCommandExceptionType ErrorUnknownParticle =
-        new(name => new LiteralMessage($"未知粒子 {name}"));
+        new(name => new LiteralMessage($"unknown particle {name}"));
 
     public static readonly DynamicCommandExceptionType ErrorUnsupportedParticle =
-        new(name => new LiteralMessage($"暂不支持的粒子 {name}"));
+        new(name => new LiteralMessage($"particle not supported yet: {name}"));
 
     public static readonly DynamicCommandExceptionType ErrorMissingOptions =
-        new(name => new LiteralMessage($"粒子 {name} 缺少必需参数"));
+        new(name => new LiteralMessage($"particle {name} is missing a required parameter"));
 
     public static readonly DynamicCommandExceptionType ErrorInvalidOptions =
-        new(name => new LiteralMessage($"粒子 {name} 参数非法"));
+        new(name => new LiteralMessage($"invalid parameter for particle {name}"));
 
     public static ParticleArgument Particle() => new();
 
@@ -72,7 +72,7 @@ public sealed class ParticleArgument : ArgumentType<ParticleOptions>
         return CreateOptions(type, options, id);
     }
 
-    //CreateOptions 按粒子类型组装选项 无参数类型忽略参数段
+    //CreateOptions assembles the options by particle type; parameterless types ignore the parameter section
     private static ParticleOptions CreateOptions(ParticleType type, CompoundTag? options, Identifier id)
     {
         switch (type)
@@ -100,11 +100,11 @@ public sealed class ParticleArgument : ArgumentType<ParticleOptions>
         }
     }
 
-    //Require 带参数的粒子必须写参数段 对应原版 codec 里没有默认值的必填字段
+    //Require particles with parameters must write the parameter section, maps to the required fields without defaults in the vanilla codec
     private static CompoundTag Require(CompoundTag? options, Identifier id)
         => options ?? throw ErrorMissingOptions.Create(id);
 
-    //ReadBlockState 参数段的 block_state 字段是方块状态文本 复用方块状态参数解析
+    //ReadBlockState the block_state field of the parameter section is block state text; reuses block state argument parsing
     private static BlockState ReadBlockState(CompoundTag options, Identifier id)
     {
         if (options.GetString("block_state") is not { } tag) throw ErrorMissingOptions.Create(id);
@@ -118,7 +118,7 @@ public sealed class ParticleArgument : ArgumentType<ParticleOptions>
         }
     }
 
-    //ReadItem 参数段的 item 字段是物品文本 复用物品参数解析
+    //ReadItem the item field of the parameter section is item text; reuses item argument parsing
     private static ItemStack ReadItem(CompoundTag options, Identifier id)
     {
         if (options.GetString("item") is not { } tag) throw ErrorMissingOptions.Create(id);
@@ -133,7 +133,7 @@ public sealed class ParticleArgument : ArgumentType<ParticleOptions>
         }
     }
 
-    //ReadNumber 读数值字段 SNBT 里 1.0 是 double 1 是 int 都要接
+    //ReadNumber reads a numeric field; in SNBT 1.0 is a double and 1 is an int, both are accepted
     private static double ReadNumber(CompoundTag options, string key, Identifier id)
     {
         if (options.GetDouble(key) is { } d) return d.Value;
@@ -143,11 +143,11 @@ public sealed class ParticleArgument : ArgumentType<ParticleOptions>
         throw ErrorMissingOptions.Create(id);
     }
 
-    //GetParticle 取解析出的粒子选项
+    //GetParticle gets the parsed particle option
     public static ParticleOptions GetParticle(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<ParticleOptions>(name);
 
-    //ListSuggestions 补全全部受支持粒子名 跳过参数未移植的类型
+    //ListSuggestions suggests all supported particle names, skipping types whose parameters are not ported
     public Task<Suggestions> ListSuggestions<S>(CommandContext<S> context, SuggestionsBuilder builder)
     {
         foreach (var id in BuiltInRegistries.PARTICLE_TYPE.KeySet)

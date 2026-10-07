@@ -9,23 +9,23 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//SlotArgument 槽位参数对应原版 net.minecraft.commands.arguments.SlotArgument
-//把槽位名(container.5 / weapon / armor.head ...)解析成槽位号 名字表在 SlotRanges
-//只接受单槽名 带 * 的多槽名按原版报错
-//网络 id 走 item_slot 与 item 命令的槽位参数一致
+//SlotArgument slot argument, maps to vanilla net.minecraft.commands.arguments.SlotArgument
+//Parses slot names (container.5 / weapon / armor.head ...) into slot numbers; the name table is in SlotRanges
+//Only accepts single-slot names; multi-slot names with * error out like vanilla
+//The network id goes through item_slot, matching the item command's slot argument
 public sealed class SlotArgument : ArgumentType<int>
 {
     private static readonly IReadOnlyList<string> ExamplesList = new[] { "container.5", "weapon" };
 
     public static readonly DynamicCommandExceptionType ErrorUnknownSlot =
-        new(name => new LiteralMessage($"未知槽位 {name}"));
+        new(name => new LiteralMessage($"unknown slot {name}"));
 
     public static readonly DynamicCommandExceptionType ErrorOnlySingleSlotAllowed =
-        new(name => new LiteralMessage($"槽位 {name} 不是单个槽位"));
+        new(name => new LiteralMessage($"slot {name} is not a single slot"));
 
     public static SlotArgument Slot() => new();
 
-    //GetSlot 取解析出的槽位号 对应原版 getSlot
+    //GetSlot gets the parsed slot number, maps to vanilla getSlot
     public static int GetSlot<S>(CommandContext<S> context, string name)
         => context.GetArgument<int>(name);
 
@@ -47,7 +47,7 @@ public sealed class SlotArgument : ArgumentType<int>
         return ids[0];
     }
 
-    //ListSuggestions 补全全部单槽名 对应原版 listSuggestions 走 singleSlotNames
+    //ListSuggestions suggests all single-slot names, maps to vanilla listSuggestions through singleSlotNames
     public Task<Suggestions> ListSuggestions<S>(CommandContext<S> context, SuggestionsBuilder builder)
     {
         var remaining = builder.RemainingLowerCase;

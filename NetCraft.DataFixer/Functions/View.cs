@@ -4,17 +4,17 @@ using System;
 using NetCraft.Codec;
 using T = NetCraft.DataFixer.Types;
 
-//View视图对应原版com.mojang.datafixers.View
-    //表示A->B的转换函数与输入输出类型
+//View maps to vanilla com.mojang.datafixers.View
+    //represents the A->B conversion function together with the input and output types
 public sealed class View<A, B>
 {
-    //function转换函数的PointFree表示类型为Func<A,B>
+    //function is the PointFree representation of the conversion function, typed Func<A,B>
     public PointFree<Func<A, B>>? Function { get; }
 
-    //oldType输入类型A的Type
+    //oldType is the Type of the input type A
     public T.Type<A> OldTypeValue { get; }
 
-    //newType目标类型B的Type
+    //newType is the Type of the target type B
     public T.Type<B> NewTypeValue { get; }
 
     public View(PointFree<Func<A, B>>? function, T.Type<A> oldType, T.Type<B> newType)
@@ -24,17 +24,17 @@ public sealed class View<A, B>
         NewTypeValue = newType;
     }
 
-    //create工厂方法
+    //create factory method
     public static View<A, B> Create(PointFree<Func<A, B>>? function, T.Type<A> oldType, T.Type<B> newType)
         => new(function, oldType, newType);
 
-    //create带name的工厂方法对应原版View.create(name, type, newType, function)
-    //内部用Functions.fun包装为FunctionWrapper
+    //create with a name, maps to vanilla View.create(name, type, newType, function)
+    //internally wraps it as a FunctionWrapper via Functions.fun
     public static View<A, B> Create(string name, T.Type<A> oldType, T.Type<B> newType, Func<DynamicOps<object>, Func<A, B>> function)
         => new(Functions.Fun(name, function, oldType, newType), oldType, newType);
 
-    //nopView用Id作为function保证oldType=newType=type对齐原版View.nopView
-    //不能再用null因为Cap1需要NewType()作为下一条rule输入
+    //nopView uses Id as function to guarantee oldType=newType=type, aligning with vanilla View.nopView
+    //null can no longer be used because Cap1 needs NewType() as the input of the next rule
     public static View<A, B> NopView(T.Type<A> type)
     {
         var idObj = (object)Functions.Id(type!);
@@ -44,16 +44,16 @@ public sealed class View<A, B>
         return new View<A, B>(idAB, type, typeB);
     }
 
-    //isNop判断function是否为Id单位函数
+    //isNop checks whether function is the Id identity function
     public bool IsNop() => Functions.IsIdUnchecked(Function);
 
-    //type返回输入类型A
+    //type returns the input type A
     public T.Type<A> Type() => OldTypeValue;
 
-    //newType返回输出类型B
+    //newType returns the output type B
     public T.Type<B> NewType() => NewTypeValue;
 
-    //rewrite对function应用PointFreeRule命中则重建View
+    //rewrite applies a PointFreeRule to function and rebuilds the View on a match
     public Optional<View<A, B>> Rewrite(PointFreeRule rule)
     {
         if (Function is null) return Optional<View<A, B>>.Empty();
@@ -61,8 +61,8 @@ public sealed class View<A, B>
         return opt.Map(f => new View<A, B>(f, OldTypeValue, NewTypeValue));
     }
 
-    //compose把that的输出接到this的输入返回C->B的View
-    //C#严格泛型下Id<A>不能直接强转PointFree<Func<C,B>>用Unsafe.As绕过对齐Java类型擦除
+    //compose connects that's output to this's input and returns a C->B View
+    //under C# strict generics Id<A> cannot be cast directly to PointFree<Func<C,B>>; use Unsafe.As to bypass it, aligning with Java type erasure
     public View<C, B> Compose<C>(View<C, A> that)
     {
         if (IsNop())

@@ -8,8 +8,8 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Commands;
 
-//SetWorldSpawnCommand setworldspawn 命令对应原版 net.minecraft.server.commands.SetWorldSpawnCommand
-//改写世界出生点并广播给所有玩家 省略坐标时用执行者当前位置取整
+//SetWorldSpawnCommand setworldspawn command, maps to vanilla net.minecraft.server.commands.SetWorldSpawnCommand
+//Rewrites the world spawn and broadcasts to all players; without coordinates the executor's current position is floored
 public static class SetWorldSpawnCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -24,7 +24,7 @@ public static class SetWorldSpawnCommand
                         FloatArgumentType.GetFloat(context, "angle"))))));
     }
 
-    //Set 写存档出生点并广播 落点在方块中心故 x/z 加半格
+    //Set writes the save spawn and broadcasts; the landing point is the block center so x/z add half a block
     private static int Set(CommandContext<CommandSourceStack> context, BlockPos? explicitPos, float angle)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -35,7 +35,7 @@ public static class SetWorldSpawnCommand
 
         source.Server.SetSpawnPos(new Vec3(pos.X + 0.5, pos.Y, pos.Z + 0.5));
         source.Server.PlayerList.BroadcastAll(new ClientboundSetDefaultSpawnPositionPacket(pos, angle));
-        source.SendSuccess($"世界出生点已设为 {pos.X} {pos.Y} {pos.Z}");
+        source.SendSuccess($"world spawn set to {pos.X} {pos.Y} {pos.Z}");
         return 1;
     }
 }

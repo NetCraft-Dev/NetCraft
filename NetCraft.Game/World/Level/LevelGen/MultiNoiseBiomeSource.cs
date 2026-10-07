@@ -2,9 +2,9 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//MultiNoiseBiomeSource 多噪声生物群系源对应原版 net.minecraft.world.level.biome.MultiNoiseBiomeSource
-//阶段 E 接入 Climate.Sampler + MultiNoiseBiomeSourceParameterList 真实派生
-//GetBiome 按坐标采样 6 维度参数查找参数空间距离最近的 Biome
+//MultiNoiseBiomeSource multi-noise biome source, maps to vanilla net.minecraft.world.level.biome.MultiNoiseBiomeSource
+//Phase E wires in Climate.Sampler + MultiNoiseBiomeSourceParameterList for real derivation
+//GetBiome samples 6-dimensional parameters by coordinate and finds the biome closest in parameter space
 public sealed class MultiNoiseBiomeSource : BiomeSource
 {
     public MultiNoiseBiomeSourceParameterList? ParameterList { get; }
@@ -16,18 +16,18 @@ public sealed class MultiNoiseBiomeSource : BiomeSource
         Sampler = sampler;
     }
 
-    //单参数构造留给数据驱动装配 采样器由 NoiseBasedChunkGenerator 构造时按噪声路由注入
+    //Single-parameter constructor reserved for data-driven assembly; the sampler is injected by NoiseBasedChunkGenerator from the noise router
     public MultiNoiseBiomeSource(MultiNoiseBiomeSourceParameterList parameterList)
     {
         ParameterList = parameterList;
     }
 
-    //LegacyConstructor 无参数列表与采样器占位返回平原群系
-    //用于 Bootstrap 之前或测试场景
+    //LegacyConstructor placeholder with no parameter list and no sampler, returns the plains biome
+    //Used before Bootstrap or in test scenarios
     public MultiNoiseBiomeSource() { }
 
-    //PossibleBiomes 参数表里出现过的群系去重 无参数表时只有占位平原
-    //未绑定的表项跳过 它们指向还没装载的群系
+    //PossibleBiomes distinct biomes seen in the parameter table; only the plains placeholder without a table
+    //Unbound entries are skipped, they point at biomes not loaded yet
     public IReadOnlyList<Biome> PossibleBiomes
     {
         get
@@ -44,8 +44,8 @@ public sealed class MultiNoiseBiomeSource : BiomeSource
         }
     }
 
-    //GetBiome 按坐标采样 6 维度参数查找参数空间距离最近的 Biome
-    //无 ParameterList/Sampler 时占位返回 Biome.Plains 单例避免 palette 爆炸
+    //GetBiome samples 6-dimensional parameters by coordinate and finds the biome closest in parameter space
+    //Without a ParameterList/Sampler it returns the Biome.Plains singleton as a placeholder to avoid palette blow-up
     public Biome GetBiome(int x, int y, int z)
     {
         if (ParameterList is null || Sampler is null)

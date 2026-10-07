@@ -9,10 +9,10 @@ using System.Collections.Generic;
 using NetCraft.DataFixer.Fixes;
 using NetCraft.DataFixer.Types.Templates;
 
-//V1Foundation对应原版V99基础Schema
-//注册V1_21段Schema构造时需要的递归类型ENTITY_TREE/ITEM_STACK/BLOCK_ENTITY/ENTITY等
-//简化V99.registerTypes只注册V1_21段实际引用的类型其他类型用Remainder占位
-//注册ENTITY/BLOCK_ENTITY为TaggedChoice让NamedEntityFix.GetChoiceType能找到子类型
+//V1Foundation maps to vanilla V99 foundation schema
+//Registers the recursive types ENTITY_TREE/ITEM_STACK/BLOCK_ENTITY/ENTITY etc. needed when constructing V1_21 segment schemas
+//Simplified V99.registerTypes only registers the types actually referenced by the V1_21 segment; other types use Remainder placeholders
+//Registers ENTITY/BLOCK_ENTITY as TaggedChoice so NamedEntityFix.GetChoiceType can find subtypes
 public class V1Foundation : Schema
 {
     public V1Foundation(int versionKey, Schema? parent) : base(versionKey, parent) { }
@@ -21,37 +21,37 @@ public class V1Foundation : Schema
     {
         base.RegisterTypes(schema, entityTypes, blockEntityTypes);
 
-        //递归类型注册ENTITY为TaggedChoice("id",NamespacedString,entityTypes)简化版
-        //不带原版ENTITY_EQUIPMENT+custom_name简化端到端测试路径
+        //Recursive type registration: ENTITY as TaggedChoice("id",NamespacedString,entityTypes), simplified
+        //Without the vanilla ENTITY_EQUIPMENT+custom_name to keep the end-to-end test path
         schema.RegisterType(true, References.Entity, () => DSL.TaggedChoice("id", NamespacedSchema.NamespacedString(), BuildTemplateMap(entityTypes)));
 
-        //BLOCK_ENTITY注册为TaggedChoice("id",NamespacedString,blockEntityTypes)简化版
-        //不带原版components字段简化
+        //BLOCK_ENTITY registered as TaggedChoice("id",NamespacedString,blockEntityTypes), simplified
+        //Without the vanilla components field for simplicity
         schema.RegisterType(true, References.BlockEntity, () => DSL.TaggedChoice("id", NamespacedSchema.NamespacedString(), BuildTemplateMap(blockEntityTypes)));
 
-        //ITEM_STACK用Remainder透传让Update/Get/Set/RenameField直接操作CompoundTag
+        //ITEM_STACK uses Remainder passthrough so Update/Get/Set/RenameField operate directly on CompoundTag
         schema.RegisterType(true, References.ItemStack, () => DSL.Remainder());
 
-        //DATA_COMPONENTS用Remainder透传
+        //DATA_COMPONENTS uses Remainder passthrough
         schema.RegisterType(true, References.DataComponents, () => DSL.Remainder());
 
-        //ENTITY_TREE/ENTITY_EQUIPMENT/PLAYER用Remainder占位
+        //ENTITY_TREE/ENTITY_EQUIPMENT/PLAYER use Remainder placeholders
         schema.RegisterType(true, References.EntityTree, () => DSL.Remainder());
         schema.RegisterType(true, References.EntityEquipment, () => DSL.Remainder());
         schema.RegisterType(false, References.Player, () => DSL.Remainder());
 
-        //非递归基础类型注册为ConstType占位
+        //Non-recursive base types are registered as ConstType placeholders
         schema.RegisterType(false, References.EntityName, () => DSL.ConstType(NamespacedSchema.NamespacedString()));
         schema.RegisterType(false, References.BlockName, () => DSL.ConstType(NamespacedSchema.NamespacedString()));
         schema.RegisterType(false, References.ItemName, () => DSL.ConstType(NamespacedSchema.NamespacedString()));
         schema.RegisterType(false, References.TextComponent, () => DSL.ConstType(DSL.String()));
         schema.RegisterType(false, References.BlockState, () => DSL.Remainder());
 
-        //RECIPE用Remainder占位V4312注册PLAYER时引用recipe_book内的recipe列表
+        //RECIPE uses a Remainder placeholder; V4312 references the recipe list in recipe_book when registering PLAYER
         schema.RegisterType(false, References.Recipe, () => DSL.Remainder());
     }
 
-    //buildTemplateMap把Func<TypeTemplate>字典全部invoke为TypeTemplate字典供DSL.TaggedChoice使用
+    //buildTemplateMap invokes all Func<TypeTemplate> dictionary entries into a TypeTemplate dictionary for DSL.TaggedChoice
     private static Dictionary<string, TypeTemplate> BuildTemplateMap(Dictionary<string, Func<TypeTemplate>> source)
     {
         var result = new Dictionary<string, TypeTemplate>();
@@ -62,11 +62,11 @@ public class V1Foundation : Schema
         return result;
     }
 
-    //registerEntities返回V1_21段21个Fix类引用的全部实体名占位模板
-    //MemoryExpiryDataFix用villager FixProjectileStoredItem/ProjectileStoredWeaponFix用trident/arrow/spectral_arrow
-    //SaddleEquipmentSlotFix用horse/skeleton_horse/zombie_horse/donkey/mule/camel/llama/trader_llama/pig/strider
-    //piglin在V1Foundation与V2505都注册为OptionalFields(Inventory)避免两Schema的ENTITY TaggedChoice类型不一致
-    //若两Schema ENTITY类型不同则NamedEntityFix的IfSame比较失败Fix规则无法应用
+    //registerEntities returns all entity name placeholder templates referenced by the 21 fix classes in the V1_21 segment
+    //MemoryExpiryDataFix uses villager; FixProjectileStoredItem/ProjectileStoredWeaponFix use trident/arrow/spectral_arrow
+    //SaddleEquipmentSlotFix uses horse/skeleton_horse/zombie_horse/donkey/mule/camel/llama/trader_llama/pig/strider
+    //piglin is registered as OptionalFields(Inventory) in both V1Foundation and V2505 to avoid the ENTITY TaggedChoice type differing between the two schemas
+    //If the ENTITY types differ between the two schemas, NamedEntityFix's IfSame comparison fails and the fix rules cannot apply
     public override Dictionary<string, Func<TypeTemplate>> RegisterEntities(Schema schema)
     {
         var map = new Dictionary<string, Func<TypeTemplate>>();
@@ -88,9 +88,9 @@ public class V1Foundation : Schema
         return map;
     }
 
-    //registerBlockEntities返回V1_21段Fix类引用的全部方块实体名占位模板
-    //JukeboxTicksSinceSongStartedFix用jukebox TrialSpawnerConfigFix/TrialSpawnerConfigInRegistryFix用trial_spawner
-    //DecoratedPotFieldRenameFix用decorated_pot
+    //registerBlockEntities returns all block entity name placeholder templates referenced by the V1_21 segment fix classes
+    //JukeboxTicksSinceSongStartedFix uses jukebox; TrialSpawnerConfigFix/TrialSpawnerConfigInRegistryFix use trial_spawner
+    //DecoratedPotFieldRenameFix uses decorated_pot
     public override Dictionary<string, Func<TypeTemplate>> RegisterBlockEntities(Schema schema)
     {
         var map = new Dictionary<string, Func<TypeTemplate>>();

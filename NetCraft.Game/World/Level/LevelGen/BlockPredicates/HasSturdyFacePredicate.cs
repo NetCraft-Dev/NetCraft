@@ -3,7 +3,7 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//HasSturdyFacePredicate 指定方向有坚固面对应原版 HasSturdyFacePredicate
+//HasSturdyFacePredicate the given direction has a sturdy face, maps to vanilla HasSturdyFacePredicate
 public class HasSturdyFacePredicate : BlockPredicate
 {
     public static readonly Codec<HasSturdyFacePredicate> Codec =
@@ -23,7 +23,7 @@ public class HasSturdyFacePredicate : BlockPredicate
         _direction = direction;
     }
 
-    //NetCraft 没有方块形状信息 用不透明方块近似整面坚固
+    //NetCraft has no block shape information, so an opaque block approximates a fully sturdy face
     public override bool Test(WorldGenRegion level, BlockPos origin)
     {
         var pos = origin.Offset(_offset);

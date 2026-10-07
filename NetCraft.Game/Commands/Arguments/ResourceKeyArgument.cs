@@ -6,15 +6,15 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//ResourceKeyArgument 注册表键参数 对应原版 net.minecraft.commands.arguments.ResourceKeyArgument
-//与 ResourceArgument 的关键区别: 网络描述符只写注册表标识 客户端实例化时按标识符拼 key 不去查注册表
-//所以能引用客户端 play 阶段没有的注册表(如 recipe 是数据驱动注册表 不在同步列表里)
-//ResourceArgument 相反 客户端实例化会 lookupOrThrow 该注册表 注册表不存在直接崩客户端
+//ResourceKeyArgument registry key argument, maps to vanilla net.minecraft.commands.arguments.ResourceKeyArgument
+//Key difference from ResourceArgument: the network descriptor only writes the registry id, and the client builds the key from the identifier without looking up the registry
+//So it can reference registries the client lacks at the play stage (e.g. recipe is data-driven and not in the sync list)
+//ResourceArgument is the opposite: the client instantiates with lookupOrThrow on that registry and crashes when the registry is missing
 public sealed class ResourceKeyArgument : ArgumentType<Identifier>
 {
     private static readonly IReadOnlyList<string> ExamplesList = new[] { "foo", "foo:bar", "012" };
 
-    //RegistryKey 目标注册表标识 只用于网络传输与补全 服务端解析本身不校验
+    //RegistryKey target registry identifier, used only for network transfer and suggestions; server parsing itself does not validate it
     public Identifier RegistryKey { get; }
 
     public ResourceKeyArgument(Identifier registryKey)
@@ -24,7 +24,7 @@ public sealed class ResourceKeyArgument : ArgumentType<Identifier>
 
     public Identifier Parse(StringReader reader) => IdentifierArgument.ReadIdentifier(reader);
 
-    //GetResource 取解析出的资源标识
+    //GetResource gets the parsed resource identifier
     public static Identifier GetResource(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<Identifier>(name);
 

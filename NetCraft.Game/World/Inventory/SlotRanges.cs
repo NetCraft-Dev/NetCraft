@@ -1,26 +1,26 @@
 namespace NetCraft.Game.World.Inventory;
 
-//SlotRanges 槽位名到槽位号的映射 对应原版 net.minecraft.world.inventory.SlotRanges
-//名字与数值照原版初始化顺序抄 命令的槽位解析与补全都读这张表
-//本项目只有玩家背包 0..40 是真实可写的 末影箱/骑马/生物背包这些名字原样保留
-//为的是解析与补全和原版一致 具体能不能落到实体上由 SlotAccess 决定
+//SlotRanges maps slot names to slot indices, maps to vanilla net.minecraft.world.inventory.SlotRanges
+//Names and values are copied from vanilla's initialization order, the command slot parsing and completion both read this table
+//This project only has the player inventory, 0..40 are actually writable; names like ender chest / riding / mob inventory are kept as-is
+//So that parsing and completion match vanilla; whether they resolve to an entity is decided by SlotAccess
 public static class SlotRanges
 {
-    //MainHand 主手 原版 EquipmentSlot.MAINHAND.getIndex(98) = 98 + 0
+    //MainHand main hand, vanilla EquipmentSlot.MAINHAND.getIndex(98) = 98 + 0
     public const int MainHand = 98;
-    //OffHand 副手 原版 EquipmentSlot.OFFHAND.getIndex(98) = 98 + 5
-    //注意它与 Chest 同值 原版也是同值 反查按 EquipmentSlot 声明序先命中 OFFHAND
+    //OffHand offhand, vanilla EquipmentSlot.OFFHAND.getIndex(98) = 98 + 5
+    //Note it shares a value with Chest, as in vanilla; reverse lookup hits OFFHAND first per EquipmentSlot declaration order
     public const int OffHand = 103;
-    //Feet/Legs 护甲 原版 EquipmentSlot.FEET/LEGS.getIndex(100) = 100 + 1/2
+    //Feet/Legs armor, vanilla EquipmentSlot.FEET/LEGS.getIndex(100) = 100 + 1/2
     public const int Feet = 101;
     public const int Legs = 102;
-    //Chest 胸甲 原版 EquipmentSlot.CHEST.getIndex(100) = 100 + 3 与副手同值
+    //Chest chestplate, vanilla EquipmentSlot.CHEST.getIndex(100) = 100 + 3, same value as offhand
     public const int Chest = 103;
-    //Head 头盔 原版 EquipmentSlot.HEAD.getIndex(100) = 100 + 4
+    //Head helmet, vanilla EquipmentSlot.HEAD.getIndex(100) = 100 + 4
     public const int Head = 104;
-    //Body 动物盔甲 原版 EquipmentSlot.BODY.getIndex(105) = 105 + 6
+    //Body animal armor, vanilla EquipmentSlot.BODY.getIndex(105) = 105 + 6
     public const int Body = 111;
-    //Saddle 鞍 原版 EquipmentSlot.SADDLE.getIndex(106) = 106 + 7
+    //Saddle saddle, vanilla EquipmentSlot.SADDLE.getIndex(106) = 106 + 7
     public const int Saddle = 113;
 
     private static readonly Dictionary<string, int[]> Ranges;
@@ -31,14 +31,14 @@ public static class SlotRanges
         var ranges = new Dictionary<string, int[]>();
         var singles = new List<string>();
 
-        //Single 登记单槽名 同时进补全名单 与多槽名区分
+        //Single registers a single-slot name and adds it to the completion list, distinct from multi-slot names
         void Single(string name, int id)
         {
             ranges[name] = new[] { id };
             singles.Add(name);
         }
 
-        //Range 登记形如 inventory.0..26 的整段 另外补一个 inventory.* 覆盖整段
+        //Range registers a whole range like inventory.0..26 and also adds inventory.* to cover it
         void Range(string prefix, int offset, int size)
         {
             var ids = new int[size];
@@ -77,10 +77,10 @@ public static class SlotRanges
         SingleNames = singles.ToArray();
     }
 
-    //NameToIds 按名字取槽位号 未知名字返回 null 对应原版 nameToIds
+    //NameToIds resolves slot indices by name, returns null for unknown names, maps to vanilla nameToIds
     public static int[]? NameToIds(string name)
         => Ranges.TryGetValue(name, out var ids) ? ids : null;
 
-    //SingleSlotNames 单槽名列表 顺序与登记顺序一致 供 item_slot 参数补全
+    //SingleSlotNames list of single-slot names in registration order, used for item_slot argument completion
     public static IReadOnlyList<string> SingleSlotNames() => SingleNames;
 }

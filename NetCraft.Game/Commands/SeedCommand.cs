@@ -4,8 +4,8 @@ using NetCraft.Commands.Context;
 
 namespace NetCraft.Game.Commands;
 
-//SeedCommand seed 命令对应原版 net.minecraft.server.commands.SeedCommand
-//回执本世界固化在存档里的随机种子
+//SeedCommand seed command, maps to vanilla net.minecraft.server.commands.SeedCommand
+//Reports the world seed fixed in the save
 public static class SeedCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -15,7 +15,7 @@ public static class SeedCommand
             .Executes(context =>
             {
                 var source = (ServerCommandSource)context.GetSource();
-                source.SendSuccess($"世界种子为 {source.Server.WorldSeed}");
+                source.SendSuccess($"the world seed is {source.Server.WorldSeed}");
                 return 1;
             }));
     }

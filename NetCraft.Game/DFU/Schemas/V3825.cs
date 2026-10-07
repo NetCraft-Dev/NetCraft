@@ -9,8 +9,8 @@ using System.Collections.Generic;
 using NetCraft.DataFixer.Fixes;
 using NetCraft.DataFixer.Types.Templates;
 
-//V3825对应原版net.minecraft.util.datafix.schemas.V3825
-//1.20.5注册ominous_item_spawner实体带item字段
+//V3825 maps to vanilla net.minecraft.util.datafix.schemas.V3825
+//1.20.5 registers the ominous_item_spawner entity with an item field
 public class V3825 : NamespacedSchema
 {
     public V3825(int versionKey, Schema? parent) : base(versionKey, parent) { }

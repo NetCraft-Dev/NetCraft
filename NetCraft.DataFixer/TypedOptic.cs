@@ -12,9 +12,9 @@ using NetCraft.DataFixer.Types.Templates;
 using NetCraft.DataFixer.Util;
 using OpticsClass = NetCraft.DataFixer.Optics.Optics;
 
-//TypedOptic带类型信息的Optic对应原版com.mojang.datafixers.TypedOptic
-//记录S->T->A->B四元类型与边界proof bounds
-//静态工厂方法已迁移到TypedOptics非泛型类避免泛型类静态方法调用需带类型参数
+//TypedOptic optic with type information maps to vanilla com.mojang.datafixers.TypedOptic
+//records the S->T->A->B four-way types and the proof bounds
+//static factory methods moved to the non-generic TypedOptics class, avoiding the type parameters needed to call static methods on a generic class
 public sealed record TypedOptic<S, T, A, B>(HashSet<object> Bounds, List<object> Elements)
 {
     public TypedOptic(object proofBound, Type<S> sType, Type<T> tType, Type<A> aType, Type<B> bType, object optic)
@@ -27,20 +27,20 @@ public sealed record TypedOptic<S, T, A, B>(HashSet<object> Bounds, List<object>
     {
     }
 
-    //SType最外层源类型Unsafe.As绕过泛型不变量对齐Java类型擦除
+    //SType outermost source type; Unsafe.As bypasses generic invariance, aligning with Java type erasure
     public Type<S> SType() => AsElement<S, T, object, object>(Elements[0]).SType;
-    //TType最外层目标类型
+    //TType outermost target type
     public Type<T> TType() => AsElement<S, T, object, object>(Elements[0]).TType;
-    //AType最内层焦点源类型
+    //AType innermost focus source type
     public Type<A> AType() => AsElement<object, object, A, B>(Elements[^1]).AType;
-    //BType最内层焦点目标类型
+    //BType innermost focus target type
     public Type<B> BType() => AsElement<object, object, A, B>(Elements[^1]).BType;
 
-    //AsElement用Unsafe.As绕过泛型不变量对齐Java类型擦除单例共享
+    //AsElement uses Unsafe.As to bypass generic invariance, aligning with Java type erasure and singleton sharing
     private static Element<ES, ET, EA, EB> AsElement<ES, ET, EA, EB>(object element)
         => System.Runtime.CompilerServices.Unsafe.As<object, Element<ES, ET, EA, EB>>(ref element);
 
-    //compose合并外层与内层optic bounds与elements拼接
+    //compose merges the outer and inner optics, concatenating bounds and elements
     public TypedOptic<S, T, A1, B1> Compose<A1, B1>(TypedOptic<A, B, A1, B1> other)
     {
         var bounds = new HashSet<object>(Bounds);
@@ -50,7 +50,7 @@ public sealed record TypedOptic<S, T, A, B>(HashSet<object> Bounds, List<object>
         return new TypedOptic<S, T, A1, B1>(bounds, elements);
     }
 
-    //upCast检查bounds包含proof后单元素直接返回多元素组合为CompositionOptic
+    //upCast verifies that bounds contains proof; a single element is returned directly, multiple elements are combined into a CompositionOptic
     public Optional<object> UpCast(object proof)
     {
         if (TypedOptics.InstanceOf(Bounds, proof))
@@ -65,17 +65,17 @@ public sealed record TypedOptic<S, T, A, B>(HashSet<object> Bounds, List<object>
                 var elemCast = System.Runtime.CompilerServices.Unsafe.As<object, Element<object, object, object, object>>(ref elemObj);
                 return elemCast.Optic;
             }).ToList();
-            //多元素组合用CompositionOptic实现Eval对齐原版Optics.CompositionOptic
-            //Proof固定IProfunctorMu满足K1约束调用方反射调Eval不检查Proof具体类型
+            //the multi-element combination uses CompositionOptic to implement Eval, aligning with vanilla Optics.CompositionOptic
+            //Proof is fixed to IProfunctorMu to satisfy the K1 constraint; the caller reflectively invokes Eval without checking the concrete Proof type
             var compositionOptic = new CompositionOptic<IProfunctorMu, S, T, A, B>(optics);
             return Optional<object>.Of(compositionOptic);
         }
         return Optional<object>.Empty();
     }
 
-    //outermost返回最外层Element的Optic对应原版outermost
-    //供Optics.IsProj1/2/IsInj1/2判断最外层类型
-    //用Unsafe.As绕过Element<ES,ET,EA,EB>严格泛型强转对齐Java类型擦除
+    //outermost returns the Optic of the outermost Element, maps to vanilla outermost
+    //used by Optics.IsProj1/2/IsInj1/2 to determine the outermost type
+    //use Unsafe.As to bypass the strict generic cast of Element<ES,ET,EA,EB>, aligning with Java type erasure
     public object Outermost()
     {
         var elemObj = (object?)Elements[0];
@@ -83,7 +83,7 @@ public sealed record TypedOptic<S, T, A, B>(HashSet<object> Bounds, List<object>
         return elemCast.Optic;
     }
 
-    //castOuter改外层类型不检查用AsElement绕过泛型不变量
+    //castOuter changes the outer type unchecked, using AsElement to bypass generic invariance
     public TypedOptic<S2, T2, A, B> CastOuterUnchecked<S2, T2>(Type<S2> sType, Type<T2> tType)
     {
         var newElements = new List<object>(Elements);
@@ -91,12 +91,12 @@ public sealed record TypedOptic<S, T, A, B>(HashSet<object> Bounds, List<object>
         return new TypedOptic<S2, T2, A, B>(Bounds, newElements);
     }
 
-    //castOuter改外层类型不检查
+    //castOuter changes the outer type unchecked
     public TypedOptic<S, T, A, B> CastOuter(Type<S> sType, Type<T> tType)
         => CastOuterUnchecked(sType, tType);
 
-    //CastOuterUncheckedObject非泛型版用Unsafe.As绕过编译期类型检查
-    //供PointFreeRule.SortProj等反射调用对齐Java类型擦除语义
+    //CastOuterUncheckedObject is a non-generic version using Unsafe.As to bypass compile-time type checking
+    //used by reflective calls such as PointFreeRule.SortProj, aligning with Java type erasure semantics
     public TypedOptic<object, object, A, B> CastOuterUncheckedObject(object sType, object tType)
     {
         var sObj = sType;
@@ -106,9 +106,9 @@ public sealed record TypedOptic<S, T, A, B>(HashSet<object> Bounds, List<object>
         return CastOuterUnchecked(sCast, tCast);
     }
 
-    //apply应用profunctor证明到input返回结果对应原版TypedOptic.apply
-    //内部调Optic.Eval或链式组合多个Element的optic
-    //C#用反射编译为委托缓存对齐Java类型擦除后语义避免每次反射Invoke开销
+    //apply applies the profunctor proof to input and returns the result, maps to vanilla TypedOptic.apply
+    //internally calls Optic.Eval or chains the optics of multiple Elements
+    //C# compiles a delegate cache with reflection, aligning with Java type erasure semantics and avoiding reflective Invoke overhead each time
     public App2<P, S, T> Apply<P>(object proofInstance, App2<P, A, B> input) where P : K2
     {
         if (Elements.Count == 1)
@@ -117,7 +117,7 @@ public sealed record TypedOptic<S, T, A, B>(HashSet<object> Bounds, List<object>
             var func = InvokeEval<P>(optic, proofInstance);
             return ((System.Func<App2<P, A, B>, App2<P, S, T>>)(object)func).Invoke(input);
         }
-        //多元素从右到左链式应用每个Element的optic
+        //multiple elements apply each Element's optic in a chain from right to left
         object current = input;
         for (int i = Elements.Count - 1; i >= 0; i--)
         {
@@ -127,8 +127,8 @@ public sealed record TypedOptic<S, T, A, B>(HashSet<object> Bounds, List<object>
         return (App2<P, S, T>)(object)current;
     }
 
-    //InvokeEval用表达式树编译委托缓存按(opticType, pType)键查表避免每次反射Invoke
-    //对应原版Java类型擦除后直接虚方法分派C#用表达式树模拟
+    //InvokeEval uses an expression-tree compiled delegate cache keyed by (opticType, pType), avoiding reflective Invoke each time
+    //maps to vanilla Java's direct virtual dispatch after type erasure; C# emulates it with expression trees
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<(Type opticType, Type pType), System.Func<object, object, object>> _evalCache = new();
 
     private static object InvokeEval<P>(object optic, object proofInstance) where P : K2
@@ -149,14 +149,14 @@ public sealed record TypedOptic<S, T, A, B>(HashSet<object> Bounds, List<object>
         return func(optic, proofInstance!);
     }
 
-    //InvokeEvalChain链式中间步骤类型擦除为object复用_evalCache
+    //InvokeEvalChain chains intermediate steps, erasing to object and reusing _evalCache
     private static object InvokeEvalChain<P>(object optic, object proofInstance, object input) where P : K2
     {
         var func = InvokeEval<P>(optic, proofInstance);
         return ((System.Func<object, object>)(object)func!).Invoke(input);
     }
 
-    //Element单个Optic元素记录四元类型与具体Optic
+    //Element single Optic element recording the four-way types and the concrete Optic
     public sealed record Element<ES, ET, EA, EB>(Type<ES> SType, Type<ET> TType, Type<EA> AType, Type<EB> BType, object Optic)
     {
         public Element<ES2, ET2, EA, EB> CastOuterUnchecked<ES2, ET2>(Type<ES2> sType, Type<ET2> tType)
@@ -164,7 +164,7 @@ public sealed record TypedOptic<S, T, A, B>(HashSet<object> Bounds, List<object>
     }
 }
 
-//CompositionOpticAdapter多optic组合适配器暂存optics列表阶段B接通真实组合
+//CompositionOpticAdapter multi-optic composition adapter staging the optics list until stage B wires up real composition
 internal sealed class CompositionOpticAdapter<S, T, A, B>
 {
     private readonly List<object> _optics;

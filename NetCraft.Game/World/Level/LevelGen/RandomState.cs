@@ -5,27 +5,27 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//RandomState 随机状态桥接 seed 与 NoiseRouter对应原版 net.minecraft.world.level.levelgen.RandomState
-//构造时 mapAll 密度树把所有 NoiseHolder 替换为实例化的 NormalNoise把 BlendedNoise 注入 terrain 随机源
-//提供 router/sampler/aquiferRandom/oreRandom/getOrCreateNoise 给 NoiseChunk/Aquifer 使用
+//RandomState random state bridging the seed and NoiseRouter, maps to vanilla net.minecraft.world.level.levelgen.RandomState
+//At construction it mapAll's the density tree, replacing every NoiseHolder with an instantiated NormalNoise and injecting BlendedNoise into the terrain random source
+//Exposes router/sampler/aquiferRandom/oreRandom/getOrCreateNoise for NoiseChunk/Aquifer
 public sealed class RandomState
 {
     private readonly PositionalRandomFactory _random;
     private readonly Registry<NoiseParameters> _noises;
-    //Seed 世界种子原值 地表阶段的群系模糊距离要用它派生 对应原版存放的种子
+    //Seed the raw world seed; the surface stage derives biome blend distance from it, matching the seed vanilla stores
     public long Seed { get; }
     public NoiseRouter Router { get; }
     public Climate.Sampler Sampler { get; }
-    //SurfaceSystem 世界级单例 与原版一致在构造时就建好 地表阶段直接用
+    //SurfaceSystem world-level singleton, built at construction like vanilla and used directly by the surface stage
     public SurfaceSystem SurfaceSystem { get; }
     private readonly PositionalRandomFactory _aquiferRandom;
     private readonly PositionalRandomFactory _oreRandom;
-    //噪声实例与随机工厂缓存对应原版 ConcurrentHashMap
-    //区块生成分布在多个线程上 同一个 key 会被并发访问
+    //Noise instance and random factory caches, maps to vanilla ConcurrentHashMap
+    //Chunk generation is spread over several threads, so the same key is accessed concurrently
     private readonly ConcurrentDictionary<ResourceKey<NoiseParameters>, NormalNoise> _noiseInstances = new();
     private readonly ConcurrentDictionary<Identifier, PositionalRandomFactory> _positionalRandoms = new();
 
-    //Create 工厂对应原版 create
+    //Create factory, maps to vanilla create
     public static RandomState Create(NoiseGeneratorSettings settings, Registry<NoiseParameters> noises, long seed)
         => new(settings, noises, seed);
 
@@ -41,19 +41,19 @@ public sealed class RandomState
         var wiringHelper = new NoiseWiringHelper(this, settings.UseLegacyRandomSource, seed);
         Router = settings.NoiseRouter.MapAll(wiringHelper);
 
-        //noiseFlattener 展开剩余 HolderHolder 与 Marker 节点供 Climate.Sampler 用
+        //noiseFlattener expands the remaining HolderHolder and Marker nodes for Climate.Sampler
         var flattener = new NoiseFlattener();
         Sampler = new Climate.NoiseRouterSampler(Router);
         _ = flattener;
     }
 
-    //GetOrCreateNoise 按键查/构造 NormalNoise对应原版 getOrCreateNoise
-    //缓存避免重复实例化保证同 key 返回同一 NormalNoise 实例
-    //原版噪声缓存是 ConcurrentHashMap + computeIfAbsent 区块生成跑在多个线程上这里要并发安全
+    //GetOrCreateNoise looks up or builds a NormalNoise by key, maps to vanilla getOrCreateNoise
+    //The cache avoids re-instantiation and guarantees the same key returns the same NormalNoise instance
+    //Vanilla's noise cache is a ConcurrentHashMap + computeIfAbsent; chunk generation runs on several threads so this must be thread-safe
     public NormalNoise GetOrCreateNoise(ResourceKey<NoiseParameters> key)
         => _noiseInstances.GetOrAdd(key, k => Noises.Instantiate(_noises, _random, k));
 
-    //GetOrCreateRandomFactory 按名查/派生 PositionalRandomFactory对应原版 getOrCreateRandomFactory
+    //GetOrCreateRandomFactory looks up or derives a PositionalRandomFactory by name, maps to vanilla getOrCreateRandomFactory
     public PositionalRandomFactory GetOrCreateRandomFactory(Identifier name)
         => _positionalRandoms.GetOrAdd(name, n => _random.FromHashOf(n.ToString()).ForkPositional());
 
@@ -61,9 +61,9 @@ public sealed class RandomState
     public PositionalRandomFactory OreRandom => _oreRandom;
 }
 
-//NoiseWiringHelper NoiseHolder/BlendedNoise 装配 visitor对应原版 RandomState 内部匿名 Visitor
-//visitNoise 把 NoiseHolder 替换为实例化的 NormalNoise（TEMPERATURE_NETHER/VEGETATION_NETHER 走 legacy 路径）
-//apply 对 BlendedNoise 注入新随机源对 EndIslandDensityFunction 替换为带 seed 的新实例
+//NoiseWiringHelper NoiseHolder/BlendedNoise wiring visitor, maps to the anonymous Visitor inside vanilla RandomState
+//visitNoise replaces NoiseHolder with an instantiated NormalNoise (TEMPERATURE_NETHER/VEGETATION_NETHER go through the legacy path)
+//apply injects a new random source into BlendedNoise and replaces EndIslandDensityFunction with a new seed-carrying instance
 internal sealed class NoiseWiringHelper : Visitor
 {
     private readonly RandomState _owner;
@@ -78,21 +78,21 @@ internal sealed class NoiseWiringHelper : Visitor
         _seed = seed;
     }
 
-    //NewLegacyInstance 按 seedOffset 派生 LegacyRandomSource对应原版 newLegacyInstance
+    //NewLegacyInstance derives a LegacyRandomSource from seedOffset, maps to vanilla newLegacyInstance
     private RandomSource NewLegacyInstance(long seedOffset) => new LegacyRandomSource(_seed + seedOffset);
 
     public NoiseHolder VisitNoise(NoiseHolder noise)
     {
         var noiseData = noise.NoiseData;
         if (noiseData is null) return noise;
-        //NetCraft 暂无 ResourceKey 比较 HolderData 是否 NETHER 路径改通过 NormalNoise.CreateLegacyNetherBiome 兼容下界
-        //原版 is(Noises.TEMPERATURE_NETHER) 走 LegacyNetherBiome 路径此处统一走标准实例化
+        //NetCraft has no ResourceKey comparison for HolderData to detect the NETHER path and relies on NormalNoise.CreateLegacyNetherBiome for the Nether
+        //Vanilla's is(Noises.TEMPERATURE_NETHER) takes the LegacyNetherBiome path; here everything goes through standard instantiation
         var instantiated = _owner.GetOrCreateNoise(GetKeyForData(noiseData));
         return new NoiseHolder(noiseData, instantiated);
     }
 
-    //GetKeyForData 从 NoiseParameters 反查 ResourceKey对应原版 noiseData.unwrapKey().orElseThrow
-    //NetCraft BuiltInRegistries.NOISE 提供 GetKey 反查
+    //GetKeyForData looks up the ResourceKey from NoiseParameters, maps to vanilla noiseData.unwrapKey().orElseThrow
+    //NetCraft's BuiltInRegistries.NOISE provides GetKey for the reverse lookup
     private ResourceKey<NoiseParameters> GetKeyForData(NoiseParameters data)
     {
         foreach (var key in BuiltInRegistries.NOISE.RegistryKeySet)
@@ -111,7 +111,7 @@ internal sealed class NoiseWiringHelper : Visitor
         return result;
     }
 
-    //WrapNew 节点替换逻辑对应原版 wrapNew
+    //WrapNew node replacement logic, maps to vanilla wrapNew
     private DensityFunction WrapNew(DensityFunction function)
     {
         if (function is BlendedNoise blended)
@@ -129,8 +129,8 @@ internal sealed class NoiseWiringHelper : Visitor
     }
 }
 
-//NoiseFlattener HolderHolder/Marker 展开器对应原版 RandomState 第二个匿名 Visitor
-//展开 HolderHolder 为内部函数展开 Marker 为内部 wrapped 节省 Climate.Sampler 调用层级
+//NoiseFlattener HolderHolder/Marker expander, maps to the second anonymous Visitor in vanilla RandomState
+//Expands HolderHolder into the inner function and Marker into the inner wrapped, saving call depth in Climate.Sampler
 internal sealed class NoiseFlattener : Visitor
 {
     private readonly Dictionary<DensityFunction, DensityFunction> _wrapped = new();

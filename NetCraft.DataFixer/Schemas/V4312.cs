@@ -6,8 +6,8 @@ using NetCraft.DataFixer.Fixes;
 using NetCraft.DataFixer.Types.Templates;
 using NetCraft.DataFixer.Util;
 
-//V4312对应原版net.minecraft.util.datafix.schemas.V4312
-//1.21.4注册PLAYER类型组合装备+坐骑+末影珍珠+背包+末影箱+左右肩实体+配方书7字段
+//V4312 maps to vanilla net.minecraft.util.datafix.schemas.V4312
+//1.21.4 registers the PLAYER type combining equipment+mount+ender_pearl+inventory+ender_chest+left/right shoulder entity+recipe book, 7 fields
 public class V4312 : NamespacedSchema
 {
     public V4312(int versionKey, Schema? parent) : base(versionKey, parent) { }

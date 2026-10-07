@@ -2,8 +2,8 @@ using NetCraft.Codec;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//SingleFieldPlacementCodec 单字段 map codec 对应原版 RecordCodecBuilder 单字段形态
-//项目 RecordCodecBuilder 从两字段起 单字段修饰器用这个包装
+//SingleFieldPlacementCodec single-field map codec, maps to the single-field form of vanilla RecordCodecBuilder
+//The project's RecordCodecBuilder starts at two fields, so single-field modifiers wrap with this
 internal sealed class SingleFieldPlacementCodec<T, F> : AbstractMapCodec<T>
 {
     private readonly MapCodec<F> _field;
@@ -24,7 +24,7 @@ internal sealed class SingleFieldPlacementCodec<T, F> : AbstractMapCodec<T>
         => _field.EncodeTo(ops, _getter(value), builder);
 }
 
-//UnitPlacementCodec 无参修饰器编解码对应原版 MapCodec.unit
+//UnitPlacementCodec parameterless modifier codec, maps to vanilla MapCodec.unit
 internal sealed class UnitPlacementCodec<T> : AbstractMapCodec<T>
 {
     private readonly Func<T> _factory;

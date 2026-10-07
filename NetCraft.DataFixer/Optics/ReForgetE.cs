@@ -5,29 +5,29 @@ using NetCraft.DataFixer.Kinds;
 using NetCraft.DataFixer.Optics.Profunctors;
 using NetCraft.DataFixer.Util;
 
-//ReForgetEs容器存放Mu标记避免泛型嵌套
+//ReForgetEs container holding the Mu marker, avoiding generic nesting
 public static class ReForgetEs
 {
-    //二元HKT标记R为求值结果类型
+    //binary HKT marker; R is the evaluation result type
     public sealed class Mu<R> : K2 { }
 
-    //还原类型应用为ReForgetE<R,A,B>
+    //recover the type application as ReForgetE<R,A,B>
     public static ReForgetE<R, A, B> Unbox<R, A, B>(App2<Mu<R>, A, B> box)
         => (ReForgetE<R, A, B>)(object)box!;
 }
 
-//ReForgetE带Either的反向遗忘光学对应原版com.mojang.datafixers.optics.ReForgetE
-//求值器Either<A,R>->B分支处理Prism写入用
+//ReForgetE reverse forgetful optic with Either, maps to vanilla com.mojang.datafixers.optics.ReForgetE
+//evaluator Either<A,R>->B with branch handling, used for Prism writes
 public interface ReForgetE<R, A, B> : App2<ReForgetEs.Mu<R>, A, B>
 {
-    //run接收Either<A,R>返回B
+    //run takes Either<A,R> and returns B
     B Run(Either<A, R> r);
 
-    //ToString标识name用于调试
+    //ToString identifies name for debugging
     string Name { get; }
 }
 
-//ReForgetE具体实现持有委托与name
+//ReForgetE concrete implementation holding the delegate and name
 internal sealed class ReForgetEImpl<R, A, B> : ReForgetE<R, A, B>
 {
     private readonly Func<Either<A, R>, B> _function;
@@ -42,15 +42,15 @@ internal sealed class ReForgetEImpl<R, A, B> : ReForgetE<R, A, B>
     public override string ToString() => "ReForgetE_" + _name;
 }
 
-//ReForgetEInstance作为Cocartesian实例
-//用reForgetE工厂方法构造新ReForgetE包装dimap/left/right组合
+//ReForgetEInstance as the Cocartesian instance
+//uses the reForgetE factory to build a new ReForgetE wrapping the dimap/left/right combination
 public sealed class ReForgetEInstance<R> : Cocartesian<ReForgetEs.Mu<R>, ReForgetEInstance<R>.Mu>, App<ReForgetEInstance<R>.Mu, ReForgetEs.Mu<R>>
 {
     public sealed class Mu : ICocartesianMu { }
     public static readonly ReForgetEInstance<R> InstanceOf = new();
     private ReForgetEInstance() { }
 
-    //dimap用g前处理输入h后处理输出组合原ReForgetE.run
+    //dimap preprocesses the input with g and postprocesses the output with h, composing the original ReForgetE.run
     public Func<App2<ReForgetEs.Mu<R>, A, B>, App2<ReForgetEs.Mu<R>, C, D>> Dimap<A, B, C, D>(Func<C, A> g, Func<B, D> h)
     {
         return input => Optics.ReForgetE<R, C, D>("dimap", e =>
@@ -61,7 +61,7 @@ public sealed class ReForgetEInstance<R> : Cocartesian<ReForgetEs.Mu<R>, ReForge
         });
     }
 
-    //left把ReForgetE扩展到Either左分支处理嵌套Either
+    //left extends ReForgetE to the either left branch, handling the nested Either
     public App2<ReForgetEs.Mu<R>, Either<A, C>, Either<B, C>> Left<A, B, C>(App2<ReForgetEs.Mu<R>, A, B> input)
     {
         var reForgetE = ReForgetEs.Unbox<R, A, B>(input);
@@ -76,7 +76,7 @@ public sealed class ReForgetEInstance<R> : Cocartesian<ReForgetEs.Mu<R>, ReForge
         );
     }
 
-    //right把ReForgetE扩展到Either右分支处理嵌套Either
+    //right extends ReForgetE to the either right branch, handling the nested Either
     public new App2<ReForgetEs.Mu<R>, Either<C, A>, Either<C, B>> Right<A, B, C>(App2<ReForgetEs.Mu<R>, A, B> input)
     {
         var reForgetE = ReForgetEs.Unbox<R, A, B>(input);

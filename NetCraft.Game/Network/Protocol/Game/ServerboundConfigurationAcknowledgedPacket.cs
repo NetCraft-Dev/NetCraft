@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundConfigurationAcknowledgedPacket 数据包对应原版 ServerboundConfigurationAcknowledgedPacket
-//字段 
+//ServerboundConfigurationAcknowledgedPacket configuration acknowledged packet, maps to vanilla ServerboundConfigurationAcknowledgedPacket
+//Fields:
 public sealed record ServerboundConfigurationAcknowledgedPacket() : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundConfigurationAcknowledgedPacket> StreamCodec { get; } = new ConfigurationAcknowledgedCodec();

@@ -2,18 +2,18 @@ using NetCraft.Network.Protocol.Ping;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//GamePacketTypes Play 阶段所有包类型注册对应原版 GamePacketTypes
-//ID 按原版 GameProtocols.CLIENTBOUND_TEMPLATE/SERVERBOUND_TEMPLATE 注册顺序严格对齐 26.2
-//clientbound 首包是 bundle_delimiter(0) addPacket 从 1 开始 serverbound 从 0 开始
-//common/cookie 包的类型已搬到 Network 的 CommonPacketTypes/CookiePacketTypes(id 保持 Play 空间)
-//ping 的 ping_request/pong_response 留在本表 它们的包类在 Network 的 PingPacketTypes
+//GamePacketTypes registers all packet types for the play phase, maps to vanilla GamePacketTypes
+//IDs strictly align with the registration order of vanilla GameProtocols.CLIENTBOUND_TEMPLATE/SERVERBOUND_TEMPLATE for 26.2
+//The first clientbound packet is bundle_delimiter(0); addPacket starts at 1 and serverbound starts at 0
+//common/cookie packet types have moved to Network's CommonPacketTypes/CookiePacketTypes (ids keep the Play space)
+//ping's ping_request/pong_response stay in this table; their packet classes are in Network's PingPacketTypes
 public static class GamePacketTypes
 {
-    //Clientbound (Play, Clientbound) 0-140 按原版 GameProtocols.CLIENTBOUND_TEMPLATE 顺序
+    //Clientbound (Play, Clientbound) 0-140, in the order of vanilla GameProtocols.CLIENTBOUND_TEMPLATE
 
     public static readonly PacketType<ClientGamePacketListener> ClientboundBundleDelimiter =
         Create<ClientGamePacketListener>(0, "bundle_delimiter");
-    //ClientboundBundle bundle 打包包类型不占普通 addPacket ID 供 BundlePacket 实现引用
+    //ClientboundBundle the bundle wrapper type does not occupy a normal addPacket ID; it is referenced by the BundlePacket implementation
     public static readonly PacketType<ClientGamePacketListener> ClientboundBundle =
         Create<ClientGamePacketListener>(141, "bundle");
     public static readonly PacketType<ClientGamePacketListener> ClientboundAddEntity =
@@ -269,7 +269,7 @@ public static class GamePacketTypes
     public static readonly PacketType<ClientGamePacketListener> ClientboundWaypoint =
         Create<ClientGamePacketListener>(138, "waypoint");
 
-    //Serverbound (Play, Serverbound) 0-68 按原版 GameProtocols.SERVERBOUND_TEMPLATE 顺序
+    //Serverbound (Play, Serverbound) 0-68, in the order of vanilla GameProtocols.SERVERBOUND_TEMPLATE
     public static readonly PacketType<ServerGamePacketListener> ServerboundAcceptTeleportation =
         Create<ServerGamePacketListener>(0, "accept_teleportation");
     public static readonly PacketType<ServerGamePacketListener> ServerboundAttack =
@@ -338,7 +338,7 @@ public static class GamePacketTypes
         Create<ServerGamePacketListener>(36, "pick_item_from_block");
     public static readonly PacketType<ServerGamePacketListener> ServerboundPickItemFromEntity =
         Create<ServerGamePacketListener>(37, "pick_item_from_entity");
-    //方向必须显式走 CreateServerbound 用 Create 会被判成 Clientbound 反把 (Play, Clientbound, 38) 的 game_event 盖掉
+    //The direction must explicitly go through CreateServerbound; using Create would be treated as Clientbound and would overwrite the game_event of (Play, Clientbound, 38)
     public static readonly PacketType<ServerPingPacketListener> ServerboundPingRequest =
         CreateServerbound<ServerPingPacketListener>(38, "ping_request");
     public static readonly PacketType<ServerGamePacketListener> ServerboundPlaceRecipe =
@@ -406,7 +406,7 @@ public static class GamePacketTypes
             .WithIdentifier(Identifier.WithDefaultNamespace(identifier));
     }
 
-    //CreateServerbound 显式注册 serverbound 方向用于 common/cookie 等非 ServerGamePacketListener 泛型包
+    //CreateServerbound explicitly registers the serverbound direction for generic packets like common/cookie that are not ServerGamePacketListener
     private static PacketType<THandler> CreateServerbound<THandler>(int id, string identifier)
         where THandler : class
         => PacketTypeRegistry.Register<THandler>(id, ConnectionProtocol.Play, FlowDirection.Serverbound)

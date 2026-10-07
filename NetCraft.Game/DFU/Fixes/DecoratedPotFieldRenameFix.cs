@@ -7,8 +7,8 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//饰纹罐字段重命名修复对应原版DecoratedPotFieldRenameFix
-//1.20.5装饰花瓶block_entity的item字段名变化走未检查类型转换
+//Decorated pot field rename fix, maps to vanilla DecoratedPotFieldRenameFix
+//1.20.5 change to the decorated pot block entity's item field name, going through an unchecked cast
 public class DecoratedPotFieldRenameFix : DataFix
 {
     private const string DECORATED_POT_ID = "minecraft:decorated_pot";

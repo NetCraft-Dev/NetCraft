@@ -6,8 +6,8 @@ using NetCraft.Game.Commands.Arguments;
 
 namespace NetCraft.Game.Commands;
 
-//DamageCommand damage 命令对应原版 net.minecraft.server.commands.DamageCommand
-//只保留最核心的 <targets> <amount> 原版的伤害类型与来源分支依赖伤害来源子系统
+//DamageCommand damage command, maps to vanilla net.minecraft.server.commands.DamageCommand
+//Only keeps the core <targets> <amount>; the vanilla damage type and source branches depend on the damage source subsystem
 public static class DamageCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -19,7 +19,7 @@ public static class DamageCommand
                     .Executes(Apply))));
     }
 
-    //Apply 逐目标扣血 已死亡或处于无敌帧的目标不计入
+    //Apply deducts health per target; dead targets or those in invulnerability frames are not counted
     private static int Apply(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -29,7 +29,7 @@ public static class DamageCommand
         foreach (var target in targets)
             if (source.Server.PlayerList.HurtPlayer(target, null, amount)) hurt++;
 
-        source.SendSuccess($"已对 {hurt} 名玩家造成 {amount} 点伤害");
+        source.SendSuccess($"dealt {amount} damage to {hurt} players");
         return hurt;
     }
 }

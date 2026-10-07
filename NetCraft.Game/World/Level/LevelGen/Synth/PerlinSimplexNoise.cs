@@ -2,12 +2,12 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Synth;
 
-//PerlinSimplexNoise 多八度二维单纯形噪声对应原版 net.minecraft.world.level.levelgen.synth.PerlinSimplexNoise
-//octaveSet 是八度集合 元素必须非正 常用于群系温度与冰山/恶地一类的地表扰动
+//PerlinSimplexNoise multi-octave 2D simplex noise, maps to vanilla net.minecraft.world.level.levelgen.synth.PerlinSimplexNoise
+//octaveSet is the octave set and its elements must be non-positive; commonly used for biome temperature and surface perturbation like icebergs and badlands
 public sealed class PerlinSimplexNoise
 {
-    //ConsumeRounds 跳过八度时消耗的随机数个数
-    //原版写的是 InputConstants.KEY_RIGHT(右方向键码 262) 必须照抄才能与随机数序列对齐
+    //ConsumeRounds number of random values consumed when skipping an octave
+    //Vanilla uses InputConstants.KEY_RIGHT (right arrow keycode 262); it must be copied exactly to align with the random sequence
     private const int ConsumeRounds = 262;
 
     private readonly SimplexNoise?[] _noiseLevels;
@@ -16,7 +16,7 @@ public sealed class PerlinSimplexNoise
 
     public PerlinSimplexNoise(RandomSource random, IReadOnlyList<int> octaveSet)
     {
-        //原版用 IntRBTreeSet 排序去重
+        //Vanilla uses an IntRBTreeSet to sort and deduplicate
         var octaves = new SortedSet<int>(octaveSet);
         if (octaves.Count == 0)
             throw new ArgumentException("Need some octaves!");
@@ -39,7 +39,7 @@ public sealed class PerlinSimplexNoise
         }
         if (highFreqOctaves > 0)
         {
-            //高频八度由零八度的一个采样值派生根种子 对应原版 positiveOctaveSeed
+            //High-frequency octaves derive their seed from one sample of the zero octave, maps to vanilla positiveOctaveSeed
             var positiveOctaveSeed = (long)(zeroOctave.GetValue(zeroOctave.Xo, zeroOctave.Yo, zeroOctave.Zo)
                 * 9.223372036854776E18);
             var highFreqRandom = new LegacyRandomSource(positiveOctaveSeed);
@@ -55,8 +55,8 @@ public sealed class PerlinSimplexNoise
         _highestFreqValueFactor = 1.0 / (Math.Pow(2.0, count) - 1.0);
     }
 
-    //GetValue 二维采样对应原版 getValue
-    //useNoiseStart 为 true 时叠加各八度自身的原点偏移 群系温度走 false
+    //GetValue 2D sampling, maps to vanilla getValue
+    //With useNoiseStart true each octave adds its own origin offset; biome temperature passes false
     public double GetValue(double x, double y, bool useNoiseStart)
     {
         var value = 0.0;

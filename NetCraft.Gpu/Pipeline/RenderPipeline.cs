@@ -2,10 +2,10 @@ using System.Threading;
 
 namespace NetCraft.Gpu.Pipeline;
 
-//RenderPipeline 声明式渲染管线对标原版 RenderPipeline record
-//不可变值对象携带 location/shaders/defines/bindGroupLayouts/depth/colorTargets/topology 等声明字段
-//由 PipelineBuilder.Build 产生 sortKey 单调递增驱动渲染排序合批
-//经 IGpuDevice.PrecompilePipeline 编译为 CompiledRenderPipeline 持有 VkPipeline 句柄
+//RenderPipeline declarative render pipeline, maps to vanilla RenderPipeline record
+//Immutable value object carrying declaration fields location/shaders/defines/bindGroupLayouts/depth/colorTargets/topology
+//Produced by PipelineBuilder.Build; sortKey increases monotonically to drive render sorting and batching
+//Compiled via IGpuDevice.PrecompilePipeline into a CompiledRenderPipeline holding a VkPipeline handle
 public sealed class RenderPipeline
 {
     private static int s_nextSortKey;
@@ -50,7 +50,7 @@ public sealed class RenderPipeline
         SortKey = Interlocked.Increment(ref s_nextSortKey) - 1;
     }
 
-    //WantsDepthTexture 是否需要深度纹理附件 depthStencilState != null
+    //WantsDepthTexture whether a depth texture attachment is needed, depthStencilState != null
     public bool WantsDepthTexture() => DepthStencilState != null;
 
     public ColorTargetState GetColorTargetState() => ColorTargetStates[0];

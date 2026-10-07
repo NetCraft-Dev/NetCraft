@@ -8,10 +8,10 @@ using NetCraft.DataFixer.Types.Templates;
 using NetCraft.DataFixer.Util;
 using OpticsClass = NetCraft.DataFixer.Optics.Optics;
 
-//FieldFinder字段查找器对应原版com.mojang.datafixers.FieldFinder
-//按字段名与类型在TagType或TaggedChoiceType中查找
-//对齐原版Java FieldFinder.Matcher.match仅处理Tag.TagType与TaggedChoice.TaggedChoiceType
-//其他容器类型返回Continue走FindTypeInChildren递归
+//FieldFinder field finder maps to vanilla com.mojang.datafixers.FieldFinder
+//looks up in TagType or TaggedChoiceType by field name and type
+//aligns with vanilla Java FieldFinder.Matcher.match, handling only Tag.TagType and TaggedChoice.TaggedChoiceType
+//other container types return Continue and go through the recursive FindTypeInChildren
 public sealed class FieldFinder<FT> : OpticFinder<FT>
 {
     private readonly string? _name;
@@ -25,12 +25,12 @@ public sealed class FieldFinder<FT> : OpticFinder<FT>
 
     public Type<FT> Type() => _type;
 
-    //findType委托容器类型查找用Matcher按名匹配
+    //findType delegates to the container type lookup, matching by name with Matcher
     public Either<TypedOptic<object, object, FT, FR>, Type<object>.FieldNotFoundException> FindType<FR>(
         Type<object> containerType, Type<FR> resultType, bool recurse)
         => containerType.FindType(_type, resultType, new Matcher<FT, FR>(_name, _type, resultType), recurse);
 
-    //Matcher字段匹配器按名与类型构造optic对齐原版FieldFinder.Matcher.match
+    //Matcher field matcher builds an optic by name and type, aligning with vanilla FieldFinder.Matcher.match
     private sealed class Matcher<FT2, FR> : Type<object>.TypeMatcher<FT2, FR>
     {
         private readonly Type<FR> _resultType;
@@ -44,24 +44,24 @@ public sealed class FieldFinder<FT> : OpticFinder<FT>
             _type = type;
         }
 
-        //match按名查找字段名空时按类型匹配adapter
-            //TagType分支按名+元素类型匹配返回Adapter(Optics.Id Profunctor.Mu)
-            //TaggedChoiceType分支按名+keyType类型匹配+type==resultType检查返回Proj1(Cartesian.Mu)
-            //其他类型返回Continue
+        //match looks up by name; when the field name is empty it matches the type with an adapter
+            //TagType branch matches by name + element type and returns Adapter(Optics.Id, Profunctor.Mu)
+            //TaggedChoiceType branch matches by name + keyType type and checks type==resultType, returning Proj1(Cartesian.Mu)
+            //other types return Continue
             public Either<TypedOptic<object, object, FT2, FR>, Type<object>.FieldNotFoundException> Match<S>(Type<S> targetType)
             {
                 if (_name == null)
                 {
                     if (targetType.Equals(_type, true, true))
                     {
-                        //targetType可能是EmptyPartPassthrough等Type<具体T>无法cast为Type<object>
-                        //用Unsafe.As绕过运行时类型检查对齐Java类型擦除
+                        //targetType may be a Type<concrete T> such as EmptyPartPassthrough and cannot be cast to Type<object>
+                        //use Unsafe.As to bypass the runtime type check and align with Java type erasure
                         var targetObj = (object)targetType;
                         var targetCast = System.Runtime.CompilerServices.Unsafe.As<object, Type<object>>(ref targetObj);
                         var resultObj = (object)_resultType!;
                         var resultCast = System.Runtime.CompilerServices.Unsafe.As<object, Type<object>>(ref resultObj);
-                        //Adapter返回TypedOptic<object,object,object,object>需cast为TypedOptic<object,object,FT2,FR>
-                        //用Unsafe.As绕过运行时类型检查对齐Java类型擦除
+                        //Adapter returns TypedOptic<object,object,object,object>, which needs casting to TypedOptic<object,object,FT2,FR>
+                        //use Unsafe.As to bypass the runtime type check and align with Java type erasure
                         var adapterObj = (object)TypedOptics.Adapter<object, object>(targetCast, resultCast);
                         var adapter = System.Runtime.CompilerServices.Unsafe.As<object, TypedOptic<object, object, FT2, FR>>(ref adapterObj);
                         return Either<TypedOptic<object, object, FT2, FR>, Type<object>.FieldNotFoundException>
@@ -84,7 +84,7 @@ public sealed class FieldFinder<FT> : OpticFinder<FT>
                     return Either<TypedOptic<object, object, FT2, FR>, Type<object>.FieldNotFoundException>
                         .Right(new Type<object>.FieldNotFoundException($"Type error for field \"{_name}\": expected type: {_type}, actual type: {elementObj})"));
                 }
-                //tType用DSL.field构造对齐原版DSL.field(tagType.name(), resultType)
+                //tType is built with DSL.field, aligning with vanilla DSL.field(tagType.name(), resultType)
                 var tType = (Type<object>)(object)DSL.Field(tagName!, (Type<FR>)(object)_resultType!);
                 return Either<TypedOptic<object, object, FT2, FR>, Type<object>.FieldNotFoundException>
                     .Left((TypedOptic<object, object, FT2, FR>)(object)new TypedOptic<object, object, FT2, FR>(
@@ -111,7 +111,7 @@ public sealed class FieldFinder<FT> : OpticFinder<FT>
                         return Either<TypedOptic<object, object, FT2, FR>, Type<object>.FieldNotFoundException>
                             .Right(new Type<object>.FieldNotFoundException("TaggedChoiceType key type change is unsupported."));
                     }
-                    //对齐原版capChoice用Proj1作optic bounds=Cartesian.Mu
+                    //aligns with vanilla capChoice using Proj1 as the optic, bounds=Cartesian.Mu
                     return Either<TypedOptic<object, object, FT2, FR>, Type<object>.FieldNotFoundException>
                         .Left((TypedOptic<object, object, FT2, FR>)(object)new TypedOptic<object, object, FT2, FR>(
                             typeof(ICartesianMu),
@@ -128,8 +128,8 @@ public sealed class FieldFinder<FT> : OpticFinder<FT>
         }
     }
 
-    //TryGetTagInfo反射判断targetType是否Tag.TagType<A>并取Name/Element
-    //C#无Java类型擦除需反射对齐instanceof Tag.TagType<?>语义
+    //TryGetTagInfo reflectively checks whether targetType is Tag.TagType<A> and takes Name/Element
+    //C# has no Java type erasure, so reflection is needed to align with the instanceof Tag.TagType<?> semantics
     private static bool TryGetTagInfo(object type, out string? name, out object? element)
     {
         name = null;
@@ -142,7 +142,7 @@ public sealed class FieldFinder<FT> : OpticFinder<FT>
         return true;
     }
 
-    //TryGetTaggedChoiceInfo反射判断targetType是否TaggedChoice<K>.TaggedChoiceType<K>并取Name/KeyType
+    //TryGetTaggedChoiceInfo reflectively checks whether targetType is TaggedChoice<K>.TaggedChoiceType<K> and takes Name/KeyType
     private static bool TryGetTaggedChoiceInfo(object type, out string? name, out object? keyType)
     {
         name = null;
@@ -150,7 +150,7 @@ public sealed class FieldFinder<FT> : OpticFinder<FT>
         var t = type.GetType();
         if (!t.IsGenericType) return false;
         var genericDef = t.GetGenericTypeDefinition();
-        //TaggedChoice<K>.TaggedChoiceType<K2>开放泛型声明类型是TaggedChoice<K>
+        //TaggedChoice<K>.TaggedChoiceType<K2>'s open generic declaring type is TaggedChoice<K>
         if (genericDef.DeclaringType != typeof(TaggedChoice<>)) return false;
         if (genericDef.Name != "TaggedChoiceType`1") return false;
         name = (string)t.GetMethod("GetName")!.Invoke(type, null)!;

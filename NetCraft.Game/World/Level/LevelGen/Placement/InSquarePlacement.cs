@@ -5,8 +5,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//InSquarePlacement 区块内散布对应原版 InSquarePlacement
-//在原点所在区块的 16x16 内随机取一点
+//InSquarePlacement scatter within the chunk, maps to vanilla InSquarePlacement
+//Picks a random point inside the 16x16 of the origin's chunk
 public sealed class InSquarePlacement : PlacementModifier
 {
     public static readonly InSquarePlacement Instance = new();
@@ -15,7 +15,7 @@ public sealed class InSquarePlacement : PlacementModifier
 
     private InSquarePlacement() { }
 
-    //Spread 构造入口对应原版 spread
+    //Spread construction entry, maps to vanilla spread
     public static InSquarePlacement Spread() => Instance;
 
     public override IEnumerable<BlockPos> GetPositions(PlacementContext context, RandomSource random, BlockPos origin)
@@ -24,7 +24,7 @@ public sealed class InSquarePlacement : PlacementModifier
     public override PlacementModifierType Type => InSquarePlacementType.Instance;
 }
 
-//InSquarePlacementType 对应原版 PlacementModifierType.IN_SQUARE
+//InSquarePlacementType, maps to vanilla PlacementModifierType.IN_SQUARE
 public sealed class InSquarePlacementType : PlacementModifierType<InSquarePlacement>
 {
     public static readonly InSquarePlacementType Instance = Register(

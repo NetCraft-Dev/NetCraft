@@ -6,8 +6,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//BlockPredicateFilter 方块谓词过滤对应原版 BlockPredicateFilter
-//谓词在该位置成立才保留
+//BlockPredicateFilter block predicate filter, maps to vanilla BlockPredicateFilter
+//Keep the position only when the predicate holds there
 public sealed class BlockPredicateFilter : PlacementFilter
 {
     public static readonly Codec<BlockPredicateFilter> Codec =
@@ -20,7 +20,7 @@ public sealed class BlockPredicateFilter : PlacementFilter
 
     private BlockPredicateFilter(BlockPredicate predicate) => Predicate = predicate;
 
-    //ForPredicate 构造入口对应原版 forPredicate
+    //ForPredicate construction entry, maps to vanilla forPredicate
     public static BlockPredicateFilter ForPredicate(BlockPredicate predicate) => new(predicate);
 
     protected override bool ShouldPlace(PlacementContext context, RandomSource random, BlockPos origin)
@@ -29,7 +29,7 @@ public sealed class BlockPredicateFilter : PlacementFilter
     public override PlacementModifierType Type => BlockPredicateFilterType.Instance;
 }
 
-//BlockPredicateFilterType 对应原版 PlacementModifierType.BLOCK_PREDICATE_FILTER
+//BlockPredicateFilterType, maps to vanilla PlacementModifierType.BLOCK_PREDICATE_FILTER
 public sealed class BlockPredicateFilterType : PlacementModifierType<BlockPredicateFilter>
 {
     public static readonly BlockPredicateFilterType Instance = Register(

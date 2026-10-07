@@ -4,24 +4,24 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.World.Items.Component;
 
-//ItemContainerContents 物品容器内容 最多 256 槽 只登记非空槽
-//对应原版 net.minecraft.world.item.component.ItemContainerContents
+//ItemContainerContents item container contents, at most 256 slots, only non-empty slots are stored
+//Maps to vanilla net.minecraft.world.item.component.ItemContainerContents
 public sealed class ItemContainerContents : IEquatable<ItemContainerContents>
 {
-    //Slots 槽位上限 对应原版 SLOTS
+    //Slots slot limit, maps to vanilla SLOTS
     public const int Slots = 256;
 
-    //Empty 空容器 对应原版 EMPTY
+    //Empty empty container, maps to vanilla EMPTY
     public static readonly ItemContainerContents Empty = new(Array.Empty<ItemStackTemplate>());
 
-    //Codec 持久化编解码 本体是非空模板列表 超出槽位上限直接报错 对应原版 CODEC
+    //Codec persistence codec, the payload is a list of non-empty templates and exceeding the slot limit errors out, maps to vanilla CODEC
     public static readonly Codec<ItemContainerContents> Codec = ItemStackTemplate.PersistentCodec.ListOf().ComapFlatMap(
         items => items.Count > Slots
-            ? DataResult<ItemContainerContents>.Error(() => $"容器内容超过 {Slots} 项")
+            ? DataResult<ItemContainerContents>.Error(() => $"container contents exceed {Slots} entries")
             : DataResult<ItemContainerContents>.Success(new ItemContainerContents(items)),
         contents => contents.Items);
 
-    //StreamCodec 网络编解码 只写非空项 对应原版 STREAM_CODEC
+    //StreamCodec network codec, writes only non-empty entries, maps to vanilla STREAM_CODEC
     public static readonly StreamCodec<RegistryFriendlyByteBuf, ItemContainerContents> StreamCodec =
         new ItemContainerContentsStreamCodec();
 
@@ -29,7 +29,7 @@ public sealed class ItemContainerContents : IEquatable<ItemContainerContents>
 
     public IReadOnlyList<ItemStackTemplate> Items { get; }
 
-    //NonEmptyItems 物化成物品栈 对应原版 nonEmptyItems
+    //NonEmptyItems materializes into item stacks, maps to vanilla nonEmptyItems
     public IEnumerable<ItemStack> NonEmptyItems() => Items.Select(template => template.Create());
 
     public bool Equals(ItemContainerContents? other)
@@ -42,7 +42,7 @@ public sealed class ItemContainerContents : IEquatable<ItemContainerContents>
     public override string ToString() => $"ItemContainerContents[{Items.Count} items]";
 }
 
-//ItemContainerContentsStreamCodec 非空模板列表进出 对应原版 STREAM_CODEC
+//ItemContainerContentsStreamCodec list of non-empty templates goes in and out, maps to vanilla STREAM_CODEC
 internal sealed class ItemContainerContentsStreamCodec : StreamCodec<RegistryFriendlyByteBuf, ItemContainerContents>
 {
     public ItemContainerContents Decode(RegistryFriendlyByteBuf buf)

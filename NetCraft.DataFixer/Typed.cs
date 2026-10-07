@@ -11,15 +11,15 @@ using NetCraft.DataFixer.Types.Templates;
 using NetCraft.DataFixer.Util;
 using OpticsClass = NetCraft.DataFixer.Optics.Optics;
 
-//Typed带类型值对应原版com.mojang.datafixers.Typed
-//把Type<A>与ops与value绑定为可操作的Typed实例
+//Typed typed value maps to vanilla com.mojang.datafixers.Typed
+//binds Type<A>, ops, and value into an operable Typed instance
 public sealed class Typed<A>
 {
-    //type绑定的类型
+    //type is the bound type
     public T.Type<A> TypeValue { get; }
-    //ops绑定的动态操作器
+    //ops is the bound dynamic ops
     public DynamicOps<object> Ops { get; }
-    //value实际值
+    //value is the actual value
     public A Value { get; }
 
     public Typed(T.Type<A> type, DynamicOps<object> ops, A value)
@@ -31,7 +31,7 @@ public sealed class Typed<A>
 
     public override string ToString() => "Typed[" + Value + "]";
 
-    //get按optic查找取得焦点值
+    //get finds the focus value through an optic
     public FT Get<FT>(OpticFinder<FT> optic)
     {
         var findResult = optic.FindType((T.Type<object>)(object)TypeValue!, false);
@@ -42,7 +42,7 @@ public sealed class Typed<A>
         return Forgets.Unbox<FT, A, object>(boxed).Run(Value);
     }
 
-    //getTyped按optic查找取得Typed
+    //getTyped finds a Typed through an optic
     public Typed<FT> GetTyped<FT>(OpticFinder<FT> optic)
     {
         var findResult = optic.FindType((T.Type<object>)(object)TypeValue!, false);
@@ -54,7 +54,7 @@ public sealed class Typed<A>
         return new Typed<FT>(field.AType(), Ops, value);
     }
 
-    //getOptional按optic查找取得可选值
+    //getOptional finds an optional value through an optic
     public Optional<FT> GetOptional<FT>(OpticFinder<FT> optic)
     {
         var findResult = optic.FindType((T.Type<object>)(object)TypeValue!, false);
@@ -65,7 +65,7 @@ public sealed class Typed<A>
         return ForgetOpts.Unbox<FT, A, object>(boxed).Run(Value);
     }
 
-    //getOrCreate按optic查找无值时用point默认
+    //getOrCreate finds through an optic, using the point default when absent
     public FT GetOrCreate<FT>(OpticFinder<FT> optic)
     {
         var optional = GetOptional(optic);
@@ -74,7 +74,7 @@ public sealed class Typed<A>
         throw new InvalidOperationException("Could not create default value for type: " + optic.Type());
     }
 
-    //getOrDefault按optic查找无值时用默认
+    //getOrDefault finds through an optic, using the default when absent
     public FT GetOrDefault<FT>(OpticFinder<FT> optic, FT def)
     {
         var findResult = optic.FindType((T.Type<object>)(object)TypeValue!, false);
@@ -85,7 +85,7 @@ public sealed class Typed<A>
         return ForgetOpts.Unbox<FT, A, object>(boxed).Run(Value).OrElse(def);
     }
 
-    //getOptionalTyped按optic查找取得可选Typed
+    //getOptionalTyped finds an optional Typed through an optic
     public Optional<Typed<FT>> GetOptionalTyped<FT>(OpticFinder<FT> optic)
     {
         var findResult = optic.FindType((T.Type<object>)(object)TypeValue!, false);
@@ -96,7 +96,7 @@ public sealed class Typed<A>
         return ForgetOpts.Unbox<FT, A, object>(boxed).Run(Value).Map(v => new Typed<FT>(field.AType(), Ops, v));
     }
 
-    //getOrCreateTyped按optic查找无值时用pointTyped默认
+    //getOrCreateTyped finds through an optic, using the pointTyped default when absent
     public Typed<FT> GetOrCreateTyped<FT>(OpticFinder<FT> optic)
     {
         var optional = GetOptionalTyped(optic);
@@ -105,15 +105,15 @@ public sealed class Typed<A>
         throw new InvalidOperationException("Could not create default value for type: " + optic.Type());
     }
 
-    //set按optic与newValue替换焦点
+    //set replaces the focus through an optic with newValue
     public Typed<object> Set<FT>(OpticFinder<FT> optic, FT newValue)
         => Set<FT, FT>(optic, optic.Type(), newValue);
 
-    //set按optic与新Type新值替换焦点
+    //set replaces the focus through an optic with a new Type and value
     public Typed<object> Set<FT, FR>(OpticFinder<FT> optic, T.Type<FR> newType, FR newValue)
         => Set<FT, FR>(optic, new Typed<FR>(newType, Ops, newValue));
 
-    //set按optic与新Typed替换焦点
+    //set replaces the focus through an optic with a new Typed
     public Typed<object> Set<FT, FR>(OpticFinder<FT> optic, Typed<FR> newValue)
     {
         var findResult = optic.FindType((T.Type<object>)(object)TypeValue!, newValue.TypeValue, false);
@@ -122,7 +122,7 @@ public sealed class Typed<A>
         return SetCap<object, FT, FR>(field, newValue);
     }
 
-    //setCap用ReForgetC反向遗忘写入新值返回新Typed
+    //setCap writes a new value with the ReForgetC reverse forgetful optic and returns a new Typed
     private Typed<B> SetCap<B, FT, FR>(TypedOptic<A, B, FT, FR> field, Typed<FR> newValue)
     {
         var reForgetOptic = OpticsClass.ReForgetC<FR, FT, FR>("set",
@@ -143,33 +143,33 @@ public sealed class Typed<A>
         return new Typed<B>(field.TType(), Ops, b);
     }
 
-    //updateTyped按optic与Typed更新函数更新焦点
+    //updateTyped updates the focus through an optic and a Typed updating function
     public Typed<object> UpdateTyped<FT>(OpticFinder<FT> optic, Func<Typed<object>, Typed<object>> updater)
         => UpdateTypedImpl<FT, FT>(optic, optic.Type(), updater, false);
 
-    //updateTyped按optic与新Type与Typed更新函数更新焦点对应原版updateTyped(optic,newType,fn)
+    //updateTyped updates the focus through an optic, a new Type, and a Typed updating function, maps to vanilla updateTyped(optic,newType,fn)
     public Typed<object> UpdateTyped<FT, FR>(OpticFinder<FT> optic, T.Type<FR> newType, Func<Typed<object>, Typed<object>> updater)
         => UpdateTypedImpl<FT, FR>(optic, newType, updater, false);
 
-    //updateTypedImpl按optic与新Type与Typed更新函数更新焦点
+    //updateTypedImpl updates the focus through an optic, a new Type, and a Typed updating function
     private Typed<object> UpdateTypedImpl<FT, FR>(OpticFinder<FT> optic, T.Type<FR> newType, Func<Typed<object>, Typed<object>> updater, bool recurse)
     {
         var findResult = optic.FindType((T.Type<object>)(object)TypeValue!, newType, recurse);
         if (findResult.IsRight) throw new InvalidOperationException("Field not found: " + findResult.GetRight().Get());
-        //findResult返回TypedOptic<object,object,object,object>被FieldFinder cast成Type<object>导致类型擦除
-        //用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+        //findResult returns TypedOptic<object,object,object,object>; FieldFinder casts it to Type<object>, causing type erasure
+        //use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
         var fieldObj = (object)findResult.GetLeft().Get();
         var field = System.Runtime.CompilerServices.Unsafe.As<object, TypedOptic<A, object, FT, FR>>(ref fieldObj);
         return UpdateCap<object, FT, FR>(field, ft =>
         {
-            //optic.Type()返回Type<FT>实际可能是EmptyPartPassthrough等Type<Dynamic<object>>子类
-            //C#严格泛型不变量下Type<Dynamic<object>>不继承Type<object>直接cast抛InvalidCastException
-            //用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+            //optic.Type() returns Type<FT> but may actually be a Type<Dynamic<object>> subclass such as EmptyPartPassthrough
+            //under C# strict generic invariance Type<Dynamic<object>> does not inherit Type<object>; a direct cast throws InvalidCastException
+            //use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
             var opticTypeObj = (object)optic.Type()!;
             var opticType = System.Runtime.CompilerServices.Unsafe.As<object, T.Type<object>>(ref opticTypeObj);
             var newValue = updater(new Typed<object>(opticType, Ops, (object)ft!));
-            //newValue.TypeValue实际可能是EmptyPartPassthrough等Type<Dynamic<object>>子类
-            //用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+            //newValue.TypeValue may actually be a Type<Dynamic<object>> subclass such as EmptyPartPassthrough
+            //use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
             var newTypeObj = (object)newValue.TypeValue!;
             var newTypeCasted = System.Runtime.CompilerServices.Unsafe.As<object, T.Type<FR>>(ref newTypeObj);
             var bType = field.BType()!;
@@ -178,50 +178,50 @@ public sealed class Typed<A>
         });
     }
 
-    //update按optic与函数更新焦点
+    //update updates the focus through an optic and a function
     public Typed<object> Update<FT>(OpticFinder<FT> optic, Func<FT, FT> updater)
         => UpdateImpl<FT, FT>(optic, optic.Type(), updater, false);
 
-    //updateImpl按optic与新Type与函数更新焦点
+    //updateImpl updates the focus through an optic, a new Type, and a function
     private Typed<object> UpdateImpl<FT, FR>(OpticFinder<FT> optic, T.Type<FR> newType, Func<FT, FR> updater, bool recurse)
     {
         var findResult = optic.FindType((T.Type<object>)(object)TypeValue!, newType, recurse);
         if (findResult.IsRight) throw new InvalidOperationException("Field not found: " + findResult.GetRight().Get());
-        //findResult返回TypedOptic<object,object,object,object>被FieldFinder cast成Type<object>导致类型擦除
-        //用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+        //findResult returns TypedOptic<object,object,object,object>; FieldFinder casts it to Type<object>, causing type erasure
+        //use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
         var fieldObj = (object)findResult.GetLeft().Get();
         var field = System.Runtime.CompilerServices.Unsafe.As<object, TypedOptic<A, object, FT, FR>>(ref fieldObj);
         return UpdateCap<object, FT, FR>(field, updater);
     }
 
-    //updateRecursiveTyped按递归optic与Typed更新函数更新焦点
+    //updateRecursiveTyped updates the focus through a recursive optic and a Typed updating function
     public Typed<object> UpdateRecursiveTyped<FT>(OpticFinder<FT> optic, Func<Typed<object>, Typed<object>> updater)
         => UpdateTypedImpl<FT, FT>(optic, optic.Type(), updater, true);
 
-    //updateRecursive按递归optic与函数更新焦点
+    //updateRecursive updates the focus through a recursive optic and a function
     public Typed<object> UpdateRecursive<FT>(OpticFinder<FT> optic, Func<FT, FT> updater)
         => UpdateImpl<FT, FT>(optic, optic.Type(), updater, true);
 
-    //updateCap用Traversal.wander配合IdF应用updater返回新Typed
+    //updateCap applies updater with Traversal.wander plus IdF and returns a new Typed
     private Typed<B> UpdateCap<B, FT, FR>(TypedOptic<A, B, FT, FR> field, Func<FT, FR> updater)
     {
-        //UpCast返回object实际是Proj2等具体Optic运行时不是Optic<ITraversalPMu,...>
-        //(object)cast再(Optic<ITraversalPMu,...>)cast运行时castclass抛InvalidCastException
-        //用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+        //UpCast returns object, actually a concrete Optic such as Proj2; at runtime it is not Optic<ITraversalPMu,...>
+        //the (object) cast followed by an (Optic<ITraversalPMu,...>) cast throws InvalidCastException at runtime
+        //use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
         var opticObj = (object)field.UpCast(TypeClassesMarker.TraversalPToken)!.Get()!;
         var traversalOptic = System.Runtime.CompilerServices.Unsafe.As<object, Optic<ITraversalPMu, A, B, FT, FR>>(ref opticObj);
         var traversal = OpticsClass.ToTraversal<A, B, FT, FR>(traversalOptic)!;
-        //traversal实际类型可能是Traversal<Pair<string,object>,Pair<string,object>,FT,FR>被Unsafe.As强转为Traversal<A,B,FT,FR>
-        //C#严格泛型不变量下两封闭类型方法表入口不共享直接调Wander抛EntryPointNotFoundException
-        //用反射委托缓存调用Wander对齐Java类型擦除后虚方法分派语义
+        //traversal's actual type may be Traversal<Pair<string,object>,Pair<string,object>,FT,FR>; Unsafe.As casts it to Traversal<A,B,FT,FR>
+        //under C# strict generic invariance the two closed types do not share a method table entry; calling Wander directly throws EntryPointNotFoundException
+        //uses a reflective delegate cache to call Wander, aligning with Java virtual dispatch semantics after type erasure
         var boxed = WanderInvokerCache.InvokeWander<FT, FR, IdFs.Mu, IdFInstance.Mu>(traversal, IdFInstance.InstanceOf, ft => IdFs.Create<FR>(updater(ft)), Value!);
-        //boxed是object实际是IdF实例Unsafe.As转App<IdFs.Mu,B>对齐Java类型擦除
+        //boxed is object but actually an IdF instance; Unsafe.As converts it to App<IdFs.Mu,B>, aligning with Java type erasure
         var boxedApp = System.Runtime.CompilerServices.Unsafe.As<object, App<IdFs.Mu, B>>(ref boxed);
         var b = IdFs.Get<B>(boxedApp);
         return new Typed<B>(field.TType(), Ops, b);
     }
 
-    //getAllTyped按optic取得所有Typed
+    //getAllTyped takes all Typeds through an optic
     public List<Typed<FT>> GetAllTyped<FT>(OpticFinder<FT> optic)
     {
         var findResult = optic.FindType((T.Type<object>)(object)TypeValue!, optic.Type(), false);
@@ -236,25 +236,25 @@ public sealed class Typed<A>
         return result;
     }
 
-    //getAll按TypedOptic取得所有焦点值
-    //用Const<List<FT>>作Applicative配合ListMonoid累积所有焦点
+    //getAll takes all focus values through a TypedOptic
+    //uses Const<List<FT>> as the Applicative with ListMonoid to accumulate all focuses
     public List<FT> GetAll<FT>(TypedOptic<object, object, FT, object> field)
     {
-        //UpCast返回object用Unsafe.As转Optic对齐Java类型擦除语义
+        //UpCast returns object; use Unsafe.As to convert it to Optic, aligning with Java type erasure semantics
         var opticObj = (object)field.UpCast(TypeClassesMarker.TraversalPToken)!.Get()!;
         var traversalOptic = System.Runtime.CompilerServices.Unsafe.As<object, Optic<ITraversalPMu, object, object, FT, object>>(ref opticObj);
         var traversal = OpticsClass.ToTraversal<object, object, FT, object>(traversalOptic)!;
         var constInstance = new ConstInstance<List<FT>>(Monoids.ListMonoid<FT>());
-        //traversal实际类型可能被Unsafe.As强转直接调Wander抛EntryPointNotFoundException
-        //用WanderInvokerCache反射委托缓存对齐Java类型擦除后虚方法分派语义
+        //traversal's actual type may be Unsafe.As-cast; calling Wander directly throws EntryPointNotFoundException
+        //uses the WanderInvokerCache reflective delegate cache, aligning with Java virtual dispatch semantics after type erasure
         var boxed = WanderInvokerCache.InvokeWander<FT, object, Consts.Mu<List<FT>>, ConstInstance<List<FT>>.Mu>(
             traversal, constInstance, ft => Consts.Create<List<FT>, object>(new List<FT> { ft }), (object)Value!);
-        //boxed是object实际是Const<List<FT>>实例Unsafe.As转App<Consts.Mu<List<FT>>,object>对齐Java类型擦除
+        //boxed is object but actually a Const<List<FT>> instance; Unsafe.As converts it to App<Consts.Mu<List<FT>>,object>, aligning with Java type erasure
         var boxedApp = System.Runtime.CompilerServices.Unsafe.As<object, App<Consts.Mu<List<FT>>, object>>(ref boxed);
         return Consts.Unbox<List<FT>, object>(boxedApp);
     }
 
-    //out递归点类型展开到unfold
+    //out expands a recursive point type into unfold
     public Typed<A> Out()
     {
         if (TypeValue is not RecursivePoint.RecursivePointType<A>)
@@ -265,7 +265,7 @@ public sealed class Typed<A>
         return new Typed<A>(unfold, Ops, Value);
     }
 
-    //inj1注入Either左
+    //inj1 injects the Either left
     public Typed<Either<A, B>> Inj1<B>(T.Type<B> type)
     {
         var inj1 = OpticsClass.Inj1<A, B, A>();
@@ -273,7 +273,7 @@ public sealed class Typed<A>
         return new Typed<Either<A, B>>(DSL.Or(TypeValue, type), Ops, eitherValue);
     }
 
-    //inj2注入Either右
+    //inj2 injects the Either right
     public Typed<Either<B, A>> Inj2<B>(T.Type<B> type)
     {
         var inj2 = OpticsClass.Inj2<B, A, A>();
@@ -281,7 +281,7 @@ public sealed class Typed<A>
         return new Typed<Either<B, A>>(DSL.Or(type, TypeValue), Ops, eitherValue);
     }
 
-    //pair组合两个Typed为Pair用Util.Pair对齐DSL.And返回类型
+    //pair combines two Typeds into a Pair using Util.Pair, aligning with the DSL.And return type
     public static Typed<NetCraft.DataFixer.Util.Pair<A, B>> Pair<A, B>(Typed<A> first, Typed<B> second)
         => new Typed<NetCraft.DataFixer.Util.Pair<A, B>>(DSL.And(first.TypeValue, second.TypeValue), first.Ops, NetCraft.DataFixer.Util.Pair<A, B>.Of(first.Value, second.Value));
 
@@ -289,6 +289,6 @@ public sealed class Typed<A>
     public DynamicOps<object> GetOps() => Ops;
     public A GetValue() => Value;
 
-    //write把value写回Dynamic
+    //write writes value back to a Dynamic
     public DataResult<Dynamic<object>> Write() => TypeValue.WriteDynamic(Ops, Value);
 }

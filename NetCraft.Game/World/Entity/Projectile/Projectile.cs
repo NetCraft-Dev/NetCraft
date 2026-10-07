@@ -4,14 +4,14 @@ using NetCraft.Nbt;
 using NetCraft.Primitives;
 using NetCraft.Registry;
 using NetCraft.Storage;
-//方向同时存在于 Primitives 与 Registry.Enums 投射物几何一律用前者
+//Direction exists in both Primitives and Registry.Enums, projectile geometry always uses the former
 using Direction = NetCraft.Primitives.Direction;
-//Util 下另有 Random 命名空间直接 using 会与 System.Random 撞名 只取 Mth
+//Util also has a Random namespace and using it directly would clash with System.Random, so only Mth is imported
 using Mth = NetCraft.Util.Mth;
 
 namespace NetCraft.Game.World.Entity;
 
-//ProjectileHitType 投射物命中类型 对应原版 HitResult.Type
+//ProjectileHitType projectile hit type, maps to vanilla HitResult.Type
 public enum ProjectileHitType
 {
     miss,
@@ -19,8 +19,8 @@ public enum ProjectileHitType
     entity,
 }
 
-//ProjectileHitResult 投射物命中结果 对应原版 HitResult
-//命中实体时 Entity 非空 未命中与命中方块时 Location 是移动终点
+//ProjectileHitResult projectile hit result, maps to vanilla HitResult
+//Entity is non-null on an entity hit; on a miss or block hit Location is the end of the movement
 public readonly record struct ProjectileHitResult(
     ProjectileHitType Type,
     Vec3 Location,
@@ -28,35 +28,35 @@ public readonly record struct ProjectileHitResult(
     BlockPos BlockPos,
     Direction Direction)
 {
-    //Miss 未命中 位置即移动终点
+    //Miss no hit, the position is the end of the movement
     public static ProjectileHitResult Miss(Vec3 location)
         => new(ProjectileHitType.miss, location, null, BlockPos.Zero, Direction.Up);
 
-    //BlockHit 命中方块但只有落点 方块坐标由落点推出来 对应没有精确射线时的兜底
+    //BlockHit block hit with only the hit point, the block position is derived from it, a fallback when there is no precise ray
     public static ProjectileHitResult BlockHit(Vec3 location)
         => new(ProjectileHitType.block, location, null,
             new BlockPos(Mth.Floor(location.X), Mth.Floor(location.Y), Mth.Floor(location.Z)), Direction.Up);
 
-    //FromBlockHit 把方块射线结果转成命中结果 带回命中方块与进入面
+    //FromBlockHit converts a block ray result into a hit result, carrying the hit block and entered face
     public static ProjectileHitResult FromBlockHit(BlockHitResult hit)
         => new(ProjectileHitType.block, hit.Location, null, hit.BlockPos, hit.Direction);
 
-    //EntityHit 命中实体
+    //EntityHit entity hit
     public static ProjectileHitResult EntityHit(Vec3 location, NetCraft.Registry.Entity entity)
         => new(ProjectileHitType.entity, location, entity, BlockPos.Zero, Direction.Up);
 
-    //ToBlockHitResult 还原成射线命中结果 供方块回调使用
+    //ToBlockHitResult restores it into a ray hit result for block callbacks
     public BlockHitResult ToBlockHitResult() => new(BlockPos, Direction, Location, false);
 }
 
-//ProjectileUtil 投射物命中检测工具 对应原版 net.minecraft.world.entity.projectile.ProjectileUtil
-//方块命中走服务端方块射线取精确命中点 实体命中做移动线段与包围盒求交 两者取更近的
+//ProjectileUtil projectile hit detection utilities, maps to vanilla net.minecraft.world.entity.projectile.ProjectileUtil
+//Block hits use a server-side block ray for the precise hit point and entity hits intersect the movement segment with bounding boxes, the nearer one wins
 public static class ProjectileUtil
 {
-    //InflateAmount 实体命中判定的包边量 对应原版 0.3
+    //InflateAmount bounding box inflation for entity hit tests, maps to vanilla 0.3
     private const double InflateAmount = 0.3;
 
-    //GetHitResult 取本刻移动线段上最近的命中 对应原版 getHitResultOnMoveVector
+    //GetHitResult returns the nearest hit along this tick's movement segment, maps to vanilla getHitResultOnMoveVector
     public static ProjectileHitResult GetHitResult(Projectile projectile)
     {
         var from = projectile.Pos;
@@ -73,13 +73,13 @@ public static class ProjectileUtil
             : blockResult;
     }
 
-    //GetEntityHit 取移动线段上最近的实体命中 没有命中给 Miss(移动终点)
+    //GetEntityHit returns the nearest entity hit on the movement segment, a miss gives Miss (end of movement)
     public static ProjectileHitResult GetEntityHit(Projectile projectile)
     {
         var from = projectile.Pos;
         var to = from.Add(projectile.Velocity);
         if (projectile.Level is not PersistentServerLevel level) return ProjectileHitResult.Miss(to);
-        //搜索范围按移动全程扫过的区域再外扩一格 对应原版 expandTowards(movement).inflate(1.0)
+        //The search area is the region swept by the whole movement expanded by one block, maps to vanilla expandTowards(movement).inflate(1.0)
         var search = projectile.BoundingBox.ExpandTowards(projectile.Velocity).Inflate(1.0, 1.0, 1.0);
         var result = ProjectileHitResult.Miss(to);
         var closest = double.MaxValue;
@@ -97,13 +97,13 @@ public static class ProjectileUtil
     }
 }
 
-//Projectile 投射物基类 对应原版 net.minecraft.world.entity.projectile.Projectile
-//持有发射者身份与射出方向计算 命中分发交给子类
-//本作没有防御反弹(deflect)与穿透体系 相应分支不做
+//Projectile projectile base class, maps to vanilla net.minecraft.world.entity.projectile.Projectile
+//Holds the owner identity and the launch direction computation, hit dispatch is left to subclasses
+//This project has no deflect or piercing system, the corresponding branches are skipped
 public abstract class Projectile : NetCraft.Registry.Entity
 {
     private readonly EntityType<object> _type;
-    //_leftOwner 是否已离开与发射者的重叠 重叠期间不与发射者碰撞 对应原版 leftOwner
+    //_leftOwner whether it has left the overlap with its owner, it does not collide with the owner while overlapping, maps to vanilla leftOwner
     private bool _leftOwner;
     private bool _leftOwnerChecked;
 
@@ -113,19 +113,19 @@ public abstract class Projectile : NetCraft.Registry.Entity
 
     public override EntityType<object>? Type => _type;
 
-    //OwnerUuid 发射者 命中判定要放行发射者自己 对应原版 owner
+    //OwnerUuid the owner, hit tests must let the owner through, maps to vanilla owner
     public Guid? OwnerUuid { get; private set; }
 
-    //SetOwner 记录发射者
+    //SetOwner records the owner
     public void SetOwner(Guid? ownerUuid) => OwnerUuid = ownerUuid;
 
     public void SetOwner(NetCraft.Registry.Entity? owner) => OwnerUuid = owner?.Uuid;
 
-    //LeftOwner 是否已离开与发射者的重叠
+    //LeftOwner whether it has left the overlap with its owner
     public bool LeftOwner => _leftOwner;
 
-    //Shoot 按方向分量射出 对应原版 Projectile.shoot
-    //pow 是初速大小 uncertainty 是散布
+    //Shoot shoots along the direction components, maps to vanilla Projectile.shoot
+    //pow is the initial speed and uncertainty is the spread
     public virtual void Shoot(double xd, double yd, double zd, float pow, float uncertainty)
     {
         var movement = GetMovementToShoot(xd, yd, zd, pow, uncertainty);
@@ -135,7 +135,7 @@ public abstract class Projectile : NetCraft.Registry.Entity
         XRot = (float)(Math.Atan2(movement.Y, horizontal) * (180.0 / Math.PI));
     }
 
-    //GetMovementToShoot 方向归一化后加三角分布散布再乘速度大小 对应原版同名方法
+    //GetMovementToShoot normalizes the direction, adds triangle-distributed spread and scales by the speed, maps to the vanilla method of the same name
     public Vec3 GetMovementToShoot(double xd, double yd, double zd, float pow, float uncertainty)
     {
         var direction = new Vec3(xd, yd, zd).Normalize();
@@ -145,8 +145,8 @@ public abstract class Projectile : NetCraft.Registry.Entity
             .Multiply(pow);
     }
 
-    //CheckLeftOwner 确认是否已离开与发射者的重叠 对应原版 checkLeftOwner
-    //只算一次 算过就不再复查 原版同样用 leftOwnerChecked 短路
+    //CheckLeftOwner confirms whether it has left the overlap with its owner, maps to vanilla checkLeftOwner
+    //Computed only once and never rechecked, vanilla also short-circuits with leftOwnerChecked
     protected void CheckLeftOwner()
     {
         if (_leftOwner || _leftOwnerChecked) return;
@@ -163,7 +163,7 @@ public abstract class Projectile : NetCraft.Registry.Entity
         }
     }
 
-    //CanHitEntity 该实体能否被本投射物命中 已移除的与还在发射者身上的发射者不算
+    //CanHitEntity whether the entity can be hit by this projectile; removed ones and the owner while still on it do not count
     internal bool CanHitEntity(NetCraft.Registry.Entity entity)
     {
         if (entity.IsRemoved) return false;
@@ -171,8 +171,8 @@ public abstract class Projectile : NetCraft.Registry.Entity
         return true;
     }
 
-    //OnHit 命中分发 对应原版 Projectile.onHit
-    //命中方块时先通知方块自身 标靶这类方块靠命中点算输出强度
+    //OnHit hit dispatch, maps to vanilla Projectile.onHit
+    //On a block hit the block itself is notified first; blocks like targets use the hit point to compute the output strength
     protected virtual void OnHit(ProjectileHitResult hit)
     {
         switch (hit.Type)
@@ -187,7 +187,7 @@ public abstract class Projectile : NetCraft.Registry.Entity
         }
     }
 
-    //NotifyBlockHit 通知被命中的方块 对应原版 BlockState.onProjectileHit
+    //NotifyBlockHit notifies the hit block, maps to vanilla BlockState.onProjectileHit
     private void NotifyBlockHit(ProjectileHitResult hit)
     {
         if (Level is not PersistentServerLevel level) return;
@@ -200,11 +200,11 @@ public abstract class Projectile : NetCraft.Registry.Entity
 
     protected virtual void OnHitBlock(ProjectileHitResult hit) { }
 
-    //ApplyGravityAndInertia 先加重力再按空气阻力衰减 对应原版 applyGravity 后 applyInertia
+    //ApplyGravityAndInertia adds gravity then dampens by air drag, maps to vanilla applyGravity followed by applyInertia
     protected void ApplyGravityAndInertia()
         => Velocity = Velocity.Add(0.0, -DefaultGravity, 0.0).Multiply(AirDrag);
 
-    //UpdateRotation 朝向跟随速度 对应原版 Projectile.updateRotation
+    //UpdateRotation makes the facing follow the velocity, maps to vanilla Projectile.updateRotation
     protected void UpdateRotation()
     {
         var movement = Velocity;
@@ -213,7 +213,7 @@ public abstract class Projectile : NetCraft.Registry.Entity
         YRot = LerpRotation(YRot, (float)(Math.Atan2(movement.X, movement.Z) * (180.0 / Math.PI)));
     }
 
-    //AddAdditionalSaveData 只存发射者与是否已离手 位置速度由基类统一写
+    //AddAdditionalSaveData stores only the owner and whether it has left the hand, position and velocity are written by the base class
     protected override void AddAdditionalSaveData(CompoundTag tag)
     {
         if (OwnerUuid is { } ownerUuid) tag.PutIntArray("Owner", UuidToIntArray(ownerUuid));
@@ -226,11 +226,11 @@ public abstract class Projectile : NetCraft.Registry.Entity
         _leftOwner = tag.GetBooleanOr("LeftOwner", false);
     }
 
-    //Triangle 三角分布随机 对应原版 RandomSource.triangle 两个均匀分布相减
+    //Triangle triangle-distributed random, maps to vanilla RandomSource.triangle, the difference of two uniform distributions
     private static double Triangle(double mean, double deviation)
         => mean + deviation * (Random.Shared.NextDouble() - Random.Shared.NextDouble());
 
-    //LerpRotation 朝向插值前先把差值折进正负 180 度 对应原版 Projectile.lerpRotation
+    //LerpRotation folds the delta into plus or minus 180 degrees before interpolating the facing, maps to vanilla Projectile.lerpRotation
     private static float LerpRotation(float rotO, float rot)
     {
         while (rot - rotO < -180f) rotO -= 360f;

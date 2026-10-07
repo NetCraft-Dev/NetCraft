@@ -13,8 +13,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//V-8 装饰与功能类方块按原版逐个移植形状 交互与方块实体行为留后续批次
-//属性一律取内嵌方块表注入的那份 这里不重复声明
+//V-8 decoration and functional blocks ported one by one from vanilla with their shapes; interactions and block entity behavior are left to a later batch
+//Properties always come from the injected embedded block table, they are not repeated here
 public static partial class Blocks
 {
     public static readonly CactusBlock CACTUS = new("cactus");
@@ -56,17 +56,17 @@ public static partial class Blocks
     public static readonly PistonHeadBlock PISTON_HEAD = new("piston_head");
     public static readonly SeaPickleBlock SEA_PICKLE = new("sea_pickle");
 
-    //十六种染料色 地毯旗帜蜡烛蛋糕都是同一形状挂十六个注册名
+    //Sixteen dye colors; carpets, banners, candles and cakes share the same shape across sixteen registry names
     private static readonly string[] DyeColors =
     {
         "white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray",
         "light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black",
     };
 
-    //五种珊瑚色 死珊瑚与死珊瑚扇共用形状 活的另属珊瑚批次
+    //Five coral colors; dead coral and dead coral fans share a shape, live ones belong to the coral batch
     private static readonly string[] CoralColors = { "tube", "brain", "bubble", "fire", "horn" };
 
-    //RegisterDecoration 装饰与功能类方块登记进真实方块表
+    //RegisterDecoration registers decoration and functional blocks into the real block table
     private static void RegisterDecoration(Dictionary<string, BlockBehaviour> real)
     {
         BlockBehaviour[] blocks =
@@ -96,7 +96,7 @@ public static partial class Blocks
         }
     }
 
-    //CactusBlock 仙人掌 碰撞形状比视觉形状矮一像素 免得贴着走被扎
+    //CactusBlock cactus, the collision shape is one pixel shorter than the visual shape so walking alongside it does not hurt
     public sealed class CactusBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(14.0, 0.0, 16.0);
@@ -109,8 +109,8 @@ public static partial class Blocks
 
         public CactusBlock(string name) : base(name) { }
 
-        //CanSurvive 侧面贴着整块方块或挨着岩浆就活不了 上方不能是液体 下方得是同族或 supports_cactus
-        //对应原版 canSurvive 原版按 legacySolid 判侧面 本作方块表没这一列 用碰撞形状占满整格近似
+        //CanSurvive it dies when the sides touch a full block or lava; above must not be a fluid and below must be the same family or supports_cactus
+        //Maps to vanilla canSurvive; vanilla uses legacySolid for the sides but this project's block table has no such column, so a full-block collision shape is used as an approximation
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             foreach (var direction in Horizontals)
@@ -131,7 +131,7 @@ public static partial class Blocks
                         && behaviour.IsInTag(BlockTags.SupportsCactus)));
         }
 
-        //IsLava 这格是不是岩浆 本作只有水与岩浆两种流体 有流体且不是水就是岩浆
+        //IsLava whether this cell is lava; this project has only water and lava, so any fluid that is not water is lava
         private static bool IsLava(BlockState state)
             => state.FluidState is { IsEmpty: false, IsWater: false };
 
@@ -142,14 +142,14 @@ public static partial class Blocks
             CollisionContext context) => ShapeCollision;
     }
 
-    //CactusFlowerBlock 仙人掌花 长在仙人掌顶上
+    //CactusFlowerBlock cactus flower, grows on top of a cactus
     public sealed class CactusFlowerBlock : VegetationBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(14.0, 0.0, 12.0);
 
         public CactusFlowerBlock(string name) : base(name) { }
 
-        //MayPlaceOn 下方直接认 support_override_cactus_flower 否则按朝上那面的中心判定 对应原版 mayPlaceOn
+        //MayPlaceOn the block below is accepted directly if it is support_override_cactus_flower, otherwise it checks the center of the upward face, maps to vanilla mayPlaceOn
         protected override bool MayPlaceOn(ServerLevel level, BlockPos belowPos, BlockState belowState)
             => belowState.Owner is BlockBehaviour behaviour
                 && (behaviour.IsInTag(BlockTags.SupportOverrideCactusFlower)
@@ -160,7 +160,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //FarmlandBlock 耕地 顶面比整块低一像素
+    //FarmlandBlock farmland, the top face is one pixel below a full block
     public sealed class FarmlandBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 0.0, 15.0);
@@ -171,7 +171,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //DirtPathBlock 土径 与耕地同高
+    //DirtPathBlock dirt path, same height as farmland
     public sealed class DirtPathBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 0.0, 15.0);
@@ -182,7 +182,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //CarpetBlock 地毯与苔藓地毯 一像素厚的薄片
+    //CarpetBlock carpet and moss carpet, a one-pixel-thick sheet
     public sealed class CarpetBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 0.0, 1.0);
@@ -193,7 +193,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //EnchantingTableBlock 附魔台
+    //EnchantingTableBlock enchanting table
     public sealed class EnchantingTableBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 0.0, 12.0);
@@ -204,7 +204,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //BrewingStandBlock 酿造台 细杆加底座两段
+    //BrewingStandBlock brewing stand, a thin rod plus base in two parts
     public sealed class BrewingStandBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = Shapes.Or(
@@ -217,7 +217,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //EndPortalBlock 末地传送门 悬在格子中段 且不参与碰撞
+    //EndPortalBlock end portal, floats in the middle of the cell and does not take part in collisions
     public sealed class EndPortalBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 6.0, 12.0);
@@ -230,7 +230,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //EndPortalFrameBlock 末地传送门框架 插了眼之后顶上多出一块
+    //EndPortalFrameBlock end portal frame, an extra top piece appears once an eye is inserted
     public sealed class EndPortalFrameBlock : NamedBlock
     {
         private static readonly VoxelShape ShapeEmpty = NetCraft.Registry.Block.Column(16.0, 0.0, 13.0);
@@ -243,7 +243,7 @@ public static partial class Blocks
             => state.GetValue(BlockStateProperties.Eye) ? ShapeFull : ShapeEmpty;
     }
 
-    //DragonEggBlock 龙蛋
+    //DragonEggBlock dragon egg
     public sealed class DragonEggBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(14.0, 0.0, 16.0);
@@ -254,7 +254,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //EnderChestBlock 末影箱
+    //EnderChestBlock ender chest
     public sealed class EnderChestBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(14.0, 0.0, 14.0);
@@ -265,29 +265,29 @@ public static partial class Blocks
             => Shape;
     }
 
-    //DaylightDetectorBlock 阳光探测器 按天光与太阳角输出 0-15 反向时取补
-    //原版靠方块实体 ticker 每 20 刻刷一次 本作没有 ticker 通道 改用调度刻自排达到同样周期
+    //DaylightDetectorBlock daylight detector, outputs 0-15 from sky light and sun angle, inverted takes the complement
+    //Vanilla refreshes every 20 ticks via the block entity ticker; this project has no ticker channel, so scheduled ticks reschedule themselves for the same period
     public sealed class DaylightDetectorBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 0.0, 6.0);
 
-        //RefreshPeriod 刷新间隔 对应原版 tickEntity 里的 gameTime % 20
+        //RefreshPeriod refresh interval, maps to gameTime % 20 in the vanilla tickEntity
         private const int RefreshPeriod = 20;
 
-        //TicksPerDay 一天的刻数 原版时间线周期
+        //TicksPerDay ticks in a day, the vanilla timeline period
         private const int TicksPerDay = 24000;
 
-        //SunNoonTick 太阳角轨道的起点 正午
+        //SunNoonTick start of the sun angle track, noon
         private const int SunNoonTick = 6000;
 
-        //SkyFirstTick 天光乘子轨道的首个关键帧 早于它的时刻属于上一轮循环
+        //SkyFirstTick first keyframe of the sky light multiplier track, earlier moments belong to the previous cycle
         private const int SkyFirstTick = 133;
 
-        //SkyLightBase 天光强度基准值 对应原版 sky_light_level 的默认值
+        //SkyLightBase sky light strength baseline, maps to the default of vanilla sky_light_level
         private const float SkyLightBase = 15f;
 
-        //SkyMultiplierKeys 天光乘子关键帧 末尾补一个跨周期的等价点以便线性插值
-        //对应原版 133:1.0 11867:1.0 13670:0.2667 22330:0.2667 之后回到 133
+        //SkyMultiplierKeys sky light multiplier keyframes, an equivalent point across the cycle is appended for linear interpolation
+        //Maps to vanilla 133:1.0 11867:1.0 13670:0.2667 22330:0.2667 then back to 133
         private static readonly (int Tick, float Value)[] SkyMultiplierKeys =
         {
             (133, 1.0f),
@@ -297,15 +297,15 @@ public static partial class Blocks
             (24133, 1.0f),
         };
 
-        //SunXCurve SunYCurve 太阳角缓动的两条分量曲线 由对称贝塞尔控制点展开
+        //SunXCurve and SunYCurve are the two component curves of the sun angle easing, expanded from symmetric Bezier control points
         private static readonly (float A, float B, float C) SunXCurve = BezierCurve(0.362f, 0.638f);
         private static readonly (float A, float B, float C) SunYCurve = BezierCurve(0.241f, 0.759f);
 
         public DaylightDetectorBlock(string name) : base(name) { }
 
-        //Properties 状态必须自己声明 表里生成的属性实例与 BlockStateProperties 的单例不是同一个
-        //不覆写的话 GetValue(BlockStateProperties.Power) 取不到值
-        //顺序照 blocks.txt 的 inverted|power 走 顺序变了全局状态 id 会跟着错位
+        //Properties states must be declared here; the property instances generated in the table are not the same as the BlockStateProperties singletons
+        //Without the override GetValue(BlockStateProperties.Power) cannot find a value
+        //The order follows inverted|power in blocks.txt; changing it shifts the global state ids
         public override IDictionary<string, PropertyBase> Properties
             => new Dictionary<string, PropertyBase>
             {
@@ -316,7 +316,7 @@ public static partial class Blocks
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context)
             => Shape;
 
-        //原版探测器按形状挡光 不满格 直接收满格天光会让下方早黑一个亮度
+        //The vanilla detector occludes light by shape and is not full, taking full sky light directly would darken the space below one level early
         public override bool UseShapeForLightOcclusion => true;
 
         public override bool IsSignalSource => true;
@@ -324,7 +324,7 @@ public static partial class Blocks
         public override int OwnSignal(ServerLevel level, BlockPos pos, BlockState state)
             => state.GetValue(BlockStateProperties.Power);
 
-        //OnPlace 刚放下先算一次并排上刷新周期 对应原版方块实体创建后首次 tick
+        //OnPlace computes once on placement and schedules the refresh cycle, maps to the first tick after the vanilla block entity is created
         public override void OnPlace(ServerLevel level, BlockPos pos, BlockState state, BlockState oldState,
             bool movedByPiston)
         {
@@ -333,19 +333,19 @@ public static partial class Blocks
             level.ScheduleTick(pos, state.Owner, NextRefreshDelay(level));
         }
 
-        //Tick 每到 20 的整数刻重算一次并续排 对应原版 tickEntity 的 gameTime % 20
+        //Tick recomputes and reschedules at every multiple of 20, maps to gameTime % 20 in the vanilla tickEntity
         public override void Tick(ServerLevel level, BlockPos pos, BlockState state, RandomSource random)
         {
             UpdateSignalStrength(level, pos, state);
             level.ScheduleTick(pos, state.Owner, NextRefreshDelay(level));
         }
 
-        //NextRefreshDelay 距下一次 20 整数刻还有多久 让所有探测器和原版一样同一刻刷新
+        //NextRefreshDelay ticks until the next multiple of 20, so all detectors refresh on the same tick like vanilla
         private static int NextRefreshDelay(ServerLevel level)
             => RefreshPeriod - (int)(level.GameTime % RefreshPeriod);
 
-        //UseOn 空手右键切换反向 对应原版 useWithoutItem
-        //冒险与旁观模式不给改 与原版 player.mayBuild 一致
+        //UseOn bare-hand right click toggles inverted, maps to vanilla useWithoutItem
+        //Adventure and spectator modes cannot change it, same as vanilla player.mayBuild
         public override bool UseOn(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state,
             NetCraft.Primitives.Direction face)
         {
@@ -356,8 +356,8 @@ public static partial class Blocks
             return true;
         }
 
-        //UpdateSignalStrength 按天光与太阳角重算输出强度 对应原版同名方法
-        //反向时直接取 15 减去天光 正向时再乘太阳高度余弦 夜里落到 0
+        //UpdateSignalStrength recomputes the output strength from sky light and sun angle, maps to the vanilla method of the same name
+        //Inverted takes 15 minus sky light directly; normal multiplies by the cosine of the sun height and drops to 0 at night
         private static void UpdateSignalStrength(ServerLevel level, BlockPos pos, BlockState state)
         {
             var target = EffectiveSkyBrightness(level, pos);
@@ -378,26 +378,26 @@ public static partial class Blocks
                 BlockUpdateFlags.Neighbours | BlockUpdateFlags.Clients);
         }
 
-        //EffectiveSkyBrightness 天光层亮度减去夜空变暗量 对应原版 getEffectiveSkyBrightness
-        //原版不设下限 负值交给后面的 clamp 处理 反向模式下负数会被夹回 15
+        //EffectiveSkyBrightness sky light level minus the night darkening, maps to vanilla getEffectiveSkyBrightness
+        //Vanilla sets no lower bound and leaves negatives to the later clamp; in inverted mode negatives are clamped back to 15
         private static int EffectiveSkyBrightness(ServerLevel level, BlockPos pos)
             => level.GetLightValue(LightLayer.Sky, pos) - SkyDarken(level.GameTime);
 
-        //SunAngle 太阳角 单位为度 正午 0 度 午夜 180 度 对应原版 sun_angle 轨道
-        //轨道只有一个循环段 从正午起算 一天刚好走满 360 度 缓动为对称三次贝塞尔
+        //SunAngle sun angle in degrees, noon 0 and midnight 180, maps to the vanilla sun_angle track
+        //The track has a single cycle starting at noon, covering exactly 360 degrees in a day, eased with a symmetric cubic Bezier
         private static float SunAngle(ServerLevel level)
             => 360f * EaseSunAngle(TickInDay(level.GameTime - SunNoonTick) / (float)TicksPerDay);
 
-        //SkyDarken 夜空变暗量 0-11 对应原版 updateSkyBrightness
-        //原版取 15 减去 sky_light_level 属性 该属性由时间线里的乘子轨道调制
+        //SkyDarken night darkening 0-11, maps to vanilla updateSkyBrightness
+        //Vanilla takes 15 minus the sky_light_level property, which is modulated by the multiplier track in the timeline
         private static int SkyDarken(long gameTime)
             => (int)(SkyLightBase - SkyLightBase * SkyMultiplier(TickInDay(gameTime)));
 
-        //SkyMultiplier 天光乘子 关键帧之间线性插值 抄自原版 sky_light_level 的乘子轨道
-        //白天 1.0 夜里 0.2667(即 4/15) 黄昏 11867 刻起变暗 13670 刻到位 清晨原路恢复
+        //SkyMultiplier sky light multiplier linearly interpolated between keyframes, copied from the multiplier track of vanilla sky_light_level
+        //1.0 by day and 0.2667 (4/15) at night; dusk darkens from tick 11867 reaching full at 13670, dawn restores the same way
         private static float SkyMultiplier(int tick)
         {
-            //早于首个关键帧的时刻属于上一轮循环 折算到跨周期那一段上
+            //Moments before the first keyframe belong to the previous cycle and fold onto the cross-cycle segment
             var t = tick < SkyFirstTick ? tick + TicksPerDay : tick;
             for (var i = 0; i < SkyMultiplierKeys.Length - 1; i++)
             {
@@ -410,12 +410,12 @@ public static partial class Blocks
             return SkyMultiplierKeys[^1].Value;
         }
 
-        //TickInDay 把任意时刻折算到一天之内的 0..23999
+        //TickInDay folds any moment into 0..23999 within a day
         private static int TickInDay(long gameTime)
             => (int)(((gameTime % TicksPerDay) + TicksPerDay) % TicksPerDay);
 
-        //EaseSunAngle 太阳角缓动 与 EasingType.CubicBezier.apply 同一套牛顿迭代加二分兜底
-        //控制点由 symmetricCubicBezier(0.362, 0.241) 展开为 (0.362,0.241)(0.638,0.759)
+        //EaseSunAngle sun angle easing, the same Newton iteration with bisection fallback as EasingType.CubicBezier.apply
+        //Control points expanded from symmetricCubicBezier(0.362, 0.241) into (0.362,0.241)(0.638,0.759)
         private static float EaseSunAngle(float x)
         {
             var t = x;
@@ -440,20 +440,20 @@ public static partial class Blocks
             return SampleCurve(SunYCurve, t);
         }
 
-        //BezierCurve 把三次贝塞尔分量控制点展开成多项式系数 对应原版 curveFromControls
+        //BezierCurve expands cubic Bezier component control points into polynomial coefficients, maps to vanilla curveFromControls
         private static (float A, float B, float C) BezierCurve(float v1, float v2)
             => (3f * v1 - 3f * v2 + 1f, -6f * v1 + 3f * v2, 3f * v1);
 
-        //SampleCurve 分量曲线取值 对应原版 CubicCurve.sample
+        //SampleCurve samples a component curve, maps to vanilla CubicCurve.sample
         private static float SampleCurve((float A, float B, float C) curve, float t)
             => ((curve.A * t + curve.B) * t + curve.C) * t;
 
-        //SampleGradient 分量曲线导数 对应原版 CubicCurve.sampleGradient
+        //SampleGradient derivative of a component curve, maps to vanilla CubicCurve.sampleGradient
         private static float SampleGradient((float A, float B, float C) curve, float t)
             => (3f * curve.A * t + 2f * curve.B) * t + curve.C;
     }
 
-    //StructureVoidBlock 结构空位 只看得见不挡路
+    //StructureVoidBlock structure void, visible but does not block
     public sealed class StructureVoidBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Cube(6.0);
@@ -466,7 +466,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //SnifferEggBlock 嗅探兽蛋 水平两轴尺寸不同
+    //SnifferEggBlock sniffer egg, the size differs on the two horizontal axes
     public sealed class SnifferEggBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(14.0, 12.0, 0.0, 16.0);
@@ -477,7 +477,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //DriedGhastBlock 干枯恶魂
+    //DriedGhastBlock dried ghast
     public sealed class DriedGhastBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(10.0, 10.0, 0.0, 10.0);
@@ -488,7 +488,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //ConduitBlock 潮涌核心
+    //ConduitBlock conduit
     public sealed class ConduitBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Cube(6.0);
@@ -499,7 +499,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //StonecutterBlock 切石机
+    //StonecutterBlock stonecutter
     public sealed class StonecutterBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 0.0, 9.0);
@@ -509,8 +509,8 @@ public static partial class Blocks
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context)
             => Shape;
 
-        //UseOn 右击打开切石机界面 对应原版 StonecutterBlock.useWithoutItem
-        //属性枚举里的 Direction 与本类型的同名 签名写全限定名
+        //UseOn right click opens the stonecutter screen, maps to vanilla StonecutterBlock.useWithoutItem
+        //The Direction in the property enum clashes with this type's name, the signature is fully qualified
         public override bool UseOn(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state,
             NetCraft.Primitives.Direction face)
         {
@@ -518,7 +518,7 @@ public static partial class Blocks
             return true;
         }
 
-        //StonecutterMenuProvider 切石机菜单 标题用原版 container.stonecutter
+        //StonecutterMenuProvider stonecutter menu, the title uses the vanilla container.stonecutter
         private sealed class StonecutterMenuProvider : MenuProvider
         {
             public Component DisplayName => Component.Translatable("container.stonecutter");
@@ -528,7 +528,7 @@ public static partial class Blocks
         }
     }
 
-    //SculkSensorBlock 幽匿感测体
+    //SculkSensorBlock sculk sensor
     public sealed class SculkSensorBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 0.0, 8.0);
@@ -539,7 +539,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //DecoratedPotBlock 饰纹陶罐
+    //DecoratedPotBlock decorated pot
     public sealed class DecoratedPotBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(14.0, 0.0, 16.0);
@@ -550,7 +550,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //HeavyCoreBlock 重核
+    //HeavyCoreBlock heavy core
     public sealed class HeavyCoreBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(8.0, 0.0, 8.0);
@@ -561,7 +561,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //HoneyBlock 蜂蜜块 只压碰撞形状 视觉形状仍是整块
+    //HoneyBlock honey block, only the collision shape is lowered, the visual shape is still a full block
     public sealed class HoneyBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(14.0, 0.0, 15.0);
@@ -572,7 +572,7 @@ public static partial class Blocks
             CollisionContext context) => Shape;
     }
 
-    //FrogspawnBlock 蛙卵 浮在水面的薄片
+    //FrogspawnBlock frogspawn, a thin sheet floating on water
     public sealed class FrogspawnBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 0.0, 1.5);
@@ -583,7 +583,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //BannerBlock 旗帜
+    //BannerBlock banner
     public sealed class BannerBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(8.0, 0.0, 16.0);
@@ -594,7 +594,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //BaseCoralPlantBlock 死珊瑚
+    //BaseCoralPlantBlock dead coral
     public sealed class BaseCoralPlantBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(12.0, 0.0, 15.0);
@@ -605,7 +605,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //BaseCoralFanBlock 死珊瑚扇
+    //BaseCoralFanBlock dead coral fan
     public sealed class BaseCoralFanBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(12.0, 0.0, 4.0);
@@ -616,7 +616,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //BaseTorchBlock 火把与灵魂火把 立在格子中的细柱
+    //BaseTorchBlock torch and soul torch, a thin column standing in the cell
     public sealed class BaseTorchBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(4.0, 0.0, 10.0);
@@ -627,7 +627,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //LanternBlock 灯笼 吊挂时整体上移一像素
+    //LanternBlock lantern, raised one pixel overall when hanging
     public sealed class LanternBlock : NamedBlock
     {
         private static readonly VoxelShape ShapeStanding = Shapes.Or(
@@ -641,7 +641,7 @@ public static partial class Blocks
             => state.GetValue(BlockStateProperties.Hanging) ? ShapeHanging : ShapeStanding;
     }
 
-    //CandleBlock 蜡烛 插的支数越多形状越大
+    //CandleBlock candle, the shape grows with the number of candles
     public sealed class CandleBlock : NamedBlock
     {
         private static readonly VoxelShape[] Shapes =
@@ -658,7 +658,7 @@ public static partial class Blocks
             => Shapes[state.GetValue(BlockStateProperties.Candles) - 1];
     }
 
-    //CandleCakeBlock 插蜡烛的蛋糕 细蜡烛加低一圈的蛋糕体
+    //CandleCakeBlock cake with candles, a thin candle plus a slightly lower cake body
     public sealed class CandleCakeBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = Shapes.Or(
@@ -671,7 +671,7 @@ public static partial class Blocks
             => Shape;
     }
 
-    //CampfireBlock 营火与灵魂营火 七像素高的柴堆
+    //CampfireBlock campfire and soul campfire, a seven-pixel-high pile of wood
     public sealed class CampfireBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 0.0, 7.0);
@@ -681,14 +681,14 @@ public static partial class Blocks
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context)
             => Shape;
 
-        //CreateBlockEntity 营火上烤着的东西与各自进度存在方块实体里
+        //CreateBlockEntity the items cooking on the campfire and their progress are stored in the block entity
         public override BlockEntity? CreateBlockEntity(BlockPos pos, BlockState state) => new CampfireBlockEntity(pos);
 
-        //HasBlockEntity 营火带方块实体 活塞推不动
+        //HasBlockEntity the campfire has a block entity and cannot be pushed by a piston
         public override bool HasBlockEntity => true;
 
-        //UseOn 把手里的食材放到营火上 对应原版 CampfireBlock.useItemOn 的放食物分支
-        //熄灭的营火不收食物 属性枚举里的 Direction 与本类型的同名 签名写全限定名
+        //UseOn puts the held food on the campfire, maps to the place-food branch of vanilla CampfireBlock.useItemOn
+        //An extinguished campfire takes no food; the Direction in the property enum clashes with this type's name, the signature is fully qualified
         public override bool UseOn(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state,
             NetCraft.Primitives.Direction face)
         {
@@ -700,8 +700,8 @@ public static partial class Blocks
             return true;
         }
 
-        //IsSmokeyPos 该位置是否处在营火烟柱上 向下一到五格找点燃的营火 对应原版 isSmokeyPos
-        //原版还有"烟被实体方块挡住就只看再往下一格"的分支 本作只保留主语义
+        //IsSmokeyPos whether the position is in a campfire smoke column, looking one to five blocks down for a lit campfire, maps to vanilla isSmokeyPos
+        //Vanilla also has a branch where a solid block blocking the smoke makes it look only one further down; only the main semantics are kept here
         public static bool IsSmokeyPos(ILevelReader level, BlockPos pos)
         {
             for (var i = 1; i <= 5; i++)
@@ -713,15 +713,15 @@ public static partial class Blocks
             return false;
         }
 
-        //IsLitCampfire 是否点燃的营火 对应原版 isLitCampfire
-        //原版按 CAMPFIRES 标签判定 本作营火只有内置两种
+        //IsLitCampfire whether it is a lit campfire, maps to vanilla isLitCampfire
+        //Vanilla checks the CAMPFIRES tag; this project only has the two built-in campfires
         public static bool IsLitCampfire(BlockState state)
             => (ReferenceEquals(state.Owner, CAMPFIRE) || ReferenceEquals(state.Owner, SOUL_CAMPFIRE))
                 && state.HasProperty(BlockStateProperties.Lit)
                 && state.GetValue(BlockStateProperties.Lit);
     }
 
-    //BaseFireBlock 火与灵魂火 一像素厚的火苗层 且不参与碰撞
+    //BaseFireBlock fire and soul fire, a one-pixel-thick flame layer that does not take part in collisions
     public sealed class BaseFireBlock : NamedBlock
     {
         private static readonly VoxelShape Shape = NetCraft.Registry.Block.Column(16.0, 0.0, 1.0);
@@ -733,8 +733,8 @@ public static partial class Blocks
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context)
             => Shape;
 
-        //CanSurvive 火要站在上表面够坚固的方块上 对应原版 BaseFireBlock.canSurvive
-        //Direction 全限定: 本文件同时引了 Primitives 与 Registry.Enums 两套 Direction
+        //CanSurvive fire must stand on a block whose top face is sturdy enough, maps to vanilla BaseFireBlock.canSurvive
+        //Direction fully qualified: this file imports both the Primitives and Registry.Enums Direction
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             var belowPos = pos.Offset(NetCraft.Primitives.Direction.Down);
@@ -743,12 +743,12 @@ public static partial class Blocks
                 && behaviour.IsFaceSturdy(level, belowPos, support, NetCraft.Primitives.Direction.Up);
         }
 
-        //GetState 火焰落位状态 对应原版 getState
-        //原版按脚下是不是灵魂土分普通火与灵魂火 nc 未注册灵魂土与灵魂沙 一律落普通火
+        //GetState placement state of the fire, maps to vanilla getState
+        //Vanilla splits normal and soul fire by whether soul soil is below; nc does not register soul soil or soul sand, so normal fire is always placed
         public static BlockState GetState(ServerLevel level, BlockPos pos) => Blocks.FIRE.DefaultBlockState;
 
-        //CanBePlacedAt 该位置能不能点火 须为空位且火自身站得住 对应原版 canBePlacedAt
-        //打火石点空气那支走它 原版的传送门分支在 nc 没传送门方块 不接
+        //CanBePlacedAt whether fire can be lit here, the position must be empty and the fire must stand, maps to vanilla canBePlacedAt
+        //Flint and steel on air goes through it; the vanilla portal branch is not wired up since nc has no portal block
         public static bool CanBePlacedAt(ServerLevel level, BlockPos pos)
         {
             if (level.GetBlockState(pos) is not { } state || !state.Owner.IsAir) return false;
@@ -757,7 +757,7 @@ public static partial class Blocks
         }
     }
 
-    //SnowLayerBlock 雪层 视觉形状按层数逐级加厚 碰撞只算下面那几层
+    //SnowLayerBlock snow layer, the visual shape thickens with each layer and collision only counts the layers below
     public sealed class SnowLayerBlock : NamedBlock
     {
         private static readonly VoxelShape[] ShapeTable =
@@ -768,12 +768,12 @@ public static partial class Blocks
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context)
             => ShapeTable[state.GetValue(BlockStateProperties.Layers)];
 
-        //原版踩在雪上时按低一层的厚度算 免得站在薄雪上被顶起来
+        //Vanilla uses the thickness one layer lower when standing on snow, so standing on thin snow does not push you up
         public override VoxelShape GetCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
             CollisionContext context) => ShapeTable[state.GetValue(BlockStateProperties.Layers) - 1];
     }
 
-    //CakeBlock 蛋糕 每被咬一口左边少两像素
+    //CakeBlock cake, each bite removes two pixels from the left
     public sealed class CakeBlock : NamedBlock
     {
         private static readonly VoxelShape[] ShapeTable = NetCraft.Registry.Block.Boxes(6,
@@ -785,14 +785,14 @@ public static partial class Blocks
             => ShapeTable[state.GetValue(BlockStateProperties.Bites)];
     }
 
-    //ComposterBlock 堆肥桶 中间挖一个随装填等级变浅的坑
+    //ComposterBlock composter, a pit in the middle that gets shallower with the fill level
     public sealed class ComposterBlock : NamedBlock
     {
         private static readonly VoxelShape[] ShapeTable = BuildShapeTable();
 
         public ComposterBlock(string name) : base(name) { }
 
-        //BuildShapeTable 整块挖去中间的坑 坑底随等级抬高 第八格是满桶沿用第七格
+        //BuildShapeTable digs the middle pit out of a full block, the pit floor rises with the level, the eighth level is full and reuses the seventh
         private static VoxelShape[] BuildShapeTable()
         {
             var table = NetCraft.Registry.Block.Boxes(8, level => Shapes.Join(Shapes.Block(),
@@ -805,22 +805,22 @@ public static partial class Blocks
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context)
             => ShapeTable[state.GetValue(BlockStateProperties.LevelComposter)];
 
-        //原版碰撞一律按空桶算 免得装满之后把站在旁边的实体挤出去
+        //Vanilla always uses the empty composter collision so a filled one does not push out entities standing beside it
         public override VoxelShape GetCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
             CollisionContext context) => ShapeTable[0];
     }
 
-    //LightBlock 光源方块 只发光不挡路
+    //LightBlock light block, emits light without blocking
     public sealed class LightBlock : NamedBlock
     {
         public LightBlock(string name) : base(name) { }
 
-        //原版手持光源物品时给整块便于摆放 物品未移植故取默认的无形
+        //Vanilla gives a full block when the light item is held to ease placement; the item is not ported so the default invisible shape is used
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context)
             => Shapes.Empty();
     }
 
-    //TurtleEggBlock 海龟蛋 单个一窝是一小坨 多颗一窝摊成一圈
+    //TurtleEggBlock turtle egg, a single egg is a small lump and multiple eggs spread into a ring
     public sealed class TurtleEggBlock : NamedBlock
     {
         private static readonly VoxelShape ShapeSingle = NetCraft.Registry.Block.Box(3.0, 0.0, 3.0, 12.0, 7.0, 12.0);
@@ -832,7 +832,7 @@ public static partial class Blocks
             => state.GetValue(BlockStateProperties.Eggs) == 1 ? ShapeSingle : ShapeMultiple;
     }
 
-    //BambooStalkBlock 竹竿 叶多时粗一圈 碰撞只算中间那根杆
+    //BambooStalkBlock bamboo stalk, thicker with more leaves, collision only counts the central stalk
     public sealed class BambooStalkBlock : NamedBlock
     {
         private static readonly VoxelShape ShapeSmall = NetCraft.Registry.Block.Column(6.0, 0.0, 16.0);
@@ -848,7 +848,7 @@ public static partial class Blocks
             CollisionContext context) => ShapeCollision;
     }
 
-    //ScaffoldingBlock 脚手架 顶板加四角立杆 托在方块下方时多一圈贴地横梁
+    //ScaffoldingBlock scaffolding, a top board plus four corner posts, with an extra ground-level ring of bars when supported from below
     public sealed class ScaffoldingBlock : NamedBlock
     {
         private static readonly VoxelShape ShapeStable = BuildStableShape();
@@ -858,13 +858,13 @@ public static partial class Blocks
 
         public ScaffoldingBlock(string name) : base(name) { }
 
-        //BuildStableShape 顶板加四根角柱 原版把一根角柱按水平四向转出来再并起来
+        //BuildStableShape top board plus four corner posts; vanilla rotates one corner post into the four horizontal directions and merges them
         private static VoxelShape BuildStableShape() => Shapes.Or(
             NetCraft.Registry.Block.Column(16.0, 14.0, 16.0),
             Shapes.RotateHorizontal(NetCraft.Registry.Block.Box(0.0, 0.0, 0.0, 2.0, 16.0, 2.0))
                 .Values.Aggregate(Shapes.Empty(), (acc, shape) => Shapes.Or(acc, shape)));
 
-        //BuildRingShape 贴地那一圈横梁 同样靠旋转拼出来
+        //BuildRingShape the ground-level ring of bars, also assembled by rotation
         private static VoxelShape BuildRingShape() => Shapes.RotateHorizontal(
                 NetCraft.Registry.Block.BoxZ(16.0, 0.0, 2.0, 0.0, 2.0))
             .Values.Aggregate(Shapes.Empty(), (acc, shape) => Shapes.Or(acc, shape));
@@ -875,11 +875,11 @@ public static partial class Blocks
         public override VoxelShape GetCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
             CollisionContext context)
         {
-            //摆放预览不参与碰撞 否则准星里的脚手架会把玩家顶开
+            //The placement preview does not take part in collisions, otherwise the scaffolding in the crosshair would push the player away
             if (context.IsPlacement) return Shapes.Empty();
             if (!context.IsAbove(Shapes.Block(), pos, true) || context.IsDescending())
             {
-                //悬空但底下踩得到时才给那圈横梁的碰撞 否则整块穿过去
+                //The ring of bars only collides when floating but reachable from below, otherwise everything passes through
                 if (state.GetValue(BlockStateProperties.StabilityDistance) != 0
                     && state.GetValue(BlockStateProperties.Bottom)
                     && context.IsAbove(ShapeBelowBlock, pos, true))
@@ -890,8 +890,8 @@ public static partial class Blocks
         }
     }
 
-    //PistonHeadBlock 活塞头 短臂比长臂少四像素
-    //它必须贴着伸出的底座或正在移动的那截 底座没了自己也跟着消失
+    //PistonHeadBlock piston head, the short arm is four pixels less than the long arm
+    //It must touch an extended base or the moving segment, and disappears when the base is gone
     public sealed class PistonHeadBlock : NamedBlock
     {
         private static readonly VoxelShape ShapePlatform = NetCraft.Registry.Block.BoxZ(16.0, 0.0, 4.0);
@@ -906,7 +906,7 @@ public static partial class Blocks
             => (state.GetValue(BlockStateProperties.Short) ? ShapesShort : ShapesNormal)
                 [state.GetValue(BlockStateProperties.FacingProperty).ToPrimitive()];
 
-        //CanSurvive 后面得是伸出的底座或正在移动的那截 对应原版 canSurvive
+        //CanSurvive what is behind must be an extended base or the moving segment, maps to vanilla canSurvive
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             var basePos = pos.Offset(state.GetValue(BlockStateProperties.FacingProperty).ToPrimitive().Opposite);
@@ -917,7 +917,7 @@ public static partial class Blocks
                     == state.GetValue(BlockStateProperties.FacingProperty);
         }
 
-        //UpdateShape 底座被换掉就消失 对应原版 updateShape
+        //UpdateShape disappears when the base is replaced, maps to vanilla updateShape
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             NetCraft.Primitives.Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
         {
@@ -928,7 +928,7 @@ public static partial class Blocks
             return base.UpdateShape(level, pos, state, directionToNeighbour, neighbourPos, neighbourState);
         }
 
-        //NeighborChanged 自身没事时把更新转给底座 对应原版 neighborChanged
+        //NeighborChanged forwards the update to the base when it is fine itself, maps to vanilla neighborChanged
         public override void NeighborChanged(ServerLevel level, BlockPos pos, BlockState state,
             NetCraft.Registry.Block changedBlock, bool movedByPiston)
         {
@@ -938,8 +938,8 @@ public static partial class Blocks
                 changedBlock);
         }
 
-        //PlayerWillDestroy 创造模式拆活塞头时把底座也无掉落解掉 对应原版 playerWillDestroy
-        //不解的话紧随其后的移除钩子会让底座掉出一个活塞 创造模式本不该掉任何东西
+        //PlayerWillDestroy removes the base without drops when breaking the piston head in creative, maps to vanilla playerWillDestroy
+        //Without it the following removal hook would drop a piston from the base, and creative should drop nothing
         public override void PlayerWillDestroy(ServerLevel level, ServerPlayer player, BlockPos pos,
             BlockState state)
         {
@@ -949,7 +949,7 @@ public static partial class Blocks
                 level.BlockUpdateSink?.DestroyBlock(basePos, false, BlockUpdateFlags.UpdateLimitDefault);
         }
 
-        //AffectNeighborsAfterRemoval 活塞头被拆掉时底座也要掉 对应原版 affectNeighborsAfterRemoval
+        //AffectNeighborsAfterRemoval the base must also drop when the piston head is broken, maps to vanilla affectNeighborsAfterRemoval
         public override void AffectNeighborsAfterRemoval(ServerLevel level, BlockPos pos, BlockState state,
             bool movedByPiston)
         {
@@ -958,7 +958,7 @@ public static partial class Blocks
                 level.BlockUpdateSink?.DestroyBlock(basePos, true, BlockUpdateFlags.UpdateLimitDefault);
         }
 
-        //IsFittingBase 底座是同类活塞 伸出了 朝向也对得上 对应原版 isFittingBase
+        //IsFittingBase the base is a matching piston, is extended and faces the right way, maps to vanilla isFittingBase
         private static bool IsFittingBase(BlockState armState, BlockState? potentialBase)
         {
             if (potentialBase is not { } baseState) return false;
@@ -972,7 +972,7 @@ public static partial class Blocks
         }
     }
 
-    //SeaPickleBlock 海泡菜 一格里的颗数越多摊得越开 四颗时还高一像素
+    //SeaPickleBlock sea pickle, more pickles in a cell spread wider, four also sit one pixel higher
     public sealed class SeaPickleBlock : NamedBlock
     {
         private static readonly VoxelShape ShapeOne = NetCraft.Registry.Block.Column(4.0, 0.0, 6.0);

@@ -1,24 +1,24 @@
 namespace NetCraft.Gpu;
 
-//TextureAtlasSprite 纹理图集 sprite 元数据对标原版 TextureAtlasSprite
-//记录 sprite 在图集中的像素位置和 UV 范围供 BakedQuad 烘焙时把模型 UV 映射到图集 UV
-//sprite name 用 identifier 格式 minecraft:block/stone 对应资源路径 textures/block/stone
+//TextureAtlasSprite texture atlas sprite metadata, maps to vanilla TextureAtlasSprite
+//Records the sprite's pixel position and UV range in the atlas for BakedQuad to map model UVs to atlas UVs
+//sprite name uses the identifier format minecraft:block/stone, corresponding to the resource path textures/block/stone
 public sealed class TextureAtlasSprite
 {
-    //Name sprite 标识符 minecraft:block/stone
+    //Name sprite identifier minecraft:block/stone
     public string Name { get; }
-    //AtlasX/AtlasY sprite 左上角在图集中的像素坐标
+    //AtlasX/AtlasY pixel coordinates of the sprite top-left in the atlas
     public int AtlasX { get; }
-    //AtlasY 顶部对齐 Vulkan V=0 在顶部
+    //AtlasY top-aligned; Vulkan V=0 is at the top
     public int AtlasY { get; }
-    //Width/Height sprite 像素尺寸
+    //Width/Height sprite pixel size
     public int Width { get; }
     public int Height { get; }
-    //AtlasWidth/AtlasHeight 整个图集尺寸用于算 UV
+    //AtlasWidth/AtlasHeight whole atlas size used to compute UVs
     public int AtlasWidth { get; }
     public int AtlasHeight { get; }
-    //Pixels sprite 原始像素数据 RGBA 用于上传到图集区域
-    //null 表示无像素数据（占位 sprite）Bake 时跳过上传
+    //Pixels sprite raw RGBA pixel data used to upload into the atlas region
+    //null means no pixel data (placeholder sprite) and the upload is skipped on Bake
     public byte[]? Pixels { get; }
 
     public TextureAtlasSprite(string name, int atlasX, int atlasY, int width, int height,
@@ -34,15 +34,15 @@ public sealed class TextureAtlasSprite
         Pixels = pixels;
     }
 
-    //U0/V0 左上角 UV Vulkan 纹理 V=0 顶部
+    //U0/V0 top-left UV; Vulkan texture V=0 is at the top
     public float U0 => (float)AtlasX / AtlasWidth;
     public float V0 => (float)AtlasY / AtlasHeight;
-    //U1/V1 右下角 UV
+    //U1/V1 bottom-right UV
     public float U1 => (float)(AtlasX + Width) / AtlasWidth;
     public float V1 => (float)(AtlasY + Height) / AtlasHeight;
 
-    //MapU 把模型局部 UV [0,1] 映射到图集 UV
-    //模型 face 的 uv 是 [0,1] 范围烘焙时调此方法转图集坐标
+    //MapU maps model-local UV [0,1] to atlas UV
+    //Model face UVs are in [0,1]; this method converts them to atlas coordinates during baking
     public float MapU(float u) => U0 + (U1 - U0) * u;
     public float MapV(float v) => V0 + (V1 - V0) * v;
 }

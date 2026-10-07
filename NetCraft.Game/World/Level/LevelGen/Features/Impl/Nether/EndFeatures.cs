@@ -9,7 +9,7 @@ using PosCodec = NetCraft.Game.World.Level.LevelGen.Placement.BlockPosCodec;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Nether;
 
-//EndIslandFeature 末地小岛特征 对应原版 EndIslandFeature
+//EndIslandFeature end island feature, maps to vanilla EndIslandFeature
 public sealed class EndIslandFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "end_island";
@@ -45,7 +45,7 @@ public sealed class EndIslandFeature : Feature<NoneFeatureConfiguration>
     }
 }
 
-//EndSpike 末地尖塔 对应原版 EndSpikeFeature.EndSpike
+//EndSpike end spike, maps to vanilla EndSpikeFeature.EndSpike
 public sealed class EndSpike
 {
     public static readonly Codec<EndSpike> Codec =
@@ -73,12 +73,12 @@ public sealed class EndSpike
         Guarded = guarded;
     }
 
-    //IsCenterWithinChunk 尖塔中心是否落在该区块 对应原版 isCenterWithinChunk
+    //IsCenterWithinChunk whether the spike center falls in this chunk, maps to vanilla isCenterWithinChunk
     public bool IsCenterWithinChunk(BlockPos chunkOrigin)
         => (chunkOrigin.X >> 4) == (CenterX >> 4) && (chunkOrigin.Z >> 4) == (CenterZ >> 4);
 }
 
-//EndSpikeConfiguration 末地尖塔配置 对应原版 EndSpikeConfiguration
+//EndSpikeConfiguration end spike configuration, maps to vanilla EndSpikeConfiguration
 public sealed class EndSpikeConfiguration : FeatureConfiguration
 {
     public static readonly Codec<EndSpikeConfiguration> Codec =
@@ -107,15 +107,15 @@ public sealed class EndSpikeConfiguration : FeatureConfiguration
     }
 }
 
-//EndSpikeFeature 末地尖塔特征 对应原版 EndSpikeFeature
+//EndSpikeFeature end spike feature, maps to vanilla EndSpikeFeature
 public sealed class EndSpikeFeature : Feature<EndSpikeConfiguration>
 {
     private const string FeatureId = "end_spike";
 
-    //NumberOfSpikes 主岛周围的尖塔数量 对应原版 NUMBER_OF_SPIKES
+    //NumberOfSpikes number of spikes around the main island, maps to vanilla NUMBER_OF_SPIKES
     private const int NumberOfSpikes = 10;
 
-    //SpikeDistance 尖塔到主岛中心的距离 对应原版 SPIKE_DISTANCE
+    //SpikeDistance distance from a spike to the main island center, maps to vanilla SPIKE_DISTANCE
     private const double SpikeDistance = 42.0d;
 
     public static readonly EndSpikeFeature Instance = Register(
@@ -137,8 +137,8 @@ public sealed class EndSpikeFeature : Feature<EndSpikeConfiguration>
         return true;
     }
 
-    //GetSpikesForLevel 按世界种子推导十座尖塔的布局 对应原版 getSpikesForLevel
-    //原版按 key 缓存结果 这里每次重算 结果只由种子决定不受缓存影响
+    //GetSpikesForLevel derive the layout of the ten spikes from the world seed, maps to vanilla getSpikesForLevel
+    //Vanilla caches the result by key; it is recomputed each time here, and the result depends only on the seed so caching does not matter
     public static IReadOnlyList<EndSpike> GetSpikesForLevel(long seed)
     {
         var random = new LegacyRandomSource(seed);
@@ -165,7 +165,7 @@ public sealed class EndSpikeFeature : Feature<EndSpikeConfiguration>
         return result;
     }
 
-    //PlaceSpike 铺一座尖塔 对应原版 placeSpike
+    //PlaceSpike build one spike, maps to vanilla placeSpike
     private static void PlaceSpike(WorldGenRegion level, RandomSource random, EndSpike spike)
     {
         var obsidian = NetherSupport.State("obsidian");
@@ -187,7 +187,7 @@ public sealed class EndSpikeFeature : Feature<EndSpikeConfiguration>
         PlaceCrystal(level, random, spike);
     }
 
-    //PlaceGuard 尖塔顶部的铁栏杆笼 对应原版 placeSpike 里的铁栏杆段
+    //PlaceGuard iron bars cage at the top of the spike, maps to the iron bars section of vanilla placeSpike
     private static void PlaceGuard(WorldGenRegion level, EndSpike spike)
     {
         var ironBars = NetherSupport.Block("iron_bars").DefaultBlockState;
@@ -215,20 +215,20 @@ public sealed class EndSpikeFeature : Feature<EndSpikeConfiguration>
         }
     }
 
-    //PlaceCrystal 尖塔顶的水晶基座 对应原版 placeSpike 里的末地水晶段
-    //原版在这里生成末地水晶实体并设置无敌与光束目标 本作没有实体系统
-    //只保留那次朝向随机数并摆出基岩与火 使同区块后续尖塔的随机序列与原版一致
+    //PlaceCrystal crystal base at the top of the spike, maps to the end crystal section of vanilla placeSpike
+    //Vanilla spawns the end crystal entity here and sets invulnerability and the beam target; there is no entity system here
+    //Only that facing random value is kept and bedrock with fire is placed, keeping the random sequence of later spikes in the chunk aligned with vanilla
     private static void PlaceCrystal(WorldGenRegion level, RandomSource random, EndSpike spike)
     {
         _ = random.NextFloat();
         var crystalPos = new BlockPos(spike.CenterX, spike.Height + 1, spike.CenterZ);
         NetherSupport.SetBlock(level, crystalPos.Offset(0, -1, 0), NetherSupport.State("bedrock"));
-        //原版用 FireBlock.getState 按周围方块决定火的形态 本作取火默认状态
+        //Vanilla uses FireBlock.getState to pick the fire shape from neighbors; the fire default state is used here
         NetherSupport.SetBlock(level, crystalPos, NetherSupport.State("fire"));
     }
 }
 
-//EndPlatformFeature 末地出生平台特征 对应原版 EndPlatformFeature
+//EndPlatformFeature end spawn platform feature, maps to vanilla EndPlatformFeature
 public sealed class EndPlatformFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "end_platform";
@@ -245,7 +245,7 @@ public sealed class EndPlatformFeature : Feature<NoneFeatureConfiguration>
         return true;
     }
 
-    //CreateEndPlatform 铺末地出生平台 对应原版 createEndPlatform 掉落资源固定关掉
+    //CreateEndPlatform build the end spawn platform, maps to vanilla createEndPlatform with drop resources forced off
     public static void CreateEndPlatform(WorldGenRegion level, BlockPos origin)
     {
         var obsidian = NetherSupport.Block("obsidian");
@@ -266,7 +266,7 @@ public sealed class EndPlatformFeature : Feature<NoneFeatureConfiguration>
     }
 }
 
-//EndGatewayConfiguration 末地传送门配置 对应原版 EndGatewayConfiguration
+//EndGatewayConfiguration end gateway configuration, maps to vanilla EndGatewayConfiguration
 public sealed class EndGatewayConfiguration : FeatureConfiguration
 {
     public static readonly Codec<EndGatewayConfiguration> Codec =
@@ -287,8 +287,8 @@ public sealed class EndGatewayConfiguration : FeatureConfiguration
     }
 }
 
-//EndGatewayFeature 末地传送门特征 对应原版 EndGatewayFeature
-//只摆传送门方块与几何 出口位置与精确标记属于方块实体数据 本作不创建方块实体
+//EndGatewayFeature end gateway feature, maps to vanilla EndGatewayFeature
+//Only the gateway blocks and geometry are placed; the exit position and exact flag belong to block entity data, and block entities are not created here
 public sealed class EndGatewayFeature : Feature<EndGatewayConfiguration>
 {
     private const string FeatureId = "end_gateway";
@@ -338,22 +338,22 @@ public sealed class EndGatewayFeature : Feature<EndGatewayConfiguration>
     }
 }
 
-//ChorusPlantFeature 紫颂植株特征 对应原版 ChorusPlantFeature
+//ChorusPlantFeature chorus plant feature, maps to vanilla ChorusPlantFeature
 public sealed class ChorusPlantFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "chorus_plant";
 
-    //MaxHorizontalSpread 植株相对起点的最大水平展开 对应原版 generatePlant 的入参 8
+    //MaxHorizontalSpread max horizontal spread of the plant from the start, matching the 8 passed to vanilla generatePlant
     private const int MaxHorizontalSpread = 8;
 
-    //FlowerAge 紫颂花年龄 0-5 对应原版 ChorusFlowerBlock.AGE
+    //FlowerAge chorus flower age 0-5, maps to vanilla ChorusFlowerBlock.AGE
     private static readonly IntegerProperty FlowerAge = new("age", 0, 5);
 
-    //UpConnected/DownConnected 植株上下两向的连接标记 对应原版 PipeBlock 的 UP/DOWN
+    //UpConnected/DownConnected the up and down connection flags of the plant, maps to vanilla PipeBlock UP/DOWN
     private static readonly BooleanProperty UpConnected = new("up");
     private static readonly BooleanProperty DownConnected = new("down");
 
-    //HorizontalDirections 水平四向的取值顺序 对应原版 Direction.Plane.HORIZONTAL
+    //HorizontalDirections the value order of the four horizontal directions, maps to vanilla Direction.Plane.HORIZONTAL
     private static readonly Direction[] HorizontalDirections =
         { Direction.North, Direction.East, Direction.South, Direction.West };
 
@@ -375,7 +375,7 @@ public sealed class ChorusPlantFeature : Feature<NoneFeatureConfiguration>
         return true;
     }
 
-    //GeneratePlant 从起点长出一株紫颂 对应原版 ChorusFlowerBlock.generatePlant
+    //GeneratePlant grow one chorus plant from the start, maps to vanilla ChorusFlowerBlock.generatePlant
     private static void GeneratePlant(WorldGenRegion level, BlockPos target, RandomSource random,
         int maxHorizontalSpread)
     {
@@ -384,7 +384,7 @@ public sealed class ChorusPlantFeature : Feature<NoneFeatureConfiguration>
         GrowTreeRecursive(level, target, random, target, maxHorizontalSpread, 0);
     }
 
-    //GrowTreeRecursive 递归长株与分枝 对应原版 growTreeRecursive
+    //GrowTreeRecursive recursively grow the plant and its branches, maps to vanilla growTreeRecursive
     private static void GrowTreeRecursive(WorldGenRegion level, BlockPos current, RandomSource random,
         BlockPos startPos, int maxHorizontalSpread, int depth)
     {
@@ -430,7 +430,7 @@ public sealed class ChorusPlantFeature : Feature<NoneFeatureConfiguration>
             flowerState.TrySetValue(FlowerAge, 5));
     }
 
-    //AllNeighborsEmpty 四周水平邻居是否都为空 对应原版 allNeighborsEmpty
+    //AllNeighborsEmpty whether all four horizontal neighbors are empty, maps to vanilla allNeighborsEmpty
     private static bool AllNeighborsEmpty(WorldGenRegion level, BlockPos pos, Direction? ignore)
     {
         foreach (var direction in HorizontalDirections)
@@ -441,7 +441,7 @@ public sealed class ChorusPlantFeature : Feature<NoneFeatureConfiguration>
         return true;
     }
 
-    //WithConnections 按六个邻居算出植株的连接状态 对应原版 ChorusPlantBlock.getStateWithConnections
+    //WithConnections compute the plant's connection state from the six neighbors, maps to vanilla ChorusPlantBlock.getStateWithConnections
     private static BlockState WithConnections(WorldGenRegion level, BlockPos pos, BlockState defaultState)
     {
         var plant = defaultState.Owner;

@@ -2,18 +2,18 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//ChunkGeneratorStructureState 结构生成状态 对应原版 net.minecraft.world.level.chunk.ChunkGeneratorStructureState
-//持有世界种子与结构集合列表 供放置判定与排斥区查询
-//本作只保留判定需要的部分 环形放置的预设位置等接入要塞时再补
+//ChunkGeneratorStructureState structure generation state, maps to vanilla net.minecraft.world.level.chunk.ChunkGeneratorStructureState
+//Holds the world seed and structure set list for placement judges and exclusion-zone queries
+//Keeps only what the judge needs; concentric-ring preset positions will be added when strongholds are wired up
 public sealed class ChunkGeneratorStructureState
 {
-    //LevelSeed 世界种子 全部放置判定都从它派生
+    //LevelSeed world seed; all placement judges derive from it
     public long LevelSeed { get; }
 
     public ChunkGeneratorStructureState(long levelSeed) => LevelSeed = levelSeed;
 
-    //HasStructureChunkInRange 范围内是否存在目标集合的放置点 对应原版 hasStructureChunkInRange
-    //逐个区块问目标集合的 placement 命中 是排斥区判定的唯一依据
+    //HasStructureChunkInRange whether the target set has a placement point within range, maps to vanilla hasStructureChunkInRange
+    //Asks the target set's placement chunk by chunk; the sole basis for exclusion-zone checks
     public bool HasStructureChunkInRange(Holder<NetCraft.Registry.StructureSet> structureSet,
         int sourceX, int sourceZ, int range)
     {

@@ -6,13 +6,13 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.Commands;
 
-//MsgCommand msg/tell/w 命令对应原版 net.minecraft.server.commands.MsgCommand
-//私聊只发给目标与发送者本人 不广播给其他人
+//MsgCommand msg/tell/w command, maps to vanilla net.minecraft.server.commands.MsgCommand
+//The private message is sent only to the target and the sender, not broadcast to others
 public static class MsgCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
-        //三个字面量共用同一棵子树 与原版注册 msg/tell/w 三个入口一致
+        //The three literals share one subtree, consistent with vanilla registering the msg/tell/w entries
         foreach (var name in new[] { "msg", "tell", "w" })
             dispatcher.Register(LiteralArgumentBuilder<CommandSourceStack>.Literal(name)
                 .Then(RequiredArgumentBuilder<CommandSourceStack, EntitySelector>.Argument("targets", EntityArgument.Players())
@@ -20,14 +20,14 @@ public static class MsgCommand
                         .Executes(Send))));
     }
 
-    //Send 逐目标投递并给发送者一条汇总回执
+    //Send delivers per target and gives the sender a summary reply
     private static int Send(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var targets = EntityArgument.GetPlayers(context, "targets");
         if (targets.Count == 0)
         {
-            source.SendFailure("没有找到匹配的玩家");
+            source.SendFailure("no matching player found");
             return 0;
         }
 
@@ -37,10 +37,10 @@ public static class MsgCommand
         foreach (var target in targets)
         {
             names.Add(target.Profile.Name);
-            target.SendSystemMessage(Component.Literal($"{senderName} 对你说: {message}"));
+            target.SendSystemMessage(Component.Literal($"{senderName} -> you: {message}"));
         }
 
-        source.SendSuccess($"你对 {string.Join(", ", names)} 说: {message}");
+        source.SendSuccess($"you -> {string.Join(", ", names)}: {message}");
         return targets.Count;
     }
 }

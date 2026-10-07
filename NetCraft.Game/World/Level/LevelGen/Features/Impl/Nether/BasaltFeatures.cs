@@ -9,7 +9,7 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Nether;
 
-//ColumnFeatureConfiguration 玄武岩柱群配置 对应原版 ColumnFeatureConfiguration
+//ColumnFeatureConfiguration basalt column configuration, maps to vanilla ColumnFeatureConfiguration
 public sealed class ColumnFeatureConfiguration : FeatureConfiguration
 {
     public static readonly Codec<ColumnFeatureConfiguration> Codec =
@@ -28,12 +28,12 @@ public sealed class ColumnFeatureConfiguration : FeatureConfiguration
     }
 }
 
-//BasaltColumnsFeature 玄武岩柱群特征 对应原版 BasaltColumnsFeature
+//BasaltColumnsFeature basalt columns feature, maps to vanilla BasaltColumnsFeature
 public sealed class BasaltColumnsFeature : Feature<ColumnFeatureConfiguration>
 {
     private const string FeatureId = "basalt_columns";
 
-    //CountClustered/CountUnclustered 聚簇与零散两种规模的点数
+    //CountClustered/CountUnclustered point counts for the clustered and unclustered scales
     private const int ClusteredReach = 5;
     private const int ClusteredCount = 50;
     private const int UnclusteredReach = 8;
@@ -45,8 +45,8 @@ public sealed class BasaltColumnsFeature : Feature<ColumnFeatureConfiguration>
     private BasaltColumnsFeature()
         : base(Identifier.WithDefaultNamespace(FeatureId), ColumnFeatureConfiguration.Codec) { }
 
-    //CannotPlaceOn 柱体基底不允许的方块集合 对应原版 CANNOT_PLACE_ON
-    //延迟到首次放置时才取方块 方块注册表还没跑 Bootstrap 时求值会全退回空气
+    //CannotPlaceOn the set of blocks the column base may not sit on, maps to vanilla CANNOT_PLACE_ON
+    //Blocks are fetched lazily on first placement; evaluating before the block registry bootstrap would fall back to air for all of them
     private static RegBlock[]? _cannotPlaceOn;
 
     private static RegBlock[] CannotPlaceOn => _cannotPlaceOn ??= new[]
@@ -79,7 +79,7 @@ public sealed class BasaltColumnsFeature : Feature<ColumnFeatureConfiguration>
         var placed = false;
         for (var i = 0; i < count; i++)
         {
-            //原版 randomBetweenClosed 每点三轴各取一次随机数 高度跨度为 1 也要取一次
+            //Vanilla randomBetweenClosed takes one random per axis per point, even when the height span is 1
             var pos = new BlockPos(
                 origin.X - reach + random.NextInt(reach * 2 + 1),
                 origin.Y + random.NextInt(1),
@@ -91,7 +91,7 @@ public sealed class BasaltColumnsFeature : Feature<ColumnFeatureConfiguration>
         return placed;
     }
 
-    //PlaceColumn 在某点附近铺一簇玄武岩柱 对应原版 placeColumn
+    //PlaceColumn lay a cluster of basalt columns near a point, maps to vanilla placeColumn
     private static bool PlaceColumn(WorldGenRegion level, int lavaSeaLevel, BlockPos origin, int columnHeight,
         int reach)
     {
@@ -123,7 +123,7 @@ public sealed class BasaltColumnsFeature : Feature<ColumnFeatureConfiguration>
         return placedAny;
     }
 
-    //FindSurface 从该列向下找到第一个可立柱的高度 对应原版 findSurface
+    //FindSurface search down the column for the first height that can hold a pillar, maps to vanilla findSurface
     private static BlockPos? FindSurface(WorldGenRegion level, int lavaSeaLevel, BlockPos cursor, int limit)
     {
         var y = cursor.Y;
@@ -137,7 +137,7 @@ public sealed class BasaltColumnsFeature : Feature<ColumnFeatureConfiguration>
         return null;
     }
 
-    //CanPlaceAt 该格是空或岩浆海且下方是实心可承托方块 对应原版 canPlaceAt
+    //CanPlaceAt the cell is air or lava ocean and the cell below is solid support, maps to vanilla canPlaceAt
     private static bool CanPlaceAt(WorldGenRegion level, int lavaSeaLevel, BlockPos pos)
     {
         if (!IsAirOrLavaOcean(level, lavaSeaLevel, pos)) return false;
@@ -145,7 +145,7 @@ public sealed class BasaltColumnsFeature : Feature<ColumnFeatureConfiguration>
         return !below.IsAir && !CannotPlaceOn.Contains(below);
     }
 
-    //FindAir 从该列向上找到第一个空格 对应原版 findAir
+    //FindAir search up the column for the first air cell, maps to vanilla findAir
     private static BlockPos? FindAir(WorldGenRegion level, BlockPos cursor, int limit)
     {
         var y = cursor.Y;
@@ -161,7 +161,7 @@ public sealed class BasaltColumnsFeature : Feature<ColumnFeatureConfiguration>
         return null;
     }
 
-    //IsAirOrLavaOcean 该格是空或岩浆海面以下 对应原版 isAirOrLavaOcean
+    //IsAirOrLavaOcean the cell is air or below the lava ocean surface, maps to vanilla isAirOrLavaOcean
     private static bool IsAirOrLavaOcean(WorldGenRegion level, int lavaSeaLevel, BlockPos pos)
     {
         var state = NetherSupport.GetBlockState(level, pos);
@@ -170,7 +170,7 @@ public sealed class BasaltColumnsFeature : Feature<ColumnFeatureConfiguration>
     }
 }
 
-//BasaltPillarFeature 玄武岩柱特征 对应原版 BasaltPillarFeature
+//BasaltPillarFeature basalt pillar feature, maps to vanilla BasaltPillarFeature
 public sealed class BasaltPillarFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "basalt_pillar";
@@ -231,7 +231,7 @@ public sealed class BasaltPillarFeature : Feature<NoneFeatureConfiguration>
         return true;
     }
 
-    //PlaceHangOff 柱体侧面的悬垂块 对应原版 placeHangOff 十次里有九次会挂
+    //PlaceHangOff overhangs on the side of the pillar, maps to vanilla placeHangOff; nine out of ten hang
     private static bool PlaceHangOff(WorldGenRegion level, RandomSource random, BlockPos pos, BlockState state)
     {
         if (random.NextInt(10) == 0) return false;
@@ -239,15 +239,15 @@ public sealed class BasaltPillarFeature : Feature<NoneFeatureConfiguration>
         return true;
     }
 
-    //PlaceBaseHangOff 柱底的悬垂块 对应原版 placeBaseHangOff
+    //PlaceBaseHangOff overhangs at the pillar base, maps to vanilla placeBaseHangOff
     private static void PlaceBaseHangOff(WorldGenRegion level, RandomSource random, BlockPos pos, BlockState state)
     {
         if (random.NextBoolean()) NetherSupport.SetBlock(level, pos, state);
     }
 }
 
-//ReplaceSphereConfiguration 球形替换配置 对应原版 ReplaceSphereConfiguration
-//注册名 netherrack_replace_blobs 用它把下界岩换成玄武岩或黑石团
+//ReplaceSphereConfiguration sphere replacement configuration, maps to vanilla ReplaceSphereConfiguration
+//Registered as netherrack_replace_blobs; replaces netherrack with basalt or blackstone blobs
 public sealed class ReplaceSphereConfiguration : FeatureConfiguration
 {
     public static readonly Codec<ReplaceSphereConfiguration> Codec =
@@ -272,7 +272,7 @@ public sealed class ReplaceSphereConfiguration : FeatureConfiguration
     }
 }
 
-//NetherrackReplaceBlobsFeature 下界岩球形替换特征 对应原版 ReplaceBlobsFeature
+//NetherrackReplaceBlobsFeature netherrack blob replacement feature, maps to vanilla ReplaceBlobsFeature
 public sealed class NetherrackReplaceBlobsFeature : Feature<ReplaceSphereConfiguration>
 {
     private const string FeatureId = "netherrack_replace_blobs";
@@ -307,7 +307,7 @@ public sealed class NetherrackReplaceBlobsFeature : Feature<ReplaceSphereConfigu
         return replacedAny;
     }
 
-    //FindTarget 从该列向下找第一个目标方块 对应原版 findTarget
+    //FindTarget search down the column for the first target block, maps to vanilla findTarget
     private static BlockPos? FindTarget(WorldGenRegion level, BlockPos cursor, RegBlock target)
     {
         var y = cursor.Y;

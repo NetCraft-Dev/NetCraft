@@ -6,15 +6,15 @@ using NetCraft.DataFixer.Fixes;
 using NetCraft.DataFixer.Types.Templates;
 using T = NetCraft.DataFixer.Types;
 
-//ExampleSchema端到端示例Schema
-//注册minecraft:example_counter类型用PrimitiveType<object>包装ObjectIntCodec
-//避开值类型A=int的泛型不变量问题用object作为载体
+//ExampleSchema end-to-end example Schema
+//registers the minecraft:example_counter type, wrapping ObjectIntCodec with PrimitiveType<object>
+//avoids the value-type A=int generic invariance issue by using object as the carrier
 public class ExampleSchema : Schema
 {
-    //ObjectIntCodec把int装箱为object编解码到NbtOps的IntTag
+    //ObjectIntCodec boxes int as object and encodes/decodes to NbtOps's IntTag
     public static readonly Codec<object> ObjectIntCodec = new ObjectIntCodecImpl();
 
-    //ExampleType注册表用PrimitiveType<object>避免Type<int>强转Type<object>失败
+    //the ExampleType registry uses PrimitiveType<object> to avoid the failed Type<int> to Type<object> cast
     public static readonly T.Type<object> ExampleType = new Const.PrimitiveType<object>(ObjectIntCodec);
 
     public ExampleSchema(int versionKey, Schema? parent) : base(versionKey, parent) { }
@@ -22,13 +22,13 @@ public class ExampleSchema : Schema
     public override void RegisterTypes(Schema schema, Dictionary<string, Func<TypeTemplate>> entityTypes, Dictionary<string, Func<TypeTemplate>> blockEntityTypes)
     {
         base.RegisterTypes(schema, entityTypes, blockEntityTypes);
-        //递归注册example_counter让Schema.BuildTypes有templates能构造RecursiveTypeFamily
+        //registers example_counter recursively so Schema.BuildTypes has templates to construct the RecursiveTypeFamily
         schema.RegisterType(true, References.ExampleCounter, () => DSL.ConstType(ExampleType));
     }
 
-    //ObjectIntCodecImpl内部ScalarCodec实现
-    //Parse读IntTag返回object装箱int
-    //EncodeStart把object强转int写IntTag
+    //ObjectIntCodecImpl internal ScalarCodec implementation
+    //Parse reads IntTag and returns an object-boxed int
+    //EncodeStart casts object to int and writes IntTag
     private sealed class ObjectIntCodecImpl : ScalarCodec<object>
     {
         public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, object value)

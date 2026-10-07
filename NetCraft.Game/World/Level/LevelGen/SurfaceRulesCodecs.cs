@@ -5,20 +5,20 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//SurfaceRulesCodecs 表面规则 codec 集合对应原版 SurfaceRules.ConditionSource.CODEC 与 RuleSource.CODEC
-//按 type 字段 dispatch 到各子类型 codec 编码时按运行时类型写回 type
+//SurfaceRulesCodecs surface rule codec collection, maps to vanilla SurfaceRules.ConditionSource.CODEC and RuleSource.CODEC
+//Dispatches by the type field to the subtype codecs; encode writes the type back from the runtime type
 public static class SurfaceRulesCodecs
 {
-    //ConditionSourceCodec 条件源 dispatch codec
+    //ConditionSourceCodec condition source dispatch codec
     public static readonly Codec<SurfaceRules.ConditionSource> ConditionSourceCodec =
         new ConditionSourceDispatchCodec();
 
-    //RuleSourceCodec 规则源 dispatch codec
+    //RuleSourceCodec rule source dispatch codec
     public static readonly Codec<SurfaceRules.RuleSource> RuleSourceCodec =
         new RuleSourceDispatchCodec();
 }
 
-//ConditionSourceDispatchCodec 条件源 type 派发编解码
+//ConditionSourceDispatchCodec condition source type dispatch codec
 internal sealed class ConditionSourceDispatchCodec : AbstractMapCodec<SurfaceRules.ConditionSource>
 {
     private readonly IReadOnlyDictionary<string, MapCodec<SurfaceRules.ConditionSource>> _codecs;
@@ -86,7 +86,7 @@ internal sealed class ConditionSourceDispatchCodec : AbstractMapCodec<SurfaceRul
                 (offset, addSurfaceDepth, secondaryDepthRange, surfaceType)
                     => (SurfaceRules.ConditionSource)new SurfaceRules.StoneDepth(offset, addSurfaceDepth, secondaryDepthRange, surfaceType))
         };
-        //not 内嵌自身条件源 codec 对应原版 ConditionSource.CODEC.xmap(...).fieldOf("invert")
+        //not nests the condition source codec itself, maps to vanilla ConditionSource.CODEC.xmap(...).fieldOf("invert")
         codecs["not"] = new MappedMapCodec<SurfaceRules.ConditionSource, SurfaceRules.ConditionSource>(
             this.FieldOf("invert"),
             inner => new SurfaceRules.Not(inner),
@@ -103,7 +103,7 @@ internal sealed class ConditionSourceDispatchCodec : AbstractMapCodec<SurfaceRul
         if (codec is null)
             return DataResult<SurfaceRules.ConditionSource>.Error(() => $"unknown condition type: {type.Get()}");
         var decoded = codec.Decode(ops, input);
-        //内层失败原因必须带出来 否则嵌套规则报错只剩顶层类型名 定位不到是哪一层
+        //The inner failure cause must be carried out; otherwise a nested rule error only shows the top-level type and cannot be located
         var cause = string.Empty;
         var value = decoded.ResultOrPartial(msg => cause = msg);
         return value.IsPresent
@@ -121,7 +121,7 @@ internal sealed class ConditionSourceDispatchCodec : AbstractMapCodec<SurfaceRul
         return codec.EncodeTo(ops, value, builder);
     }
 
-    //Lookup 按 type 名取子 codec 名字带命名空间时只取路径段
+    //Lookup gets a sub-codec by type name; a namespaced name takes only the path segment
     internal static MapCodec<T>? Lookup<T>(IReadOnlyDictionary<string, MapCodec<T>> codecs, string type)
     {
         var id = Identifier.TryParse(type);
@@ -130,7 +130,7 @@ internal sealed class ConditionSourceDispatchCodec : AbstractMapCodec<SurfaceRul
     }
 }
 
-//RuleSourceDispatchCodec 规则源 type 派发编解码
+//RuleSourceDispatchCodec rule source type dispatch codec
 internal sealed class RuleSourceDispatchCodec : AbstractMapCodec<SurfaceRules.RuleSource>
 {
     private readonly IReadOnlyDictionary<string, MapCodec<SurfaceRules.RuleSource>> _codecs;
@@ -166,7 +166,7 @@ internal sealed class RuleSourceDispatchCodec : AbstractMapCodec<SurfaceRules.Ru
         if (codec is null)
             return DataResult<SurfaceRules.RuleSource>.Error(() => $"unknown rule type: {type.Get()}");
         var decoded = codec.Decode(ops, input);
-        //内层失败原因必须带出来 否则嵌套规则报错只剩顶层类型名 定位不到是哪一层
+        //The inner failure cause must be carried out; otherwise a nested rule error only shows the top-level type and cannot be located
         var cause = string.Empty;
         var value = decoded.ResultOrPartial(msg => cause = msg);
         return value.IsPresent
@@ -176,7 +176,7 @@ internal sealed class RuleSourceDispatchCodec : AbstractMapCodec<SurfaceRules.Ru
 
     public override RecordBuilder<U> EncodeTo<U>(DynamicOps<U> ops, SurfaceRules.RuleSource value, RecordBuilder<U> builder)
     {
-        //空规则编码为空 sequence 供未配置表面规则的配置往返
+        //An empty rule encodes as an empty sequence so unconfigured surface rule configs round-trip
         if (value is null)
         {
             builder.Add("type", ops.CreateString(Identifier.WithDefaultNamespace("sequence").ToString()));
@@ -191,10 +191,10 @@ internal sealed class RuleSourceDispatchCodec : AbstractMapCodec<SurfaceRules.Ru
     }
 }
 
-//SurfaceRulesCodecHelper 读取 type 字段
+//SurfaceRulesCodecHelper reads the type field
 internal static class SurfaceRulesCodecHelper
 {
-    //ReadType 读 type 字符串字段 缺失或非字符串返回空
+    //ReadType reads the type string field; missing or non-string returns empty
     public static Optional<string> ReadType<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var tag = input.Get("type");
@@ -204,7 +204,7 @@ internal static class SurfaceRulesCodecHelper
     }
 }
 
-//ConditionSourceNames 条件源运行时类型到 type 名映射对应原版注册名
+//ConditionSourceNames condition source runtime type to type name, maps to the vanilla registry names
 internal static class ConditionSourceNames
 {
     public static string NameOf(SurfaceRules.ConditionSource value) => value switch
@@ -224,7 +224,7 @@ internal static class ConditionSourceNames
     };
 }
 
-//RuleSourceNames 规则源运行时类型到 type 名映射对应原版注册名
+//RuleSourceNames rule source runtime type to type name, maps to the vanilla registry names
 internal static class RuleSourceNames
 {
     public static string NameOf(SurfaceRules.RuleSource value) => value switch
@@ -237,7 +237,7 @@ internal static class RuleSourceNames
     };
 }
 
-//MappedMapCodec MapCodec 级 xmap 对应原版 MapCodec.xmap
+//MappedMapCodec MapCodec-level xmap, maps to vanilla MapCodec.xmap
 internal sealed class MappedMapCodec<TIn, TOut> : AbstractMapCodec<TOut>
 {
     private readonly MapCodec<TIn> _inner;
@@ -258,7 +258,7 @@ internal sealed class MappedMapCodec<TIn, TOut> : AbstractMapCodec<TOut>
         => _inner.EncodeTo(ops, _from(value), builder);
 }
 
-//UnitMapCodec 无字段 codec 对应原版 MapCodec.unit
+//UnitMapCodec fieldless codec, maps to vanilla MapCodec.unit
 internal sealed class UnitMapCodec<T> : AbstractMapCodec<T>
 {
     private readonly Func<T> _factory;
@@ -272,7 +272,7 @@ internal sealed class UnitMapCodec<T> : AbstractMapCodec<T>
         => builder;
 }
 
-//SurfaceTypeCodec 石头深度朝向 codec 对应原版 CaveSurface.CODEC
+//SurfaceTypeCodec stone depth facing codec, maps to vanilla CaveSurface.CODEC
 internal sealed class SurfaceTypeCodec : ScalarCodec<SurfaceRules.SurfaceType>
 {
     public static readonly SurfaceTypeCodec Instance = new();
@@ -294,8 +294,8 @@ internal sealed class SurfaceTypeCodec : ScalarCodec<SurfaceRules.SurfaceType>
         => DataResult<U>.Success(ops.CreateString(value == SurfaceRules.SurfaceType.Floor ? "floor" : "ceiling"));
 }
 
-//BiomeListCodec 群系条件 codec 对应原版 RegistryCodecs.homogeneousList(Registries.BIOME)
-//三种形态: 单个群系 id / 群系 id 列表 / "#命名空间:标签"
+//BiomeListCodec biome condition codec, maps to vanilla RegistryCodecs.homogeneousList(Registries.BIOME)
+//Three forms: a single biome id / a list of biome ids / "#namespace:tag"
 internal sealed class BiomeListCodec : ScalarCodec<SurfaceRules.BiomeCondition>
 {
     public static readonly BiomeListCodec Instance = new();
@@ -340,8 +340,8 @@ internal sealed class BiomeListCodec : ScalarCodec<SurfaceRules.BiomeCondition>
         return DataResult<U>.Success(ops.CreateList(value.Biomes.Select(b => ops.CreateString(b.Id.ToString()))));
     }
 
-    //ResolveTag 解析 "#命名空间:标签"
-    //原版对数据包里没出现过的标签是宽容的 这里同样先接受 判定时按未绑定处理
+    //ResolveTag parses "#namespace:tag"
+    //Vanilla is lenient about tags that never appear in the data pack; this accepts them too and treats them as unbound during tests
     private static DataResult<SurfaceRules.BiomeCondition> ResolveTag<U>(DynamicOps<U> ops, string text)
     {
         var id = Identifier.TryParse(text);
@@ -354,13 +354,13 @@ internal sealed class BiomeListCodec : ScalarCodec<SurfaceRules.BiomeCondition>
             new SurfaceRules.BiomeCondition(TagKey<Biome>.Create(Registries.BIOME, id.Value), registry));
     }
 
-    //ResolveRegistry 取群系注册表 优先 RegistryOps 携带的回退内置注册表
+    //ResolveRegistry gets the biome registry, preferring the one carried by RegistryOps and falling back to the built-in
     private static Registry<Biome>? ResolveRegistry<U>(DynamicOps<U> ops)
         => ops is RegistryOps<U> registryOps
             ? registryOps.GetRegistry(Registries.BIOME) ?? BuiltInRegistries.BIOME
             : BuiltInRegistries.BIOME;
 
-    //ResolveBiome 优先 RegistryOps 携带的 BIOME 注册表回退内置注册表
+    //ResolveBiome prefers the BIOME registry carried by RegistryOps and falls back to the built-in
     private static DataResult<Biome> ResolveBiome<U>(DynamicOps<U> ops, string text)
     {
         var id = Identifier.TryParse(text);

@@ -1,22 +1,22 @@
 namespace NetCraft.Gpu;
 
-//GuiControl GUI 控件基类
-//提供 bounds/visible/enabled/parent + 鼠标键盘事件 + Render 抽象
-//实现 ILayoutElement 适配原版 Layout 体系 X/Y/Width/Height 直接满足接口
+//GuiControl GUI widget base class
+//Provides bounds/visible/enabled/parent + mouse and keyboard events + the Render abstraction
+//Implements ILayoutElement to fit the vanilla Layout system; X/Y/Width/Height satisfy the interface directly
 public abstract class GuiControl : IDisposable, ILayoutElement
 {
     private GuiRectangle _bounds;
     private bool _visible = true;
     private bool _enabled = true;
     private bool _disposed;
-    //_isDirty 默认 true 首次 Render 必须录制 cache 之后 ClearDirtyTree 清 false
-    //属性 setter 调 MarkDirty 向上传播父链任意祖先 dirty 整子树重 Render
+    //_isDirty defaults to true; the first Render must record cache, then ClearDirtyTree clears it to false
+    //Property setters call MarkDirty and propagate up the parent chain; any dirty ancestor re-Renders the whole subtree
     internal bool _isDirty = true;
-    //_renderCache 控件级 RenderState 缓存未 dirty 时 ReplayRange 重放跳过 Render
-    //GuiContainer 属性变化时 MarkDirty 向下传播子控件 cache 失效重 Render
+    //_renderCache widget-level RenderState cache; when not dirty, ReplayRange replays and skips Render
+    //When a GuiContainer property changes, MarkDirty propagates down, invalidating child caches and forcing a re-Render
     protected List<GuiElementRenderState>? _renderCache;
 
-    //IsDirty 控件自身或子树需要重新 Render 录制新 cache
+    //IsDirty the widget itself or its subtree needs a re-Render to record a new cache
     public bool IsDirty => _isDirty;
 
     public int X { get => _bounds.X; set { _bounds = new GuiRectangle(value, _bounds.Y, _bounds.Width, _bounds.Height); MarkDirty(); } }
@@ -42,9 +42,9 @@ public abstract class GuiControl : IDisposable, ILayoutElement
         set { _enabled = value; MarkDirty(); }
     }
 
-    //MarkDirty 标记自身 dirty 并向上传播父链遇到已 dirty 祖先停止
-    //祖先已 dirty 意味着整树会重 Render 子树无需重复标记
-    //GuiContainer override 额外向下传播子控件 cache 失效
+    //MarkDirty marks itself dirty and propagates up the parent chain, stopping at an already-dirty ancestor
+    //A dirty ancestor means the whole tree will re-Render, so the subtree needs no further marking
+    //GuiContainer override additionally propagates down to invalidate child caches
     protected virtual void MarkDirty()
     {
         var c = this;
@@ -55,21 +55,21 @@ public abstract class GuiControl : IDisposable, ILayoutElement
         }
     }
 
-    //MarkDirtyDown 向下传播 dirty 到子控件 GuiContainer override 递归子树
-    //leaf 控件默认实现只标记自身 dirty 已 dirty 跳过避免重复标记
+    //MarkDirtyDown propagates dirty down to children; GuiContainer override recurses the subtree
+    //The default leaf implementation only marks itself dirty, skipping already-dirty ones to avoid redundant marking
     internal virtual void MarkDirtyDown()
     {
         if (_isDirty) return;
         _isDirty = true;
     }
 
-    //ClearDirtyTree Render 录制后清自身 dirty GuiContainer override 递归清子控件
+    //ClearDirtyTree clears its own dirty after a Render recording; GuiContainer override recurses into children
     internal virtual void ClearDirtyTree() => _isDirty = false;
 
-    //TabStop 是否参与 Tab 键焦点导航默认 false 控件设 true 才能被 Tab 聚焦
+    //TabStop whether the widget participates in Tab focus navigation, default false; only widgets set to true can be Tab-focused
     public bool TabStop { get; set; }
 
-    //TabIndex Tab 键导航顺序默认 0 值小的先聚焦同值按控件树顺序
+    //TabIndex Tab navigation order, default 0; smaller values focus first, ties follow widget tree order
     public int TabIndex { get; set; }
 
     public GuiContainer? Parent { get; internal set; }
@@ -86,13 +86,13 @@ public abstract class GuiControl : IDisposable, ILayoutElement
     public event EventHandler<KeyEventArgs>? KeyUp;
     public event EventHandler<KeyEventArgs>? KeyPress;
 
-    //Render 由控件子类实现绘制自身
+    //Render implemented by subclasses to draw themselves
     public abstract void Render(IGuiRenderContext context);
 
-    //RenderWithCache retained mode 入口未 dirty 时 ReplayRange 重放跳过 Render
-    //dirty 时 BeginRecording 录制 Render 期间 Submit 的 RenderState 到 _renderCache
-    //录制栈支持嵌套父控件 cache 和子控件 cache 同时活跃 Submit 写入栈所有层
-    //blur 帧由 GuiWindow 强制不走 cache 确保 BlurBeforeThisStratum 每帧重新调
+    //RenderWithCache retained-mode entry; when not dirty it ReplayRanges and skips Render
+    //When dirty it BeginRecords the RenderStates submitted during Render into _renderCache
+    //The recording stack supports nested parent and child caches active at once; Submit writes to all stack levels
+    //Blur frames are forced by GuiWindow to skip the cache so BlurBeforeThisStratum is called every frame
     public void RenderWithCache(IGuiRenderContext context)
     {
         if (!_isDirty && _renderCache is not null)
@@ -108,11 +108,11 @@ public abstract class GuiControl : IDisposable, ILayoutElement
         ClearDirtyTree();
     }
 
-    //Update 每帧调用推进动画状态子类可重写自定义行为
-    //delta 单帧时长秒数对应原版 partialTick
+    //Update called every frame to advance animation state; subclasses may override custom behavior
+    //delta single-frame duration in seconds, corresponds to vanilla partialTick
     public virtual void Update(double delta) { }
 
-    //OnMouseDown 派发鼠标按下事件子类可重写自定义行为
+    //OnMouseDown dispatches the mouse-down event; subclasses may override custom behavior
     protected internal virtual void OnMouseDown(MouseEventArgs e) => MouseDown?.Invoke(this, e);
     protected internal virtual void OnMouseUp(MouseEventArgs e) => MouseUp?.Invoke(this, e);
     protected internal virtual void OnMouseClick(MouseEventArgs e) => MouseClick?.Invoke(this, e);
@@ -123,8 +123,8 @@ public abstract class GuiControl : IDisposable, ILayoutElement
     protected internal virtual void OnKeyUp(KeyEventArgs e) => KeyUp?.Invoke(this, e);
     protected internal virtual void OnKeyPress(KeyEventArgs e) => KeyPress?.Invoke(this, e);
 
-    //OnGotFocus/OnLostFocus 焦点切换通知由 GuiWindow 在设 _focusedControl 时调用
-    //TextBox override 启停光标闪烁
+    //OnGotFocus/OnLostFocus focus-change notifications, called by GuiWindow when setting _focusedControl
+    //TextBox override starts/stops caret blinking
     protected internal virtual void OnGotFocus() { }
     protected internal virtual void OnLostFocus() { }
 

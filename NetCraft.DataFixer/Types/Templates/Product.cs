@@ -12,25 +12,25 @@ using T = NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Families;
 using NetCraft.DataFixer.Util;
 
-//Product积类型模板对应原版com.mojang.datafixers.types.templates.Product
-//表示两个模板的积Pair<F,G>
+//Product product type template maps to vanilla com.mojang.datafixers.types.templates.Product
+//represents the product of two templates, Pair<F,G>
 public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
 {
     public int Size() => Math.Max(F.Size(), G.Size());
 
-    //apply每个index返回DSL.and(f, g)包装
+    //apply returns DSL.and(f, g)-wrapped types at each index
     public TypeFamily Apply(TypeFamily family)
         => new ProductFamily(this, family);
 
-    //applyO合并两侧元素applyO的结果用TraversalP组合
+    //applyO merges the results of both elements' applyO, combining with TraversalP
     public FamilyOptic<object, object> ApplyO<A, B>(FamilyOptic<A, B> input, T.Type<A> aType, T.Type<B> bType)
         => TypeFamily.FamilyOptic<object, object>(i => (TypedOptic<object, object, object, object>)(object)CapOptic<A, B>(
             (FamilyOptic<A, B>)(object)F.ApplyO(input, aType, bType),
             (FamilyOptic<A, B>)(object)G.ApplyO(input, aType, bType),
             i));
 
-    //CapOptic合并两侧TypedOptic为Pair上的TraversalP合并optic
-    //原版Java用类型擦除让LS/RS/LT/RT为通配C#用object强转消除类型参数
+    //CapOptic merges both TypedOptics into a TraversalP-merged optic on Pair
+    //vanilla Java uses type erasure to make LS/RS/LT/RT wildcards; C# uses object casts to erase the type parameters
     private static TypedOptic<object, object, A, B> CapOptic<A, B>(
         FamilyOptic<A, B> lo, FamilyOptic<A, B> ro, int index)
     {
@@ -45,8 +45,8 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
             BuildProductTraversal<A, B>(lp, rp));
     }
 
-    //BuildProductTraversal构造Pair上的Traversal合并两侧焦点
-    //两侧optic强转为Traversal<object,object,A,B>简化原版wander逻辑
+    //BuildProductTraversal builds a Traversal on Pair, merging both focuses
+    //both optics are cast to Traversal<object,object,A,B>, simplifying the vanilla wander logic
     private static object BuildProductTraversal<A, B>(
         TypedOptic<object, object, A, B> lo, TypedOptic<object, object, A, B> ro)
     {
@@ -57,7 +57,7 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
         return new ProductTraversal<A, B>(lTraversal, rTraversal);
     }
 
-    //findFieldOrType先在f中查找失败再在g中查找后用Product包装
+    //findFieldOrType searches f first, then g on failure, then wraps with Product
     public Either<TypeTemplate, T.Type<object>.FieldNotFoundException> FindFieldOrType<A, B>(
         int index, string? name, T.Type<A> type, T.Type<B> resultType)
     {
@@ -76,7 +76,7 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
         return Either<TypeTemplate, T.Type<object>.FieldNotFoundException>.Right(either2.GetRight().Get());
     }
 
-    //hmap对两侧元素应用hmap后用cap合并
+    //hmap applies hmap to both elements, then merges with cap
     public Func<int, RewriteResult<object, object>> Hmap(TypeFamily family, Func<int, RewriteResult<object, object>> function)
         => i =>
         {
@@ -85,13 +85,13 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return CapView(Apply(family).Apply(i), f1, f2);
         };
 
-    //CapView两侧元素重写结果用ProductType.mergeViews合并
+    //CapView merges the rewrite results of both elements via ProductType.mergeViews
     private static RewriteResult<object, object> CapView<L, R>(T.Type<object> type, RewriteResult<L, object> f1, RewriteResult<R, object> f2)
         => (RewriteResult<object, object>)(object)((ProductType<L, R>)(object)type).MergeViews(f1, f2);
 
     public override string ToString() => "(" + F + ", " + G + ")";
 
-    //ProductFamily按index返回DSL.and包装的子类型
+    //ProductFamily returns the child type wrapped with DSL.and at each index
     private sealed class ProductFamily : TypeFamily
     {
         private readonly Product _template;
@@ -103,8 +103,8 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
         }
         public T.Type<object> Apply(int index)
         {
-            //F/G.Apply返回T.Type<A>包装为Pair<F,G>后强转T.Type<object>会失败
-            //三处都用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+            //F/G.Apply returns T.Type<A>; casting to T.Type<object> after wrapping as Pair<F,G> fails
+            //all three places use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
             var fObj = (object)_template.F.Apply(_family).Apply(index)!;
             var fType = System.Runtime.CompilerServices.Unsafe.As<object, T.Type<object>>(ref fObj);
             var gObj = (object)_template.G.Apply(_family).Apply(index)!;
@@ -115,7 +115,7 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
         }
     }
 
-    //ProductType积类型持有两个子类型对应Pair<F,G>
+    //ProductType product type holding two child types, maps to Pair<F,G>
     public sealed class ProductType<F, G> : T.Type<NetCraft.DataFixer.Util.Pair<F, G>>
     {
         private readonly T.Type<F> _first;
@@ -131,13 +131,13 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
         public T.Type<F> First() => _first;
         public T.Type<G> Second() => _second;
 
-        //all对两侧元素应用规则后mergeViews合并
+        //all applies the rule to both elements, then merges via mergeViews
         public override RewriteResult<NetCraft.DataFixer.Util.Pair<F, G>, object> All(object rule, bool recurse, bool checkIndex)
             => MergeViews(_first.RewriteOrNop(rule), _second.RewriteOrNop(rule));
 
-        //mergeViews分两步先fixLeft再fixRight后compose
-        //类型擦除后Compose类型不匹配用object强转对齐原版Java语义
-        //v1.NewType与v1/v2/composed的强转都用Unsafe.As绕过C#严格泛型不变量
+        //mergeViews works in two steps: fixLeft then fixRight, then compose
+        //after type erasure Compose types do not match; cast via object to align with vanilla Java semantics
+        //casts of v1.NewType and v1/v2/composed all use Unsafe.As to bypass C# strict generic invariance
         public RewriteResult<NetCraft.DataFixer.Util.Pair<F, G>, object> MergeViews(
             RewriteResult<F, object> leftView, RewriteResult<G, object> rightView)
         {
@@ -151,7 +151,7 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<NetCraft.DataFixer.Util.Pair<F, G>, object>>(ref composedObj);
         }
 
-        //one先尝试first再尝试second任意命中即返回
+        //one tries first then second; returns on either match
         public override Optional<RewriteResult<NetCraft.DataFixer.Util.Pair<F, G>, object>> One(object rule)
         {
             var firstOpt = ((TypeRewriteRule)rule).Rewrite(_first);
@@ -169,7 +169,7 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return Optional<RewriteResult<NetCraft.DataFixer.Util.Pair<F, G>, object>>.Empty();
         }
 
-        //findFieldTypeOpt先在first中查失败再在second中查
+        //findFieldTypeOpt searches first then second on failure
         public override Optional<T.Type<object>> FindFieldTypeOpt(string name)
         {
             var firstOpt = _first.FindFieldTypeOpt(name);
@@ -177,8 +177,8 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return _second.FindFieldTypeOpt(name);
         }
 
-        //fixLeft把first侧重写结果用proj1投射到Pair层
-        //view与TypedOptic的强转用Unsafe.As绕过C#严格泛型不变量对齐Java类型擦除
+        //fixLeft projects the first-side rewrite result into the Pair layer via proj1
+        //the view and TypedOptic casts use Unsafe.As to bypass C# strict generic invariance, aligning with Java type erasure
         private static RewriteResult<NetCraft.DataFixer.Util.Pair<F, G>, object> FixLeft(
             T.Type<NetCraft.DataFixer.Util.Pair<F, G>> type, T.Type<F> first, T.Type<G> second, RewriteResult<F, object> view)
         {
@@ -192,8 +192,8 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return T.Type<NetCraft.DataFixer.Util.Pair<F, G>>.OpticView(type, viewCast, opticCast);
         }
 
-        //fixRight把second侧重写结果用proj2投射到Pair层
-        //同FixLeft用Unsafe.As绕过view和optic两处cast
+        //fixRight projects the second-side rewrite result into the Pair layer via proj2
+        //same as FixLeft: use Unsafe.As to bypass both the view and optic casts
         private static RewriteResult<NetCraft.DataFixer.Util.Pair<F, G>, object> FixRight(
             T.Type<NetCraft.DataFixer.Util.Pair<F, G>> type, T.Type<F> first, T.Type<G> second, RewriteResult<G, object> view)
         {
@@ -216,7 +216,7 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
         protected override Codec<NetCraft.DataFixer.Util.Pair<F, G>> BuildCodec()
             => new ProductCodec(this);
 
-        //ProductCodec积类型codec用pair组合first与second
+        //ProductCodec product type codec combining first and second with pair
         private sealed class ProductCodec : ScalarCodec<NetCraft.DataFixer.Util.Pair<F, G>>
         {
             private readonly ProductType<F, G> _type;
@@ -228,7 +228,7 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
                 if (!firstEncoded.Result().IsPresent) return DataResult<U>.Error(() => "first encode failed");
                 var secondEncoded = _type._second.Codec().EncodeStart(ops, value.Second);
                 if (!secondEncoded.Result().IsPresent) return DataResult<U>.Error(() => "second encode failed");
-                //合并两个值这里用list包装简化原版用Codec.pair的实现
+                //merges the two values; wrapped in a list here to simplify the vanilla implementation using Codec.pair
                 return DataResult<U>.Success(ops.MergeToList(firstEncoded.GetOrThrow(), secondEncoded.GetOrThrow()).GetOrThrow());
             }
 
@@ -276,8 +276,8 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
         }
     }
 
-    //ProductTraversal积类型遍历用两侧Traversal分别处理Pair的first与second
-    //两侧Traversal统一为Traversal<object,object,A,B>简化原版泛型签名
+    //ProductTraversal product type traversal; uses both Traversals to handle Pair's first and second separately
+    //both Traversals are unified as Traversal<object,object,A,B>, simplifying the vanilla generic signature
     private sealed class ProductTraversal<A, B> : Traversal<NetCraft.DataFixer.Util.Pair<object, object>, NetCraft.DataFixer.Util.Pair<object, object>, A, B>
     {
         private readonly Traversal<object, object, A, B> _left;
@@ -295,7 +295,7 @@ public sealed record Product(TypeTemplate F, TypeTemplate G) : TypeTemplate
             {
                 var leftResult = _left.Wander(applicative, input).Invoke(pair.First);
                 var rightResult = _right.Wander(applicative, input).Invoke(pair.Second);
-                //Apply2合并两侧结果为Pair对应原版applicative.ap2(point(Pair::of), ...)
+                //Apply2 merges both sides into a Pair, maps to vanilla applicative.ap2(point(Pair::of), ...)
                 return applicative.Apply2(
                     (Func<object, object, NetCraft.DataFixer.Util.Pair<object, object>>)((l, r) => NetCraft.DataFixer.Util.Pair<object, object>.Of(l, r)),
                     leftResult, rightResult);

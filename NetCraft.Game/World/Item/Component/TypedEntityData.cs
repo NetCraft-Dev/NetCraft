@@ -7,8 +7,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items.Component;
 
-//TypedEntityData 带类型标识的实体存档数据 对应原版 net.minecraft.world.item.component.TypedEntityData
-//type 指明数据属于哪种注册项 tag 是去掉 id 之后的实体 NBT
+//TypedEntityData entity save data with a type marker, maps to vanilla net.minecraft.world.item.component.TypedEntityData
+//type says which registry entry the data belongs to, tag is the entity NBT with the id removed
 public sealed class TypedEntityData<T> where T : class
 {
     internal const string TypeTagName = "id";
@@ -25,24 +25,24 @@ public sealed class TypedEntityData<T> where T : class
 
     public T Type => _type;
 
-    //判等要求类型与数据都相同 对应原版 equals
+    //Equality requires both type and data to match, maps to vanilla equals
     public override bool Equals(object? obj)
         => ReferenceEquals(this, obj)
             || (obj is TypedEntityData<T> other && Equals(_type, other._type) && _tag.Equals(other._tag));
 
-    //哈希与判等一致 对应原版 hashCode
+    //Hash matches equality, maps to vanilla hashCode
     public override int GetHashCode() => HashCode.Combine(_type, _tag);
 
     public override string ToString() => $"{_type} {_tag}";
 
     public bool Contains(string name) => _tag.Contains(name);
 
-    //CopyTagWithoutId 取不含 id 的数据副本
+    //CopyTagWithoutId returns a data copy without the id
     public CompoundTag CopyTagWithoutId() => (CompoundTag)_tag.Copy();
 
-    //LoadInto 把这份数据盖到实体上 对应原版 loadInto(Entity)
-    //原版走 ProblemReporter 与 TagValueOutput 一整套上下文写入 NC 尚未接入
-    //这里直接走实体的 CompoundTag 读写 并保住原 UUID 不被数据里的值顶掉
+    //LoadInto applies this data onto an entity, maps to vanilla loadInto(Entity)
+    //Vanilla writes through the full ProblemReporter and TagValueOutput context, not yet wired up in NC
+    //Here it goes straight through the entity's CompoundTag read/write and keeps the original UUID from being overwritten by a value in the data
     public void LoadInto(NetCraft.Registry.Entity entity)
     {
         var entityData = new CompoundTag();
@@ -53,9 +53,9 @@ public sealed class TypedEntityData<T> where T : class
         entity.Uuid = uuid;
     }
 
-    //LoadInto 把这份数据盖到方块实体上 对应原版 loadInto(BlockEntity)
-    //只有内容真的变了才回写 失败时用旧标签回滚 返回是否应用成功
-    //NC 的方块实体落盘是全量写 没有基类的 setChanged 脏标记 那一步省略
+    //LoadInto applies this data onto a block entity, maps to vanilla loadInto(BlockEntity)
+    //Writes back only when the contents actually changed, rolls back to the old tag on failure, returns whether it applied
+    //NC block entities save in full with no base-class setChanged dirty flag, so that step is skipped
     public bool LoadInto(BlockEntity blockEntity)
     {
         var newTag = new CompoundTag();
@@ -76,14 +76,14 @@ public sealed class TypedEntityData<T> where T : class
         }
     }
 
-    //StreamCodecOf 网络编解码 先写类型再写整块 NBT
+    //StreamCodecOf network codec, writes the type then the whole NBT
     public static StreamCodec<RegistryFriendlyByteBuf, TypedEntityData<T>> StreamCodecOf(StreamCodec<RegistryFriendlyByteBuf, T> typeCodec)
         => new TypedEntityDataStreamCodec<T>(typeCodec);
 
-    //CodecOf 持久化编解码 对应原版 TypedEntityData.codec
+    //CodecOf persistence codec, maps to vanilla TypedEntityData.codec
     public static Codec<TypedEntityData<T>> CodecOf(Codec<T> typeCodec) => new TypedEntityDataCodec<T>(typeCodec);
 
-    //StripId 去掉 id 键 原版约定 id 由类型字段承载不留在数据里
+    //StripId removes the id key; vanilla requires the id to be carried by the type field, not left in the data
     private static CompoundTag StripId(CompoundTag tag)
     {
         if (!tag.Contains(TypeTagName)) return tag;
@@ -93,7 +93,7 @@ public sealed class TypedEntityData<T> where T : class
     }
 }
 
-//TypedEntityDataStreamCodec 对应原版 streamCodec 的 composite 组合
+//TypedEntityDataStreamCodec maps to the composite of vanilla streamCodec
 internal sealed class TypedEntityDataStreamCodec<T> : StreamCodec<RegistryFriendlyByteBuf, TypedEntityData<T>> where T : class
 {
     private readonly StreamCodec<RegistryFriendlyByteBuf, T> _typeCodec;
@@ -114,8 +114,8 @@ internal sealed class TypedEntityDataStreamCodec<T> : StreamCodec<RegistryFriend
     }
 }
 
-//TypedEntityDataCodec 持久化编解码 对应原版 TypedEntityData.codec
-//整块走 CompoundTag.Codec 取出 id 键解析类型 其余字段留作实体数据
+//TypedEntityDataCodec persistence codec, maps to vanilla TypedEntityData.codec
+//Goes through CompoundTag.Codec as a whole, pulls the id key to resolve the type and leaves the rest as entity data
 internal sealed class TypedEntityDataCodec<T> : ScalarCodec<TypedEntityData<T>> where T : class
 {
     private readonly Codec<T> _typeCodec;

@@ -4,22 +4,22 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Server;
 
-//BlockEntityManager 方块实体集合对应原版 LevelChunk 内的 blockEntities 容器
-//按 BlockPos 索引提供增删查与每帧 tick 原版容器挂在区块上 这里按关卡统一持有简化
-//区块反序列化在线程池线程上跑(ServerChunkCache.LoadAsync) 会与本容器的读写并发
-//原版这一步在主线程做 本作读盘下到了后台 用一把锁把容器兜住
+//BlockEntityManager block entity collection, maps to the blockEntities container inside vanilla LevelChunk
+//Indexed by BlockPos it provides add/remove/lookup and a per-frame tick; vanilla hangs the container on the chunk, this holds it per level for simplicity
+//Chunk deserialization runs on thread pool threads (ServerChunkCache.LoadAsync) and races with reads/writes to this container
+//Vanilla does this step on the main thread; this project moved disk reads to the background, so a lock guards the container
 public sealed class BlockEntityManager
 {
     private readonly Dictionary<long, BlockEntity> _entities = new();
 
-    //加入序号 原版方块实体是按加入顺序逐个 tick 的 blockEntityTickers 就是个顺序表
-    //字典自己的遍历顺序随增删漂移 同一拍里多个方块实体的收尾次序也跟着漂
-    //活塞收回时底座与前方两格是同一拍收尾的 底座先收尾才判定得到"信号已经消失"
-    //次序一反过来 收尾刚落回红石块就被活塞读到 立刻又伸出 表现成停不下来的自激循环
+    //Insertion order; vanilla ticks block entities in insertion order and blockEntityTickers is a sequential list
+    //The dictionary's own iteration order drifts with insertions/removals, and so does the finishing order of multiple block entities in one tick
+    //When a piston retracts, the base and the two cells in front finish in the same tick; the base must finish first to see "the signal is gone"
+    //Reversed, the moment the base finishes and falls back to redstone the piston reads it and extends again, showing as a self-excited loop that never stops
     private readonly Dictionary<long, long> _orders = new();
     private long _nextOrder;
 
-    //_entities 是普通字典 并发写会损坏内部数组并抛出越界的假像 进出都要持锁
+    //_entities is a plain dictionary; concurrent writes corrupt the internal array and throw a bogus out-of-range, so both entry and exit hold the lock
     private readonly object _lock = new();
 
     public int Count
@@ -30,7 +30,7 @@ public sealed class BlockEntityManager
         }
     }
 
-    //Entities 取全部方块实体的快照 直接返回 Values 会让调用方遍历时撞上并发写
+    //Entities takes a snapshot of all block entities; returning Values directly would let callers hit concurrent writes while iterating
     public IEnumerable<BlockEntity> Entities
     {
         get
@@ -39,7 +39,7 @@ public sealed class BlockEntityManager
         }
     }
 
-    //Add 登记方块实体并注入关卡 同位置重复登记覆盖
+    //Add registers a block entity and injects the level; a duplicate at the same position overrides
     public T Add<T>(ServerLevel level, T entity) where T : BlockEntity
     {
         entity.Level = level;
@@ -67,8 +67,8 @@ public sealed class BlockEntityManager
         }
     }
 
-    //InChunk 取指定区块内的方块实体 落盘采集与区块包下发按区块取
-    //先取快照再筛 锁不能跨 yield 留在迭代器里
+    //InChunk takes the block entities in the given chunk; save collection and chunk packet dispatch take them per chunk
+    //Take a snapshot first then filter; the lock cannot stay in an iterator across yield
     public IEnumerable<BlockEntity> InChunk(ChunkPos pos)
     {
         List<BlockEntity> snapshot;
@@ -77,8 +77,8 @@ public sealed class BlockEntityManager
             if (InChunk(entity.Pos, pos)) yield return entity;
     }
 
-    //RemoveInChunk 移除指定区块内的全部方块实体 返回移除个数
-    //区块卸载时调用 对应原版区块卸载带走其方块实体
+    //RemoveInChunk removes all block entities in the given chunk and returns the count
+    //Called on chunk unload, maps to vanilla chunk unload carrying away its block entities
     public int RemoveInChunk(ChunkPos pos)
     {
         lock (_lock)
@@ -102,13 +102,13 @@ public sealed class BlockEntityManager
     private static bool InChunk(BlockPos blockPos, ChunkPos chunkPos)
         => (blockPos.X >> 4) == chunkPos.X && (blockPos.Z >> 4) == chunkPos.Z;
 
-    //Tick 推进全部方块实体 先取快照避免 tick 过程中增删改动集合
-    //实体自身的 tick 在锁外跑 它内部还会回头改本容器 锁只要护住取快照那一下
+    //Tick advances all block entities; take a snapshot first so additions/removals during tick do not modify the collection
+    //The entity's own tick runs outside the lock; it may modify this container, so the lock only protects the snapshot step
     public void Tick()
     {
         List<BlockEntity> snapshot;
         lock (_lock)
-            //按加入顺序排 与原版 blockEntityTickers 的迭代顺序一致
+            //Sorted by insertion order, consistent with the iteration order of vanilla blockEntityTickers
             snapshot = _entities
                 .OrderBy(pair => _orders.TryGetValue(pair.Key, out var order) ? order : long.MaxValue)
                 .Select(pair => pair.Value)

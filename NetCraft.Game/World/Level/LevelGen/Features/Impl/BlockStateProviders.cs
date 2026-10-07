@@ -8,47 +8,47 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl;
 
-//BlockStateProvider 方块状态提供者基类 对应原版 stateproviders.BlockStateProvider
-//按位置与随机源给出要放置的方块状态 提供者之间可嵌套
+//BlockStateProvider block state provider base, maps to vanilla stateproviders.BlockStateProvider
+//Gives the block state to place from the position and random source; providers can nest
 public abstract class BlockStateProvider
 {
-    //Codec 多态入口 按 type 字段派发到 BLOCK_STATE_PROVIDER_TYPE 注册表
+    //Codec polymorphic entry dispatching on the type field into the BLOCK_STATE_PROVIDER_TYPE registry
     public static readonly Codec<BlockStateProvider> Codec = new BlockStateProviderDispatchCodec();
 
-    //Type 所属类型单例 编码与注册表解析靠它拿 id
+    //Type owning type singleton; encoding and registry resolution use it to get the id
     public abstract BlockStateProviderType Type { get; }
 
-    //GetState 取一个确定的状态 对应原版 getState
+    //GetState fetch a definite state, maps to vanilla getState
     public abstract BlockState GetState(WorldGenRegion level, RandomSource random, BlockPos pos);
 
-    //GetOptionalState 允许返回空 对应原版 getOptionalState
+    //GetOptionalState may return null, maps to vanilla getOptionalState
     public virtual BlockState? GetOptionalState(WorldGenRegion level, RandomSource random, BlockPos pos)
         => GetState(level, random, pos);
 
-    //Simple 单状态提供者便捷构造 对应原版 simple
+    //Simple convenience constructor for a single state provider, maps to vanilla simple
     public static SimpleStateProvider Simple(BlockState state) => new(state);
 
     public static SimpleStateProvider Simple(RegBlock block) => new(block.DefaultBlockState);
 }
 
-//BlockStateProviderType 提供者类型单例基类 对应原版 BlockStateProviderType
-//非泛型基类供注册表持有 持类型 id 与「map → 实例」的解码入口
+//BlockStateProviderType provider type singleton base, maps to vanilla BlockStateProviderType
+//Non-generic base held by the registry, carrying the type id and the map-to-instance decode entry
 public abstract class BlockStateProviderType : NetCraft.Registry.BlockStateProviderType<object>
 {
     public Identifier Id { get; }
 
     protected BlockStateProviderType(Identifier id) => Id = id;
 
-    //Decode 从 map 解出一个提供者实例 type 字段已由外层消费
+    //Decode decode a provider instance from the map; the type field is already consumed by the caller
     public abstract DataResult<BlockStateProvider> Decode<U>(DynamicOps<U> ops, MapLike<U> input);
 
-    //EncodeFields 把实例参数累积进 builder type 字段由外层补
+    //EncodeFields accumulate the instance fields into the builder; the type field is added by the caller
     public abstract void EncodeFields<U>(DynamicOps<U> ops, BlockStateProvider value, RecordBuilder<U> builder);
 
     public override string ToString() => $"BlockStateProviderType[{Id}]";
 }
 
-//BlockStateProviderType<P> 具体提供者类型的泛型中间层 子类只需给出一个 MapCodec<P>
+//BlockStateProviderType<P> generic middle layer for a concrete provider type; subclasses only supply one MapCodec<P>
 public abstract class BlockStateProviderType<P> : BlockStateProviderType where P : BlockStateProvider
 {
     private readonly MapCodec<P> _codec;
@@ -64,15 +64,15 @@ public abstract class BlockStateProviderType<P> : BlockStateProviderType where P
     }
 }
 
-//SimpleBlockStateProviderType 只带 id 与 codec 的类型实例 覆盖全部内置提供者
+//SimpleBlockStateProviderType type instance carrying only an id and a codec, covering all built-in providers
 internal sealed class SimpleBlockStateProviderType<P> : BlockStateProviderType<P> where P : BlockStateProvider
 {
     public SimpleBlockStateProviderType(string id, MapCodec<P> codec)
         : base(Identifier.WithDefaultNamespace(id), codec) { }
 }
 
-//BlockStateProviderTypes 内置提供者类型登记 对应原版 BlockStateProviderType 的静态字段
-//静态字段初始化即完成注册 供 RegisterAll 触碰
+//BlockStateProviderTypes built-in provider type registration, maps to the static fields of vanilla BlockStateProviderType
+//Registering happens as the static fields initialize; RegisterAll just touches them
 public static class BlockStateProviderTypes
 {
     public static readonly BlockStateProviderType<SimpleStateProvider> Simple =
@@ -90,7 +90,7 @@ public static class BlockStateProviderTypes
     public static readonly BlockStateProviderType<RuleBasedStateProvider> RuleBased =
         Register("rule_based_state_provider", RuleBasedStateProvider.MapCodec);
 
-    //Register 登记进 BLOCKSTATE_PROVIDER_TYPE 并返回类型实例
+    //Register register into BLOCKSTATE_PROVIDER_TYPE and return the type instance
     private static BlockStateProviderType<T> Register<T>(string path, MapCodec<T> codec) where T : BlockStateProvider
     {
         var type = new SimpleBlockStateProviderType<T>(path, codec);
@@ -100,7 +100,7 @@ public static class BlockStateProviderTypes
     }
 }
 
-//SimpleStateProvider 单状态提供者 对应原版 SimpleStateProvider
+//SimpleStateProvider single state provider, maps to vanilla SimpleStateProvider
 public sealed class SimpleStateProvider : BlockStateProvider
 {
     public static readonly MapCodec<SimpleStateProvider> MapCodec =
@@ -118,7 +118,7 @@ public sealed class SimpleStateProvider : BlockStateProvider
     public override BlockState GetState(WorldGenRegion level, RandomSource random, BlockPos pos) => State;
 }
 
-//WeightedStateProvider 权重状态提供者 对应原版 WeightedStateProvider
+//WeightedStateProvider weighted state provider, maps to vanilla WeightedStateProvider
 public sealed class WeightedStateProvider : BlockStateProvider
 {
     public static readonly MapCodec<WeightedStateProvider> MapCodec =
@@ -137,8 +137,8 @@ public sealed class WeightedStateProvider : BlockStateProvider
         => WeightedList.GetRandomOrThrow(random);
 }
 
-//RotatedBlockProvider 随机轴方块提供者 对应原版 RotatedBlockProvider
-//原木这类带 axis 属性的方块靠它随机朝向
+//RotatedBlockProvider random axis block provider, maps to vanilla RotatedBlockProvider
+//Blocks with an axis property such as logs use it for a random orientation
 public sealed class RotatedBlockProvider : BlockStateProvider
 {
     public static readonly MapCodec<RotatedBlockProvider> MapCodec =
@@ -155,7 +155,7 @@ public sealed class RotatedBlockProvider : BlockStateProvider
 
     public override BlockState GetState(WorldGenRegion level, RandomSource random, BlockPos pos)
     {
-        //原版 Direction.Axis.getRandom 在 XYZ 三轴里等概率取一个
+        //Vanilla Direction.Axis.getRandom picks one of the XYZ axes uniformly
         var axis = random.NextInt(3) switch
         {
             0 => NetCraft.Registry.Enums.Axis.x,
@@ -166,8 +166,8 @@ public sealed class RotatedBlockProvider : BlockStateProvider
     }
 }
 
-//RandomizedIntStateProvider 随机整型属性提供者 对应原版 RandomizedIntStateProvider
-//先取基础状态再把指定整型属性随机重设
+//RandomizedIntStateProvider randomized int property provider, maps to vanilla RandomizedIntStateProvider
+//Fetches the base state then randomly resets the given integer property
 public sealed class RandomizedIntStateProvider : BlockStateProvider
 {
     public static readonly MapCodec<RandomizedIntStateProvider> MapCodec =
@@ -199,7 +199,7 @@ public sealed class RandomizedIntStateProvider : BlockStateProvider
         return state.SetValue(property, (object)Values.Sample(random));
     }
 
-    //FindIntProperty 按属性名找整型属性 属性名对不上时原样返回
+    //FindIntProperty find an integer property by name; return it unchanged when the name does not match
     private static IntegerProperty? FindIntProperty(BlockState state, string name)
     {
         foreach (var property in state.GetProperties())
@@ -209,9 +209,9 @@ public sealed class RandomizedIntStateProvider : BlockStateProvider
     }
 }
 
-//RuleBasedStateProvider 规则状态提供者 对应原版 RuleBasedStateProvider
-//按规则顺序逐条测试 命中就交给对应提供者 都没命中且有 fallback 才用 fallback
-//树木的 below_trunk_provider 靠它按方块标签决定树干下方填什么
+//RuleBasedStateProvider rule-based state provider, maps to vanilla RuleBasedStateProvider
+//Tests rules in order and delegates to the matching provider; the fallback is used only when nothing matches
+//The tree below_trunk_provider uses it to decide what fills below the trunk based on block tags
 public sealed class RuleBasedStateProvider : BlockStateProvider
 {
     public static readonly MapCodec<RuleBasedStateProvider> MapCodec =
@@ -244,12 +244,12 @@ public sealed class RuleBasedStateProvider : BlockStateProvider
         return Fallback?.GetState(level, random, pos);
     }
 
-    //GetState 无规则命中且没有 fallback 时保留原方块 对应原版 getState 的兜底
+    //GetState keep the original block when no rule matches and there is no fallback, matching the fallback of vanilla getState
     public override BlockState GetState(WorldGenRegion level, RandomSource random, BlockPos pos)
         => GetOptionalState(level, random, pos) ?? level.GetBlockState(pos.X, pos.Y, pos.Z);
 }
 
-//RuleBasedStateRule 规则状态提供者的一条规则 对应原版 RuleBasedStateProvider.Rule
+//RuleBasedStateRule one rule of the rule-based state provider, maps to vanilla RuleBasedStateProvider.Rule
 public sealed class RuleBasedStateRule
 {
     public static readonly Codec<RuleBasedStateRule> Codec =
@@ -270,8 +270,8 @@ public sealed class RuleBasedStateRule
     }
 }
 
-//BlockStateProviderDispatchCodec 按 type 字段查 BLOCKSTATE_PROVIDER_TYPE 再委派给该类型
-//对应原版 BuiltInRegistries.BLOCKSTATE_PROVIDER_TYPE.byNameCodec().dispatch(...)
+//BlockStateProviderDispatchCodec look up BLOCKSTATE_PROVIDER_TYPE by the type field then delegate to that type
+//Maps to vanilla BuiltInRegistries.BLOCKSTATE_PROVIDER_TYPE.byNameCodec().dispatch(...)
 internal sealed class BlockStateProviderDispatchCodec : ScalarCodec<BlockStateProvider>
 {
     public override DataResult<BlockStateProvider> Parse<U>(DynamicOps<U> ops, U input)
@@ -280,15 +280,15 @@ internal sealed class BlockStateProviderDispatchCodec : ScalarCodec<BlockStatePr
     private static DataResult<BlockStateProvider> DecodeProvider<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var typeTag = input.Get("type");
-        if (!typeTag.IsPresent) return DataResult<BlockStateProvider>.Error(() => "方块状态提供者缺 type 字段");
+        if (!typeTag.IsPresent) return DataResult<BlockStateProvider>.Error(() => "block state provider is missing the type field");
         var typeText = ops.GetStringValue(typeTag.Get());
         if (!typeText.Result().IsPresent)
-            return DataResult<BlockStateProvider>.Error(() => "方块状态提供者的 type 必须是字符串");
+            return DataResult<BlockStateProvider>.Error(() => "block state provider type must be a string");
         var typeId = Identifier.TryParse(typeText.GetOrThrow());
         if (typeId is null)
-            return DataResult<BlockStateProvider>.Error(() => $"非法的提供者类型: {typeText.GetOrThrow()}");
+            return DataResult<BlockStateProvider>.Error(() => $"invalid provider type: {typeText.GetOrThrow()}");
         if (BuiltInRegistries.BLOCKSTATE_PROVIDER_TYPE.GetValue(typeId.Value) is not BlockStateProviderType type)
-            return DataResult<BlockStateProvider>.Error(() => $"未知的提供者类型: {typeId}");
+            return DataResult<BlockStateProvider>.Error(() => $"unknown provider type: {typeId}");
         return type.Decode(ops, input);
     }
 
@@ -301,8 +301,8 @@ internal sealed class BlockStateProviderDispatchCodec : ScalarCodec<BlockStatePr
     }
 }
 
-//SingleFieldMapCodec 单字段 codec 对应原版 RecordCodecBuilder 单字段形态
-//项目 RecordCodecBuilder 从两字段起 单字段的类型用这个包装
+//SingleFieldMapCodec single-field codec, maps to the single-field form of vanilla RecordCodecBuilder
+//The project's RecordCodecBuilder starts at two fields, so single-field types wrap with this
 internal sealed class SingleFieldMapCodec<T, F> : AbstractMapCodec<T>
 {
     private readonly MapCodec<F> _field;
@@ -323,8 +323,8 @@ internal sealed class SingleFieldMapCodec<T, F> : AbstractMapCodec<T>
         => _field.EncodeTo(ops, _getter(value), builder);
 }
 
-//WeightedListCodec 权重列表编解码 对应原版 WeightedList.codec
-//元素形态 {"data": <元素>, "weight": <非负整数>}
+//WeightedListCodec weighted list codec, maps to vanilla WeightedList.codec
+//Element form is {"data": <element>, "weight": <non-negative int>}
 internal sealed class WeightedListCodec<E> : ScalarCodec<WeightedList<E>>
 {
     private readonly Codec<E> _element;
@@ -341,15 +341,15 @@ internal sealed class WeightedListCodec<E> : ScalarCodec<WeightedList<E>>
         {
             var mapResult = ops.GetMap(element);
             if (!mapResult.Result().IsPresent)
-                return DataResult<WeightedList<E>>.Error(() => "权重列表的元素必须是对象");
+                return DataResult<WeightedList<E>>.Error(() => "weighted list elements must be objects");
             var map = mapResult.GetOrThrow();
 
             var dataTag = map.Get("data");
             if (!dataTag.IsPresent)
-                return DataResult<WeightedList<E>>.Error(() => "权重列表的元素缺 data 字段");
+                return DataResult<WeightedList<E>>.Error(() => "weighted list element is missing the data field");
             var valueResult = _element.Parse(ops, dataTag.Get());
             if (!valueResult.Result().IsPresent)
-                return DataResult<WeightedList<E>>.Error(() => "权重列表的 data 解析失败");
+                return DataResult<WeightedList<E>>.Error(() => "weighted list data failed to parse");
 
             var weight = 1;
             var weightTag = map.Get("weight");

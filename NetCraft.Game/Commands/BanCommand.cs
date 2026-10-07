@@ -9,9 +9,9 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.Commands;
 
-//BanCommand 封禁相关命令 对应原版 net.minecraft.server.commands.BanPlayerCommands 与 BanIpCommands
-//ban/ban-ip 写入名单并踢掉在线目标 pardon/pardon-ip 解除 banlist 列出
-//目标只解析在线玩家名 本作没有离线玩家档案解析(与 /op 同一限制) 离线玩家只能手写 json 或按名字解封
+//BanCommand ban-related commands, maps to vanilla net.minecraft.server.commands.BanPlayerCommands and BanIpCommands
+//ban/ban-ip write to the lists and kick online targets; pardon/pardon-ip unban; banlist lists
+//Targets only resolve online player names; this project has no offline player profile lookup (same limitation as /op), so offline players can only be unbanned by editing json or by name
 public static class BanCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -49,7 +49,7 @@ public static class BanCommand
                 .Executes(context => ListBans(context, true))));
     }
 
-    //Ban 封禁玩家并踢掉在线目标 对应原版 banPlayers
+    //Ban bans a player and kicks online targets, maps to vanilla banPlayers
     private static int Ban(CommandContext<CommandSourceStack> context, string? reason)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -57,25 +57,25 @@ public static class BanCommand
         var target = source.Server.PlayerList.GetPlayerByName(name);
         if (target is null)
         {
-            source.SendFailure($"玩家 {name} 不在线 本作只能封禁在线玩家");
+            source.SendFailure($"player {name} is not online; this project can only ban online players");
             return 0;
         }
         var text = reason ?? BanList.DefaultReason;
         if (!source.Server.BanList.Add(target.Profile, source.PlayerOrThrow.Profile.Name, text))
         {
-            source.SendFailure($"玩家 {name} 已在封禁名单中");
+            source.SendFailure($"player {name} is already on the ban list");
             return 0;
         }
-        //封禁同时把在线目标踢掉 对应原版 banPlayers 里的 disconnect
+        //Banning also kicks online targets, maps to vanilla banPlayers' disconnect
         target.Disconnect(reason is null
             ? Component.Translatable("disconnect.banned")
             : Component.Translatable("disconnect.banned.reason", text));
         Log.Info($"Banned player {target.Profile.Name} operator={source.PlayerOrThrow.Profile.Name} reason={text}");
-        source.SendSuccess($"已封禁玩家 {name}");
+        source.SendSuccess($"banned player {name}");
         return 1;
     }
 
-    //BanIp 封禁 IP 目标先按在线玩家名解析出 IP 再当作 IP 字面量 对应原版 banIps
+    //BanIp bans an IP; the target is first resolved from an online player name to an IP, then treated as an IP literal, maps to vanilla banIps
     private static int BanIp(CommandContext<CommandSourceStack> context, string? reason)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -84,17 +84,17 @@ public static class BanCommand
         var address = player?.Connection.RemoteAddress ?? target;
         if (string.IsNullOrWhiteSpace(address))
         {
-            source.SendFailure($"无法确定 {target} 的 IP");
+            source.SendFailure($"cannot determine the IP of {target}");
             return 0;
         }
         var text = reason ?? BanList.DefaultReason;
         if (!source.Server.IpBanList.Add(address, source.PlayerOrThrow.Profile.Name, text))
         {
-            source.SendFailure($"IP {address} 已在封禁名单中");
+            source.SendFailure($"IP {address} is already on the ban list");
             return 0;
         }
-        //把该 IP 上的在线玩家一并踢掉 对应原版 banIps 里的 disconnect
-        //IP 封禁只有 disconnect.banned.ip 一个翻译键 理由不进断连文案
+        //Kick the online players on that IP as well, maps to vanilla banIps' disconnect
+        //IP bans only have the disconnect.banned.ip translation key; the reason does not go into the disconnect text
         foreach (var online in source.Server.PlayerList.Players)
         {
             if (!string.Equals(online.Connection.RemoteAddress, address, StringComparison.OrdinalIgnoreCase))
@@ -102,11 +102,11 @@ public static class BanCommand
             online.Disconnect(Component.Translatable("disconnect.banned.ip"));
         }
         Log.Info($"Banned IP {address} operator={source.PlayerOrThrow.Profile.Name} reason={text}");
-        source.SendSuccess($"已封禁 IP {address}");
+        source.SendSuccess($"banned IP {address}");
         return 1;
     }
 
-    //Pardon 解除玩家封禁 在线玩家按档案命中 离线只按名字构造档案
+    //Pardon unbans a player; online players are matched by profile, offline ones only by name
     private static int Pardon(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -115,30 +115,30 @@ public static class BanCommand
         var profile = online?.Profile ?? new GameProfile(Guid.Empty, name);
         if (!source.Server.BanList.Remove(profile))
         {
-            source.SendFailure($"玩家 {name} 不在封禁名单中");
+            source.SendFailure($"player {name} is not on the ban list");
             return 0;
         }
         Log.Info($"Unbanned {name} operator={source.PlayerOrThrow.Profile.Name}");
-        source.SendSuccess($"已解除 {name} 的封禁");
+        source.SendSuccess($"unbanned {name}");
         return 1;
     }
 
-    //PardonIp 解除 IP 封禁
+    //PardonIp removes an IP ban
     private static int PardonIp(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var address = StringArgumentType.GetString(context, "target");
         if (!source.Server.IpBanList.Remove(address))
         {
-            source.SendFailure($"IP {address} 不在封禁名单中");
+            source.SendFailure($"IP {address} is not on the ban list");
             return 0;
         }
         Log.Info($"Unbanned IP {address} operator={source.PlayerOrThrow.Profile.Name}");
-        source.SendSuccess($"已解除 IP {address} 的封禁");
+        source.SendSuccess($"unbanned IP {address}");
         return 1;
     }
 
-    //ListBans 列出封禁名单 ips 为 true 时列 IP 名单
+    //ListBans lists the ban list; when ips is true it lists the IP list
     private static int ListBans(CommandContext<CommandSourceStack> context, bool ips)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -147,21 +147,21 @@ public static class BanCommand
             var list = source.Server.IpBanList.Entries;
             if (list.Count == 0)
             {
-                source.SendSuccess("IP 封禁名单为空");
+                source.SendSuccess("the IP ban list is empty");
                 return 0;
             }
-            source.SendSuccess($"共 {list.Count} 个被封禁的 IP");
-            foreach (var entry in list) source.SendSuccess($"- {entry.Ip} 理由: {entry.Reason} 操作者: {entry.Source}");
+            source.SendSuccess($"{list.Count} IPs are banned");
+            foreach (var entry in list) source.SendSuccess($"- {entry.Ip} reason: {entry.Reason} source: {entry.Source}");
             return list.Count;
         }
         var bans = source.Server.BanList.Entries;
         if (bans.Count == 0)
         {
-            source.SendSuccess("封禁名单为空");
+            source.SendSuccess("the ban list is empty");
             return 0;
         }
-        source.SendSuccess($"共 {bans.Count} 个被封禁的玩家");
-        foreach (var entry in bans) source.SendSuccess($"- {entry.Name} 理由: {entry.Reason} 操作者: {entry.Source}");
+        source.SendSuccess($"{bans.Count} players are banned");
+        foreach (var entry in bans) source.SendSuccess($"- {entry.Name} reason: {entry.Reason} source: {entry.Source}");
         return bans.Count;
     }
 }

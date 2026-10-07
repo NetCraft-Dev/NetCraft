@@ -2,34 +2,34 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.World.Inventory;
 
-//Container 物品容器契约对应原版 net.minecraft.world.Container
-//最小集只保留槽位读写与变更通知 打开关闭与玩家距离校验由菜单层负责
+//Container item container contract, maps to vanilla net.minecraft.world.Container
+//The minimal set keeps only slot read/write and change notification; open/close and player distance checks are handled by the menu layer
 public interface Container
 {
-    //Size 容器槽位数
+    //Size number of container slots
     int Size { get; }
 
-    //GetItem 取槽位物品 空槽返回 ItemStack.Empty
+    //GetItem reads the item in a slot, returns ItemStack.Empty for empty slots
     ItemStack GetItem(int slot);
 
-    //SetItem 写槽位物品
+    //SetItem writes the item in a slot
     void SetItem(int slot, ItemStack stack);
 
-    //RemoveItem 移除指定数量 返回被移除的栈
+    //RemoveItem removes the given count, returns the removed stack
     ItemStack RemoveItem(int slot, int count);
 
-    //RemoveItemNoUpdate 移除整格 不触发变更通知
+    //RemoveItemNoUpdate removes the whole slot without firing a change notification
     ItemStack RemoveItemNoUpdate(int slot);
 
-    //SetChanged 标记内容已变更 由持有方决定如何通知(菜单同步)
+    //SetChanged marks the contents as changed; the owner decides how to notify (menu sync)
     void SetChanged();
 
-    //IsEmpty 所有槽位是否都为空
+    //IsEmpty whether all slots are empty
     bool IsEmpty();
 
-    //ClearContent 清空所有槽位
+    //ClearContent clears all slots
     void ClearContent();
 
-    //CanPlaceItem 该槽位是否接受该物品
+    //CanPlaceItem whether the slot accepts the item
     bool CanPlaceItem(int slot, ItemStack stack);
 }

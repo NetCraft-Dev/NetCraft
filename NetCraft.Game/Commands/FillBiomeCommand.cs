@@ -13,9 +13,9 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Commands;
 
-//FillBiomeCommand fillbiome 命令对应原版 net.minecraft.server.commands.FillBiomeCommand
-//fillbiome <起点> <终点> <生物群系> [replace <过滤群系>]
-//区域按 4 格量化后整片改写已加载区块的群系 数据改完重发给视野内的玩家
+//FillBiomeCommand fillbiome command, maps to vanilla net.minecraft.server.commands.FillBiomeCommand
+//fillbiome <begin> <end> <biome> [replace <filter biome>]
+//The region is quantized to 4 and rewrites the biome of loaded chunks wholesale; after the data change it is re-sent to players in view
 public static class FillBiomeCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -37,10 +37,10 @@ public static class FillBiomeCommand
                                 })))))));
     }
 
-    //Quantize 方块坐标向下取到 4 的倍数 对应原版 QuartPos 往返量化
+    //Quantize floors a block coordinate to a multiple of 4, maps to vanilla QuartPos round-trip quantization
     private static BlockPos Quantize(BlockPos pos) => new(pos.X >> 2 << 2, pos.Y >> 2 << 2, pos.Z >> 2 << 2);
 
-    //Fill 区域整体改写 有未加载区块时按原版整体失败不改任何数据
+    //Fill rewrites the whole region; when there are unloaded chunks it fails as a whole like vanilla and changes nothing
     private static int Fill(CommandContext<CommandSourceStack> context, Func<Holder<Biome>, bool> filter)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
@@ -62,18 +62,18 @@ public static class FillBiomeCommand
         var limit = source.Server.GameRules.GetInt(GameRules.MaxBlockModifications);
         if (volume > limit)
         {
-            source.SendFailure($"区域过大 上限 {limit} 格 当前 {volume} 格");
+            source.SendFailure($"region too large, limit {limit} cells, current {volume} cells");
             return 0;
         }
 
-        //先把区域内区块取齐 未加载的按原版整单失败 避免写入一半
+        //Take all chunks in the region first; unloaded ones fail the whole request like vanilla, to avoid a half write
         var chunks = new List<ChunkAccess>();
         for (var chunkZ = minZ >> 4; chunkZ <= maxZ >> 4; chunkZ++)
         for (var chunkX = minX >> 4; chunkX <= maxX >> 4; chunkX++)
         {
             if (level.GetChunk(new ChunkPos(chunkX, chunkZ)) is not { } chunk)
             {
-                source.SendFailure("区域内存在未加载的区块");
+                source.SendFailure("there are unloaded chunks in the region");
                 return 0;
             }
             chunks.Add(chunk);
@@ -84,12 +84,12 @@ public static class FillBiomeCommand
             changed += FillChunk(chunk, minX, minY, minZ, maxX, maxY, maxZ, biome, filter);
 
         ResendBiomes(source.Server, chunks);
-        source.SendSuccess($"已将 {changed} 个生物群系单元替换为 {biomeId}");
+        source.SendSuccess($"replaced {changed} biome cells with {biomeId}");
         return changed;
     }
 
-    //FillChunk 逐区段逐 quart 单元改写 与原版 BiomeResolver 判定口径一致
-    //区域判的是方块坐标 即 quart 坐标乘 4
+    //FillChunk rewrites section by section and quart unit by quart unit, consistent with vanilla BiomeResolver
+    //The region is judged by block coordinates, i.e. quart coordinates times 4
     private static int FillChunk(ChunkAccess chunk, int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
         Holder<Biome> biome, Func<Holder<Biome>, bool> filter)
     {
@@ -123,8 +123,8 @@ public static class FillBiomeCommand
         return changed;
     }
 
-    //ResendBiomes 把改动过的区块重发给视野内的玩家 客户端据此刷新群系配色
-    //原版按区块订阅玩家下发 nc 用视距判断等价范围
+    //ResendBiomes re-sends the changed chunks to players in view; the client refreshes biome colors from it
+    //Vanilla sends to players subscribed to the chunk; nc uses view distance for the equivalent range
     private static void ResendBiomes(MinecraftServer server, IReadOnlyList<ChunkAccess> chunks)
     {
         foreach (var player in server.PlayerList.Players)

@@ -5,8 +5,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//NoiseBasedCountPlacement 噪声计数放置对应原版 NoiseBasedCountPlacement
-//数量由群系信息噪声按坐标换算
+//NoiseBasedCountPlacement noise-based count placement, maps to vanilla NoiseBasedCountPlacement
+//The count is derived from the biome info noise by coordinate
 public sealed class NoiseBasedCountPlacement : RepeatingPlacement
 {
     public static readonly Codec<NoiseBasedCountPlacement> Codec =
@@ -30,7 +30,7 @@ public sealed class NoiseBasedCountPlacement : RepeatingPlacement
         NoiseOffset = noiseOffset;
     }
 
-    //Of 构造入口对应原版 of
+    //Of construction entry, maps to vanilla of
     public static NoiseBasedCountPlacement Of(int noiseToCountRatio, double noiseFactor, double noiseOffset)
         => new(noiseToCountRatio, noiseFactor, noiseOffset);
 
@@ -43,7 +43,7 @@ public sealed class NoiseBasedCountPlacement : RepeatingPlacement
     public override PlacementModifierType Type => NoiseBasedCountPlacementType.Instance;
 }
 
-//NoiseBasedCountPlacementType 对应原版 PlacementModifierType.NOISE_BASED_COUNT
+//NoiseBasedCountPlacementType, maps to vanilla PlacementModifierType.NOISE_BASED_COUNT
 public sealed class NoiseBasedCountPlacementType : PlacementModifierType<NoiseBasedCountPlacement>
 {
     public static readonly NoiseBasedCountPlacementType Instance = Register(

@@ -5,8 +5,8 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//LocalCoordinates 本地坐标三段式对应原版 LocalCoordinates
-//^left up forwards 按执行者朝向旋转到世界系 三轴恒相对
+//LocalCoordinates three-segment local coordinates, maps to vanilla LocalCoordinates
+//^left up forwards rotates into the world frame by the executor's facing; all three axes are relative
 public sealed record LocalCoordinates(double Left, double Up, double Forwards) : Coordinates
 {
     public Vec3 GetPosition(ServerCommandSource source)
@@ -23,7 +23,7 @@ public sealed record LocalCoordinates(double Left, double Up, double Forwards) :
     public bool IsYRelative => true;
     public bool IsZRelative => true;
 
-    //Parse 解析 ^ 前缀三段 ^ 后空白视为 0
+    //Parse parses the ^-prefixed three segments; whitespace after ^ means 0
     public static LocalCoordinates Parse(StringReader reader)
     {
         var start = reader.Cursor;
@@ -45,7 +45,7 @@ public sealed record LocalCoordinates(double Left, double Up, double Forwards) :
         return new LocalCoordinates(left, up, forwards);
     }
 
-    //ReadDouble 单段必须 ^ 开头否则回滚抛混合类型错
+    //ReadDouble a single segment must start with ^, otherwise roll back and throw a mixed-type error
     private static double ReadDouble(StringReader reader, int start)
     {
         if (!reader.CanRead())
@@ -60,8 +60,8 @@ public sealed record LocalCoordinates(double Left, double Up, double Forwards) :
         return reader.ReadDouble();
     }
 
-    //ApplyLocalCoordinatesToRotation 按朝向构造前进/上方/左侧正交基把本地偏移旋转到世界系
-    //对应原版 Vec3.applyLocalCoordinatesToRotation 角度换算 0.017453292f 为度转弧度
+    //ApplyLocalCoordinatesToRotation builds the forward/up/left orthonormal basis from the facing and rotates the local offset into the world frame
+    //maps to vanilla Vec3.applyLocalCoordinatesToRotation; the angle constant 0.017453292f converts degrees to radians
     public static Vec3 ApplyLocalCoordinatesToRotation(float yaw, float pitch, double left, double up, double forwards)
     {
         const float DegToRad = 0.017453292f;

@@ -3,14 +3,14 @@ using System.Reflection.PortableExecutable;
 
 namespace NetCraft.ModLoader;
 
-//KernelTypeIndex 类型到程序集的索引 用来把注入目标定位到具体程序集
-//不能靠命名空间前缀猜程序集 两者并不一一对应
-//例如 NetCraft.Game.Server.DedicatedServer 落在 NetCraft.Server.dll 里
-//唯一可靠的办法是读元数据表的 TypeDef 记录 全程不加载程序集
-//不加载这点对模组注入模组是必需的 目标一旦被提前加载就再没有改写的机会了
+//KernelTypeIndex: a type-to-assembly index used to locate an injection target in a specific assembly
+//You cannot guess the assembly from the namespace prefix, the two do not correspond one to one
+//For example, NetCraft.Game.Server.DedicatedServer lives in NetCraft.Server.dll
+//The only reliable way is to read TypeDef records from the metadata tables without loading any assembly
+//Not loading is essential for mod-into-mod injection; once a target is loaded early there is no chance to rewrite it
 internal static class KernelTypeIndex
 {
-    //Build 扫给定程序集建索引 readBytes 按程序集名取原始字节 取不到就跳过
+    //Build: scans the given assemblies to build the index; readBytes fetches raw bytes by assembly name and is skipped if unavailable
     public static Dictionary<string, string> Build(IEnumerable<string> assemblyNames, Func<string, byte[]?> readBytes)
     {
         var index = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -25,8 +25,8 @@ internal static class KernelTypeIndex
         return index;
     }
 
-    //Add 把单个程序集的类型并进索引
-    //同名类型先到先得 内核先扫所以内核优先 模组之间同名也是先扫到的那个赢
+    //Add: merges a single assembly's types into the index
+    //Same-named types are first come first served; the kernel is scanned first so it wins, and among mods the one scanned first wins
     public static void Add(Dictionary<string, string> index, string assemblyName, byte[] bytes)
     {
         using var stream = new MemoryStream(bytes);
@@ -42,7 +42,7 @@ internal static class KernelTypeIndex
         }
     }
 
-    //GetFullName 拼类型全名 嵌套类型逐层向外拼成 a.b/c 形式
+    //GetFullName: builds the full type name; nested types are assembled outward as a.b/c
     private static string GetFullName(MetadataReader reader, TypeDefinition type)
     {
         var name = reader.GetString(type.Name);

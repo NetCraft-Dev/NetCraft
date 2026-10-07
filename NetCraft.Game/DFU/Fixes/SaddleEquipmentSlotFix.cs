@@ -8,9 +8,9 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//鞍具装备槽修复对应原版SaddleEquipmentSlotFix
-//1.21.4为带鞍生物马匹类把SaddleItem/Saddle标志统一为saddle物品字段并写入DropChances
-//带SaddleItem实体重命名为saddleSaddle标志实体构造saddle物品
+//Saddle equipment slot fix, maps to vanilla SaddleEquipmentSlotFix
+//1.21.4 unifies SaddleItem/Saddle flags for saddle-bearing mobs (horse family) into the saddle item field and writes DropChances
+//Entities with SaddleItem are renamed to saddle; entities with the Saddle flag construct a saddle item
 public class SaddleEquipmentSlotFix : DataFix
 {
     private static readonly HashSet<string> ENTITIES_WITH_SADDLE_ITEM = new()
@@ -52,14 +52,14 @@ public class SaddleEquipmentSlotFix : DataFix
         });
     }
 
-    //fixEntityWithSaddleItem把SaddleItem重命名为saddle并补充DropChances
+    //fixEntityWithSaddleItem renames SaddleItem to saddle and adds DropChances
     private static Dynamic<object> FixEntityWithSaddleItem(Dynamic<object> input)
     {
         if (!input.Get("SaddleItem").Result().IsPresent) return input;
         return FixDropChances(input.RenameField("SaddleItem", NEW_SADDLE));
     }
 
-    //fixEntityWithSaddleFlag按Saddle标志构造saddle物品并补充DropChances
+    //fixEntityWithSaddleFlag builds a saddle item from the Saddle flag and adds DropChances
     private static Dynamic<object> FixEntityWithSaddleFlag(Dynamic<object> tag)
     {
         bool hasSaddle = tag.Get(SADDLE_FLAG).AsBoolean(false);
@@ -71,7 +71,7 @@ public class SaddleEquipmentSlotFix : DataFix
         return FixDropChances(tag2.Set(NEW_SADDLE, saddleItem));
     }
 
-    //fixDropChances在DropChances map写入saddle槽位固定几率2.0f
+    //fixDropChances writes a fixed chance of 2.0f into the saddle slot of the DropChances map
     private static Dynamic<object> FixDropChances(Dynamic<object> tag)
     {
         var dropChances = tag.Get(FixConstants.MobDropChances).Result().OrElse(tag.EmptyMap()).Set(NEW_SADDLE, tag.CreateFloat(2.0f));

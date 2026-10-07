@@ -2,8 +2,8 @@ using NetCraft.Network.Protocol.Ping;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerGamePacketListener 服务端 Play 阶段监听器对应原版 net.minecraft.network.protocol.game.ServerGamePacketListener
-//继承 ServerCommonPacketListener 和 ServerPingPacketListener 处理所有 Serverbound game 包共 58 个
+//ServerGamePacketListener server play phase listener, maps to vanilla net.minecraft.network.protocol.game.ServerGamePacketListener
+//Extends ServerCommonPacketListener and ServerPingPacketListener, handling all 58 serverbound game packets
 public interface ServerGamePacketListener : ServerCommonPacketListener, ServerPingPacketListener
 {
     void HandleAnimate(ServerboundSwingPacket packet);

@@ -9,32 +9,32 @@ using UtilSyntaxException = NetCraft.Util.Parsing.Packrat.Commands.CommandSyntax
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//NbtPath NBT 路径对应原版 net.minecraft.commands.arguments.NbtPathArgument.NbtPath
-//路径由若干节点组成 a.b 子键 [0] 索引 [] 全元素 {k=v} 模式匹配 结果始终是标签列表
-//本作集合以 ListTag 为准 三种数组标签按原版"可读不可写"处理(原版数组的增删会抛不支持)
+//NbtPath NBT path, maps to vanilla net.minecraft.commands.arguments.NbtPathArgument.NbtPath
+//A path is made of nodes: a.b child key, [0] index, [] all elements, {k=v} pattern match; the result is always a tag list
+//This project treats ListTag as the collection; the three array tags are handled as vanilla "readable but not writable" (vanilla arrays throw on add/remove)
 public sealed class NbtPath
 {
-    //MaxDepth 路径深度上限 对应原版 isTooDeep 的 512
+    //MaxDepth path depth limit, maps to vanilla isTooDeep's 512
     private const int MaxDepth = 512;
 
     public static readonly SimpleCommandExceptionType ErrorInvalidNode =
-        new(new LiteralMessage("NBT 路径节点不合法"));
+        new(new LiteralMessage("invalid NBT path node"));
 
     public static readonly SimpleCommandExceptionType ErrorDataTooDeep =
-        new(new LiteralMessage("NBT 数据嵌套过深"));
+        new(new LiteralMessage("NBT data nested too deeply"));
 
     public static readonly DynamicCommandExceptionType ErrorNothingFound =
-        new(arg => new LiteralMessage($"路径 {arg} 上找不到对应的标签"));
+        new(arg => new LiteralMessage($"no matching tag found on path {arg}"));
 
     public static readonly DynamicCommandExceptionType ErrorExpectedList =
-        new(arg => new LiteralMessage($"该位置不是列表: {arg}"));
+        new(arg => new LiteralMessage($"the position is not a list: {arg}"));
 
     public static readonly DynamicCommandExceptionType ErrorInvalidIndex =
-        new(arg => new LiteralMessage($"列表索引越界: {arg}"));
+        new(arg => new LiteralMessage($"list index out of bounds: {arg}"));
 
     private readonly string _original;
     private readonly Node[] _nodes;
-    //_nodeToOriginalPosition 节点到它在原字符串里的结束位置 报"找不到标签"时把路径截到出错节点
+    //_nodeToOriginalPosition node to its end position in the original string; when reporting "tag not found" it truncates the path to the failing node
     private readonly Dictionary<Node, int> _nodeToOriginalPosition;
 
     private NbtPath(string original, Node[] nodes, Dictionary<Node, int> nodeToOriginalPosition)
@@ -44,15 +44,15 @@ public sealed class NbtPath
         _nodeToOriginalPosition = nodeToOriginalPosition;
     }
 
-    //Original 原始路径字符串
+    //Original the original path string
     public string Original => _original;
 
-    //AsString 原始路径字符串对应原版 asString
+    //AsString the original path string, maps to vanilla asString
     public string AsString() => _original;
 
     public override string ToString() => _original;
 
-    //Of 解析整条路径字符串 供测试与内部构造使用
+    //Of parses a whole path string, used by tests and internal construction
     public static NbtPath Of(string path)
     {
         var reader = new StringReader(path);
@@ -61,7 +61,7 @@ public sealed class NbtPath
         return result;
     }
 
-    //Parse 按命令 reader 解析路径 供 NbtPathArgument 调用
+    //Parse parses the path from the command reader, called by NbtPathArgument
     public static NbtPath Parse(StringReader reader)
     {
         var nodes = new List<Node>();
@@ -76,14 +76,14 @@ public sealed class NbtPath
             firstNode = false;
             if (!reader.CanRead()) break;
             var next = reader.Peek();
-            //节点之间除了 . 还可以直接跟 [ 与 { 原版同样不强制点号
+            //Besides '.', a node can be followed directly by [ and {; vanilla likewise does not require the dot
             if (next != ' ' && next != '[' && next != '{') ExpectDot(reader);
         }
         if (nodes.Count == 0) throw ErrorInvalidNode.CreateWithContext(reader);
         return new NbtPath(reader.String[start..reader.Cursor], nodes.ToArray(), positions);
     }
 
-    //Get 沿路径取值 任意一层取空即报找不到 对应原版 get
+    //Get resolves the value along the path; an empty result at any layer reports not-found, maps to vanilla get
     public List<Tag> Get(Tag tag)
     {
         var result = new List<Tag> { tag };
@@ -95,7 +95,7 @@ public sealed class NbtPath
         return result;
     }
 
-    //CountMatching 沿路径计数 取空返回 0 不报错 对应原版 countMatching
+    //CountMatching counts along the path; an empty result returns 0 without error, maps to vanilla countMatching
     public int CountMatching(Tag tag)
     {
         var result = new List<Tag> { tag };
@@ -107,7 +107,7 @@ public sealed class NbtPath
         return result.Count;
     }
 
-    //GetOrCreate 取到最后一层 中间层缺失按下一节点的偏好类型补出来 对应原版 getOrCreate
+    //GetOrCreate resolves to the last layer; a missing intermediate layer is created with the next node's preferred type, maps to vanilla getOrCreate
     public List<Tag> GetOrCreate(Tag tag, Func<Tag> newTagValue)
     {
         var result = GetOrCreateParents(tag);
@@ -126,8 +126,8 @@ public sealed class NbtPath
         return result;
     }
 
-    //Set 把值写进路径命中的每个位置 返回真正发生改动的个数 对应原版 set
-    //原版只复制一次 后续位置各复制一份 保证各位置互不共享同一实例
+    //Set writes the value into every position hit by the path and returns the number actually changed, maps to vanilla set
+    //Vanilla copies once and each later position gets its own copy, so positions never share the same instance
     public int Set(Tag tag, Tag toAdd)
     {
         if (IsTooDeep(toAdd, _nodes.Length)) throw ErrorDataTooDeep.Create();
@@ -152,7 +152,7 @@ public sealed class NbtPath
         return changed;
     }
 
-    //Insert 往路径命中的每个列表插入值 index 为负按原版从尾部算 对应原版 insert
+    //Insert inserts a value into every list hit by the path; a negative index counts from the end like vanilla, maps to vanilla insert
     public int Insert(int index, Tag target, IReadOnlyList<Tag> toInsert)
     {
         var copies = new List<Tag>(toInsert.Count);
@@ -187,7 +187,7 @@ public sealed class NbtPath
         return modifiedCount;
     }
 
-    //Remove 删除路径命中的每个位置 返回删除个数 对应原版 remove
+    //Remove removes every position hit by the path and returns the count removed, maps to vanilla remove
     public int Remove(Tag tag)
     {
         var result = new List<Tag> { tag };
@@ -198,7 +198,7 @@ public sealed class NbtPath
         return removed;
     }
 
-    //IsTooDeep 递归判定嵌套是否超过 maxDepth 对应原版 isTooDeep
+    //IsTooDeep recursively checks whether the nesting exceeds maxDepth, maps to vanilla isTooDeep
     public static bool IsTooDeep(Tag tag, int depth)
     {
         if (depth >= MaxDepth) return true;
@@ -223,7 +223,7 @@ public sealed class NbtPath
         return ErrorNothingFound.Create(_original[..Math.Min(index, _original.Length)]);
     }
 
-    // ============ 解析 ============
+    // ============ parsing ============
 
     private static void ExpectDot(StringReader reader)
     {
@@ -265,7 +265,7 @@ public sealed class NbtPath
         }
     }
 
-    //ReadObjectNode 名称后面直接跟 { 表示按模式匹配 否则是普通子键
+    //ReadObjectNode a name directly followed by { means pattern matching, otherwise it is a plain child key
     private static Node ReadObjectNode(StringReader reader, string name)
     {
         if (name.Length == 0) throw ErrorInvalidNode.CreateWithContext(reader);
@@ -280,8 +280,8 @@ public sealed class NbtPath
         reader.Skip();
     }
 
-    //ParseCompound 借 SNBT 解析器读复合标签 SNBT 解析器有自己的游标 读完把位置写回命令 reader
-    //SNBT 异常统一转成路径节点异常
+    //ParseCompound reads a compound tag with the SNBT parser; the SNBT parser has its own cursor and writes the position back to the command reader
+    //SNBT exceptions are uniformly converted into path node exceptions
     private static CompoundTag ParseCompound(StringReader reader)
     {
         var nbtReader = new CommandStringReader(reader.String) { Cursor = reader.Cursor };
@@ -305,13 +305,13 @@ public sealed class NbtPath
         return reader.String[start..reader.Cursor];
     }
 
-    //IsAllowedInUnquotedName 未加引号的键名允许的字符 对应原版 isAllowedInUnquotedName
+    //IsAllowedInUnquotedName characters allowed in an unquoted key name, maps to vanilla isAllowedInUnquotedName
     private static bool IsAllowedInUnquotedName(char c)
         => c is not (' ' or '"' or '\'' or '[' or ']' or '.' or '{' or '}');
 
-    // ============ 集合访问 ============
+    // ============ collection access ============
 
-    //CollectionSize 取集合元素数 非集合返回 -1
+    //CollectionSize returns the element count; non-collections return -1
     private static int CollectionSize(Tag tag) => tag switch
     {
         ListTag list => list.Count,
@@ -321,8 +321,8 @@ public sealed class NbtPath
         _ => -1,
     };
 
-    //CollectionElementAt 取集合元素 越界或非集合返回 null
-    //数组元素是临时构造的副本 与数组本体无关联 故数组只支持读取
+    //CollectionElementAt returns the element; out of bounds or non-collection returns null
+    //Array elements are temporary copies unrelated to the array itself, so arrays only support reading
     private static Tag? CollectionElementAt(Tag tag, int index) => tag switch
     {
         ListTag list => index >= 0 && index < list.Count ? list[index] : null,
@@ -332,10 +332,10 @@ public sealed class NbtPath
         _ => null,
     };
 
-    //TagsEqual 深度相等 判定写操作是否真的改变了内容 复用内核实现
+    //TagsEqual deep equality, used to tell whether a write actually changed the content; reuses the core implementation
     private static bool TagsEqual(Tag? a, Tag? b) => NbtUtils.AreEqual(a, b);
 
-    // ============ 节点 ============
+    // ============ nodes ============
 
     private abstract class Node
     {
@@ -343,7 +343,7 @@ public sealed class NbtPath
 
         public abstract void GetOrCreateTag(Tag parent, Func<Tag> child, List<Tag> output);
 
-        //CreatePreferredParentTag 中间层缺失时该节点希望补出的类型 对应原版同名方法
+        //CreatePreferredParentTag the type this node wants created when an intermediate layer is missing, maps to the vanilla same-named method
         public abstract Tag CreatePreferredParentTag();
 
         public abstract int SetTag(Tag parent, Func<Tag> toAdd);
@@ -365,7 +365,7 @@ public sealed class NbtPath
         }
     }
 
-    //CompoundChildNode 普通子键 a.b 里的 b
+    //CompoundChildNode plain child key, the b in a.b
     private sealed class CompoundChildNode(string name) : Node
     {
         public override void GetTag(Tag parent, List<Tag> output)
@@ -403,7 +403,7 @@ public sealed class NbtPath
         }
     }
 
-    //IndexedElementNode 索引节点 [0] 负数从尾部算
+    //IndexedElementNode index node [0]; negatives count from the end
     private sealed class IndexedElementNode(int index) : Node
     {
         public override void GetTag(Tag parent, List<Tag> output)
@@ -414,7 +414,7 @@ public sealed class NbtPath
             if (CollectionElementAt(parent, actualIndex) is { } element) output.Add(element);
         }
 
-        //原版此节点不创建列表元素 只是把已有元素带出去
+        //Vanilla's node does not create list elements, it just carries existing elements out
         public override void GetOrCreateTag(Tag parent, Func<Tag> child, List<Tag> output)
             => GetTag(parent, output);
 
@@ -440,7 +440,7 @@ public sealed class NbtPath
         }
     }
 
-    //AllElementsNode 全元素节点 [] 命中列表里每一项
+    //AllElementsNode all-elements node [] hits every item in the list
     private sealed class AllElementsNode : Node
     {
         public static readonly AllElementsNode Instance = new();
@@ -453,7 +453,7 @@ public sealed class NbtPath
             foreach (var tag in list) output.Add(tag);
         }
 
-        //空列表时补一个新元素 否则把现有元素全部带出去 对应原版 getOrCreateTag
+        //Adds a new element when the list is empty, otherwise carries all existing elements out, maps to vanilla getOrCreateTag
         public override void GetOrCreateTag(Tag parent, Func<Tag> child, List<Tag> output)
         {
             if (parent is not ListTag list) return;
@@ -499,7 +499,7 @@ public sealed class NbtPath
         }
     }
 
-    //MatchElementNode 列表元素模式匹配 [{k=v}] 只作用于 ListTag
+    //MatchElementNode list element pattern match [{k=v}], only acts on ListTag
     private sealed class MatchElementNode(CompoundTag pattern) : Node
     {
         public override void GetTag(Tag parent, List<Tag> output)
@@ -509,7 +509,7 @@ public sealed class NbtPath
                 if (NbtUtils.CompareNbt(pattern, tag, true)) output.Add(tag);
         }
 
-        //一个都没匹配上就补一个模式副本并把它带出去 对应原版 getOrCreateTag
+        //When nothing matches it adds a copy of the pattern and carries it out, maps to vanilla getOrCreateTag
         public override void GetOrCreateTag(Tag parent, Func<Tag> child, List<Tag> output)
         {
             if (parent is not ListTag list) return;
@@ -562,7 +562,7 @@ public sealed class NbtPath
         }
     }
 
-    //MatchObjectNode 子键模式匹配 a{k=v} 键存在且内容匹配才算命中
+    //MatchObjectNode child key pattern match a{k=v}; hits when the key exists and the content matches
     private sealed class MatchObjectNode(string name, CompoundTag pattern) : Node
     {
         public override void GetTag(Tag parent, List<Tag> output)
@@ -608,7 +608,7 @@ public sealed class NbtPath
         }
     }
 
-    //MatchRootObjectNode 根模式匹配 {k=v} 只能出现在路径首位 命中根自身
+    //MatchRootObjectNode root pattern match {k=v}, only valid at the first path position, hits the root itself
     private sealed class MatchRootObjectNode(CompoundTag pattern) : Node
     {
         public override void GetTag(Tag parent, List<Tag> output)
@@ -627,22 +627,22 @@ public sealed class NbtPath
     }
 }
 
-//NbtPathArgument NBT 路径参数对应原版 net.minecraft.commands.arguments.NbtPathArgument
-//注册在网络 id 23(nbt_path) 客户端按同 id 用原版解析器切词
+//NbtPathArgument NBT path argument, maps to vanilla net.minecraft.commands.arguments.NbtPathArgument
+//Registered at network id 23 (nbt_path); the client tokenizes with the vanilla parser by the same id
 public sealed class NbtPathArgument : ArgumentType<NbtPath>
 {
-    //Examples 补全与文档用的示例 与原版 EXAMPLES 一致
+    //Examples examples for suggestions and docs, matching vanilla EXAMPLES
     private static readonly IReadOnlyList<string> ExamplesList =
         new[] { "foo", "foo.bar", "foo[0]", "[0]", "[]", "{foo=bar}" };
 
     private static readonly NbtPathArgument Instance = new();
 
-    //NbtPathArg 路径参数工厂 对应原版 nbtPath 名字带 Arg 避开与 NbtPath 类型重名
+    //NbtPathArg path argument factory, maps to vanilla nbtPath; the name carries Arg to avoid a clash with the NbtPath type
     public static NbtPathArgument NbtPathArg() => Instance;
 
     public NbtPath Parse(StringReader reader) => NbtPath.Parse(reader);
 
-    //GetPath 取解析出的路径
+    //GetPath gets the parsed path
     public static NbtPath GetPath(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<NbtPath>(name);
 

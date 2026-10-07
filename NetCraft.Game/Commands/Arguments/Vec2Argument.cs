@@ -7,8 +7,8 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//Vec2Argument 二维坐标参数对应原版 Vec2Argument
-//解析 x z 两段世界坐标 缺段抛未完成错 求值时补 y 段取执行者位置
+//Vec2Argument 2D coordinate argument, maps to vanilla Vec2Argument
+//Parses the x z world coordinate segments; a missing segment throws an incomplete error; on evaluation the y segment is filled from the executor's position
 public sealed class Vec2Argument(bool centerCorrect) : ArgumentType<Coordinates>
 {
     public static readonly SimpleCommandExceptionType ErrorNotComplete =
@@ -30,15 +30,15 @@ public sealed class Vec2Argument(bool centerCorrect) : ArgumentType<Coordinates>
         }
         reader.Skip();
         var z = WorldCoordinate.ParseDouble(reader, centerCorrect);
-        //y 段补相对 0 二维参数不带高度
+        //The y segment is filled as relative 0; the 2D argument has no height
         return new WorldCoordinates(x, new WorldCoordinate(true, 0.0), z);
     }
 
-    //GetCoordinates 取解析结果
+    //GetCoordinates gets the parse result
     public static Coordinates GetCoordinates(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<Coordinates>(name);
 
-    //GetVec2 取绝对坐标的 x/z 分量 对应原版 getVec2
+    //GetVec2 gets the x/z components of the absolute coordinate, maps to vanilla getVec2
     public static (double X, double Z) GetVec2(CommandContext<CommandSourceStack> context, string name)
     {
         var position = GetCoordinates(context, name).GetPosition((ServerCommandSource)context.GetSource());

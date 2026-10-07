@@ -4,9 +4,9 @@ using StbTrueTypeSharp;
 
 namespace NetCraft.Gpu.Font;
 
-//TtfGlyphProvider 对标原版 TrueTypeGlyphProvider
-//原版用 FreeType 我们用 StbTrueTypeSharp 包装 API 形态不同但度量等价
-//GCHandle Pinned 固定 TTF 字节 stbtt_fontinfo 内部 data 指针长生命周期有效
+//TtfGlyphProvider maps to vanilla TrueTypeGlyphProvider
+//Vanilla uses FreeType; we use StbTrueTypeSharp, a different API shape but equivalent metrics
+//GCHandle Pinned pins the TTF bytes so the stbtt_fontinfo internal data pointer stays valid for a long lifetime
 public sealed unsafe class TtfGlyphProvider : IGlyphProvider
 {
     private readonly byte[] _ttfBytes;
@@ -19,8 +19,8 @@ public sealed unsafe class TtfGlyphProvider : IGlyphProvider
     private readonly float _scale;
     private readonly ConcurrentDictionary<int, IUnbakedGlyph?> _cache = new();
 
-    //BMP 范围作为 GetSupportedGlyphs 占位 StbTrueType 无 cmap 枚举 API
-    //实际 GetGlyph 时用 stbtt_FindGlyphIndex 判断 codepoint 是否真有字形
+    //The BMP range is a placeholder for GetSupportedGlyphs; StbTrueType has no cmap enumeration API
+    //GetGlyph actually uses stbtt_FindGlyphIndex to check whether a codepoint really has a glyph
     private static readonly HashSet<int> s_bmpRange = BuildBmpRange();
 
     public TtfGlyphProvider(byte[] ttfBytes, float size, float oversample, float shiftX, float shiftY, string skip)
@@ -39,9 +39,9 @@ public sealed unsafe class TtfGlyphProvider : IGlyphProvider
         if (StbTrueType.stbtt_InitFont(_fontInfo, dataPtr, 0) == 0)
         {
             _ttfPin.Free();
-            throw new InvalidOperationException("stbtt_InitFont 失败");
+            throw new InvalidOperationException("stbtt_InitFont failed");
         }
-        //对标原版 FT_Set_Pixel_Sizes(size * oversample)
+        //maps to vanilla FT_Set_Pixel_Sizes(size * oversample)
         _scale = StbTrueType.stbtt_ScaleForPixelHeight(_fontInfo, size * oversample);
     }
 
@@ -53,9 +53,9 @@ public sealed unsafe class TtfGlyphProvider : IGlyphProvider
         return _cache.GetOrAdd(codepoint, LoadGlyph);
     }
 
-    //LoadGlyph 懒加载字形对标原版 loadGlyph
-    //stbtt_GetGlyphHMetrics 返回字体单位 advance 乘 scale 得 oversample 像素再除 oversample 得逻辑像素
-    //stbtt 坐标系 y 向下为正 原版 bitmap_top 向上为正 bearingTop 取反 stbtt y0
+    //LoadGlyph lazily loads a glyph, maps to vanilla loadGlyph
+    //stbtt_GetGlyphHMetrics returns the advance in font units; multiply by scale for oversampled pixels, then divide by oversample for logical pixels
+    //stbtt's coordinate system has positive y downward; vanilla bitmap_top is positive upward, so bearingTop negates stbtt y0
     private IUnbakedGlyph? LoadGlyph(int codepoint)
     {
         int index = StbTrueType.stbtt_FindGlyphIndex(_fontInfo, codepoint);
@@ -80,8 +80,8 @@ public sealed unsafe class TtfGlyphProvider : IGlyphProvider
         return new TtfGlyph(this, index, width, height, scaledAdvance, bearingX, bearingY);
     }
 
-    //Rasterize 栅格化单个字形到 R8 byte[]
-    //TtfGlyphBitmap.GetPixels 首次调用时调此方法结果缓存
+    //Rasterize rasterizes a single glyph into an R8 byte[]
+    //TtfGlyphBitmap.GetPixels calls this on first use and caches the result
     internal byte[] Rasterize(int index, int width, int height)
     {
         var pixels = new byte[width * height];
@@ -108,9 +108,9 @@ public sealed unsafe class TtfGlyphProvider : IGlyphProvider
             _ttfPin.Free();
     }
 
-    //TtfGlyph 单字形未烘焙对象对标原版 TrueTypeGlyphProvider.Glyph
-    //持有 stbtt glyph index 和度量 Bake 时构造 TtfGlyphBitmap 懒栅格化
-    //字段 internal 供兄弟嵌套类 TtfGlyphBitmap 访问 C# 嵌套类不互访 private
+    //TtfGlyph single unbaked glyph object, maps to vanilla TrueTypeGlyphProvider.Glyph
+    //Holds the stbtt glyph index and metrics; Bake builds a TtfGlyphBitmap for lazy rasterization
+    //Fields are internal so the sibling nested class TtfGlyphBitmap can access them; C# nested classes cannot access each other's private members
     private sealed class TtfGlyph : IUnbakedGlyph
     {
         internal readonly TtfGlyphProvider _owner;
@@ -138,8 +138,8 @@ public sealed unsafe class TtfGlyphProvider : IGlyphProvider
             => stitcher.Stitch(_info, new TtfGlyphBitmap(this));
     }
 
-    //TtfGlyphBitmap 单字形栅格化位图对标原版 TrueTypeGlyphProvider.Glyph.1
-    //GetPixels 首次调用时调 owner.Rasterize 懒栅格化并缓存
+    //TtfGlyphBitmap single-glyph rasterized bitmap, maps to vanilla TrueTypeGlyphProvider.Glyph.1
+    //GetPixels calls owner.Rasterize on first use, lazily rasterizing and caching
     private sealed class TtfGlyphBitmap : IGlyphBitmap
     {
         private readonly TtfGlyph _glyph;

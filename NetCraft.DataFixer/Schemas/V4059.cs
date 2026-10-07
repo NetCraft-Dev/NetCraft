@@ -5,13 +5,13 @@ using System.Collections.Generic;
 using NetCraft.DataFixer.Fixes;
 using NetCraft.DataFixer.Types.Templates;
 
-//V4059对应原版net.minecraft.util.datafix.schemas.V4059
-//在V3818_3组件集基础上移除food新增use_remainder/equippable/sulfur_cube_content
+//V4059 maps to vanilla net.minecraft.util.datafix.schemas.V4059
+//based on the V3818_3 component set, removes food and adds use_remainder/equippable/sulfur_cube_content
 public class V4059 : NamespacedSchema
 {
     public V4059(int versionKey, Schema? parent) : base(versionKey, parent) { }
 
-    //components复用V3818_3集remove food新增3个组件对齐原版覆写
+    //components reuses the V3818_3 set, removes food and adds 3 components, aligning with the vanilla override
     public static Dictionary<string, Func<TypeTemplate>> Components(Schema schema)
     {
         var components = V3818_3.Components(schema);

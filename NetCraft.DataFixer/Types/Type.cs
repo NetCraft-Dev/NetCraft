@@ -11,39 +11,39 @@ using NetCraft.DataFixer.Types.Families;
 using NetCraft.DataFixer.Types.Templates;
 using NetCraft.DataFixer.Util;
 
-//Codec.Pair与Util.Pair重名用Codec.Pair全限定避免冲突
-//DataFixer.Util.Pair是HKT版本不适用于Type返回值
-//Either在Util命名空间需要完全限定NetCraft.DataFixer.Util.Either
+//Codec.Pair and Util.Pair share a name; fully qualify with Codec.Pair to avoid conflicts
+//DataFixer.Util.Pair is the HKT version and is not suitable as a Type return value
+//Either lives in the Util namespace and must be fully qualified as NetCraft.DataFixer.Util.Either
 
-//Type类型基类对应原版com.mojang.datafixers.types.Type
-//所有具体类型的根抽象类提供重写/查找/编解码入口
+//Type base class maps to vanilla com.mojang.datafixers.types.Type
+//root abstract class of all concrete types, providing rewrite/find/codec entry points
 public abstract class Type<A> : App<Type<A>.Mu, A>
 {
-    //Mu一元HKT标记
+    //Mu unary HKT marker
     public sealed class Mu : K1 { }
 
-    //还原类型应用为Type<A>
+    //recover the type application as Type<A>
     public static Type<A> Unbox<A2>(App<Mu, A2> box) where A2 : A
         => (Type<A>)(object)box!;
 
-    //RewriteCacheKey重写缓存键由类型+规则+优化规则组成
+    //RewriteCacheKey rewrite cache key composed of type + rule + optimization rule
     private sealed record RewriteCacheKey(Type<object> Type, object Rule, object OptimizationRule);
 
-    //REWRITE_CACHE已完成重写的缓存
+    //REWRITE_CACHE cache of completed rewrites
     private static readonly Dictionary<RewriteCacheKey, object> REWRITE_CACHE = new();
     private static readonly object _cacheLock = new();
 
     private TypeTemplate? _template;
     private Codec<A>? _codec;
 
-    //rewriteOrNop尝试应用规则失败返回nop
+    //rewriteOrNop tries to apply the rule and returns nop on failure
     public RewriteResult<A, object> RewriteOrNop(object rule)
     {
         var opt = ((TypeRewriteRule)rule).Rewrite(this);
         return opt.IsPresent ? opt.Get() : RewriteResult<A, object>.Nop(this);
     }
 
-    //opticView把子视图重写结果用optic投射到外层nop直接返回nop
+    //opticView projects the rewritten child view onto the outer type via optic; nop passes nop through
     public static RewriteResult<S, T> OpticView<S, T>(Type<S> type, RewriteResult<object, object> view, TypedOptic<S, T, object, object> optic)
     {
         if (view.View().IsNop())
@@ -60,15 +60,15 @@ public abstract class Type<A> : App<Type<A>.Mu, A>
             view.RecData());
     }
 
-    //all对所有直接子类型应用规则并组合结果默认nop
+    //all applies the rule to every direct child type and combines the results; defaults to nop
     public virtual RewriteResult<A, object> All(object rule, bool recurse, bool checkIndex)
         => RewriteResult<A, object>.Nop(this);
 
-    //one对唯一子类型应用规则默认空
+    //one applies the rule to the single child type; defaults to empty
     public virtual Optional<RewriteResult<A, object>> One(object rule)
         => Optional<RewriteResult<A, object>>.Empty();
 
-    //everywhere递归到处应用规则组合orElse+all递归
+    //everywhere applies the rule recursively everywhere, combining orElse with recursive all
     public virtual Optional<RewriteResult<A, object>> Everywhere(object rule, object optimizationRule, bool recurse, bool checkIndex)
     {
         var typeRule = (TypeRewriteRule)rule;
@@ -79,52 +79,52 @@ public abstract class Type<A> : App<Type<A>.Mu, A>
         return Rewrite(rule2, optimizationRule);
     }
 
-    //updateMu用新Family替换递归点默认返回自身
+    //updateMu replaces the recursive point with a new Family; defaults to returning itself
     public virtual Type<object> UpdateMu(RecursiveTypeFamily newFamily)
         => (Type<object>)(object)this;
 
-    //template惰性构建模板
+    //template lazily builds the template
     public TypeTemplate Template()
         => _template ??= BuildTemplate();
 
-    //buildTemplate子类提供模板构建逻辑
+    //buildTemplate provides template construction logic in subclasses
     public abstract TypeTemplate BuildTemplate();
 
-    //findChoiceType查找带标签选择类型默认空
+    //findChoiceType looks up the tagged choice type; defaults to empty
     public virtual Optional<object> FindChoiceType(string name, int index)
         => Optional<object>.Empty();
 
-    //findCheckedType查找检查类型默认空
+    //findCheckedType looks up the checked type; defaults to empty
     public virtual Optional<Type<object>> FindCheckedType(int index)
         => Optional<Type<object>>.Empty();
 
-    //read从Dynamic读取返回值与剩余Dynamic
+    //read reads from a Dynamic, returning the value and the remaining Dynamic
     public DataResult<NetCraft.Codec.Pair<A, Dynamic<T>>> Read<T>(Dynamic<T> input)
         => Codec().Parse(input.Ops, input.Value).Map(a => new NetCraft.Codec.Pair<A, Dynamic<T>>(a, input));
 
-    //codec惰性构建编解码器
+    //codec lazily builds the codec
     public Codec<A> Codec() => _codec ??= BuildCodec();
 
-    //buildCodec子类提供编解码器构建逻辑
+    //buildCodec provides codec construction logic in subclasses
     protected abstract Codec<A> BuildCodec();
 
-    //write将值编码到ops
+    //write encodes the value into ops
     public DataResult<T> Write<T>(DynamicOps<T> ops, A value)
         => Codec().EncodeStart(ops, value);
 
-    //writeDynamic将值编码为Dynamic
+    //writeDynamic encodes the value as a Dynamic
     public DataResult<Dynamic<T>> WriteDynamic<T>(DynamicOps<T> ops, A value)
         => Write(ops, value).Map(result => new Dynamic<T>(ops, result));
 
-    //readTyped从Dynamic读取并包装为Typed
+    //readTyped reads from a Dynamic and wraps it as Typed
     public DataResult<NetCraft.Codec.Pair<Typed<A>, T>> ReadTyped<T>(Dynamic<T> input)
         => ReadTyped(input.Ops, input.Value);
 
-    //readTyped从原始值读取并包装为Typed
+    //readTyped reads from a raw value and wraps it as Typed
     public DataResult<NetCraft.Codec.Pair<Typed<A>, T>> ReadTyped<T>(DynamicOps<T> ops, T input)
         => Codec().Parse(ops, input).Map(v => new NetCraft.Codec.Pair<Typed<A>, T>(new Typed<A>(this, (DynamicOps<object>)(object)ops, v), input));
 
-    //read按规则读取并应用重写
+    //read reads and applies rewrites according to the rule
     public DataResult<NetCraft.Codec.Pair<Optional<object>, T>> Read<T>(DynamicOps<T> ops, object rule, object fRule, T input)
         => Codec().Parse(ops, input).Map(v =>
         {
@@ -140,7 +140,7 @@ public abstract class Type<A> : App<Type<A>.Mu, A>
             return new NetCraft.Codec.Pair<Optional<object>, T>(Optional<object>.Empty(), input);
         });
 
-    //readAndWrite读取并按规则重写后写入期望类型
+    //readAndWrite reads, rewrites per the rule, then writes to the expected type
     public DataResult<T> ReadAndWrite<T>(DynamicOps<T> ops, Type<object> expectedType, object rule, object fRule, T input)
     {
         var rewriteOpt = Rewrite(rule, fRule);
@@ -156,16 +156,16 @@ public abstract class Type<A> : App<Type<A>.Mu, A>
         return Codec().Parse(ops, input).FlatMap(pair => CapWrite(ops, expectedType!, input, pair, view));
     }
 
-    //capWrite把解码值经view转换后用新类型编码回T
+    //capWrite converts the decoded value through the view, then encodes it back to T with the new type
     private DataResult<T> CapWrite<T, B>(DynamicOps<T> ops, Type<object> expectedType, T rest, A value, View<A, B> view)
     {
-        //对齐原版capWrite用equals(view.newType(), true, false) ignoreRecursionPoints=true
+        //aligns with vanilla capWrite using equals(view.newType(), true, false), ignoreRecursionPoints=true
         if (!expectedType.Equals(view.NewType(), true, false))
         {
             return DataResult<T>.Error(() => "Rewritten type doesn't match");
         }
-        //ops是DynamicOps<T>原版Java靠类型擦除当DynamicOps<Object>用
-        //C#严格泛型不变量用Unsafe.As绕过运行时检查
+        //ops is DynamicOps<T>; vanilla Java uses type erasure to treat it as DynamicOps<Object>
+        //C# strict generic invariance requires Unsafe.As to bypass the runtime check
         var opsObj = System.Runtime.CompilerServices.Unsafe.As<DynamicOps<T>, DynamicOps<object>>(ref ops);
         var valueObj = (object)value;
         var fixedValue = view.Function!.EvalCached()(opsObj)((A)valueObj!);
@@ -175,7 +175,7 @@ public abstract class Type<A> : App<Type<A>.Mu, A>
         return encodeResult;
     }
 
-    //rewrite按规则+优化规则重写带缓存
+    //rewrite rewrites per rule + optimization rule, with caching
     public Optional<RewriteResult<A, object>> Rewrite(object rule, object fRule)
     {
         var key = new RewriteCacheKey(TypeObjectConverterFactory.AsObjectType(this), rule, fRule);
@@ -205,7 +205,7 @@ public abstract class Type<A> : App<Type<A>.Mu, A>
         return result;
     }
 
-    //getSetType通过optic查找新类型
+    //getSetType looks up the new type through an optic
     public Type<object> GetSetType<FT, FR>(OpticFinder<FT> optic, Type<FR> newType)
     {
         var findResult = optic.FindType((Type<object>)(object)this, newType, false);
@@ -216,40 +216,40 @@ public abstract class Type<A> : App<Type<A>.Mu, A>
         return ((TypedOptic<object, object, FT, FR>)findResult.GetLeft().Get()).TType();
     }
 
-    //TypeMatcher类型匹配器接口
+    //TypeMatcher type matcher interface
     public interface TypeMatcher<FT, FR>
     {
         Either<TypedOptic<object, object, FT, FR>, FieldNotFoundException> Match<S>(Type<S> targetType);
     }
 
-    //findFieldTypeOpt查找字段类型可选默认空
+    //findFieldTypeOpt looks up a field type as an optional; defaults to empty
     public virtual Optional<Type<object>> FindFieldTypeOpt(string name)
         => Optional<Type<object>>.Empty();
 
-    //findFieldType查找字段类型失败抛异常
+    //findFieldType looks up a field type and throws on failure
     public Type<object> FindFieldType(string name)
     {
         var opt = FindFieldTypeOpt(name);
         return opt.IsPresent ? opt.Get() : throw new ArgumentException("Field not found: " + name);
     }
 
-    //findField构造字段查找器
+    //findField builds a field finder
     public OpticFinder<A> FindField(string name)
         => new FieldFinder<A>(name, (Type<A>)(object)FindFieldType(name));
 
-    //point用ops填充默认值默认空
+    //point fills in a default value using ops; defaults to empty
     public virtual Optional<A> Point<T>(DynamicOps<T> ops)
         => Optional<A>.Empty();
 
-    //pointTyped用ops填充默认值包装为Typed
+    //pointTyped fills in a default value using ops and wraps it as Typed
     public Optional<Typed<A>> PointTyped<T>(DynamicOps<T> ops)
         => Point(ops).Map(value => new Typed<A>(this, (DynamicOps<object>)(object)ops, value));
 
-    //findTypeCached缓存查找类型
+    //findTypeCached caches type lookups
     public Either<TypedOptic<object, object, FT, FR>, FieldNotFoundException> FindTypeCached<FT, FR>(Type<FT> type, Type<FR> resultType, TypeMatcher<FT, FR> matcher, bool recurse)
         => FindType(type, resultType, matcher, recurse);
 
-    //findType查找类型matcher先匹配自身失败则查子
+    //findType looks up a type; matcher tries itself first, then the children on failure
     public Either<TypedOptic<object, object, FT, FR>, FieldNotFoundException> FindType<FT, FR>(Type<FT> type, Type<FR> resultType, TypeMatcher<FT, FR> matcher, bool recurse)
     {
         var matchResult = matcher.Match(this);
@@ -263,20 +263,20 @@ public abstract class Type<A> : App<Type<A>.Mu, A>
             : Either<TypedOptic<object, object, FT, FR>, FieldNotFoundException>.Right(right);
     }
 
-    //findTypeInChildren在子类型中查找默认无更多子
-    //标记virtual让CheckType等子类重写委托到delegate对齐原版语义
+    //findTypeInChildren searches child types; defaults to no further children
+    //marked virtual so subclasses such as CheckType can override and delegate, aligning with vanilla semantics
     public virtual Either<TypedOptic<object, object, FT, FR>, FieldNotFoundException> FindTypeInChildren<FT, FR>(Type<FT> type, Type<FR> resultType, TypeMatcher<FT, FR> matcher, bool recurse)
         => Either<TypedOptic<object, object, FT, FR>, FieldNotFoundException>.Right(new FieldNotFoundException("No more children"));
 
-    //finder构造自身查找器
+    //finder builds a finder for itself
     public OpticFinder<A> Finder()
         => DSL.TypeFinder(this);
 
-    //ifSame按Typed判断类型相同返回值
+    //ifSame returns the value when the Typed types are equal
     public Optional<A> IfSame<B>(Typed<B> value)
         => IfSame(value.GetType(), value.GetValue());
 
-    //ifSame按类型+值判断相同返回值
+    //ifSame returns the value when type + value match
     public Optional<A> IfSame<B>(Type<B> type, B value)
     {
         if (Equals(type, true, true))
@@ -286,7 +286,7 @@ public abstract class Type<A> : App<Type<A>.Mu, A>
         return Optional<A>.Empty();
     }
 
-    //ifSame按类型+重写结果判断相同返回重写结果
+    //ifSame returns the rewrite result when type + rewrite result match
     public Optional<RewriteResult<A, object>> IfSame<B>(Type<B> type, RewriteResult<B, object> value)
     {
         var equal = Equals(type, true, true);
@@ -297,7 +297,7 @@ public abstract class Type<A> : App<Type<A>.Mu, A>
         return Optional<RewriteResult<A, object>>.Empty();
     }
 
-    //equals最终委托到参数化版本
+    //equals ultimately delegates to the parameterized version
     public override bool Equals(object? obj)
     {
         if (ReferenceEquals(this, obj)) return true;
@@ -306,10 +306,10 @@ public abstract class Type<A> : App<Type<A>.Mu, A>
 
     public override int GetHashCode() => base.GetHashCode();
 
-    //equals参数化版本子类提供
+    //equals parameterized version; provided by subclasses
     public abstract bool Equals(object? o, bool ignoreRecursionPoints, bool checkIndex);
 
-    //TypeError类型错误基类
+    //TypeError type error base class
     public abstract class TypeError
     {
         private readonly string _message;
@@ -317,13 +317,13 @@ public abstract class Type<A> : App<Type<A>.Mu, A>
         public override string ToString() => _message;
     }
 
-    //FieldNotFoundException字段未找到异常
+    //FieldNotFoundException field-not-found exception
     public class FieldNotFoundException : TypeError
     {
         public FieldNotFoundException(string message) : base(message) { }
     }
 
-    //Continue继续查找信号
+    //Continue: keep searching signal
     public sealed class Continue : FieldNotFoundException
     {
         public Continue() : base("Continue") { }

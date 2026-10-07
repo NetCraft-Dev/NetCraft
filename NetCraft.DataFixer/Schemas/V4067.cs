@@ -5,8 +5,8 @@ using System.Collections.Generic;
 using NetCraft.DataFixer.Fixes;
 using NetCraft.DataFixer.Types.Templates;
 
-//V4067对应原版net.minecraft.util.datafix.schemas.V4067
-//1.21移除boat/chest_boat统一实体改为9种木材boat+9种带箱boat
+//V4067 maps to vanilla net.minecraft.util.datafix.schemas.V4067
+//1.21 removes the unified boat/chest_boat entities, replacing them with 9 wood boat types + 9 chest boat types
 public class V4067 : NamespacedSchema
 {
     public V4067(int versionKey, Schema? parent) : base(versionKey, parent) { }
@@ -37,7 +37,7 @@ public class V4067 : NamespacedSchema
         return map;
     }
 
-    //registerChestBoat注册带箱船模板带Items字段列表对应原版registerChestBoat
+    //registerChestBoat registers the chest boat template with an Items field list, maps to vanilla registerChestBoat
     private void RegisterChestBoat(Dictionary<string, Func<TypeTemplate>> map, string id)
         => Register(map, id, _ => DSL.OptionalFields(FixConstants.ContainerHelperItems, DSL.List(References.ItemStack.In(this))));
 }

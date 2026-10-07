@@ -10,24 +10,24 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Commands;
 
-//TimeCommand time 命令对应原版 net.minecraft.server.commands.TimeCommand
-//默认作用于维度默认时钟 time of <clock> 显式指定时钟
-//set 支持数值与时间标记 add 支持负数 pause/resume/rate 控制流速
+//TimeCommand time command, maps to vanilla net.minecraft.server.commands.TimeCommand
+//By default it acts on the dimension's default clock; time of <clock> selects the clock explicitly
+//set supports values and time markers; add supports negatives; pause/resume/rate control the flow rate
 public static class TimeCommand
 {
     private const float MinClockRate = 1e-5f;
     private const float MaxClockRate = 1000f;
 
     public static readonly DynamicCommandExceptionType ErrorNoDefaultClock =
-        new(dimension => new LiteralMessage($"维度 {dimension} 未配置默认时钟"));
+        new(dimension => new LiteralMessage($"dimension {dimension} has no default clock configured"));
 
     public static readonly Dynamic2CommandExceptionType ErrorNoTimeMarkerFound =
-        new((clock, timeMarker) => new LiteralMessage($"时钟 {clock} 没有时间标记 {timeMarker}"));
+        new((clock, timeMarker) => new LiteralMessage($"clock {clock} has no time marker {timeMarker}"));
 
     public static readonly Dynamic2CommandExceptionType ErrorWrongTimelineForClock =
-        new((clock, timeline) => new LiteralMessage($"时间线 {timeline} 不属于时钟 {clock}"));
+        new((clock, timeline) => new LiteralMessage($"timeline {timeline} does not belong to clock {clock}"));
 
-    //ClockGetter 从上下文取目标时钟 默认分支走维度默认时钟 of 分支走 resource 参数
+    //ClockGetter takes the target clock from the context; the default branch uses the dimension default clock, the of branch uses the resource argument
     public delegate Holder<WorldClock> ClockGetter(CommandContext<CommandSourceStack> context);
 
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -44,7 +44,7 @@ public static class TimeCommand
         dispatcher.Register(baseCommand);
     }
 
-    //OfClockArgument time of 分支 clock 参数下挂完整时钟子树 目标取 resource 参数
+    //OfClockArgument the clock argument of the time of branch has the full clock subtree; the target comes from the resource argument
     private static RequiredArgumentBuilder<CommandSourceStack, Identifier> OfClockArgument()
     {
         var clock = RequiredArgumentBuilder<CommandSourceStack, Identifier>.Argument(
@@ -53,7 +53,7 @@ public static class TimeCommand
         return clock;
     }
 
-    //AddClockNodes 挂 set/add/pause/resume/rate/query 子树 自限定泛型对齐原版 A extends ArgumentBuilder
+    //AddClockNodes hangs the set/add/pause/resume/rate/query subtrees; the self-referential generic matches vanilla A extends ArgumentBuilder
     private static T AddClockNodes<T>(T node, ClockGetter clockGetter) where T : ArgumentBuilder<CommandSourceStack, T>
     {
         node.Then(LiteralArgumentBuilder<CommandSourceStack>.Literal("set")
@@ -84,8 +84,8 @@ public static class TimeCommand
         return node;
     }
 
-    //SuggestTimeMarkers 建议该时钟下命令可见的时间标记
-    //原版走 SharedSuggestionProvider.suggestResource 按 remaining 前缀过滤后给完整标识符
+    //SuggestTimeMarkers suggests the command-visible time markers of the clock
+    //Vanilla uses SharedSuggestionProvider.suggestResource, filtering by the remaining prefix then giving the full identifier
     private static Task<Suggestions> SuggestTimeMarkers(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder, Holder<WorldClock> clock)
     {
         var source = RequireSource(context);
@@ -95,7 +95,7 @@ public static class TimeCommand
         return builder.BuildFuture();
     }
 
-    //SuggestTimelines 建议挂在该时钟上的时间线
+    //SuggestTimelines suggests the timelines attached to the clock
     private static Task<Suggestions> SuggestTimelines(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder, Holder<WorldClock> clock)
     {
         foreach (var holder in BuiltInRegistries.TIMELINE.ListElements())
@@ -104,7 +104,7 @@ public static class TimeCommand
         return builder.BuildFuture();
     }
 
-    //AddIfMatches 按当前输入前缀过滤后加入候选 对应原版 filterResources 的大小写不敏感前缀匹配
+    //AddIfMatches filters by the current input prefix then adds to the candidates, maps to vanilla filterResources case-insensitive prefix match
     private static void AddIfMatches(SuggestionsBuilder builder, string text)
     {
         if (text.StartsWith(builder.RemainingLowerCase, StringComparison.Ordinal))
@@ -114,87 +114,87 @@ public static class TimeCommand
     private static ServerCommandSource? RequireSource(CommandContext<CommandSourceStack> context)
         => context.GetSource() as ServerCommandSource;
 
-    //QueryGameTime time query gametime 回执关卡游戏刻
+    //QueryGameTime time query gametime reports the level game time
     private static int QueryGameTime(CommandContext<CommandSourceStack> context)
     {
         var source = RequireSource(context);
         if (source is null) return 0;
         var gameTime = source.PlayerOrThrow.Level.GameTime;
-        source.SendSuccess($"游戏时间 {gameTime}");
+        source.SendSuccess($"game time {gameTime}");
         return WrapTime(gameTime);
     }
 
-    //QueryTime time query time 回执时钟总刻数
+    //QueryTime time query time reports the clock's total ticks
     private static int QueryTime(ServerCommandSource source, Holder<WorldClock> clock)
     {
         var totalTicks = source.Server.ClockManager.GetTotalTicks(clock);
-        source.SendSuccess($"时钟 {clock.RegisteredName} 的时间为 {totalTicks}");
+        source.SendSuccess($"clock {clock.RegisteredName} time is {totalTicks}");
         return WrapTime(totalTicks);
     }
 
-    //QueryTimelineTicks time query <timeline> 回执时间线当前刻
+    //QueryTimelineTicks time query <timeline> reports the timeline's current ticks
     private static int QueryTimelineTicks(ServerCommandSource source, Holder<WorldClock> clock, Holder<Timeline> timeline)
     {
         if (!ReferenceEquals(timeline.Value.Clock, clock))
             throw ErrorWrongTimelineForClock.Create(clock.RegisteredName, timeline.RegisteredName);
         var currentTicks = timeline.Value.GetCurrentTicks(source.Server.ClockManager);
-        source.SendSuccess($"时间线 {timeline.RegisteredName} 的当前刻为 {currentTicks}");
+        source.SendSuccess($"timeline {timeline.RegisteredName} current tick is {currentTicks}");
         return WrapTime(currentTicks);
     }
 
-    //QueryTimelineRepetitions time query <timeline> repetition 回执时间线完整周期数
+    //QueryTimelineRepetitions time query <timeline> repetition reports the timeline's full period count
     private static int QueryTimelineRepetitions(ServerCommandSource source, Holder<WorldClock> clock, Holder<Timeline> timeline)
     {
         if (!ReferenceEquals(timeline.Value.Clock, clock))
             throw ErrorWrongTimelineForClock.Create(clock.RegisteredName, timeline.RegisteredName);
         var repetitions = timeline.Value.GetPeriodCount(source.Server.ClockManager);
-        source.SendSuccess($"时间线 {timeline.RegisteredName} 已完成 {repetitions} 个周期");
+        source.SendSuccess($"timeline {timeline.RegisteredName} has completed {repetitions} periods");
         return WrapTime(repetitions);
     }
 
-    //SetTotalTicks time set <time> 直接设总刻数
+    //SetTotalTicks time set <time> sets the total ticks directly
     private static int SetTotalTicks(ServerCommandSource source, Holder<WorldClock> clock, int totalTicks)
     {
         source.Server.ClockManager.SetTotalTicks(clock, totalTicks);
-        source.SendSuccess($"已将时钟 {clock.RegisteredName} 设为 {totalTicks}");
+        source.SendSuccess($"set clock {clock.RegisteredName} to {totalTicks}");
         return totalTicks;
     }
 
-    //AddTime time add <time> 累加刻数下限为零
+    //AddTime time add <time> accumulates ticks with a lower bound of zero
     private static int AddTime(ServerCommandSource source, Holder<WorldClock> clock, int time)
     {
         source.Server.ClockManager.AddTicks(clock, time);
         var totalTicks = source.Server.ClockManager.GetTotalTicks(clock);
-        source.SendSuccess($"时钟 {clock.RegisteredName} 的时间为 {totalTicks}");
+        source.SendSuccess($"clock {clock.RegisteredName} time is {totalTicks}");
         return WrapTime(totalTicks);
     }
 
-    //SetTimeToTimeMarker time set <timemarker> 跳到下一次该时间标记
+    //SetTimeToTimeMarker time set <timemarker> jumps to the next such time marker
     private static int SetTimeToTimeMarker(ServerCommandSource source, Holder<WorldClock> clock, ResourceKey<ClockTimeMarker> timeMarkerId)
     {
         if (!source.Server.ClockManager.MoveToTimeMarker(clock, timeMarkerId))
             throw ErrorNoTimeMarkerFound.Create(clock.RegisteredName, timeMarkerId.Identifier);
-        source.SendSuccess($"已将时钟 {clock.RegisteredName} 设为 {timeMarkerId.Identifier}");
+        source.SendSuccess($"set clock {clock.RegisteredName} to {timeMarkerId.Identifier}");
         return WrapTime(source.Server.ClockManager.GetTotalTicks(clock));
     }
 
-    //SetPaused time pause/resume 暂停或恢复时钟
+    //SetPaused time pause/resume pauses or resumes the clock
     private static int SetPaused(ServerCommandSource source, Holder<WorldClock> clock, bool paused)
     {
         source.Server.ClockManager.SetPaused(clock, paused);
-        source.SendSuccess($"时钟 {clock.RegisteredName} {(paused ? "已暂停" : "已恢复")}");
+        source.SendSuccess($"clock {clock.RegisteredName} {(paused ? "paused" : "resumed")}");
         return 1;
     }
 
-    //SetRate time rate <rate> 设时钟倍率
+    //SetRate time rate <rate> sets the clock rate
     private static int SetRate(ServerCommandSource source, Holder<WorldClock> clock, float rate)
     {
         source.Server.ClockManager.SetRate(clock, rate);
-        source.SendSuccess($"时钟 {clock.RegisteredName} 的倍率已设为 {rate}");
+        source.SendSuccess($"clock {clock.RegisteredName} rate set to {rate}");
         return 1;
     }
 
-    //GetDefaultClock 取维度默认时钟 未配置抛异常
+    //GetDefaultClock gets the dimension default clock; throws when not configured
     private static Holder<WorldClock> GetDefaultClock(CommandContext<CommandSourceStack> context)
     {
         var source = RequireSource(context);
@@ -203,7 +203,7 @@ public static class TimeCommand
         return level.DefaultClock ?? throw ErrorNoDefaultClock.Create(level.Dimension);
     }
 
-    //WrapTime 刻数折算进 int 返回值 对应原版 wrapTime
+    //WrapTime wraps the tick count into the int return value, maps to vanilla wrapTime
     private static int WrapTime(long ticks)
         => (int)(ticks % int.MaxValue);
 }

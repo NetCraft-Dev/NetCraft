@@ -4,13 +4,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//BlockEntityTypes 方块实体类型注册对应原版 net.minecraft.world.level.block.entity.BlockEntityTypes
-//注册到 BuiltInRegistries.BLOCK_ENTITY_TYPE 注册表
-//RawId 取自原版 BlockEntityTypes 静态字段声明序(furnace 起算) 客户端按序号分派故不能自行编号
-//本作目前只有比较器一种方块实体 随容器等方块接入按需往下加
+//BlockEntityTypes block entity type registration, maps to vanilla net.minecraft.world.level.block.entity.BlockEntityTypes
+//Registered into the BuiltInRegistries.BLOCK_ENTITY_TYPE registry
+//RawId taken from the static field declaration order of vanilla BlockEntityTypes (counting from furnace); the client dispatches by index so it cannot be renumbered
+//Currently only the comparator has a block entity here, more are added as containers and other blocks land
 public static class BlockEntityTypes
 {
-    //FurnaceType 熔炉类型 原版 BlockEntityTypes 里 furnace 序号 0
+    //FurnaceType furnace type, index 0 for furnace in vanilla BlockEntityTypes
     public sealed class FurnaceType : BlockEntityType
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("furnace");
@@ -18,7 +18,7 @@ public static class BlockEntityTypes
         public override BlockEntity Create(BlockPos pos) => new FurnaceBlockEntity(pos);
     }
 
-    //DispenserType 发射器类型 原版 BlockEntityTypes 里 dispenser 序号 5
+    //DispenserType dispenser type, index 5 for dispenser in vanilla BlockEntityTypes
     public sealed class DispenserType : BlockEntityType
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("dispenser");
@@ -26,7 +26,7 @@ public static class BlockEntityTypes
         public override BlockEntity Create(BlockPos pos) => new DispenserBlockEntity(pos);
     }
 
-    //DropperType 投掷器类型 原版 BlockEntityTypes 里 dropper 序号 6
+    //DropperType dropper type, index 6 for dropper in vanilla BlockEntityTypes
     public sealed class DropperType : BlockEntityType
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("dropper");
@@ -34,7 +34,7 @@ public static class BlockEntityTypes
         public override BlockEntity Create(BlockPos pos) => new DropperBlockEntity(pos);
     }
 
-    //ComparatorType 比较器类型 原版 BlockEntityTypes 里 comparator 序号 19
+    //ComparatorType comparator type, index 19 for comparator in vanilla BlockEntityTypes
     public sealed class ComparatorType : BlockEntityType
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("comparator");
@@ -42,7 +42,7 @@ public static class BlockEntityTypes
         public override BlockEntity Create(BlockPos pos) => new ComparatorBlockEntity(pos);
     }
 
-    //PistonMovingType 移动活塞类型 原版 BlockEntityTypes 里 piston 序号 11
+    //PistonMovingType moving piston type, index 11 for piston in vanilla BlockEntityTypes
     public sealed class PistonMovingType : BlockEntityType
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("piston");
@@ -50,7 +50,7 @@ public static class BlockEntityTypes
         public override BlockEntity Create(BlockPos pos) => new Piston.PistonMovingBlockEntity(pos);
     }
 
-    //ChestType 箱子类型 原版 BlockEntityTypes 里 chest 序号 1
+    //ChestType chest type, index 1 for chest in vanilla BlockEntityTypes
     public sealed class ChestType : BlockEntityType
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("chest");
@@ -58,7 +58,7 @@ public static class BlockEntityTypes
         public override BlockEntity Create(BlockPos pos) => new ChestBlockEntity(pos);
     }
 
-    //BarrelType 木桶类型 原版 BlockEntityTypes 里 barrel 序号 26
+    //BarrelType barrel type, index 26 for barrel in vanilla BlockEntityTypes
     public sealed class BarrelType : BlockEntityType
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("barrel");
@@ -66,7 +66,7 @@ public static class BlockEntityTypes
         public override BlockEntity Create(BlockPos pos) => new BarrelBlockEntity(pos);
     }
 
-    //SmokerType 烟熏炉类型 原版 BlockEntityTypes 里 smoker 序号 27
+    //SmokerType smoker type, index 27 for smoker in vanilla BlockEntityTypes
     public sealed class SmokerType : BlockEntityType
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("smoker");
@@ -74,7 +74,7 @@ public static class BlockEntityTypes
         public override BlockEntity Create(BlockPos pos) => new SmokerBlockEntity(pos);
     }
 
-    //BlastFurnaceType 高炉类型 原版 BlockEntityTypes 里 blast_furnace 序号 28
+    //BlastFurnaceType blast furnace type, index 28 for blast_furnace in vanilla BlockEntityTypes
     public sealed class BlastFurnaceType : BlockEntityType
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("blast_furnace");
@@ -82,7 +82,7 @@ public static class BlockEntityTypes
         public override BlockEntity Create(BlockPos pos) => new BlastFurnaceBlockEntity(pos);
     }
 
-    //CampfireType 营火类型 原版 BlockEntityTypes 里 campfire 序号 32
+    //CampfireType campfire type, index 32 for campfire in vanilla BlockEntityTypes
     public sealed class CampfireType : BlockEntityType
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("campfire");
@@ -110,13 +110,13 @@ public static class BlockEntityTypes
 
     public static readonly DropperType DROPPER = new();
 
-    //ByRawId 网络序号反查表 供同步包解码与客户端分派
+    //ByRawId reverse map from network index, used by sync packet decoding and client dispatch
     private static readonly Dictionary<int, BlockEntityType> ByRawId = new();
 
-    //KeyToType 注册表键反查表 供存档 id 字段还原
+    //KeyToType reverse map from registry key, used to restore the save id field
     private static readonly Dictionary<string, BlockEntityType> KeyToType = new();
 
-    //Bootstrap 注册全部内置方块实体类型 必须在注册表冻结之前调
+    //Bootstrap registers all built-in block entity types, must be called before the registry is frozen
     public static void Bootstrap()
     {
         Register(FURNACE);
@@ -131,16 +131,16 @@ public static class BlockEntityTypes
         Register(DROPPER);
     }
 
-    //ById 按网络序号取类型 未注册返回 null
+    //ById returns a type by network index, null when unregistered
     public static BlockEntityType? ById(int rawId)
         => ByRawId.TryGetValue(rawId, out var type) ? type : null;
 
-    //ByKey 按注册表键取类型 未注册返回 null
+    //ByKey returns a type by registry key, null when unregistered
     public static BlockEntityType? ByKey(string key)
         => KeyToType.TryGetValue(key, out var type) ? type : null;
 
-    //Load 按存档标签还原方块实体
-    //缺 id 或 id 未注册返回 null 由调用方决定是跳过还是报错
+    //Load restores a block entity from a save tag
+    //Returns null when the id is missing or unregistered, the caller decides whether to skip or error
     public static BlockEntity? Load(CompoundTag tag)
     {
         if (tag.GetString("id")?.Value is not { } key) return null;
@@ -151,7 +151,7 @@ public static class BlockEntityTypes
         return entity;
     }
 
-    //Register 写注册表并登记两张反查表
+    //Register writes the registry and records both reverse maps
     private static void Register(BlockEntityType type)
     {
         Registry<BlockEntityType<object>>.Register(BuiltInRegistries.BLOCK_ENTITY_TYPE, type.Id, type);

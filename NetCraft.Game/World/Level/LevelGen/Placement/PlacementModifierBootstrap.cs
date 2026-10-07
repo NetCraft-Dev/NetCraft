@@ -1,7 +1,7 @@
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//PlacementModifierBootstrap 放置修饰器注册入口
-//注册表要先于数据加载填好 否则 placed_feature 的 type 字段整批解不出来
+//PlacementModifierBootstrap placement modifier registration entry
+//The registry must be populated before data loading, otherwise the type field of placed_feature cannot be decoded at all
 public static class PlacementModifierBootstrap
 {
     private static bool _registered;
@@ -10,7 +10,7 @@ public static class PlacementModifierBootstrap
     {
         if (_registered) return;
         _registered = true;
-        //方块谓词类型是放置修饰器的内嵌依赖 block_predicate_filter 会带一整个谓词 缺一个修饰器就整条解不出来
+        //Block predicate types are an embedded dependency of placement modifiers; block_predicate_filter carries a whole predicate, and one missing modifier breaks the entire decode
         NetCraft.Game.World.Level.LevelGen.BlockPredicates.BlockPredicateType.RegisterAll();
         _ = BlockPredicateFilterType.Instance;
         _ = RarityFilterType.Instance;

@@ -6,8 +6,8 @@ using NetCraft.Game.Server;
 
 namespace NetCraft.Game.Commands;
 
-//TellrawCommand tellraw 命令对应原版 net.minecraft.server.commands.TellRawCommand
-//把组件按系统聊天发给目标玩家 与 title 一样不做组件内选择器解析
+//TellrawCommand tellraw command, maps to vanilla net.minecraft.server.commands.TellRawCommand
+//Sends the component to target players as system chat; like title it does no in-component selector resolution
 public static class TellrawCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)

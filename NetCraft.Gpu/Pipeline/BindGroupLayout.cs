@@ -1,7 +1,7 @@
 namespace NetCraft.Gpu.Pipeline;
 
-//UniformDescription uniform 描述对标原版 UniformDescription record
-//TEXEL_BUFFER 类型必须指定 GpuFormat 其他类型 GpuFormat 为 null
+//UniformDescription uniform description, maps to vanilla UniformDescription record
+//TEXEL_BUFFER must specify a GpuFormat; for other types GpuFormat is null
 public readonly record struct UniformDescription(string Name, UniformType Type, GpuFormat? GpuFormat)
 {
     public UniformDescription(string name, UniformType type) : this(name, type, null)
@@ -13,8 +13,8 @@ public readonly record struct UniformDescription(string Name, UniformType Type, 
     public UniformDescription(string name, GpuFormat format) : this(name, UniformType.TexelBuffer, format) { }
 }
 
-//BindGroupLayout 绑定组布局对标原版 BindGroupLayout
-//描述一组 sampler 和 uniform 绑定供 RenderPipeline 编译时分配 descriptor set layout
+//BindGroupLayout bind group layout, maps to vanilla BindGroupLayout
+//Describes a set of sampler and uniform bindings for RenderPipeline to allocate a descriptor set layout at compile time
 public sealed class BindGroupLayout
 {
     public IReadOnlyList<string> Samplers { get; }

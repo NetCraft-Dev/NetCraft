@@ -3,11 +3,11 @@ namespace NetCraft.DataFixer.Optics;
 using System;
 using NetCraft.DataFixer.Kinds;
 
-//Wander遍历策略对应原版com.mojang.datafixers.optics.Wander
-//把A->B的Applicative函数扩展为S->T的Applicative函数Traversal用此抽象遍历任意容器
+//Wander traversal strategy maps to vanilla com.mojang.datafixers.optics.Wander
+//lifts an A->B Applicative function to an S->T Applicative function; Traversal uses this abstraction to traverse any container
 public interface Wander<S, T, A, B>
 {
-    //wander接收Applicative与A->App<F,B>函数返回S->App<F,T>函数
-    //TMu2显式声明Applicative标记因为C#无Java通配符
+    //wander takes an Applicative and an A->App<F,B> function, returning an S->App<F,T> function
+    //TMu2 explicitly declares the Applicative marker because C# has no Java wildcards
     Func<S, App<F, T>> Wander<F, TMu2>(Applicative<F, TMu2> applicative, Func<A, App<F, B>> input) where F : K1 where TMu2 : IApplicativeMu;
 }

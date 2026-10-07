@@ -1,7 +1,7 @@
 namespace NetCraft.Gpu.Pipeline;
 
-//BlendFactor 混合因子对标原版 BlendFactor
-//控制 pipeline 颜色混合时源/目标颜色的权重来源
+//BlendFactor blend factor, maps to vanilla BlendFactor
+//Controls the weight source of the source/destination colors during pipeline color blending
 public enum BlendFactor
 {
     Zero,
@@ -25,8 +25,8 @@ public enum BlendFactor
     OneMinusSrc1Alpha
 }
 
-//BlendOp 混合操作对标原版 BlendOp
-//控制源/目标颜色按因子加权后如何组合
+//BlendOp blend operation, maps to vanilla BlendOp
+//Controls how the factor-weighted source/destination colors combine
 public enum BlendOp
 {
     Add,
@@ -36,7 +36,7 @@ public enum BlendOp
     Max
 }
 
-//CompareOp 深度/模板比较运算对标原版 CompareOp
+//CompareOp depth/stencil compare operation, maps to vanilla CompareOp
 public enum CompareOp
 {
     Never,
@@ -49,7 +49,7 @@ public enum CompareOp
     Always
 }
 
-//PolygonMode 多边形绘制模式对标原版 PolygonMode
+//PolygonMode polygon draw mode, maps to vanilla PolygonMode
 public enum PolygonMode
 {
     Fill,
@@ -57,7 +57,7 @@ public enum PolygonMode
     Point
 }
 
-//PrimitiveTopology 图元拓扑对标原版 PrimitiveTopology
+//PrimitiveTopology primitive topology, maps to vanilla PrimitiveTopology
 public enum PrimitiveTopology
 {
     Points,
@@ -69,8 +69,8 @@ public enum PrimitiveTopology
     Quads
 }
 
-//GpuFormat GPU 像素格式对标原版 GpuFormat
-//ColorTargetState 用其声明附件格式
+//GpuFormat GPU pixel format, maps to vanilla GpuFormat
+//ColorTargetState uses it to declare the attachment format
 public enum GpuFormat
 {
     R8Unorm,
@@ -90,8 +90,8 @@ public enum GpuFormat
     D16Unorm
 }
 
-//UniformType shader uniform 类型对标原版 UniformType
-//用于 BindGroupLayout.UniformDescription 描述 uniform buffer/纹理绑定的类型
+//UniformType shader uniform type, maps to vanilla UniformType
+//Used by BindGroupLayout.UniformDescription to describe the type of a uniform buffer/texture binding
 public enum UniformType
 {
     Mat4,

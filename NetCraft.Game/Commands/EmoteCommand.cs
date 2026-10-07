@@ -6,8 +6,8 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.Commands;
 
-//EmoteCommand me 命令对应原版 net.minecraft.server.commands.EmoteCommands
-//把执行者的动作按 chat.type.emote 装饰后广播给全服 无需权限
+//EmoteCommand me command, maps to vanilla net.minecraft.server.commands.EmoteCommands
+//Decorates the executor's action with chat.type.emote and broadcasts it to the whole server; no permission required
 public static class EmoteCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)

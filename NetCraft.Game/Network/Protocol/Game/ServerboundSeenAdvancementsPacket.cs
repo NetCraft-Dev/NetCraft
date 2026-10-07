@@ -2,8 +2,8 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundSeenAdvancementsPacket 数据包对应原版 ServerboundSeenAdvancementsPacket
-//字段 Action(int 0打开页签1关闭界面) Tab(Identifier 仅打开页签时携带)
+//ServerboundSeenAdvancementsPacket seen advancements packet, maps to vanilla ServerboundSeenAdvancementsPacket
+//Fields: Action(int, 0 opened tab, 1 closed screen), Tab(Identifier, carried only when opening a tab)
 public sealed record ServerboundSeenAdvancementsPacket(int Action, Identifier? Tab) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundSeenAdvancementsPacket> StreamCodec { get; } = new SeenAdvancementsCodec();
@@ -14,7 +14,7 @@ public sealed record ServerboundSeenAdvancementsPacket(int Action, Identifier? T
 
     private sealed class SeenAdvancementsCodec : StreamCodec<FriendlyByteBuf, ServerboundSeenAdvancementsPacket>
     {
-        //进度界面打开或关闭时发送 只有 Action=OPENED_TAB 才带页签标识
+        //Sent when the advancements screen opens or closes; only Action=OPENED_TAB carries the tab identifier
         public ServerboundSeenAdvancementsPacket Decode(FriendlyByteBuf buf)
         {
             var action = buf.ReadVarInt();

@@ -7,11 +7,11 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//TimeArgument 时间参数对应原版 TimeArgument
-//float数值加单位后缀 d天s秒t刻 无后缀按刻 解析成整数tick
+//TimeArgument time argument, maps to vanilla TimeArgument
+//A float value with an optional unit suffix d days s seconds t ticks; without a suffix it is ticks; parsed into integer ticks
 public sealed class TimeArgument(int minimum) : ArgumentType<int>
 {
-    //Units 单位到tick换算 空串表示无后缀按刻
+    //Units unit-to-tick conversion; an empty string means no suffix, in ticks
     private static readonly IReadOnlyDictionary<string, int> Units = new Dictionary<string, int>
     {
         ["d"] = 24000,
@@ -28,7 +28,7 @@ public sealed class TimeArgument(int minimum) : ArgumentType<int>
     public static readonly Dynamic2CommandExceptionType ErrorTickCountTooLow =
         new((value, limit) => new TranslatableMessage("argument.time.tick_count_too_low", value, limit));
 
-    //Minimum 允许的最小tick数
+    //Minimum minimum allowed tick count
     public int Minimum => minimum;
 
     public static TimeArgument Time() => new(0);
@@ -40,14 +40,14 @@ public sealed class TimeArgument(int minimum) : ArgumentType<int>
         var unit = reader.ReadUnquotedString();
         if (!Units.TryGetValue(unit, out var factor) || factor == 0)
             throw ErrorInvalidUnit.CreateWithContext(reader);
-        //对齐Java Math.round的floor(x+0.5)取整
+        //Matches Java Math.round's floor(x+0.5) rounding
         var ticks = (int)MathF.Floor(value * factor + 0.5f);
         if (ticks < minimum)
             throw ErrorTickCountTooLow.CreateWithContext(reader, ticks, minimum);
         return ticks;
     }
 
-    //ListSuggestions 数值部分合法后建议单位后缀 空串后缀不进建议
+    //ListSuggestions suggests unit suffixes once the numeric part is valid; an empty suffix is not suggested
     public Task<Suggestions> ListSuggestions<S>(CommandContext<S> context, SuggestionsBuilder builder)
     {
         var reader = new StringReader(builder.Remaining);

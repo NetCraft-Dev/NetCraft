@@ -9,14 +9,14 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Carver;
 
-//ConfiguredWorldCarver 配置化雕刻器对应原版 ConfiguredWorldCarver
-//把雕刻器与其配置绑成注册表元素 类型名由 type 字段派发 config 走各自配置 codec
+//ConfiguredWorldCarver configured carver, maps to vanilla ConfiguredWorldCarver
+//Binds a carver to its config as a registry element; the type field dispatches, config goes through the per-type config codec
 public sealed class ConfiguredWorldCarver : NetCraft.Registry.ConfiguredWorldCarver
 {
-    //Codec 元素 codec 对应原版 DIRECT_CODEC
+    //Codec element codec, maps to vanilla DIRECT_CODEC
     public static readonly Codec<ConfiguredWorldCarver> Codec = new ConfiguredWorldCarverCodec();
 
-    //ElementCodec 注册表元素 codec 注册表按标记接口持有元素
+    //ElementCodec registry element codec; the registry holds elements by marker interface
     public static readonly Codec<NetCraft.Registry.ConfiguredWorldCarver> ElementCodec = Codec.ComapFlatMap(
         carver => DataResult<NetCraft.Registry.ConfiguredWorldCarver>.Success(carver),
         carver => (ConfiguredWorldCarver)carver);
@@ -30,10 +30,10 @@ public sealed class ConfiguredWorldCarver : NetCraft.Registry.ConfiguredWorldCar
         Config = config;
     }
 
-    //IsStartChunk 该区块是否要起一条雕刻对应原版 isStartChunk
+    //IsStartChunk whether this chunk should start a carve, maps to vanilla isStartChunk
     public bool IsStartChunk(RandomSource random) => WorldCarver.IsStartChunk(Config, random);
 
-    //Carve 执行一次雕刻对应原版 carve
+    //Carve run one carve, maps to vanilla carve
     public bool Carve(CarvingContext context, ChunkAccess chunk, Func<int, int, int, Biome> biomeGetter,
         RandomSource random, Aquifer aquifer, ChunkPos sourceChunkPos, CarvingMask mask)
         => WorldCarver.Carve(context, Config, chunk, biomeGetter, random, aquifer, sourceChunkPos, mask);
@@ -41,7 +41,7 @@ public sealed class ConfiguredWorldCarver : NetCraft.Registry.ConfiguredWorldCar
     public override string ToString() => $"{WorldCarver.Id}[{Config}]";
 }
 
-//ConfiguredWorldCarverCodec 按 type 字段查 CARVER 注册表再解 config 对应原版 dispatch codec
+//ConfiguredWorldCarverCodec look up the CARVER registry by type field then decode config, maps to vanilla dispatch codec
 internal sealed class ConfiguredWorldCarverCodec : ScalarCodec<ConfiguredWorldCarver>
 {
     public override DataResult<ConfiguredWorldCarver> Parse<U>(DynamicOps<U> ops, U input)
@@ -90,8 +90,8 @@ internal sealed class ConfiguredWorldCarverCodec : ScalarCodec<ConfiguredWorldCa
     }
 }
 
-//CarvingContext 雕刻上下文对应原版 CarvingContext
-//除生成范围外还带上 NoiseChunk 与含水层 让雕刻能问含水层该格是空气还是流体
+//CarvingContext carving context, maps to vanilla CarvingContext
+//Carries the NoiseChunk and aquifer in addition to the generation range, so carving can ask the aquifer whether a cell is air or fluid
 public sealed class CarvingContext : WorldGenerationContext
 {
     private readonly NoiseChunk _noiseChunk;
@@ -108,7 +108,7 @@ public sealed class CarvingContext : WorldGenerationContext
         _surfaceRule = surfaceRule;
     }
 
-    //TopMaterial 雕刻挖穿草方块后重算下方顶面材质对应原版 topMaterial
+    //TopMaterial recompute the top material below after carving through grass, maps to vanilla topMaterial
     public BlockState? TopMaterial(Func<int, int, int, Biome> biomeGetter, ChunkAccess chunk, int x, int y, int z,
         bool underFluid)
     {

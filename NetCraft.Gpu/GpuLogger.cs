@@ -1,8 +1,8 @@
 namespace NetCraft.Gpu;
 
-//IGpuLogger GPU 模块日志抽象解耦 NetCraft.Logging 让 NetCraft.Gpu 可独立
-//调用方注入自定义实现如 NetCraft.Util.Logging.Log 的适配器
-//默认 ConsoleGpuLogger 输出到 Console.Error
+//IGpuLogger GPU module logging abstraction, decoupled from NetCraft.Logging so NetCraft.Gpu stands alone
+//Callers inject a custom implementation, e.g. an adapter over NetCraft.Util.Logging.Log
+//The default ConsoleGpuLogger writes to Console.Error
 public interface IGpuLogger
 {
     void Warning(string message);
@@ -10,7 +10,7 @@ public interface IGpuLogger
     void Error(string message);
 }
 
-//ConsoleGpuLogger 默认实现输出到 Console.Error
+//ConsoleGpuLogger default implementation writing to Console.Error
 public sealed class ConsoleGpuLogger : IGpuLogger
 {
     public void Warning(string message) => Console.Error.WriteLine($"[GPU] WARN {message}");

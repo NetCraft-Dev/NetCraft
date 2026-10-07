@@ -5,9 +5,9 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//NoiseGeneratorSettings 噪声生成器配置对应原版 net.minecraft.world.level.levelgen.NoiseGeneratorSettings
-//持有 NoiseSettings/NoiseRouter/SurfaceRules/spawnTarget/seaLevel 等参数
-//DefaultBlock/DefaultFluid 为 BlockState 由 Game 层通过 Blocks.STONE.DefaultBlockState 注入内核不引用 Blocks
+//NoiseGeneratorSettings noise generator settings, maps to vanilla net.minecraft.world.level.levelgen.NoiseGeneratorSettings
+//Holds NoiseSettings/NoiseRouter/SurfaceRules/spawnTarget/seaLevel and other parameters
+//DefaultBlock/DefaultFluid are BlockStates injected by the Game layer through Blocks.STONE.DefaultBlockState; the core does not reference Blocks
 public sealed class NoiseGeneratorSettings
 {
     public NoiseSettings NoiseSettings { get; }
@@ -22,10 +22,10 @@ public sealed class NoiseGeneratorSettings
     public int BedrockRoofPosition { get; }
     public int BedrockFloorPosition { get; }
 
-    //SurfaceRule 表面规则树 JSON surface_rule 字段
+    //SurfaceRule surface rule tree, the JSON surface_rule field
     public SurfaceRules.RuleSource? SurfaceRule { get; }
 
-    //SpawnTarget 出生点气候目标 JSON spawn_target 字段
+    //SpawnTarget spawn point climate target, the JSON spawn_target field
     public IReadOnlyList<Climate.ParameterPoint> SpawnTarget { get; }
 
     public NoiseGeneratorSettings(
@@ -58,9 +58,9 @@ public sealed class NoiseGeneratorSettings
         SpawnTarget = spawnTarget ?? Array.Empty<Climate.ParameterPoint>();
     }
 
-    //LegacyCtor 兼容旧 7 参数构造函数对应旧简化版签名
-    //旧测试用此构造函数 NoiseSettings 默认 OverworlddefaultBlock/defaultFluid 用 AIR 占位useLegacyRandomSource=false
-    //新代码应使用完整 9+ 参数构造函数或 Overworld()/Nether() 等工厂方法
+    //LegacyCtor keeps the old 7-argument constructor, matching the old simplified signature
+    //Old tests use this constructor; NoiseSettings defaults to Overworld, defaultBlock/defaultFluid use AIR as a placeholder and useLegacyRandomSource is false
+    //New code should use the full 9+ argument constructor or factory methods such as Overworld()/Nether()
     public NoiseGeneratorSettings(
         NoiseRouter noiseRouter,
         int seaLevel,
@@ -83,9 +83,9 @@ public sealed class NoiseGeneratorSettings
     {
     }
 
-    //Codec 11 字段完整编解码对应原版 NoiseGeneratorSettings.DIRECT_CODEC
-    //覆盖真实 overworld.json 顶层全部字段 noise/default_block/default_fluid/noise_router/surface_rule/spawn_target 等
-    //bedrock_roof_position/bedrock_floor_position 不在 JSON 中保持构造默认值
+    //Codec full 11-field codec, maps to vanilla NoiseGeneratorSettings.DIRECT_CODEC
+    //Covers every top-level field of a real overworld.json: noise/default_block/default_fluid/noise_router/surface_rule/spawn_target and more
+    //bedrock_roof_position/bedrock_floor_position are not in the JSON and keep the constructor defaults
     public static readonly Codec<NoiseGeneratorSettings> Codec =
         RecordCodecBuilder.Of11(
             Codecs.Bool.FieldOf("aquifers_enabled").ForGetter<NoiseGeneratorSettings, bool>(s => s.AquifersEnabled),
@@ -105,8 +105,8 @@ public sealed class NoiseGeneratorSettings
                 => new NoiseGeneratorSettings(noise, defaultBlock, defaultFluid, router, seaLevel, disableMob,
                     aquifers, oreVeins, legacy, surfaceRule: surfaceRule, spawnTarget: spawnTarget));
 
-    //Overworld 主世界配置对应原版 NoiseGeneratorSettings.overworld
-    //Game 层注入 Blocks.STONE/WATER 的 DefaultBlockState确保 Bootstrap 后调用
+    //Overworld overworld settings, maps to vanilla NoiseGeneratorSettings.overworld
+    //The Game layer injects Blocks.STONE/WATER DefaultBlockState; make sure to call after Bootstrap
     public static NoiseGeneratorSettings Overworld()
         => new(
             NoiseSettings.Overworld,
@@ -118,10 +118,10 @@ public sealed class NoiseGeneratorSettings
             aquifersEnabled: true,
             oreVeinsEnabled: true,
             useLegacyRandomSource: false,
-            //出生点气候搜索依赖这张表 兜底配置也要带上 否则无数据包时搜索整条链路不生效
+            //Spawn point climate search depends on this table; the fallback config must carry it too or the whole search chain does nothing without a data pack
             spawnTarget: new OverworldBiomeBuilder().SpawnTarget());
 
-    //Nether 下界配置对应原版 nether
+    //Nether the Nether settings, maps to vanilla nether
     public static NoiseGeneratorSettings Nether()
         => new(
             NoiseSettings.Nether,
@@ -134,7 +134,7 @@ public sealed class NoiseGeneratorSettings
             oreVeinsEnabled: false,
             useLegacyRandomSource: true);
 
-    //End 末地配置对应原版 end
+    //End the End settings, maps to vanilla end
     public static NoiseGeneratorSettings End()
         => new(
             NoiseSettings.End,
@@ -147,7 +147,7 @@ public sealed class NoiseGeneratorSettings
             oreVeinsEnabled: false,
             useLegacyRandomSource: true);
 
-    //Caves 洞穴维度配置对应原版 caves
+    //Caves the caves dimension settings, maps to vanilla caves
     public static NoiseGeneratorSettings Caves()
         => new(
             NoiseSettings.Caves,
@@ -160,7 +160,7 @@ public sealed class NoiseGeneratorSettings
             oreVeinsEnabled: false,
             useLegacyRandomSource: true);
 
-    //FloatingIslands 浮空岛配置对应原版 floatingIslands
+    //FloatingIslands floating islands settings, maps to vanilla floatingIslands
     public static NoiseGeneratorSettings FloatingIslands()
         => new(
             NoiseSettings.FloatingIslands,
@@ -173,7 +173,7 @@ public sealed class NoiseGeneratorSettings
             oreVeinsEnabled: false,
             useLegacyRandomSource: true);
 
-    //Dummy 测试用空配置对应原版 dummy
+    //Dummy empty settings for tests, maps to vanilla dummy
     public static NoiseGeneratorSettings Dummy()
         => new(
             NoiseSettings.Overworld,

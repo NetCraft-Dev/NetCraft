@@ -3,8 +3,8 @@ using Silk.NET.Vulkan;
 
 namespace NetCraft.Gpu.Vulkan;
 
-//VulkanShader Vulkan 后端 SPIR-V shader module
-//包装 VkShaderModule 由 VulkanGpuDevice.CreateShader 创建
+//VulkanShader Vulkan backend SPIR-V shader module
+//Wraps VkShaderModule created by VulkanGpuDevice.CreateShader
 public sealed unsafe class VulkanShader : GpuShader
 {
     private readonly Vk _vk;
@@ -28,7 +28,7 @@ public sealed unsafe class VulkanShader : GpuShader
         {
             createInfo.PCode = (uint*)codePtr;
             if (_vk.CreateShaderModule(_device, &createInfo, null, out _module) != Result.Success)
-                throw new InvalidOperationException("ShaderModule 创建失败");
+                throw new InvalidOperationException("ShaderModule creation failed");
         }
     }
 

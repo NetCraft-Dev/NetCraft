@@ -2,8 +2,8 @@ using System.Collections.Generic;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundEditBookPacket 数据包对应原版 ServerboundEditBookPacket
-//字段 Slot(int) Pages(List<string> 每页上限 1024) Title(string 可为空 上限 32)
+//ServerboundEditBookPacket edit book packet, maps to vanilla ServerboundEditBookPacket
+//Fields: Slot(int), Pages(List<string> capped at 1024 per page), Title(string, may be empty, capped at 32)
 public sealed record ServerboundEditBookPacket(int Slot, List<string> Pages, string? Title) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundEditBookPacket> StreamCodec { get; } = new EditBookCodec();
@@ -14,7 +14,7 @@ public sealed record ServerboundEditBookPacket(int Slot, List<string> Pages, str
 
     private sealed class EditBookCodec : StreamCodec<FriendlyByteBuf, ServerboundEditBookPacket>
     {
-        //书与笔界面保存时发送 页列表后跟可选标题
+        //Sent when saving in the book and quill screen; the page list is followed by an optional title
         public ServerboundEditBookPacket Decode(FriendlyByteBuf buf)
         {
             var slot = buf.ReadVarInt();

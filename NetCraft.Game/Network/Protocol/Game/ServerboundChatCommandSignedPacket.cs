@@ -1,8 +1,8 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundChatCommandSignedPacket 带签名的斜杠命令对应原版 ServerboundChatCommandSignedPacket
-//字段 Command(String) TimeStamp(long) Salt(long) ArgumentSignatures LastSeenMessages.Update
-//服务端不验签 各字段只做保真解析
+//ServerboundChatCommandSignedPacket signed slash command, maps to vanilla ServerboundChatCommandSignedPacket
+//Fields: Command(String), TimeStamp(long), Salt(long), ArgumentSignatures, LastSeenMessages.Update
+//The server does not verify signatures; each field is only parsed faithfully
 public sealed record ServerboundChatCommandSignedPacket(
     string Command, long TimeStamp, long Salt,
     IReadOnlyList<ArgumentSignatureEntry> ArgumentSignatures,
@@ -18,7 +18,7 @@ public sealed record ServerboundChatCommandSignedPacket(
 
     private sealed class ChatCommandSignedCodec : StreamCodec<FriendlyByteBuf, ServerboundChatCommandSignedPacket>
     {
-        //原版顺序 readUtf readInstant readLong ArgumentSignatures(VarInt count + [utf + 256字节]) Update(offset + 3字节bitset + checksum)
+        //Vanilla order: readUtf, readInstant, readLong, ArgumentSignatures (VarInt count + [utf + 256 bytes]), Update (offset + 3-byte bitset + checksum)
         public ServerboundChatCommandSignedPacket Decode(FriendlyByteBuf buf)
         {
             var command = buf.ReadString();
@@ -51,7 +51,7 @@ public sealed record ServerboundChatCommandSignedPacket(
         }
     }
 
-    //WriteFixedBitSet 低位在前 固定 ceil(bits/8) 字节无长度前缀
+    //WriteFixedBitSet LSB first, a fixed ceil(bits/8) bytes with no length prefix
     private static void WriteFixedBitSet(FriendlyByteBuf buf, int mask, int bits)
     {
         var bytes = new byte[(bits + 7) / 8];
@@ -61,7 +61,7 @@ public sealed record ServerboundChatCommandSignedPacket(
         buf.WriteBytes(bytes);
     }
 
-    //ReadFixedBitSet 读 ceil(bits/8) 字节还原位掩码
+    //ReadFixedBitSet reads ceil(bits/8) bytes and restores the bitmask
     private static int ReadFixedBitSet(FriendlyByteBuf buf, int bits)
     {
         var bytes = buf.ReadBytes((bits + 7) / 8);
@@ -73,5 +73,5 @@ public sealed record ServerboundChatCommandSignedPacket(
     }
 }
 
-//ArgumentSignatureEntry 命令参数签名条目对应原版 ArgumentSignatures.Entry
+//ArgumentSignatureEntry command argument signature entry, maps to vanilla ArgumentSignatures.Entry
 public readonly record struct ArgumentSignatureEntry(string Name, byte[] Signature);

@@ -3,8 +3,8 @@ using NetCraft.DataFixer.Schemas;
 
 namespace NetCraft.DataFixer.Fixes;
 
-//属性重命名修复类对应原版net.minecraft.util.datafix.fixes.AttributesRenameFix
-//同时处理DataComponents/Entity/Player中属性ID的重命名oldDataComponentFormat决定旧版还是新版格式
+//attribute rename fix class, maps to vanilla net.minecraft.util.datafix.fixes.AttributesRenameFix
+//handles attribute ID renames in DataComponents/Entity/Player; oldDataComponentFormat selects old vs new format
 public class AttributesRenameFix : DataFix
 {
     private readonly string _name;
@@ -54,7 +54,7 @@ public class AttributesRenameFix : DataFix
     private Dynamic<object> FixTypeField(Dynamic<object> dynamic)
         => ExtraDataFixUtils.FixStringField(dynamic, FixConstants.ChunkRegionIoEventType, _renames);
 
-    //列表字段尝试按元素映射失败时保留原值对应原版map.map(createList).orElse(original)
+    //list field tries to map per element and keeps the original on failure, maps to vanilla map.map(createList).orElse(original)
     private Dynamic<object> FixListField(Dynamic<object> listDynamic, Func<Dynamic<object>, Dynamic<object>> fn)
     {
         var streamOpt = listDynamic.AsStream().Result();

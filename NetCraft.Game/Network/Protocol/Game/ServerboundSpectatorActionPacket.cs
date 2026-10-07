@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundSpectatorActionPacket 数据包对应原版 ServerboundSpectatorActionPacket
-//字段 SpectateEntityId(OptionalInt 观察目标实体 id 可为空表示停止观察)
+//ServerboundSpectatorActionPacket spectator action packet, maps to vanilla ServerboundSpectatorActionPacket
+//Field: SpectateEntityId(OptionalInt, the watched target entity id; empty means stop spectating)
 public sealed record ServerboundSpectatorActionPacket(int? SpectateEntityId) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundSpectatorActionPacket> StreamCodec { get; } = new SpectatorActionCodec();
@@ -12,7 +12,7 @@ public sealed record ServerboundSpectatorActionPacket(int? SpectateEntityId) : P
 
     private sealed class SpectatorActionCodec : StreamCodec<FriendlyByteBuf, ServerboundSpectatorActionPacket>
     {
-        //旁观者切换跟随目标时发送 原版 OptionalInt 先写存在标志再写 varint
+        //Sent when a spectator switches the followed target; the vanilla OptionalInt writes a presence flag before the varint
         public ServerboundSpectatorActionPacket Decode(FriendlyByteBuf buf)
         {
             if (!buf.ReadBoolean()) return new((int?)null);

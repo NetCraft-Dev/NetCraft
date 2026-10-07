@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundPlayerInputPacket 玩家输入状态包对应原版 ServerboundPlayerInputPacket
-//26.2 客户端每 tick 携带键盘状态 单字节位掩码编码
+//ServerboundPlayerInputPacket player input state packet, maps to vanilla ServerboundPlayerInputPacket
+//26.2 the client carries keyboard state every tick, encoded as a single-byte bitmask
 public sealed record ServerboundPlayerInputPacket(PlayerInput Input) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundPlayerInputPacket> StreamCodec { get; } = new PlayerInputCodec();
@@ -20,8 +20,8 @@ public sealed record ServerboundPlayerInputPacket(PlayerInput Input) : Packet<Se
     }
 }
 
-//PlayerInput 键盘输入位掩码对应原版 net.minecraft.world.entity.player.Input
-//位序与原版 FLAG_* 常量一致 前后左右跳跃潜行疾跑各占一位
+//PlayerInput keyboard input bitmask, maps to vanilla net.minecraft.world.entity.player.Input
+//Bit order matches the vanilla FLAG_* constants; forward/backward/left/right/jump/sneak/sprint each take one bit
 public readonly record struct PlayerInput(
     bool Forward, bool Backward, bool Left, bool Right, bool Jump, bool Shift, bool Sprint)
 {

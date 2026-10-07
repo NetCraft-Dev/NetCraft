@@ -7,9 +7,9 @@ using RenderPipeline = NetCraft.Gpu.Pipeline.RenderPipeline;
 
 namespace NetCraft.Gpu.Vulkan;
 
-//VulkanGpuDevice Vulkan 后端逻辑设备
-//包装 Device + GraphicsQueue + PresentQueue + CommandPool + KhrSwapchain 扩展
-//提供 Buffer/Image/Shader/CommandBuffer/CompiledRenderPipeline 创建入口
+//VulkanGpuDevice Vulkan backend logical device
+//Wraps Device + GraphicsQueue + PresentQueue + CommandPool + the KhrSwapchain extension
+//Provides creation entry points for Buffer/Image/Shader/CommandBuffer/CompiledRenderPipeline
 public sealed unsafe class VulkanGpuDevice : GpuDevice
 {
     private readonly VulkanGpuContext _context;
@@ -22,10 +22,10 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
     private CommandPool _commandPool;
     private DescriptorPool _descriptorPool;
     private KhrSwapchain _swapchainExtension;
-    //DynamicRenderingExt VK_KHR_dynamic_rendering 扩展供 VulkanRenderPass/VulkanCommandBuffer 调 CmdBeginRenderingKHR
+    //DynamicRenderingExt the VK_KHR_dynamic_rendering extension for VulkanRenderPass/VulkanCommandBuffer to call CmdBeginRenderingKHR
     private KhrDynamicRendering _dynamicRenderingExtension;
     private PhysicalDeviceMemoryProperties _memoryProperties;
-    //Limits 设备硬件限制构造时从 VkPhysicalDeviceLimits.maxImageDimension2D 查询
+    //Limits device hardware limits queried from VkPhysicalDeviceLimits.maxImageDimension2D at construction
     private readonly DeviceLimits _limits;
     private bool _disposed;
 
@@ -34,18 +34,18 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
     public Queue GraphicsQueue => _graphicsQueue;
     public Queue PresentQueue => _presentQueue;
     public uint GraphicsFamilyIndex => _graphicsFamily;
-    //PipelineCache 声明式 RenderPipeline → CompiledRenderPipeline 编译缓存避免重复编译
+    //PipelineCache declarative RenderPipeline → CompiledRenderPipeline compile cache avoiding recompilation
     public PipelineCache PipelineCache { get; }
     public uint PresentFamilyIndex => _presentFamily;
     public CommandPool CommandPool => _commandPool;
     public KhrSwapchain SwapchainExtension => _swapchainExtension;
-    //DynamicRenderingExt 暴露 KHR_dynamic_rendering 扩展实例供 RenderPass 调 CmdBeginRenderingKHR/CmdEndRenderingKHR
+    //DynamicRenderingExt exposes the KHR_dynamic_rendering extension instance for RenderPass to call CmdBeginRenderingKHR/CmdEndRenderingKHR
     public KhrDynamicRendering DynamicRenderingExt => _dynamicRenderingExtension;
     public PhysicalDevice PhysicalDevice => _context.PhysicalDevice;
-    //Limits GPU 设备硬件限制对标原版 device.getDeviceInfo().limits()
+    //Limits GPU hardware limits, maps to vanilla device.getDeviceInfo().limits()
     public override DeviceLimits Limits => _limits;
 
-    //SupportsGpuRendering Vulkan 后端支持录制 GPU 渲染命令 ItemItemAtlas 走真渲染路径
+    //SupportsGpuRendering the Vulkan backend supports recording GPU render commands so ItemItemAtlas takes the real render path
     public override bool SupportsGpuRendering => true;
 
     internal VulkanGpuDevice(VulkanGpuContext context, GpuDeviceOptions options) : base(context)
@@ -57,32 +57,32 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
         _vk.CurrentDevice = _device;
         if (!_vk.TryGetDeviceExtension(context.Instance, _device, out _swapchainExtension))
         {
-            throw new NotSupportedException("KHR_swapchain 设备扩展不可用");
+            throw new NotSupportedException("The KHR_swapchain device extension is unavailable");
         }
-        //KHR_dynamic_rendering 是 Vulkan 1.3 核心扩展 4.3 改造替代传统 RenderPass 走 CmdBeginRenderingKHR
+        //KHR_dynamic_rendering is a Vulkan 1.3 core extension; the 4.3 rework replaces the traditional RenderPass with CmdBeginRenderingKHR
         if (!_vk.TryGetDeviceExtension(context.Instance, _device, out _dynamicRenderingExtension))
         {
-            throw new NotSupportedException("KHR_dynamic_rendering 设备扩展不可用需 Vulkan 1.3+ 或 KHR 扩展");
+            throw new NotSupportedException("The KHR_dynamic_rendering device extension is unavailable; Vulkan 1.3+ or the KHR extension is required");
         }
         CreateCommandPool(indices);
         CreateDescriptorPool();
         _vk.GetPhysicalDeviceMemoryProperties(_context.PhysicalDevice, out _memoryProperties);
-        //查询 VkPhysicalDeviceLimits.maxImageDimension2D 作为最大纹理尺寸对标原版 limits.maxTextureSize()
-        //MinUniformBufferOffsetAlignment 供 Lighting UBO 切片对齐对标原版 limits.minUniformOffsetAlignment()
+        //Queries VkPhysicalDeviceLimits.maxImageDimension2D as the max texture size, maps to vanilla limits.maxTextureSize()
+        //MinUniformBufferOffsetAlignment used by Lighting for UBO slice alignment, maps to vanilla limits.minUniformOffsetAlignment()
         _vk.GetPhysicalDeviceProperties(_context.PhysicalDevice, out var props);
         _limits = new DeviceLimits((int)props.Limits.MaxImageDimension2D, (int)props.Limits.MinUniformBufferOffsetAlignment);
         PipelineCache = new PipelineCache(this);
     }
 
-    //PrecompilePipeline override 调基类 FromDeclaration+CreateDescriptorLayout+CreateRenderPipeline 编译
-    //缓存由 PipelineCache.Precompile 在外部管理调用方走 PipelineCache.Precompile 命中缓存零编译
-    //旧实现调 PipelineCache.Precompile 致 PipelineCache 又回调 PrecompilePipeline 无限递归已修
+    //PrecompilePipeline override calls the base's FromDeclaration+CreateDescriptorLayout+CreateRenderPipeline to compile
+    //The cache is managed externally by PipelineCache.Precompile; callers go through PipelineCache.Precompile for a zero-compile cache hit
+    //The old implementation called PipelineCache.Precompile, which called back into PrecompilePipeline and recursed infinitely; fixed
     public override CompiledRenderPipeline PrecompilePipeline(RenderPipeline declaration)
         => base.PrecompilePipeline(declaration);
 
-    //CreateCommandBuffer 从命令池分配一个主级命令缓冲
-    //Submit 内部用 fence 同步等待完成适合单线程串行提交
-    //4.3 改造传 DynamicRenderingExt 供 VulkanCommandBuffer 调 CmdBeginRendering
+    //CreateCommandBuffer allocates a primary command buffer from the command pool
+    //Submit internally uses a fence to wait synchronously, suited to single-threaded serial submission
+    //4.3 rework passes DynamicRenderingExt for VulkanCommandBuffer to call CmdBeginRendering
     public override GpuCommandBuffer CreateCommandBuffer()
     {
         var allocInfo = new CommandBufferAllocateInfo
@@ -95,41 +95,41 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
         CommandBuffer buffer;
         if (_vk.AllocateCommandBuffers(_device, &allocInfo, &buffer) != Result.Success)
         {
-            throw new InvalidOperationException("命令缓冲分配失败");
+            throw new InvalidOperationException("Command buffer allocation failed");
         }
         return new VulkanCommandBuffer(_vk, _device, _commandPool, buffer, _graphicsQueue, _dynamicRenderingExtension);
     }
 
-    //CreateRenderPipeline 从 RenderPipelineDescription 创建 VulkanRenderPipeline
-    //description.VertexShaderSource/FragmentShaderSource 可为 embedded:vert.spv 占位使用 PoC 内置 shader
+    //CreateRenderPipeline creates a VulkanRenderPipeline from a RenderPipelineDescription
+    //description.VertexShaderSource/FragmentShaderSource may be an embedded:vert.spv placeholder using the PoC's built-in shader
     public override CompiledRenderPipeline CreateRenderPipeline(RenderPipelineDescription description)
     {
         return VulkanRenderPipeline.FromDescription(this, description);
     }
 
-    //CreateBuffer 创建 VulkanBuffer 走 HostVisible+HostCoherent 内存简化无 staging
+    //CreateBuffer creates a VulkanBuffer using host-visible+host-coherent memory, simplified without staging
     public override GpuBuffer CreateBuffer(int size, GpuBufferUsage usage)
         => new VulkanBuffer(_vk, _device, this, size, usage);
 
-    //CreateHostVisibleBuffer override 强制 HostVisible 内存适合每帧更新的 vertex/index buffer
-    //走 map+memcpy 避免 staging 的 QueueSubmit+QueueWaitIdle 同步开销消除每帧 GPU 阻塞
-    //协变返回 VulkanBuffer 现有调用方 VulkanGuiRenderer 直接赋给 VulkanBuffer 字段零改动
+    //CreateHostVisibleBuffer override forces host-visible memory, suited to per-frame vertex/index buffers
+    //Uses map+memcpy to avoid staging's QueueSubmit+QueueWaitIdle synchronization cost, removing the per-frame GPU block
+    //Covariant return of VulkanBuffer; existing callers like VulkanGuiRenderer assign it directly to a VulkanBuffer field with no change
     public override VulkanBuffer CreateHostVisibleBuffer(int size, GpuBufferUsage usage)
         => new VulkanBuffer(_vk, _device, this, size, usage, hostVisible: true);
 
-    //CreateImage 创建 VulkanImage 并上传初始布局转换
+    //CreateImage creates a VulkanImage and performs the initial layout transition
     public override GpuImage CreateImage(GpuImageDescription desc)
         => new VulkanImage(_vk, _device, this, desc);
 
-    //CreateShader 创建 VkShaderModule
+    //CreateShader creates a VkShaderModule
     public override GpuShader CreateShader(GpuShaderStage stage, byte[] spirvCode, string entryPoint = "main")
         => new VulkanShader(_vk, _device, stage, spirvCode, entryPoint);
 
-    //CreateDescriptorLayout 创建 VkDescriptorSetLayout
+    //CreateDescriptorLayout creates a VkDescriptorSetLayout
     public override GpuDescriptorLayout CreateDescriptorLayout(GpuDescriptorLayoutDescription description)
         => new VulkanDescriptorLayout(_vk, _device, description);
 
-    //AllocateDescriptorSet 从内部 pool 分配一个 VkDescriptorSet
+    //AllocateDescriptorSet allocates a VkDescriptorSet from the internal pool
     public override GpuDescriptorSet AllocateDescriptorSet(GpuDescriptorLayout layout)
     {
         var vkLayout = (VulkanDescriptorLayout)layout;
@@ -144,21 +144,21 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
         };
         DescriptorSet set;
         if (_vk.AllocateDescriptorSets(_device, &allocInfo, &set) != Result.Success)
-            throw new InvalidOperationException("DescriptorSet 分配失败");
+            throw new InvalidOperationException("DescriptorSet allocation failed");
         return new VulkanDescriptorSet(_vk, _device, vkLayout, set);
     }
 
-    //CreateSampler 创建 VkSampler
+    //CreateSampler creates a VkSampler
     public override GpuSampler CreateSampler(GpuSamplerDescription description)
         => new VulkanSampler(_vk, _device, description);
 
-    //CreateCommandEncoder 创建 VulkanCommandEncoder 录制 copy/render pass 命令
-    //替代旧 CreateCommandBuffer 分离命令编码和渲染通道
-    //4.3 改造传入 DynamicRenderingExt 供 VulkanRenderPass 调 CmdBeginRendering
+    //CreateCommandEncoder creates a VulkanCommandEncoder to record copy/render pass commands
+    //Replaces the legacy CreateCommandBuffer, separating command encoding from render passes
+    //4.3 rework passes in DynamicRenderingExt for VulkanRenderPass to call CmdBeginRendering
     public override ICommandEncoder CreateCommandEncoder()
         => new VulkanCommandEncoder(_vk, _device, this, _commandPool, _graphicsQueue, _dynamicRenderingExtension);
 
-    //FindMemoryType 查找匹配 typeBits 和 properties 的内存类型索引
+    //FindMemoryType finds the memory type index matching typeBits and properties
     public uint FindMemoryType(uint typeBits, MemoryPropertyFlags properties)
     {
         for (int i = 0; i < _memoryProperties.MemoryTypeCount; i++)
@@ -169,10 +169,10 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
                 return (uint)i;
             }
         }
-        throw new InvalidOperationException("未找到匹配的内存类型");
+        throw new InvalidOperationException("No matching memory type found");
     }
 
-    //CreateBufferInternal 内部创建原生 VkBuffer+DeviceMemory 供 VulkanBuffer/VulkanImage 复用
+    //CreateBufferInternal internally creates a native VkBuffer+DeviceMemory reused by VulkanBuffer/VulkanImage
     internal (Silk.NET.Vulkan.Buffer handle, DeviceMemory memory) CreateBufferInternal(ulong size, BufferUsageFlags usage, MemoryPropertyFlags properties)
     {
         var bufferInfo = new BufferCreateInfo
@@ -184,7 +184,7 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
         };
         Buffer buffer;
         if (_vk.CreateBuffer(_device, &bufferInfo, null, &buffer) != Result.Success)
-            throw new InvalidOperationException("Buffer 创建失败");
+            throw new InvalidOperationException("Buffer creation failed");
         _vk.GetBufferMemoryRequirements(_device, buffer, out var memRequirements);
         var allocInfo = new MemoryAllocateInfo
         {
@@ -194,13 +194,13 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
         };
         DeviceMemory memory;
         if (_vk.AllocateMemory(_device, &allocInfo, null, &memory) != Result.Success)
-            throw new InvalidOperationException("Memory 分配失败");
+            throw new InvalidOperationException("Memory allocation failed");
         _vk.BindBufferMemory(_device, buffer, memory, 0);
         return (buffer, memory);
     }
 
-    //RunOneTimeCommand 提交一次性命令缓冲执行完等待完成
-    //用于 Image 布局转换和 buffer 拷贝
+    //RunOneTimeCommand submits a one-time command buffer and waits for completion
+    //Used for image layout transitions and buffer copies
     public void RunOneTimeCommand(Action<CommandBuffer> record)
     {
         var allocInfo = new CommandBufferAllocateInfo
@@ -233,7 +233,7 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
         _vk.FreeCommandBuffers(_device, _commandPool, 1, &cmd);
     }
 
-    //WaitIdle 等待设备所有队列空闲
+    //WaitIdle waits for all device queues to idle
     public void WaitIdle()
     {
         _vk.DeviceWaitIdle(_device);
@@ -257,11 +257,11 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
             };
         }
         var deviceFeatures = new PhysicalDeviceFeatures();
-        //KHR_swapchain 交换链 + KHR_dynamic_rendering 4.3 改造替代传统 RenderPass
+        //KHR_swapchain swapchain + KHR_dynamic_rendering 4.3 rework replacing the traditional RenderPass
         string[] deviceExtensions = { KhrSwapchain.ExtensionName, KhrDynamicRendering.ExtensionName };
         var enabledExtNames = (byte**)SilkMarshal.StringArrayToPtr(deviceExtensions);
-        //PhysicalDeviceDynamicRenderingFeaturesKHR 通过 PNext 链启用 dynamic rendering 特性
-        //Vulkan 1.3+ 必须显式启用 VK_TRUE 才允许 CmdBeginRenderingKHR 调用
+        //PhysicalDeviceDynamicRenderingFeaturesKHR enables the dynamic rendering feature via the PNext chain
+        //Vulkan 1.3+ requires explicitly enabling VK_TRUE before CmdBeginRenderingKHR may be called
         var dynamicRenderingFeatures = new PhysicalDeviceDynamicRenderingFeaturesKHR
         {
             SType = StructureType.PhysicalDeviceDynamicRenderingFeatures,
@@ -280,7 +280,7 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
         Device device;
         if (_vk.CreateDevice(_context.PhysicalDevice, &createInfo, null, &device) != Result.Success)
         {
-            throw new InvalidOperationException("VkDevice 创建失败");
+            throw new InvalidOperationException("VkDevice creation failed");
         }
         _device = device;
         _graphicsFamily = indices.GraphicsFamily.Value;
@@ -301,12 +301,12 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
         CommandPool pool;
         if (_vk.CreateCommandPool(_device, &poolInfo, null, &pool) != Result.Success)
         {
-            throw new InvalidOperationException("命令池创建失败");
+            throw new InvalidOperationException("Command pool creation failed");
         }
         _commandPool = pool;
     }
 
-    //CreateDescriptorPool 创建 uniform buffer 和 combined image sampler 各 100 个的描述符池
+    //CreateDescriptorPool creates a descriptor pool with 100 uniform buffers and 100 combined image samplers
     private void CreateDescriptorPool()
     {
         var poolSizes = new[]
@@ -325,7 +325,7 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
                 Flags = DescriptorPoolCreateFlags.FreeDescriptorSetBit
             };
             if (_vk.CreateDescriptorPool(_device, &poolInfo, null, out _descriptorPool) != Result.Success)
-                throw new InvalidOperationException("DescriptorPool 创建失败");
+                throw new InvalidOperationException("DescriptorPool creation failed");
         }
     }
 

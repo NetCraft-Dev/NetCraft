@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundChunkBatchReceivedPacket 数据包对应原版 ServerboundChunkBatchReceivedPacket
-//字段 DesiredChunksPerTick(float)
+//ServerboundChunkBatchReceivedPacket chunk batch received packet, maps to vanilla ServerboundChunkBatchReceivedPacket
+//Field: DesiredChunksPerTick(float)
 public sealed record ServerboundChunkBatchReceivedPacket(float DesiredChunksPerTick) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundChunkBatchReceivedPacket> StreamCodec { get; } = new ChunkBatchReceivedCodec();

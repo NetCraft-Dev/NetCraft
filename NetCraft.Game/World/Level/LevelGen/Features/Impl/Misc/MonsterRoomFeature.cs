@@ -9,8 +9,8 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Misc;
 
-//MonsterRoomFeature 地牢房间特征 对应原版 MonsterRoomFeature
-//按房间规模挖出一个石砖盒子 在唯一一面靠墙的空位放箱子 正中间放刷怪笼
+//MonsterRoomFeature dungeon room feature, maps to vanilla MonsterRoomFeature
+//Carves a stone brick box the size of the room, places a chest in the only empty wall slot and a monster spawner at the center
 public sealed class MonsterRoomFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "monster_room";
@@ -18,11 +18,11 @@ public sealed class MonsterRoomFeature : Feature<NoneFeatureConfiguration>
     public static readonly MonsterRoomFeature Instance = Register(
         Identifier.WithDefaultNamespace(FeatureId), new MonsterRoomFeature());
 
-    //FeaturesCannotReplaceTag 特征不可替换的方块 对应原版 BlockTags.FEATURES_CANNOT_REPLACE
+    //FeaturesCannotReplaceTag blocks features cannot replace, maps to vanilla BlockTags.FEATURES_CANNOT_REPLACE
     private static readonly TagKey<RegBlock> FeaturesCannotReplaceTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("features_cannot_replace"));
 
-    //MobCount 刷怪笼可选的生物数 对应原版 MOBS 数组长度
+    //MobCount number of selectable mobs for the spawner, maps to the length of the vanilla MOBS array
     private const int MobCount = 4;
 
     private MonsterRoomFeature()
@@ -103,17 +103,17 @@ public sealed class MonsterRoomFeature : Feature<NoneFeatureConfiguration>
                 }
                 if (wallCount != 1) continue;
                 SafeSetBlock(level, chestPos, Reorient(level, chestPos, VegetationSupport.StateOf("chest")));
-                //原版接着给箱子挂地牢战利品表 本作区块方块实体体系未接 只放方块
+                //Vanilla then attaches the dungeon loot table to the chest; NetCraft has no chunk block entity system yet, so only the block is placed
                 break;
             }
         }
         SafeSetBlock(level, origin, VegetationSupport.StateOf("spawner"));
-        //原版取出刷怪笼方块实体并随机挑一种生物 本作方块实体未接 这里只消耗那次随机数保持序列一致
+        //Vanilla fetches the spawner block entity and picks a random mob; block entities are not wired up here, so this only consumes that random value to keep the sequence aligned
         random.NextInt(MobCount);
         return true;
     }
 
-    //Reorient 按周围实心邻居定箱子的朝向 对应原版 StructurePiece.reorient
+    //Reorient orient the chest by its solid neighbors, maps to vanilla StructurePiece.reorient
     private static BlockState Reorient(WorldGenRegion level, BlockPos pos, BlockState state)
     {
         Direction? solidNeighbour = null;
@@ -134,7 +134,7 @@ public sealed class MonsterRoomFeature : Feature<NoneFeatureConfiguration>
         }
         if (solidNeighbour is { } lockedNeighbour)
             return VegetationSupport.WithProperty(state, "facing", VegetationSupport.FaceName(lockedNeighbour.Opposite));
-        //箱子默认朝向是北 与传入的默认状态一致
+        //The chest faces north by default, matching the default state passed in
         var lockDir = Direction.North;
         var relativePos = pos.Offset(lockDir);
         if (IsSolidRender(level, relativePos))
@@ -151,22 +151,22 @@ public sealed class MonsterRoomFeature : Feature<NoneFeatureConfiguration>
         return VegetationSupport.WithProperty(state, "facing", VegetationSupport.FaceName(lockDir));
     }
 
-    //SafeSetBlock 目标格不在禁改标签里才写入 对应原版 safeSetBlock
+    //SafeSetBlock write only when the target cell is not in the cannot-replace tag, maps to vanilla safeSetBlock
     private static void SafeSetBlock(WorldGenRegion level, BlockPos pos, BlockState state)
     {
         if (VegetationSupport.InTag(Get(level, pos), FeaturesCannotReplaceTag)) return;
         Set(level, pos, state);
     }
 
-    //IsSolidRender 该状态的遮挡形状占满整格 对应原版 isSolidRender
+    //IsSolidRender whether the state's occlusion shape fills the whole cell, maps to vanilla isSolidRender
     private static bool IsSolidRender(WorldGenRegion level, BlockPos pos)
     {
         var state = Get(level, pos);
         return state.Owner.SolidRender(state);
     }
 
-    //IsSolid 该状态是否算实心 对应原版 isSolid
-    //本作没有材质体系 这里用「有碰撞且不是空气且不带流体」近似
+    //IsSolid whether the state counts as solid, maps to vanilla isSolid
+    //NetCraft has no material system, so approximate with "has collision, is not air and carries no fluid"
     private static bool IsSolid(BlockState state)
         => !state.Owner.IsAir && state.FluidState.IsEmpty
             && state.Owner is BlockBehaviour behaviour && behaviour.HasCollision;
@@ -180,8 +180,8 @@ public sealed class MonsterRoomFeature : Feature<NoneFeatureConfiguration>
         => level.SetBlockState(pos.X, pos.Y, pos.Z, state);
 }
 
-//MiscBootstrap 杂项特征注册入口
-//触碰各静态 Instance 使静态注册生效
+//MiscBootstrap misc feature registration entry
+//Touching each static Instance triggers static registration
 public static class MiscBootstrap
 {
     public static void RegisterAll()

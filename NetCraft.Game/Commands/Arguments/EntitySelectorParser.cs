@@ -7,9 +7,9 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//EntitySelectorParser 选择器解析器对应原版 net.minecraft.commands.arguments.selector.EntitySelectorParser
-//解析@选择器与玩家名/UUID组装EntitySelector 玩家模型下level按经验等级0匹配
-//suggestions建议状态机省略 服务端命令树不置位custom suggestions客户端不会请求选择器建议
+//EntitySelectorParser selector parser, maps to vanilla net.minecraft.commands.arguments.selector.EntitySelectorParser
+//Parses @selectors and player names/UUIDs into an EntitySelector; under the player model level matches experience level 0
+//The suggestions state machine is omitted; the server command tree does not set custom suggestions so the client never requests selector suggestions
 public sealed class EntitySelectorParser
 {
     public const char SyntaxSelectorStart = '@';
@@ -33,15 +33,15 @@ public sealed class EntitySelectorParser
     public static readonly DynamicCommandExceptionType ErrorExpectedOptionValue =
         new(name => new TranslatableMessage("argument.entity.options.valueless", name));
 
-    //OrderNearest 按到基准点距离升序
+    //OrderNearest ascending by distance to the reference point
     public static readonly EntitySelector.Orderer OrderNearest =
         (pos, list) => list.Sort((a, b) => a.Position.DistanceToSqr(pos).CompareTo(b.Position.DistanceToSqr(pos)));
 
-    //OrderFurthest 按到基准点距离降序
+    //OrderFurthest descending by distance to the reference point
     public static readonly EntitySelector.Orderer OrderFurthest =
         (pos, list) => list.Sort((a, b) => b.Position.DistanceToSqr(pos).CompareTo(a.Position.DistanceToSqr(pos)));
 
-    //OrderRandom 洗牌随机排序
+    //OrderRandom shuffled random order
     public static readonly EntitySelector.Orderer OrderRandom =
         (_, list) =>
         {
@@ -89,7 +89,7 @@ public sealed class EntitySelectorParser
         _allowSelectors = allowSelectors;
     }
 
-    //Parse 入口@走选择器分支其余按玩家名/UUID解析后组装 选择器需要权限放行
+    //Parse entry; @ goes through the selector branch, otherwise parsed as a player name/UUID then assembled; the selector needs the permission to pass
     public EntitySelector Parse()
     {
         if (_reader.CanRead() && _reader.Peek() == '@')
@@ -107,7 +107,7 @@ public sealed class EntitySelectorParser
         return GetSelector();
     }
 
-    //ParseSelector 六选择器分支maxResults/includesEntities/order与存活谓词按原版逐一对齐
+    //ParseSelector six selector branches; maxResults/includesEntities/order and the alive predicate align with vanilla one by one
     private void ParseSelector()
     {
         _usesSelectors = true;
@@ -127,7 +127,7 @@ public sealed class EntitySelectorParser
                 _maxResults = int.MaxValue;
                 _includesEntities = true;
                 _order = EntitySelector.OrderArbitrary;
-                //仅存活过滤 玩家恒存活
+                //Alive-only filter; players are always alive
                 _predicates.Add(_ => true);
                 break;
             case 'n':
@@ -164,7 +164,7 @@ public sealed class EntitySelectorParser
         }
     }
 
-    //ParseNameOrUuid 玩家名或标准连字符UUID UUID成功按实体语义否则按玩家名1-16字符
+    //ParseNameOrUuid player name or standard hyphenated UUID; a valid UUID is treated as an entity, otherwise as a player name of 1-16 chars
     private void ParseNameOrUuid()
     {
         var start = _reader.Cursor;
@@ -187,8 +187,8 @@ public sealed class EntitySelectorParser
         _maxResults = 1;
     }
 
-    //ParseOptions 选项列表解析按原版字节码还原
-    //空[]合法 非法key或不可用选项由EntitySelectorOptions.Get抛 选项间必须逗号分隔
+    //ParseOptions option list parsing restored from the vanilla bytecode
+    //Empty [] is legal; an invalid key or unavailable option is thrown by EntitySelectorOptions.Get; options must be comma-separated
     private void ParseOptions()
     {
         _reader.SkipWhitespace();
@@ -225,7 +225,7 @@ public sealed class EntitySelectorParser
         _reader.Skip();
     }
 
-    //FinalizePredicates 解析收尾把旋转与等级条件追加进谓词链
+    //FinalizePredicates appends the rotation and level conditions into the predicate chain at the end of parsing
     private void FinalizePredicates()
     {
         if (_rotX is not null)
@@ -235,12 +235,12 @@ public sealed class EntitySelectorParser
         if (_level is not null)
         {
             var level = _level;
-            //玩家经验等级未接入恒按0匹配
+            //The player experience level is not wired up, always matches as 0
             _predicates.Add(e => level.Matches(0));
         }
     }
 
-    //CreateRotationPredicate 角度谓词min默认0max默认359环绕后min>max表示跨±180区间
+    //CreateRotationPredicate angle predicate; min defaults to 0, max to 359; after wrapping, min>max means a range crossing ±180
     private static Predicate<CommandTarget> CreateRotationPredicate(MinMaxBounds.FloatDegrees range,
         Func<CommandTarget, float> getter)
     {
@@ -253,7 +253,7 @@ public sealed class EntitySelectorParser
         };
     }
 
-    //WrapDegrees 角度归一到[-180,180)对应原版Mth.wrapDegrees
+    //WrapDegrees normalizes the angle to [-180,180), maps to vanilla Mth.wrapDegrees
     public static float WrapDegrees(float value)
     {
         var m = value % 360f;
@@ -262,7 +262,7 @@ public sealed class EntitySelectorParser
         return m;
     }
 
-    //GetSelector 组装EntitySelector dx/dy/dz与distance.max构造相对aabb x/y/z构造坐标覆盖
+    //GetSelector assembles the EntitySelector; dx/dy/dz and distance.max build the relative aabb, x/y/z build the coordinate override
     public EntitySelector GetSelector()
     {
         AABB? aabb;
@@ -293,7 +293,7 @@ public sealed class EntitySelectorParser
             _playerName, _entityUuid, _type, _usesSelectors);
     }
 
-    //CreateAabb 负向delta取负值到0正向取0到值+1 构造以基准点为原点的相对盒
+    //CreateAabb negative delta goes from the negative value to 0, positive from 0 to value+1, building the relative box centered on the reference point
     private static AABB CreateAabb(double x, double y, double z)
     {
         var xNeg = x < 0.0;
@@ -308,7 +308,7 @@ public sealed class EntitySelectorParser
         return new AABB(xMin, yMin, zMin, xMax, yMax, zMax);
     }
 
-    //ShouldInvertValue 消费'!'前缀返回是否反转
+    //ShouldInvertValue consumes a '!' prefix and returns whether it is inverted
     public bool ShouldInvertValue()
     {
         _reader.SkipWhitespace();
@@ -321,7 +321,7 @@ public sealed class EntitySelectorParser
         return false;
     }
 
-    //IsTag 消费'#'前缀返回是否标签引用
+    //IsTag consumes a '#' prefix and returns whether it is a tag reference
     public bool IsTag()
     {
         _reader.SkipWhitespace();
@@ -379,7 +379,7 @@ public sealed class EntitySelectorParser
 
     public bool IsCurrentEntity => _currentEntity;
 
-    //LimitToType 类型限定 @a/@p/@r与type选项正向取值用
+    //LimitToType type restriction; @a/@p/@r and the type option taken positively
     public void LimitToType(EntityType<object> type) => _type = type;
 
     public InvertableSetOptionState NameOption => _nameOption;

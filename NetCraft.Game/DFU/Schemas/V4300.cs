@@ -9,9 +9,9 @@ using System.Collections.Generic;
 using NetCraft.DataFixer.Fixes;
 using NetCraft.DataFixer.Types.Templates;
 
-//V4300对应原版net.minecraft.util.datafix.schemas.V4300
-//1.21.2拆分马匹实体llama/trader_llama/donkey/mule加Items字段
-//horse/skeleton_horse/zombie_horse简化为无字段实体
+//V4300 maps to vanilla net.minecraft.util.datafix.schemas.V4300
+//1.21.2 splits the horse family; llama/trader_llama/donkey/mule gain an Items field
+//horse/skeleton_horse/zombie_horse are simplified to entities without fields
 public class V4300 : NamespacedSchema
 {
     public V4300(int versionKey, Schema? parent) : base(versionKey, parent) { }
@@ -29,7 +29,7 @@ public class V4300 : NamespacedSchema
         return map;
     }
 
-    //entityWithInventory构造带Items字段列表的实体模板对应原版entityWithInventory
+    //entityWithInventory builds an entity template with an Items field list, maps to vanilla entityWithInventory
     public static TypeTemplate EntityWithInventory(Schema schema)
         => DSL.OptionalFields(FixConstants.ContainerHelperItems, DSL.List(References.ItemStack.In(schema)));
 }

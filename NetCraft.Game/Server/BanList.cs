@@ -3,23 +3,23 @@ using NetCraft.Network.Protocol.Login;
 
 namespace NetCraft.Game.Server;
 
-//BanList 玩家封禁名单对应原版 net.minecraft.server.players.UserBanList
-//落盘 banned-players.json 字段对齐原版 uuid/name/created/source/expires/reason
-//名字匹配作为回退: 离线模式 uuid 随名字生成 手写名单只填名字也能命中
+//BanList player ban list, maps to vanilla net.minecraft.server.players.UserBanList
+//Persisted to banned-players.json with fields aligned with vanilla uuid/name/created/source/expires/reason
+//Name matching as a fallback: in offline mode the uuid is derived from the name, so a hand-written list with only the name still hits
 public sealed class BanList : StoredJsonList<BanEntry>
 {
-    //Forever 永不过期 原版本作不做过期时间 封禁一律写 forever
+    //Forever never expires; like vanilla, this project does no expiry and always writes forever
     public const string Forever = "forever";
 
-    //DefaultReason 未指定理由时的默认文案 对齐原版 BAN_REASON
+    //DefaultReason default text when no reason is given, aligned with vanilla BAN_REASON
     public const string DefaultReason = "Banned by an operator.";
 
     public BanList(string path) : base(path) { }
 
-    //IsBanned 玩家是否被封禁
+    //IsBanned whether the player is banned
     public bool IsBanned(GameProfile profile) => Find(profile) is not null;
 
-    //Find 先按 uuid 再按名字查 与 OpList 同一套双索引回退策略
+    //Find looks up by uuid then by name, the same dual-index fallback strategy as OpList
     public BanEntry? Find(GameProfile profile)
     {
         foreach (var entry in Entries)
@@ -29,7 +29,7 @@ public sealed class BanList : StoredJsonList<BanEntry>
         return null;
     }
 
-    //Add 写入封禁记录并落盘 已在名单内返回 false
+    //Add writes a ban record and persists it; returns false when already on the list
     public bool Add(GameProfile profile, string source, string reason)
     {
         if (Find(profile) is not null) return false;
@@ -38,14 +38,14 @@ public sealed class BanList : StoredJsonList<BanEntry>
         return true;
     }
 
-    //Remove 解除封禁 返回是否命中记录
+    //Remove unbans and returns whether a record was hit
     public bool Remove(GameProfile profile)
     {
         var existing = Find(profile);
         return existing is not null && RemoveEntry(entry => ReferenceEquals(entry, existing));
     }
 
-    //ReadEntry 读一条封禁记录 name 缺失视为无效条目跳过
+    //ReadEntry reads one ban record; a missing name makes the entry invalid and it is skipped
     protected override BanEntry? ReadEntry(JsonElement element)
     {
         var name = element.TryGetProperty("name", out var nameNode) ? nameNode.GetString() : null;
@@ -76,5 +76,5 @@ public sealed class BanList : StoredJsonList<BanEntry>
         => element.TryGetProperty(key, out var node) && node.GetString() is { } text ? text : fallback;
 }
 
-//BanEntry 单条玩家封禁记录 字段对齐原版 UserBanListEntry
+//BanEntry a single player ban record, fields aligned with vanilla UserBanListEntry
 public sealed record BanEntry(Guid Id, string Name, string Created, string Source, string Expires, string Reason);

@@ -2,13 +2,13 @@ using System.Text.Json;
 
 namespace NetCraft.Gpu.Font;
 
-//FontProviderDefinitionLoader font/*.json 解析器
-//解析 providers 数组按 type 字段分发到对应 Definition 构造 IGlyphProvider
-//reference 类型递归加载引用的 json 循环引用保护
-//filter 字段包装 Conditional 按当前 FontOption 集合激活
+//FontProviderDefinitionLoader parser for font/*.json
+//Parses the providers array and dispatches by the type field to the matching Definition to build an IGlyphProvider
+//The reference type recursively loads the referenced json with cycle protection
+//The filter field wraps into Conditional and is activated by the current FontOption set
 public static class FontProviderDefinitionLoader
 {
-    //Load 解析 font json 流返回 Conditional 列表递归展开 reference
+    //Load parses a font json stream and returns a Conditional list, recursively expanding references
     public static List<IGlyphProvider.Conditional> Load(Stream json, IFontResourceAccessor resources)
     {
         using var doc = JsonDocument.Parse(json);
@@ -27,7 +27,7 @@ public static class FontProviderDefinitionLoader
         return result;
     }
 
-    //LoadProvider 返回列表因 reference 递归展开可能产生多个 provider
+    //LoadProvider returns a list because recursive reference expansion may yield multiple providers
     private static List<IGlyphProvider.Conditional> LoadProvider(JsonElement elem, IFontResourceAccessor resources, HashSet<string> visited)
     {
         if (!elem.TryGetProperty("type", out var typeElem)) return new();
@@ -44,9 +44,9 @@ public static class FontProviderDefinitionLoader
         };
     }
 
-    //LoadReference 递归加载引用的 font json
-    //id 格式 minecraft:include/space → 加载 minecraft:font/include/space.json
-    //外层 filter 覆盖所有递归结果的 filter 对齐原版 GlyphProviderDefinition.Conditional 合并语义
+    //LoadReference recursively loads a referenced font json
+    //id format minecraft:include/space → loads minecraft:font/include/space.json
+    //The outer filter overrides the filter of all recursive results, matching the merge semantics of vanilla GlyphProviderDefinition.Conditional
     private static List<IGlyphProvider.Conditional> LoadReference(JsonElement elem, FontOptionFilter filter, IFontResourceAccessor resources, HashSet<string> visited)
     {
         var id = elem.GetProperty("id").GetString() ?? "";
@@ -63,13 +63,13 @@ public static class FontProviderDefinitionLoader
         {
             using var doc = JsonDocument.Parse(stream);
             var result = LoadDocument(doc.RootElement, resources, visited);
-            //外层 filter 覆盖所有递归结果
+            //The outer filter overrides all recursive results
             return result.Select(c => new IGlyphProvider.Conditional(c.Provider, filter)).ToList();
         }
     }
 
-    //LoadTtf 解析 ttf 类型 provider
-    //file 必填 size 默认 11.0 oversample 默认 1.0 shift 默认 NONE skip 默认空串
+    //LoadTtf parses a ttf provider
+    //file is required, size defaults to 11.0, oversample to 1.0, shift to NONE, skip to an empty string
     private static List<IGlyphProvider.Conditional> LoadTtf(JsonElement elem, FontOptionFilter filter, IFontResourceAccessor resources)
     {
         var file = elem.GetProperty("file").GetString() ?? "";
@@ -84,8 +84,8 @@ public static class FontProviderDefinitionLoader
         return new() { new(provider, filter) };
     }
 
-    //LoadSpace 解析 space 类型 provider
-    //advances 是 codepoint→advance 映射 JSON 键是字符（System.Text.Json 自动解码 \u 转义）
+    //LoadSpace parses a space provider
+    //advances is a codepoint→advance map; the JSON keys are characters (System.Text.Json auto-decodes \u escapes)
     private static List<IGlyphProvider.Conditional> LoadSpace(JsonElement elem, FontOptionFilter filter)
     {
         var advances = new Dictionary<int, float>();
@@ -102,9 +102,9 @@ public static class FontProviderDefinitionLoader
         return new() { new(provider, filter) };
     }
 
-    //LoadBitmap 解析 bitmap 类型 provider
-    //file 必填 height 默认 8 ascent 必填 chars 必填字符串数组每行 codepoints
-    //file 路径 minecraft:font/xxx.png 由 AssetsFontResourceAccessor 映射到 assets
+    //LoadBitmap parses a bitmap provider
+    //file is required, height defaults to 8, ascent is required, chars is a required string array with codepoints per row
+    //The minecraft:font/xxx.png file path is mapped to assets by AssetsFontResourceAccessor
     private static List<IGlyphProvider.Conditional> LoadBitmap(JsonElement elem, FontOptionFilter filter, IFontResourceAccessor resources)
     {
         var file = elem.GetProperty("file").GetString() ?? "";
@@ -122,9 +122,9 @@ public static class FontProviderDefinitionLoader
         return new() { new(provider, filter) };
     }
 
-    //LoadUnihex 解析 unihex 类型 provider
-    //hex_file 必填指向 zip 打包的 .hex 文件
-    //size_overrides 字段原版用于覆盖指定 codepoint 范围的尺寸计算 F5 暂不实现
+    //LoadUnihex parses a unihex provider
+    //hex_file is required and points to a zip-packed .hex file
+    //Vanilla uses the size_overrides field to override size computation for a codepoint range; not implemented in F5
     private static List<IGlyphProvider.Conditional> LoadUnihex(JsonElement elem, FontOptionFilter filter, IFontResourceAccessor resources)
     {
         var hexFile = elem.GetProperty("hex_file").GetString() ?? "";
@@ -134,8 +134,8 @@ public static class FontProviderDefinitionLoader
         return new() { new(provider, filter) };
     }
 
-    //ParseCodepoint 解析 JSON 键字符串为 codepoint
-    //System.Text.Json 已解码 \u 转义取首个 rune
+    //ParseCodepoint parses a JSON key string into a codepoint
+    //System.Text.Json has already decoded \u escapes; takes the first rune
     private static int ParseCodepoint(string s)
     {
         foreach (var rune in s.EnumerateRunes())
@@ -143,7 +143,7 @@ public static class FontProviderDefinitionLoader
         return 0;
     }
 
-    //LoadShift 解析 shift 字段（[x, y] 数组）对标原版 Shift.CODEC
+    //LoadShift parses the shift field ([x, y] array), maps to vanilla Shift.CODEC
     private static Shift LoadShift(JsonElement elem)
     {
         if (!elem.TryGetProperty("shift", out var shift) || shift.ValueKind != JsonValueKind.Array) return Shift.None;
@@ -152,8 +152,8 @@ public static class FontProviderDefinitionLoader
         return new Shift(arr[0].GetSingle(), arr[1].GetSingle());
     }
 
-    //LoadFilter 解析 filter 字段（FontOption→bool 条件映射）
-    //无 filter 默认 AlwaysPass value=true 表示要求该 option 激活 false 表示要求未激活
+    //LoadFilter parses the filter field (FontOption→bool condition map)
+    //Without a filter it defaults to AlwaysPass; value=true requires the option to be active, false requires it inactive
     private static FontOptionFilter LoadFilter(JsonElement elem)
     {
         if (!elem.TryGetProperty("filter", out var filter) || filter.ValueKind != JsonValueKind.Object)

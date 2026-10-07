@@ -3,11 +3,11 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//PlacementFilter 过滤基类对应原版 PlacementFilter
-//通过则保留该位置 否则丢弃
+//PlacementFilter filter base, maps to vanilla PlacementFilter
+//Keep the position when it passes, discard it otherwise
 public abstract class PlacementFilter : PlacementModifier
 {
-    //ShouldPlace 判定该位置是否保留对应原版 shouldPlace
+    //ShouldPlace decide whether to keep the position, maps to vanilla shouldPlace
     protected abstract bool ShouldPlace(PlacementContext context, RandomSource random, BlockPos origin);
 
     public override IEnumerable<BlockPos> GetPositions(PlacementContext context, RandomSource random, BlockPos origin)

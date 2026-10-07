@@ -6,50 +6,50 @@ using NetCraft.DataFixer.Optics;
 using NetCraft.DataFixer.Optics.Profunctors;
 using NetCraft.DataFixer.Util;
 
-//FunctionTypes容器存放Mu与ReaderMu标记避免泛型嵌套
+//FunctionTypes container holding Mu and ReaderMu markers, avoiding generic nesting
 public static class FunctionTypes
 {
-    //二元HKT标记函数类型构造器
+    //binary HKT marker; function type constructor
     public sealed class Mu : K2 { }
 
-    //一元Reader HKT标记R为环境类型
+    //unary Reader HKT marker; R is the environment type
     public sealed class ReaderMu<R> : K1 { }
 }
 
-//函数类型对应原版com.mojang.datafixers.FunctionType
-//把Func<A,B>包装为HKT使其可作为profunctor处理
+//function type maps to vanilla com.mojang.datafixers.FunctionType
+//wraps Func<A,B> as an HKT so it can be treated as a profunctor
 public interface FunctionType<A, B> : App2<FunctionTypes.Mu, A, B>, App<FunctionTypes.ReaderMu<A>, B>
 {
-    //应用函数返回B
+    //applies the function and returns B
     B Apply(A a);
 
-    //还原二元类型应用为FunctionType
-    //用Unsafe.As绕过运行时类型检查对齐Java类型擦除
-    //实际实例可能是FunctionTypeImpl<object,object>强转为FunctionType<A2,B2>需绕过C#严格泛型不变量
+    //recover the binary type application as FunctionType
+    //use Unsafe.As to bypass the runtime type check and align with Java type erasure
+    //the actual instance may be FunctionTypeImpl<object,object>; casting to FunctionType<A2,B2> requires bypassing C# strict generic invariance
     static FunctionType<A2, B2> Unbox<A2, B2>(App2<FunctionTypes.Mu, A2, B2> box)
     {
         var boxObj = (object)box!;
         return System.Runtime.CompilerServices.Unsafe.As<object, FunctionType<A2, B2>>(ref boxObj);
     }
 
-    //还原一元Reader类型应用为FunctionType
-    //用Unsafe.As绕过运行时类型检查对齐Java类型擦除
+    //recover the unary Reader type application as FunctionType
+    //use Unsafe.As to bypass the runtime type check and align with Java type erasure
     static FunctionType<A2, B2> UnboxReader<A2, B2>(App<FunctionTypes.ReaderMu<A2>, B2> box)
     {
         var boxObj = (object)box!;
         return System.Runtime.CompilerServices.Unsafe.As<object, FunctionType<A2, B2>>(ref boxObj);
     }
 
-    //工厂方法从Func构造FunctionType
+    //factory method building a FunctionType from a Func
     static FunctionType<A, B> Create(Func<A, B> function) => new FunctionTypeImpl<A, B>(function);
 
-    //还原为Func
-    //box运行时可能是FunctionTypeImpl<X,Y>但编译期声明是App2<Mu,A,B>
-    //X/Y与A/B因Java类型擦除语义不同但运行时同一实例
-    //直接Unbox(box).Apply会因CLR接口分派按实例类型FunctionTypeImpl<X,Y>查找
-    //FunctionType<A,B>.Apply入口失败抛EntryPointNotFoundException
-    //委托variance也不允许Func<X,Y>强转Func<A,B>因参数逆变严格检查
-    //用表达式树编译调用委托按funcType缓存对齐Java类型擦除
+    //recovers to Func
+    //at runtime box may be FunctionTypeImpl<X,Y> but its compile-time declaration is App2<Mu,A,B>
+    //X/Y and A/B differ under Java type erasure semantics but are the same instance at runtime
+    //calling Unbox(box).Apply directly makes CLR interface dispatch look up by the instance type FunctionTypeImpl<X,Y>
+    //the FunctionType<A,B>.Apply entry fails with EntryPointNotFoundException
+    //delegate variance also disallows casting Func<X,Y> to Func<A,B> due to strict parameter contravariance checks
+    //compiles an invocation delegate with an expression tree, cached by funcType, aligning with Java type erasure
     static Func<A, B> GetFunc<A, B>(App2<FunctionTypes.Mu, A, B> box)
     {
         var boxObj = (object)box!;
@@ -59,9 +59,9 @@ public interface FunctionType<A, B> : App2<FunctionTypes.Mu, A, B>, App<Function
             var fieldInfo = FunctionTypeImplFieldCache.GetField(boxType);
             var funcObj = fieldInfo.GetValue(boxObj)!;
             var invoker = FunctionTypeInvokerCache.GetInvoker(funcObj.GetType());
-            //invoker返回funcObj实际返回类型Pair<string,object>等与B=Pair<object,object>不一致
-            //C#严格泛型不变量下Pair<string,object>不能强转Pair<object,object>
-            //用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+            //the invoker returns funcObj whose actual return type, such as Pair<string,object>, differs from B=Pair<object,object>
+            //under C# strict generic invariance Pair<string,object> cannot be cast to Pair<object,object>
+            //use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
             return a =>
             {
                 var result = invoker(funcObj, a!);
@@ -73,10 +73,10 @@ public interface FunctionType<A, B> : App2<FunctionTypes.Mu, A, B>, App<Function
     }
 }
 
-//FunctionTypeInvoker按funcType缓存编译后的调用委托
-//表达式树把Func<X,Y>.Invoke(object,object)->object编译为强类型委托
-//argParam到目标参数类型转换用CastTo<T>包装Unsafe.As绕过castclass运行时检查
-//否则Pair<string,object>无法castclass到Pair<object,object>对齐C#严格泛型不变量
+//FunctionTypeInvoker caches the compiled invocation delegate by funcType
+//the expression tree compiles Func<X,Y>.Invoke(object,object)->object into a strongly-typed delegate
+//converting argParam to the target parameter type uses CastTo<T> wrapping Unsafe.As to bypass the castclass runtime check
+//otherwise Pair<string,object> cannot castclass to Pair<object,object>, aligning with C# strict generic invariance
 internal static class FunctionTypeInvokerCache
 {
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, System.Func<object, object, object>> _cache = new();
@@ -88,7 +88,7 @@ internal static class FunctionTypeInvokerCache
             var paramType = invokeMethod.GetParameters()[0].ParameterType;
             var funcParam = System.Linq.Expressions.Expression.Parameter(typeof(object), "func");
             var argParam = System.Linq.Expressions.Expression.Parameter(typeof(object), "arg");
-            //CastTo<object,Pair<string,object>>(arg)用Unsafe.As绕过castclass
+            //CastTo<object,Pair<string,object>>(arg) uses Unsafe.As to bypass castclass
             var castMethod = typeof(FunctionTypeInvokerCache)
                 .GetMethod(nameof(CastTo), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
                 .MakeGenericMethod(paramType);
@@ -102,9 +102,9 @@ internal static class FunctionTypeInvokerCache
                 funcParam, argParam).Compile();
         });
 
-    //CastTo用Unsafe.As绕过C#严格泛型不变量让object转任意类型T
-    //去掉class约束让Pair<object,object>等struct类型参数也能MakeGenericMethod
-    //对齐Java类型擦除语义避免castclass运行时检查失败
+    //CastTo uses Unsafe.As to bypass C# strict generic invariance, converting object to any type T
+    //removing the class constraint lets struct-typed parameters such as Pair<object,object> also use MakeGenericMethod
+    //aligns with Java type erasure semantics, avoiding castclass runtime check failure
     private static T CastTo<T>(object obj)
     {
         var local = obj;
@@ -112,8 +112,8 @@ internal static class FunctionTypeInvokerCache
     }
 }
 
-//FunctionTypeImpl字段反射缓存避免每次GetFunc反射查找
-//按运行时类型缓存_functionFieldInfo按boxType查表
+//FunctionTypeImpl field reflection cache, avoiding a reflective lookup in GetFunc each time
+//caches _functionFieldInfo by runtime type, keyed by boxType
 internal static class FunctionTypeImplFieldCache
 {
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, System.Reflection.FieldInfo> _cache = new();
@@ -122,7 +122,7 @@ internal static class FunctionTypeImplFieldCache
         => _cache.GetOrAdd(implType, t => t.GetField("_function", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!);
 }
 
-//FunctionType具体实现持有Func委托
+//FunctionType concrete implementation holding a Func delegate
 internal sealed class FunctionTypeImpl<A, B> : FunctionType<A, B>
 {
     private readonly Func<A, B> _function;
@@ -130,17 +130,17 @@ internal sealed class FunctionTypeImpl<A, B> : FunctionType<A, B>
     public B Apply(A a) => _function(a);
 }
 
-//FunctionTypeInstance作为TraversalP+Monoidal+Mapping+MonoidProfunctor的实例
-//所有方法基于Func组合实现
-//额外实现App<IProfunctorMu,FunctionTypes.Mu>对齐Java类型擦除语义
-//ProfunctorTransformer.Eval反射调用IdAdapter.Eval时proof参数类型App<Proof,P>
-//C#严格泛型不变量下App<FunctionTypeInstance.Mu,P>与App<IProfunctorMu,P>不同封闭类型
-//Java类型擦除下Proof被擦除运行时等同App<Object,Object>任意App实例均可
-//加App<IProfunctorMu,P>接口实现让反射类型检查通过对齐Java虚方法分派语义
-//额外实现Profunctor<FunctionTypes.Mu,IProfunctorMu>接口让Profunctor.Unbox返回的引用
-//能虚方法分派到Dimap对应Profunctor<FunctionTypes.Mu,IProfunctorMu>方法表入口
-//额外实现Cartesian<FunctionTypes.Mu,ICartesianMu>接口让Cartesian.Unbox返回的引用
-//通过Cartesian<FunctionTypes.Mu,ICartesianMu>方法表调用Dimap命中入口对齐Java类型擦除
+//FunctionTypeInstance as an instance of TraversalP+Monoidal+Mapping+MonoidProfunctor
+//all methods are implemented via Func composition
+//additionally implements App<IProfunctorMu,FunctionTypes.Mu>, aligning with Java type erasure semantics
+//when ProfunctorTransformer.Eval reflectively calls IdAdapter.Eval, the proof parameter has type App<Proof,P>
+//under C# strict generic invariance App<FunctionTypeInstance.Mu,P> and App<IProfunctorMu,P> are different closed types
+//under Java type erasure Proof is erased and equals App<Object,Object> at runtime, so any App instance works
+//implementing the App<IProfunctorMu,P> interface lets the reflective type check pass, aligning with Java virtual dispatch semantics
+//additionally implements the Profunctor<FunctionTypes.Mu,IProfunctorMu> interface so the reference returned by Profunctor.Unbox
+//can virtually dispatch to Dimap, reaching the Profunctor<FunctionTypes.Mu,IProfunctorMu> method table entry
+//additionally implements the Cartesian<FunctionTypes.Mu,ICartesianMu> interface so the reference returned by Cartesian.Unbox
+//can call Dimap through the Cartesian<FunctionTypes.Mu,ICartesianMu> method table and hit the entry, aligning with Java type erasure
 public sealed class FunctionTypeInstance :
     TraversalP<FunctionTypes.Mu, FunctionTypeInstance.Mu>,
     Monoidal<FunctionTypes.Mu, FunctionTypeInstance.Mu>,
@@ -153,8 +153,8 @@ public sealed class FunctionTypeInstance :
     NetCraft.DataFixer.Optics.Profunctors.Cocartesian<FunctionTypes.Mu, ICocartesianMu>,
     NetCraft.DataFixer.Optics.Profunctors.Profunctor<FunctionTypes.Mu, ICartesianMu>,
     NetCraft.DataFixer.Optics.Profunctors.Profunctor<FunctionTypes.Mu, ICocartesianMu>,
-    //额外实现ITraversalPMu变体让Traversal.Eval调用traversalP.Wander命中方法表入口
-    //TraversalP.Unbox用Unsafe.As绕过TMu检查后调Wander需要变体接口方法表存在
+    //additionally implements the ITraversalPMu variant so Traversal.Eval's call to traversalP.Wander hits the method table entry
+    //after TraversalP.Unbox uses Unsafe.As to bypass the TMu check and calls Wander, the variant interface method table must exist
     NetCraft.DataFixer.Optics.Profunctors.TraversalP<FunctionTypes.Mu, ITraversalPMu>,
     NetCraft.DataFixer.Optics.Profunctors.AffineP<FunctionTypes.Mu, IAffinePMu>,
     NetCraft.DataFixer.Optics.Profunctors.Cartesian<FunctionTypes.Mu, ITraversalPMu>,
@@ -167,122 +167,122 @@ public sealed class FunctionTypeInstance :
     public static readonly FunctionTypeInstance InstanceOf = new();
     private FunctionTypeInstance() { }
 
-    //dimap用g前处理输入h后处理输出组合原函数
+    //dimap preprocesses the input with g and postprocesses the output with h, composing the original function
     public Func<App2<FunctionTypes.Mu, A, B>, App2<FunctionTypes.Mu, C, D>> Dimap<A, B, C, D>(Func<C, A> g, Func<B, D> h)
         => f => FunctionType<C, D>.Create(a => h(FunctionType<A, B>.GetFunc(f)(g(a))));
 
-    //显式实现Profunctor<FunctionTypes.Mu,IProfunctorMu>.Dimap委托到原Dimap
-    //让通过Profunctor<P,IProfunctorMu>引用调用Dimap能命中方法表入口
+    //explicitly implements Profunctor<FunctionTypes.Mu,IProfunctorMu>.Dimap, delegating to the original Dimap
+    //so calling Dimap through a Profunctor<P,IProfunctorMu> reference hits the method table entry
     Func<App2<FunctionTypes.Mu, A, B>, App2<FunctionTypes.Mu, C, D>> NetCraft.DataFixer.Optics.Profunctors.Profunctor<FunctionTypes.Mu, IProfunctorMu>.Dimap<A, B, C, D>(Func<C, A> g, Func<B, D> h)
         => Dimap<A, B, C, D>(g, h);
 
-    //显式实现Profunctor<FunctionTypes.Mu,ICartesianMu>.Dimap让Cartesian.Unbox返回的引用
-    //通过Cartesian<FunctionTypes.Mu,ICartesianMu>方法表调用Dimap命中入口对齐Java类型擦除
+    //explicitly implements Profunctor<FunctionTypes.Mu,ICartesianMu>.Dimap so the reference returned by Cartesian.Unbox
+    //can call Dimap through the Cartesian<FunctionTypes.Mu,ICartesianMu> method table and hit the entry, aligning with Java type erasure
     Func<App2<FunctionTypes.Mu, A, B>, App2<FunctionTypes.Mu, C, D>> NetCraft.DataFixer.Optics.Profunctors.Profunctor<FunctionTypes.Mu, ICartesianMu>.Dimap<A, B, C, D>(Func<C, A> g, Func<B, D> h)
         => Dimap<A, B, C, D>(g, h);
 
-    //显式实现Profunctor<FunctionTypes.Mu,ICocartesianMu>.Dimap
+    //explicitly implements Profunctor<FunctionTypes.Mu,ICocartesianMu>.Dimap
     Func<App2<FunctionTypes.Mu, A, B>, App2<FunctionTypes.Mu, C, D>> NetCraft.DataFixer.Optics.Profunctors.Profunctor<FunctionTypes.Mu, ICocartesianMu>.Dimap<A, B, C, D>(Func<C, A> g, Func<B, D> h)
         => Dimap<A, B, C, D>(g, h);
 
-    //显式实现Cartesian<FunctionTypes.Mu,ICartesianMu>.First让Lens.Eval里cartesian.First命中入口
+    //explicitly implements Cartesian<FunctionTypes.Mu,ICartesianMu>.First so cartesian.First in Lens.Eval hits the entry
     App2<FunctionTypes.Mu, Pair<A, C>, Pair<B, C>> NetCraft.DataFixer.Optics.Profunctors.Cartesian<FunctionTypes.Mu, ICartesianMu>.First<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => First<A, B, C>(input);
 
-    //显式实现Cartesian<FunctionTypes.Mu,ICartesianMu>.Second让Cartesian.Unbox引用调用Second命中入口
+    //explicitly implements Cartesian<FunctionTypes.Mu,ICartesianMu>.Second so a Cartesian.Unbox reference call to Second hits the entry
     App2<FunctionTypes.Mu, Pair<C, A>, Pair<C, B>> NetCraft.DataFixer.Optics.Profunctors.Cartesian<FunctionTypes.Mu, ICartesianMu>.Second<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => Second<A, B, C>(input);
 
-    //显式实现Cocartesian<FunctionTypes.Mu,ICocartesianMu>.Left让Prism.Eval里cocartesian.Left命中入口
+    //explicitly implements Cocartesian<FunctionTypes.Mu,ICocartesianMu>.Left so cocartesian.Left in Prism.Eval hits the entry
     App2<FunctionTypes.Mu, Either<A, C>, Either<B, C>> NetCraft.DataFixer.Optics.Profunctors.Cocartesian<FunctionTypes.Mu, ICocartesianMu>.Left<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => Left<A, B, C>(input);
 
-    //显式实现Cocartesian<FunctionTypes.Mu,ICocartesianMu>.Right
+    //explicitly implements Cocartesian<FunctionTypes.Mu,ICocartesianMu>.Right
     App2<FunctionTypes.Mu, Either<C, A>, Either<C, B>> NetCraft.DataFixer.Optics.Profunctors.Cocartesian<FunctionTypes.Mu, ICocartesianMu>.Right<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => Right<A, B, C>(input);
 
-    //显式实现TraversalP<FunctionTypes.Mu,ITraversalPMu>.Wander让Traversal.Eval调用traversalP.Wander命中入口
+    //explicitly implements TraversalP<FunctionTypes.Mu,ITraversalPMu>.Wander so Traversal.Eval's call to traversalP.Wander hits the entry
     App2<FunctionTypes.Mu, S, T> NetCraft.DataFixer.Optics.Profunctors.TraversalP<FunctionTypes.Mu, ITraversalPMu>.Wander<S, T, A, B>(Wander<S, T, A, B> wander, App2<FunctionTypes.Mu, A, B> input)
         => Wander<S, T, A, B>(wander, input);
 
-    //显式实现Profunctor<FunctionTypes.Mu,ITraversalPMu>.Dimap委托到原Dimap
+    //explicitly implements Profunctor<FunctionTypes.Mu,ITraversalPMu>.Dimap, delegating to the original Dimap
     Func<App2<FunctionTypes.Mu, A, B>, App2<FunctionTypes.Mu, C, D>> NetCraft.DataFixer.Optics.Profunctors.Profunctor<FunctionTypes.Mu, ITraversalPMu>.Dimap<A, B, C, D>(Func<C, A> g, Func<B, D> h)
         => Dimap<A, B, C, D>(g, h);
 
-    //显式实现Cartesian<FunctionTypes.Mu,ITraversalPMu>.First
+    //explicitly implements Cartesian<FunctionTypes.Mu,ITraversalPMu>.First
     App2<FunctionTypes.Mu, Pair<A, C>, Pair<B, C>> NetCraft.DataFixer.Optics.Profunctors.Cartesian<FunctionTypes.Mu, ITraversalPMu>.First<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => First<A, B, C>(input);
 
-    //显式实现Cartesian<FunctionTypes.Mu,ITraversalPMu>.Second
+    //explicitly implements Cartesian<FunctionTypes.Mu,ITraversalPMu>.Second
     App2<FunctionTypes.Mu, Pair<C, A>, Pair<C, B>> NetCraft.DataFixer.Optics.Profunctors.Cartesian<FunctionTypes.Mu, ITraversalPMu>.Second<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => Second<A, B, C>(input);
 
-    //显式实现Cocartesian<FunctionTypes.Mu,ITraversalPMu>.Left
+    //explicitly implements Cocartesian<FunctionTypes.Mu,ITraversalPMu>.Left
     App2<FunctionTypes.Mu, Either<A, C>, Either<B, C>> NetCraft.DataFixer.Optics.Profunctors.Cocartesian<FunctionTypes.Mu, ITraversalPMu>.Left<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => Left<A, B, C>(input);
 
-    //显式实现Cocartesian<FunctionTypes.Mu,ITraversalPMu>.Right
+    //explicitly implements Cocartesian<FunctionTypes.Mu,ITraversalPMu>.Right
     App2<FunctionTypes.Mu, Either<C, A>, Either<C, B>> NetCraft.DataFixer.Optics.Profunctors.Cocartesian<FunctionTypes.Mu, ITraversalPMu>.Right<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => Right<A, B, C>(input);
 
-    //显式实现Profunctor<FunctionTypes.Mu,IAffinePMu>.Dimap
+    //explicitly implements Profunctor<FunctionTypes.Mu,IAffinePMu>.Dimap
     Func<App2<FunctionTypes.Mu, A, B>, App2<FunctionTypes.Mu, C, D>> NetCraft.DataFixer.Optics.Profunctors.Profunctor<FunctionTypes.Mu, IAffinePMu>.Dimap<A, B, C, D>(Func<C, A> g, Func<B, D> h)
         => Dimap<A, B, C, D>(g, h);
 
-    //显式实现Cartesian<FunctionTypes.Mu,IAffinePMu>.First
+    //explicitly implements Cartesian<FunctionTypes.Mu,IAffinePMu>.First
     App2<FunctionTypes.Mu, Pair<A, C>, Pair<B, C>> NetCraft.DataFixer.Optics.Profunctors.Cartesian<FunctionTypes.Mu, IAffinePMu>.First<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => First<A, B, C>(input);
 
-    //显式实现Cartesian<FunctionTypes.Mu,IAffinePMu>.Second
+    //explicitly implements Cartesian<FunctionTypes.Mu,IAffinePMu>.Second
     App2<FunctionTypes.Mu, Pair<C, A>, Pair<C, B>> NetCraft.DataFixer.Optics.Profunctors.Cartesian<FunctionTypes.Mu, IAffinePMu>.Second<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => Second<A, B, C>(input);
 
-    //显式实现Cocartesian<FunctionTypes.Mu,IAffinePMu>.Left
+    //explicitly implements Cocartesian<FunctionTypes.Mu,IAffinePMu>.Left
     App2<FunctionTypes.Mu, Either<A, C>, Either<B, C>> NetCraft.DataFixer.Optics.Profunctors.Cocartesian<FunctionTypes.Mu, IAffinePMu>.Left<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => Left<A, B, C>(input);
 
-    //显式实现Cocartesian<FunctionTypes.Mu,IAffinePMu>.Right
+    //explicitly implements Cocartesian<FunctionTypes.Mu,IAffinePMu>.Right
     App2<FunctionTypes.Mu, Either<C, A>, Either<C, B>> NetCraft.DataFixer.Optics.Profunctors.Cocartesian<FunctionTypes.Mu, IAffinePMu>.Right<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => Right<A, B, C>(input);
 
-    //first把A->B扩展为Pair<A,C>->Pair<B,C>保留C分量
+    //first extends A->B to Pair<A,C>->Pair<B,C>, preserving the C component
     public App2<FunctionTypes.Mu, Pair<A, C>, Pair<B, C>> First<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => FunctionType<Pair<A, C>, Pair<B, C>>.Create(p => Pair<B, C>.Of(FunctionType<A, B>.GetFunc(input)(p.First), p.Second));
 
-    //second把A->B扩展为Pair<C,A>->Pair<C,B>保留C分量
+    //second extends A->B to Pair<C,A>->Pair<C,B>, preserving the C component
     public new App2<FunctionTypes.Mu, Pair<C, A>, Pair<C, B>> Second<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
         => FunctionType<Pair<C, A>, Pair<C, B>>.Create(p => Pair<C, B>.Of(p.First, FunctionType<A, B>.GetFunc(input)(p.Second)));
 
-    //left把A->B扩展为Either<A,C>->Either<B,C>分支保留C
+    //left extends A->B to Either<A,C>->Either<B,C>, preserving the C branch
     public App2<FunctionTypes.Mu, Either<A, C>, Either<B, C>> Left<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
     {
         var func = FunctionType<A, B>.GetFunc(input);
         return FunctionType<Either<A, C>, Either<B, C>>.Create(e => e.MapLeft(func));
     }
 
-    //right把A->B扩展为Either<C,A>->Either<C,B>分支保留C
+    //right extends A->B to Either<C,A>->Either<C,B>, preserving the C branch
     public new App2<FunctionTypes.Mu, Either<C, A>, Either<C, B>> Right<A, B, C>(App2<FunctionTypes.Mu, A, B> input)
     {
         var func = FunctionType<A, B>.GetFunc(input);
         return FunctionType<Either<C, A>, Either<C, B>>.Create(e => e.MapRight(func));
     }
 
-    //par并行组合两个函数分别处理Pair的两个分量
+    //par combines two functions in parallel, handling the two Pair components separately
     public App2<FunctionTypes.Mu, Pair<A, C>, Pair<B, D>> Par<A, B, C, D>(App2<FunctionTypes.Mu, A, B> first, Func<App2<FunctionTypes.Mu, C, D>> second)
         => FunctionType<Pair<A, C>, Pair<B, D>>.Create(p => Pair<B, D>.Of(FunctionType<A, B>.GetFunc(first)(p.First), FunctionType<C, D>.GetFunc(second())(p.Second)));
 
-    //empty返回Void->Void的identity单位元
+    //empty returns the Void->Void identity element
     public App2<FunctionTypes.Mu, Unit, Unit> Empty()
         => FunctionType<Unit, Unit>.Create(u => u);
 
-    //wander用IdF作Applicative把A->B扩展为S->T基于Wander策略
+    //wander uses IdF as the Applicative to extend A->B to S->T, based on the Wander strategy
     public App2<FunctionTypes.Mu, S, T> Wander<S, T, A, B>(Wander<S, T, A, B> wander, App2<FunctionTypes.Mu, A, B> input)
     {
         var func = FunctionType<A, B>.GetFunc(input);
         return FunctionType<S, T>.Create(s => IdFs.Get(wander.Wander(IdFInstance.InstanceOf, a => IdFs.Create(func(a))).Invoke(s)));
     }
 
-    //mapping用Functor.map把A->B提升到App<F,A>->App<F,B>
+    //mapping uses Functor.map to lift A->B to App<F,A>->App<F,B>
     public App2<FunctionTypes.Mu, App<F, A>, App<F, B>> Mapping<A, B, F, TMu2>(Functor<F, TMu2> functor, App2<FunctionTypes.Mu, A, B> input)
         where F : K1 where TMu2 : IFunctorMu
     {
@@ -290,10 +290,10 @@ public sealed class FunctionTypeInstance :
         return FunctionType<App<F, A>, App<F, B>>.Create(fa => functor.Map(func, fa));
     }
 
-    //zero返回func本身单位元
+    //zero returns func itself as the identity element
     public App2<FunctionTypes.Mu, A, B> Zero<A, B>(App2<FunctionTypes.Mu, A, B> func) => func;
 
-    //plus用Procompose组合first(A->C)与second(C->B)得A->B
+    //plus composes first (A->C) and second (C->B) with Procompose to get A->B
     public App2<FunctionTypes.Mu, A, B> Plus<A, B>(App2<Procomposes.Mu<FunctionTypes.Mu, FunctionTypes.Mu>, A, B> input)
     {
         var cmp = Procompose<FunctionTypes.Mu, FunctionTypes.Mu, A, B, object>.Unbox(input);

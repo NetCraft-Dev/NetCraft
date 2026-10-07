@@ -2,11 +2,11 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.World.Crafting;
 
-//ShapelessRecipe 无序合成配方对应原版 ShapelessRecipe
-//只要求非空格数与原料数相同 每个原料都能在输入里找到还没被占用的匹配项
+//ShapelessRecipe shapeless crafting recipe, maps to vanilla ShapelessRecipe
+//Requires only that the non-empty slot count equals the ingredient count and every ingredient finds an unused match in the input
 public sealed class ShapelessRecipe : CraftingRecipe
 {
-    //SerializerId 配方序列化 id 即 JSON 里的 type
+    //SerializerId recipe serializer id, the type field in JSON
     public const string SerializerId = "crafting_shapeless";
 
     private readonly List<Ingredient> _ingredients;
@@ -20,7 +20,7 @@ public sealed class ShapelessRecipe : CraftingRecipe
         _result = result;
     }
 
-    //Ingredients 原料表
+    //Ingredients ingredient list
     public IReadOnlyList<Ingredient> Ingredients => _ingredients;
 
     public override string Type => SerializerId;
@@ -28,10 +28,10 @@ public sealed class ShapelessRecipe : CraftingRecipe
     public override bool Matches(CraftingInput input)
     {
         if (input.IngredientCount != _ingredients.Count) return false;
-        //单格单料直接比 不走占用表
+        //With a single slot and a single ingredient compare directly without the used-slot table
         if (input.Size == 1 && _ingredients.Count == 1)
             return _ingredients[0].Matches(input.GetItem(0));
-        //逐原料在输入里找一个还没被占用的匹配项 槽位最多 9 格不必做复杂配平
+        //For each ingredient find an unused match in the input; with at most 9 slots there is no need for complex balancing
         var used = new bool[input.Size];
         foreach (var ingredient in _ingredients)
         {
@@ -50,6 +50,6 @@ public sealed class ShapelessRecipe : CraftingRecipe
         return true;
     }
 
-    //Assemble 产出成品 给的是成品栈的副本
+    //Assemble produces the result as a copy of the result stack
     public override ItemStack Assemble(CraftingInput input) => _result.Copy();
 }

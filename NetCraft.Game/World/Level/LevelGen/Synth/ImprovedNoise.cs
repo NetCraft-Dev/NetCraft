@@ -4,15 +4,15 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Synth;
 
-//ImprovedNoise 改进版柏林噪声对应原版 net.minecraft.world.level.levelgen.synth.ImprovedNoise
-//经典 Perlin 噪声实现byte[256] 排列数组+8 角点三线性插值
-//GRADIENT 梯度表与 SimplexNoise 共享放此类内
+//ImprovedNoise improved Perlin noise, maps to vanilla net.minecraft.world.level.levelgen.synth.ImprovedNoise
+//Classic Perlin noise implementation: a byte[256] permutation array plus trilinear interpolation over 8 corners
+//The GRADIENT table is shared with SimplexNoise and lives in this class
 public sealed class ImprovedNoise
 {
     private const float ShiftUpEpsilon = 1.0E-7f;
 
-    //GRADIENT 16 个 3D 梯度向量对齐原版 SimplexNoise.GRADIENT
-    //扁平成一维: 原来 int[][] 每次 gradDot 要先取子数组再索引 扁平后按下标 *3 直接取
+    //GRADIENT 16 3D gradient vectors, aligned with vanilla SimplexNoise.GRADIENT
+    //Flattened to 1D: the original int[][] had to fetch a sub-array before indexing in every gradDot, while here index * 3 reads directly
     internal static readonly int[] GRADIENT =
     {
         1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1, 0,
@@ -22,8 +22,8 @@ public sealed class ImprovedNoise
     };
 
     private readonly byte[] _p = new byte[256];
-    //Xo/Yo/Zo 采样偏移 原版就是 public final 字段 这里对齐用字段而不是自动属性
-    //属性取值器在逐格采样的热路径上每次都要多过一层 JIT 未必内联 采样里要连读三个
+    //Xo/Yo/Zo sampling offsets; vanilla exposes them as public final fields, so use fields here instead of auto-properties
+    //Property getters add a layer on this per-block hot path that the JIT may not inline, and three are read per sample
     public readonly double Xo;
     public readonly double Yo;
     public readonly double Zo;
@@ -61,11 +61,11 @@ public sealed class ImprovedNoise
         return SampleAndLerp(xi, yi, zi, xf, yf, zf, u, v, w);
     }
 
-    //2D 重载 z=0 方便调用
+    //2D overload with z=0 for convenience
     public double Noise(double x, double y) => Noise(x, y, 0);
 
-    //5 参数 Noise 对应原版 noise(x,y,z,yScale,yFudge)
-    //BlendedNoise 用 yScale/yFudge 在 y 方向做阶梯偏移使低倍频噪声在同一 y 区间内重复
+    //5-argument Noise, maps to vanilla noise(x,y,z,yScale,yFudge)
+    //BlendedNoise uses yScale/yFudge to step-offset in y, making low-octave noise repeat within the same y range
     public double Noise(double x, double y, double z, double yScale, double yFudge)
     {
         var dx = x + Xo;
@@ -80,7 +80,7 @@ public sealed class ImprovedNoise
         double yrFudge;
         if (yScale != 0.0)
         {
-            //fudgeLimit 取 yFudge 与 yr 较小者防止 yrFudge 超出当前 y 格子
+            //fudgeLimit takes the smaller of yFudge and yr to keep yrFudge inside the current y cell
             var fudgeLimit = yFudge >= 0.0 && yFudge < yr ? yFudge : yr;
             yrFudge = (int)Math.Floor(fudgeLimit / yScale + 1.0000000116860974E-7) * yScale;
         }
@@ -91,11 +91,11 @@ public sealed class ImprovedNoise
         return SampleAndLerpFudge(xi, yi, zi, xr, yr - yrFudge, zr, yr);
     }
 
-    //SampleAndLerpFudge 7 参数版本对应原版 sampleAndLerp(yrOriginal)
-    //yrOriginal 用于 yAlpha 平滑插值yr 已减去 yrFudge 用于梯度点积
+    //SampleAndLerpFudge 7-argument version, maps to vanilla sampleAndLerp(yrOriginal)
+    //yrOriginal feeds the yAlpha smooth interpolation, while yr has yrFudge subtracted for the gradient dot product
     private double SampleAndLerpFudge(int xi, int yi, int zi, double xr, double yr, double zr, double yrOriginal)
     {
-        //梯度表与置换表各取一次引用 一次采样要摸它们 8 次 逐次摸静态字段与实例字段都要多付一层寻址
+        //Cache the gradient and permutation tables once; a single sample touches them 8 times, and repeated static and instance field access would add an extra indirection each time
         var gradient = GRADIENT;
         var p = _p;
         var n000 = GradDot(gradient, P(p, xi, yi, zi), xr, yr, zr);
@@ -120,7 +120,7 @@ public sealed class ImprovedNoise
 
     private double SampleAndLerp(int xi, int yi, int zi, double xf, double yf, double zf, double u, double v, double w)
     {
-        //同上 一次采样的 8 个角点共用同一份表引用
+        //Same as above: the 8 corners of one sample share the same table references
         var gradient = GRADIENT;
         var p = _p;
         var n000 = GradDot(gradient, P(p, xi, yi, zi), xf, yf, zf);
@@ -140,8 +140,8 @@ public sealed class ImprovedNoise
         return nxy0 + w * (nxy1 - nxy0);
     }
 
-    //GradDot 梯度点积 表由调用方传进来 省掉每次访问静态字段的类初始化检查与基址获取
-    //运算顺序与原来完全一致: 三个乘积累加依旧是 (a+b)+c
+    //GradDot gradient dot product; the table is passed in by the caller, avoiding class-init checks and base address fetches on each static field access
+    //Evaluation order is unchanged: the three products still accumulate as (a+b)+c
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static double GradDot(int[] gradient, int hash, double x, double y, double z)
     {

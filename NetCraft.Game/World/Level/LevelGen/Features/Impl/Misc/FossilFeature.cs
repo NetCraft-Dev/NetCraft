@@ -10,8 +10,8 @@ using StructureProcessor = NetCraft.Game.World.Level.LevelGen.Structure.Structur
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Misc;
 
-//FossilFeatureConfiguration 化石配置 对应原版 FossilFeatureConfiguration
-//化石本体与覆盖层结构一一对应 同一序号配一对
+//FossilFeatureConfiguration fossil configuration, maps to vanilla FossilFeatureConfiguration
+//The fossil body and overlay structures pair one to one by index
 public sealed class FossilFeatureConfiguration : FeatureConfiguration
 {
     public static readonly Codec<FossilFeatureConfiguration> Codec =
@@ -49,8 +49,8 @@ public sealed class FossilFeatureConfiguration : FeatureConfiguration
     }
 }
 
-//FossilFeature 化石特征 对应原版 FossilFeature
-//按区块范围取一块沙地高度带 从模板里挑一具骨架贴到地面下方 再叠一层矿石覆盖结构
+//FossilFeature fossil feature, maps to vanilla FossilFeature
+//Takes a sand height band across the chunk, picks a skeleton template and places it below the surface, then layers the ore overlay structure
 public sealed class FossilFeature : Feature<FossilFeatureConfiguration>
 {
     private const string FeatureId = "fossil";
@@ -58,8 +58,8 @@ public sealed class FossilFeature : Feature<FossilFeatureConfiguration>
     public static readonly FossilFeature Instance = Register(
         Identifier.WithDefaultNamespace(FeatureId), new FossilFeature());
 
-    //TemplateManager 结构模板管理器 由世界装配注入
-    //特征放置上下文只拿到 WorldGenRegion 拿不到资源包 没注入就读不出 minecraft:fossil/... 模板
+    //TemplateManager structure template manager, injected by world assembly
+    //The feature placement context only gets a WorldGenRegion, not the resource pack, so without injection minecraft:fossil/... templates cannot be read
     public static StructureTemplateManager? TemplateManager { get; set; }
 
     private FossilFeature()
@@ -70,7 +70,7 @@ public sealed class FossilFeature : Feature<FossilFeatureConfiguration>
         var random = context.Random;
         var level = context.Level;
         var origin = context.Origin;
-        //模板管理器为空时也要先把这两个随机数消耗掉 否则同种子的后续特征会漂
+        //Even when the template manager is null these two random values must still be consumed, otherwise later features drift for the same seed
         var rotation = StructureTransforms.GetRandomRotation(random);
         var fossilIndex = random.NextInt(config.FossilStructures.Count);
         var manager = TemplateManager;
@@ -114,14 +114,14 @@ public sealed class FossilFeature : Feature<FossilFeatureConfiguration>
         return true;
     }
 
-    //ProcessorsOf 取处理器列表引用里的处理器 未绑定时按空列表处理
+    //ProcessorsOf fetch the processors from the processor list holder; treat an unbound holder as an empty list
     private static IReadOnlyList<StructureProcessor> ProcessorsOf(Holder<RegistryProcessorList> holder)
         => holder.IsBound() && holder.Value is GameStructureProcessorList list
             ? list.Processors
             : Array.Empty<StructureProcessor>();
 
-    //CountEmptyCorners 包围盒八个角里有几个是空气或液体 对应原版 countEmptyCorners
-    //角点顺序照原版 只统计数量所以顺序本身不影响结果
+    //CountEmptyCorners how many of the bounding box's eight corners are air or fluid, maps to vanilla countEmptyCorners
+    //Corner order follows vanilla; only the count matters so the order does not affect the result
     private static int CountEmptyCorners(WorldGenRegion level, BoundingBoxInt bounds)
     {
         var count = 0;

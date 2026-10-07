@@ -3,10 +3,10 @@ using RenderPipeline = NetCraft.Gpu.Pipeline.RenderPipeline;
 
 namespace NetCraft.Gpu;
 
-//TiledBlitRenderState 平铺纹理 blit 渲染状态对标原版 TiledBlitRenderState
-//将纹理按 tileWidth/tileHeight 重复平铺填满 (x0,y0)-(x1,y1) 区域
-//边缘不足一格时按比例 lerp 截取 uv 避免拉伸
-//不可变 record 参与 GuiRenderState 排序合批
+//TiledBlitRenderState tiled texture blit render state, maps to vanilla TiledBlitRenderState
+//Repeatedly tiles the texture by tileWidth/tileHeight to fill the (x0,y0)-(x1,y1) area
+//At the edges, when less than one cell remains, the uv is cropped proportionally with lerp to avoid stretching
+//Immutable record participating in GuiRenderState sorting and batching
 public sealed record TiledBlitRenderState(
     RenderPipeline Pipeline,
     TextureSetup TextureSetup,
@@ -18,7 +18,7 @@ public sealed record TiledBlitRenderState(
     ScreenRectangle ScissorArea,
     ScreenRectangle Bounds) : GuiElementRenderState
 {
-    //构造重载不传 bounds 时由几何+pose+scissor 自动推导
+    //The constructor overload without bounds derives it automatically from the geometry+pose+scissor
     public TiledBlitRenderState(
         RenderPipeline pipeline,
         TextureSetup textureSetup,
@@ -33,7 +33,7 @@ public sealed record TiledBlitRenderState(
     {
     }
 
-    //BuildVertices 双层循环平铺每个 tile 写 4 顶点四边形
+    //BuildVertices double-loops over the tiles, writing a 4-vertex quad per tile
     public void BuildVertices(IVertexConsumer consumer)
     {
         int width = X1 - X0;

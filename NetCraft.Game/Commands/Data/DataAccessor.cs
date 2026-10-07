@@ -3,23 +3,23 @@ using NetCraft.Nbt;
 
 namespace NetCraft.Game.Commands.Data;
 
-//IDataAccessor 数据访问器对应原版 net.minecraft.server.commands.data.DataAccessor
-//把 block/entity/storage 三类目标统一成"取出一份 NBT 改完写回" 回执文本各自拼
-//原版回执是 Component 本作命令回执走纯文本 故用 string
+//IDataAccessor data accessor, maps to vanilla net.minecraft.server.commands.data.DataAccessor
+//Unifies the three target kinds block/entity/storage into "take a copy of NBT, modify, write back"; the reply text is assembled separately
+//The vanilla reply is a Component; this project's command replies are plain text, so string is used
 public interface IDataAccessor
 {
-    //SetData 把整份 NBT 写回目标 对应原版 setData
+    //SetData writes the whole NBT back to the target, maps to vanilla setData
     void SetData(CompoundTag tag);
 
-    //GetData 取出目标的完整 NBT 对应原版 getData
+    //GetData takes the target's full NBT, maps to vanilla getData
     CompoundTag GetData();
 
-    //ModifiedSuccess 修改成功的回执
+    //ModifiedSuccess the reply for a successful modification
     string ModifiedSuccess { get; }
 
-    //PrintSuccess 查询整份数据的回执
+    //PrintSuccess the reply for querying the whole data
     string PrintSuccess(Tag data);
 
-    //PrintSuccess 查询单个数值的回执 带路径与倍率
+    //PrintSuccess the reply for querying a single numeric value, with path and scale
     string PrintSuccess(NbtPath path, double scale, int value);
 }

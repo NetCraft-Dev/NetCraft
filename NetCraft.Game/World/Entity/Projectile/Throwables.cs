@@ -4,8 +4,8 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Entity;
 
-//Snowball 雪球 对应原版 net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball
-//命中即碎 对普通生物没有伤害 原版只对烈焰人造成 3 点 本作没有烈焰人故伤害恒为零
+//Snowball snowball, maps to vanilla net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball
+//Shatters on impact and deals no damage to normal mobs; vanilla deals 3 to blazes, but this project has no blazes so damage is always zero
 public sealed class Snowball : ThrowableItemProjectile
 {
     public Snowball(EntityType<object> type) : base(type) { }
@@ -17,11 +17,11 @@ public sealed class Snowball : ThrowableItemProjectile
     }
 }
 
-//ThrownEgg 鸡蛋 对应原版 net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEgg
-//命中后有小概率孵出小鸡
+//ThrownEgg egg, maps to vanilla net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEgg
+//Has a small chance to hatch a chick on impact
 public sealed class ThrownEgg : ThrowableItemProjectile
 {
-    //HatchChance 命中后孵出小鸡的倒数概率 对应原版 1/8
+    //HatchChance reciprocal chance of hatching a chick on impact, maps to vanilla 1/8
     private const int HatchChance = 8;
 
     public ThrownEgg(EntityType<object> type) : base(type) { }
@@ -41,9 +41,9 @@ public sealed class ThrownEgg : ThrowableItemProjectile
     }
 }
 
-//ThrownEnderpearl 末影珍珠 对应原版 net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEnderpearl
-//命中后把发射者挪到落点 原版还给发射者 5 点伤害与区块加载票据 后者本作没有
-//玩家不在关卡实体集合里 手投的末影珍珠暂时找不到发射者 等玩家实体接入再补
+//ThrownEnderpearl ender pearl, maps to vanilla net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEnderpearl
+//On impact it moves the owner to the landing point; vanilla also deals 5 damage to the owner and grants a chunk loading ticket, the latter is absent here
+//Players are not in the level entity set, so a hand-thrown ender pearl cannot find its owner for now; this is added once player entities land
 public sealed class ThrownEnderpearl : ThrowableItemProjectile
 {
     public ThrownEnderpearl(EntityType<object> type) : base(type) { }
@@ -51,7 +51,7 @@ public sealed class ThrownEnderpearl : ThrowableItemProjectile
     protected override void OnHit(ProjectileHitResult hit)
     {
         base.OnHit(hit);
-        //落点取移动前的位置 避免把发射者塞进命中点所在方块里 对应原版 oldPosition
+        //The landing point uses the position before movement to avoid stuffing the owner into the block at the hit point, maps to vanilla oldPosition
         var teleportPos = PreviousPos;
         if (Level is PersistentServerLevel level && FindOwner(level) is { } owner)
         {
@@ -61,7 +61,7 @@ public sealed class ThrownEnderpearl : ThrowableItemProjectile
         Discard();
     }
 
-    //FindOwner 在关卡实体集合里按 uuid 找回发射者
+    //FindOwner finds the owner again by uuid in the level entity set
     private NetCraft.Registry.Entity? FindOwner(PersistentServerLevel level)
     {
         if (OwnerUuid is not { } uuid) return null;

@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundSetStructureBlockPacket 数据包对应原版 ServerboundSetStructureBlockPacket
-//字段 Pos(BlockPos) UpdateType(StructureBlockEntity.UpdateType) Mode(StructureMode) Name(String) Offset(BlockPos) Size(Vec3i)
+//ServerboundSetStructureBlockPacket set structure block packet, maps to vanilla ServerboundSetStructureBlockPacket
+//Fields: Pos(BlockPos), UpdateType(StructureBlockEntity.UpdateType), Mode(StructureMode), Name(String), Offset(BlockPos), Size(Vec3i)
 public sealed record ServerboundSetStructureBlockPacket(object Pos, object UpdateType, object Mode, string Name, object Offset, object Size, object Mirror, object Rotation, string Data, bool IgnoreEntities, bool Strict, bool ShowAir, bool ShowBoundingBox, float Integrity, long Seed) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundSetStructureBlockPacket> StreamCodec { get; } = new SetStructureBlockCodec();
@@ -13,9 +13,9 @@ public sealed record ServerboundSetStructureBlockPacket(object Pos, object Updat
     private sealed class SetStructureBlockCodec : StreamCodec<FriendlyByteBuf, ServerboundSetStructureBlockPacket>
     {
         public ServerboundSetStructureBlockPacket Decode(FriendlyByteBuf buf)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
 
         public void Encode(FriendlyByteBuf buf, ServerboundSetStructureBlockPacket value)
-            => throw new NotImplementedException("业务类型待实现");
+            => throw new NotImplementedException("Business type not yet implemented");
     }
 }

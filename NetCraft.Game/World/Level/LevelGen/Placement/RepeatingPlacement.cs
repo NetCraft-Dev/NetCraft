@@ -3,11 +3,11 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//RepeatingPlacement 重复放置基类对应原版 RepeatingPlacement
-//按 count 决定在同一位置重复放几次
+//RepeatingPlacement repeating placement base, maps to vanilla RepeatingPlacement
+//count decides how many times to repeat at the same position
 public abstract class RepeatingPlacement : PlacementModifier
 {
-    //Count 计算重复次数对应原版 count
+    //Count compute the repetition count, maps to vanilla count
     protected abstract int Count(RandomSource random, BlockPos origin);
 
     public override IEnumerable<BlockPos> GetPositions(PlacementContext context, RandomSource random, BlockPos origin)

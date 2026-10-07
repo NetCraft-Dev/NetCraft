@@ -7,22 +7,22 @@ using RegistryConfiguredFeature = NetCraft.Registry.ConfiguredFeature;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//PlacedFeature 已放置特征对应原版 PlacedFeature
-//把一个配置化特征与一串放置修饰器绑在一起 装饰时先算位置再逐个尝试放置
+//PlacedFeature placed feature, maps to vanilla PlacedFeature
+//Binds a configured feature to a chain of placement modifiers; decoration computes positions first then tries to place each
 public sealed class PlacedFeature : NetCraft.Registry.PlacedFeature
 {
-    //Codec 元素 codec 对应原版 DIRECT_CODEC
+    //Codec element codec, maps to vanilla DIRECT_CODEC
     public static readonly Codec<PlacedFeature> Codec = new PlacedFeatureCodec();
 
-    //ElementCodec 注册表元素 codec 注册表按标记接口持有元素
+    //ElementCodec registry element codec; the registry holds elements by marker interface
     public static readonly Codec<NetCraft.Registry.PlacedFeature> ElementCodec = Codec.ComapFlatMap(
         feature => DataResult<NetCraft.Registry.PlacedFeature>.Success(feature),
         feature => (PlacedFeature)feature);
 
-    //Feature 引用的配置化特征
+    //Feature the referenced configured feature
     public Holder<RegistryConfiguredFeature> Feature { get; }
 
-    //Placement 放置修饰器链 依次作用得到最终候选位置
+    //Placement the placement modifier chain; applied in sequence to get the final candidate positions
     public IReadOnlyList<PlacementModifier> Placement { get; }
 
     public PlacedFeature(Holder<RegistryConfiguredFeature> feature, IReadOnlyList<PlacementModifier> placement)
@@ -31,16 +31,16 @@ public sealed class PlacedFeature : NetCraft.Registry.PlacedFeature
         Placement = placement;
     }
 
-    //Place 放置本特征对应原版 place
+    //Place place this feature, maps to vanilla place
     public bool Place(WorldGenRegion level, ChunkGenerator generator, RandomSource random, BlockPos origin)
         => PlaceWithContext(new PlacementContext(level, generator, null), random, origin);
 
-    //PlaceWithBiomeCheck 带群系校验的放置对应原版 placeWithBiomeCheck
-    //装饰链路走这个入口 让 biome 修饰器能反查本特征属于哪些群系
+    //PlaceWithBiomeCheck placement with a biome check, maps to vanilla placeWithBiomeCheck
+    //The decoration pipeline enters here so the biome modifier can look up which biomes this feature belongs to
     public bool PlaceWithBiomeCheck(WorldGenRegion level, ChunkGenerator generator, RandomSource random, BlockPos origin)
         => PlaceWithContext(new PlacementContext(level, generator, this), random, origin);
 
-    //PlaceWithContext 先跑修饰器链得到候选位置 再逐点尝试放置
+    //PlaceWithContext run the modifier chain to get candidate positions, then try placing at each
     private bool PlaceWithContext(PlacementContext context, RandomSource random, BlockPos origin)
     {
         IEnumerable<BlockPos> positions = new[] { origin };
@@ -61,7 +61,7 @@ public sealed class PlacedFeature : NetCraft.Registry.PlacedFeature
         return placedAny;
     }
 
-    //GetFeatures 本特征引用的全部配置化特征 含配置内嵌的子特征
+    //GetFeatures every configured feature referenced by this feature, including sub-features embedded in the config
     public IEnumerable<Holder<RegistryConfiguredFeature>> GetFeatures()
     {
         yield return Feature;
@@ -74,8 +74,8 @@ public sealed class PlacedFeature : NetCraft.Registry.PlacedFeature
     public override string ToString() => $"Placed {Feature.RegisteredName}";
 }
 
-//PlacedFeatureCodec 解 {feature, placement} 对应原版 DIRECT_CODEC
-//feature 是 registered 引用字符串 placement 是修饰器数组
+//PlacedFeatureCodec decode {feature, placement}, maps to vanilla DIRECT_CODEC
+//feature is a registered reference string and placement is the modifier array
 internal sealed class PlacedFeatureCodec : ScalarCodec<PlacedFeature>
 {
     public override DataResult<PlacedFeature> Parse<U>(DynamicOps<U> ops, U input)
@@ -84,25 +84,25 @@ internal sealed class PlacedFeatureCodec : ScalarCodec<PlacedFeature>
     private static DataResult<PlacedFeature> DecodePlacedFeature<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var featureTag = input.Get("feature");
-        if (!featureTag.IsPresent) return DataResult<PlacedFeature>.Error(() => "placed_feature 缺 feature 字段");
+        if (!featureTag.IsPresent) return DataResult<PlacedFeature>.Error(() => "placed_feature is missing the feature field");
         var featureResult = ConfiguredFeatureInlineRefCodec.Instance.Parse(ops, featureTag.Get());
         if (!featureResult.Result().IsPresent)
-            return DataResult<PlacedFeature>.Error(() => "placed_feature 的 feature 解析失败: "
+            return DataResult<PlacedFeature>.Error(() => "placed_feature feature failed to parse: "
                 + featureResult.MapOrElse(_ => string.Empty, error => error));
 
         var placementTag = input.Get("placement");
         if (!placementTag.IsPresent)
-            return DataResult<PlacedFeature>.Error(() => "placed_feature 缺 placement 字段");
+            return DataResult<PlacedFeature>.Error(() => "placed_feature is missing the placement field");
         var streamResult = ops.GetStream(placementTag.Get());
         if (!streamResult.Result().IsPresent)
-            return DataResult<PlacedFeature>.Error(() => "placed_feature 的 placement 必须是数组");
+            return DataResult<PlacedFeature>.Error(() => "placed_feature placement must be an array");
 
         var modifiers = new List<PlacementModifier>();
         foreach (var element in streamResult.GetOrThrow())
         {
             var modifierResult = PlacementModifierCodec.Instance.Parse(ops, element);
             if (!modifierResult.Result().IsPresent)
-                return DataResult<PlacedFeature>.Error(() => $"placed_feature 第 {modifiers.Count} 个放置修饰器解析失败: "
+                return DataResult<PlacedFeature>.Error(() => $"placed_feature placement modifier #{modifiers.Count} failed to parse: "
                     + modifierResult.MapOrElse(_ => string.Empty, error => error));
             modifiers.Add(modifierResult.GetOrThrow());
         }
@@ -129,9 +129,9 @@ internal sealed class PlacedFeatureCodec : ScalarCodec<PlacedFeature>
     }
 }
 
-//ConfiguredFeatureInlineRefCodec 配置化特征引用编解码 注册名与内联定义都接受
-//对应原版 ConfiguredFeature.CODEC 的 allowInline 形态
-//placed_feature 的 feature 字段既可能是 "minecraft:oak" 也可能是整段内联定义
+//ConfiguredFeatureInlineRefCodec configured feature reference codec accepting both registry names and inline definitions
+//Maps to the allowInline form of vanilla ConfiguredFeature.CODEC
+//The feature field of placed_feature can be either "minecraft:oak" or a full inline definition
 internal sealed class ConfiguredFeatureInlineRefCodec : ScalarCodec<Holder<RegistryConfiguredFeature>>
 {
     public static readonly ConfiguredFeatureInlineRefCodec Instance = new();
@@ -146,7 +146,7 @@ internal sealed class ConfiguredFeatureInlineRefCodec : ScalarCodec<Holder<Regis
                 Holder<RegistryConfiguredFeature>.Direct(inline.GetOrThrow()));
         var reason = inline.MapOrElse(_ => string.Empty, error => error);
         return DataResult<Holder<RegistryConfiguredFeature>>.Error(
-            () => $"配置化特征既不是注册名也不是内联定义: {reason}");
+            () => $"configured feature is neither a registry name nor an inline definition: {reason}");
     }
 
     public override DataResult<U> EncodeStart<U>(DynamicOps<U> ops, Holder<RegistryConfiguredFeature> value)

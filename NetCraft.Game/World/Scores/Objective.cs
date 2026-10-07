@@ -3,9 +3,9 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.World.Scores;
 
-//Objective 计分目标 对应原版 net.minecraft.world.scores.Objective
-//一个目标绑定一个计分标准 持显示名与渲染类型
-//原版的编号格式字段依赖 network.chat.numbers 该体系未接通 暂不提供
+//Objective scoreboard objective, maps to vanilla net.minecraft.world.scores.Objective
+//An objective binds one criteria and holds a display name and render type
+//The vanilla number format field depends on network.chat.numbers, which is not wired up, so it is not provided yet
 public sealed class Objective
 {
     private Component _displayName;
@@ -21,51 +21,51 @@ public sealed class Objective
         DisplayAutoUpdate = displayAutoUpdate;
     }
 
-    //Scoreboard 所属计分板 对应原版 getScoreboard
+    //Scoreboard owning scoreboard, maps to vanilla getScoreboard
     public Scoreboard Scoreboard { get; }
 
-    //Name 目标名 对应原版 getName
+    //Name objective name, maps to vanilla getName
     public string Name { get; }
 
-    //Criteria 计分标准 对应原版 getCriteria
+    //Criteria the criteria, maps to vanilla getCriteria
     public ObjectiveCriteria Criteria { get; }
 
-    //DisplayName 显示名 对应原版 getDisplayName
+    //DisplayName display name, maps to vanilla getDisplayName
     public Component DisplayName => _displayName;
 
-    //SetDisplayName 改显示名并通知计分板 对应原版 setDisplayName
+    //SetDisplayName changes the display name and notifies the scoreboard, maps to vanilla setDisplayName
     public void SetDisplayName(Component displayName)
     {
         _displayName = displayName;
         Scoreboard.OnObjectiveChanged(this);
     }
 
-    //RenderType 渲染类型 对应原版 getRenderType
+    //RenderType render type, maps to vanilla getRenderType
     public ObjectiveCriteria.RenderType RenderType { get; private set; }
 
-    //SetRenderType 改渲染类型并通知计分板 对应原版 setRenderType
+    //SetRenderType changes the render type and notifies the scoreboard, maps to vanilla setRenderType
     public void SetRenderType(ObjectiveCriteria.RenderType renderType)
     {
         RenderType = renderType;
         Scoreboard.OnObjectiveChanged(this);
     }
 
-    //DisplayAutoUpdate 分数变化时是否自动刷新显示 对应原版 displayAutoUpdate
+    //DisplayAutoUpdate whether the display refreshes automatically when scores change, maps to vanilla displayAutoUpdate
     public bool DisplayAutoUpdate { get; private set; }
 
-    //SetDisplayAutoUpdate 改自动刷新并通知计分板 对应原版 setDisplayAutoUpdate
+    //SetDisplayAutoUpdate changes auto update and notifies the scoreboard, maps to vanilla setDisplayAutoUpdate
     public void SetDisplayAutoUpdate(bool displayAutoUpdate)
     {
         DisplayAutoUpdate = displayAutoUpdate;
         Scoreboard.OnObjectiveChanged(this);
     }
 
-    //Packed 目标的存档形态 对应原版 Objective.Packed
-    //原版的编号格式字段依赖 NumberFormat 未接通故省略
+    //Packed save form of the objective, maps to vanilla Objective.Packed
+    //The vanilla number format fields depend on NumberFormat, not wired up, so they are omitted
     public sealed record Packed(string Name, ObjectiveCriteria Criteria, Component DisplayName,
         ObjectiveCriteria.RenderType RenderType, bool DisplayAutoUpdate)
     {
-        //Codec 持久化编解码 字段名 Name/CriteriaName/DisplayName/RenderType/display_auto_update 对应原版 CODEC
+        //Codec persistence codec, field names Name/CriteriaName/DisplayName/RenderType/display_auto_update, maps to vanilla CODEC
         public static readonly Codec<Packed> Codec = RecordCodecBuilder.Of5(
             Codecs.String.FieldOf("Name").ForGetter((Packed packed) => packed.Name),
             ObjectiveCriteria.Codec.OptionalFieldOf("CriteriaName", ObjectiveCriteria.DUMMY)

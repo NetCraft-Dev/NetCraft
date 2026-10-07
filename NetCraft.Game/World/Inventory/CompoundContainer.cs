@@ -4,11 +4,11 @@ using NetCraft.Game.World.Level.Block;
 
 namespace NetCraft.Game.World.Inventory;
 
-//CompoundContainer 双箱组合容器对应原版 net.minecraft.world.CompoundContainer
-//前一半槽位落在 first 上 其余落在 second 上 两侧共用同一套槽号
+//CompoundContainer double-chest composite container, maps to vanilla net.minecraft.world.CompoundContainer
+//The first half of the slots falls on first, the rest on second, both share one slot numbering
 public sealed class CompoundContainer(Container first, Container second) : Container
 {
-    //First/Second 两半容器 原版把右半当第一半 左半当第二半
+    //First/Second the two halves, vanilla treats the right half as the first and the left half as the second
     public Container First { get; } = first;
 
     public Container Second { get; } = second;
@@ -30,7 +30,7 @@ public sealed class CompoundContainer(Container first, Container second) : Conta
     public ItemStack RemoveItemNoUpdate(int slot)
         => slot < First.Size ? First.RemoveItemNoUpdate(slot) : Second.RemoveItemNoUpdate(slot - First.Size);
 
-    //SetChanged 两半都要标记 原版双箱任意一侧变更都要各自落盘
+    //SetChanged both halves must be marked, vanilla saves each side of a double chest independently on change
     public void SetChanged()
     {
         First.SetChanged();
@@ -50,7 +50,7 @@ public sealed class CompoundContainer(Container first, Container second) : Conta
             ? First.CanPlaceItem(slot, stack)
             : Second.CanPlaceItem(slot - First.Size, stack);
 
-    //StillValid 两半都在原位且玩家都在 8 格内才有效 对应原版 CompoundContainer.stillValid
+    //StillValid valid while both halves remain and the player is within 8 blocks, maps to vanilla CompoundContainer.stillValid
     public bool StillValid(ServerPlayer player)
         => First is ChestBlockEntity first && Second is ChestBlockEntity second
             && first.StillValid(player) && second.StillValid(player);

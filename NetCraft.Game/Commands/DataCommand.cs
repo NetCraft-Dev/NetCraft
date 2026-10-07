@@ -12,39 +12,39 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Commands;
 
-//DataCommand /data 命令对应原版 net.minecraft.server.commands.data.DataCommands
-//四组动作 get/merge/remove/modify 乘三类目标 block/entity/storage 共 12 棵子树
-//modify 的值来源分三种 from(另一个目标) string(按字符串取并截取) value(直接给标签)
+//DataCommand /data command, maps to vanilla net.minecraft.server.commands.data.DataCommands
+//Four action groups get/merge/remove/modify times three target kinds block/entity/storage gives 12 subtrees
+//modify has three value sources: from (another target), string (take as string and slice), value (give a tag directly)
 public static class DataCommand
 {
-    //ErrorMergeUnchanged 写完跟原来一样 对应原版 ERROR_MERGE_UNCHANGED
+    //ErrorMergeUnchanged writing leaves it the same, maps to vanilla ERROR_MERGE_UNCHANGED
     private static readonly SimpleCommandExceptionType ErrorMergeUnchanged =
-        new(new LiteralMessage("目标数据没有发生变化"));
+        new(new LiteralMessage("the target data did not change"));
 
     private static readonly DynamicCommandExceptionType ErrorGetNotNumber =
-        new(arg => new LiteralMessage($"路径 {arg} 上的值不是数字"));
+        new(arg => new LiteralMessage($"the value on path {arg} is not a number"));
 
     private static readonly DynamicCommandExceptionType ErrorGetNonExistent =
-        new(arg => new LiteralMessage($"路径 {arg} 上没有任何标签"));
+        new(arg => new LiteralMessage($"no tag on path {arg}"));
 
     private static readonly SimpleCommandExceptionType ErrorMultipleTags =
-        new(new LiteralMessage("该路径命中多个标签 请给出唯一路径"));
+        new(new LiteralMessage("the path hits multiple tags; give a unique path"));
 
     private static readonly DynamicCommandExceptionType ErrorExpectedObject =
-        new(arg => new LiteralMessage($"期望复合标签但拿到 {arg}"));
+        new(arg => new LiteralMessage($"expected a compound tag but got {arg}"));
 
     private static readonly DynamicCommandExceptionType ErrorExpectedValue =
-        new(arg => new LiteralMessage($"该标签不能当字符串使用: {arg}"));
+        new(arg => new LiteralMessage($"that tag cannot be used as a string: {arg}"));
 
     private static readonly Dynamic2CommandExceptionType ErrorInvalidSubstring =
-        new((start, end) => new LiteralMessage($"子串范围不合法 {start}..{end}"));
+        new((start, end) => new LiteralMessage($"invalid substring range {start}..{end}"));
 
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
         var root = LiteralArgumentBuilder<CommandSourceStack>.Literal("data")
             .Requires(s => s.HasPermission(2));
 
-        //目标与来源各一套 差别只在定位参数名 来源参数名按原版固定 source 与 sourcePos
+        //One set each for target and source; they differ only in the locating argument names; source argument names are fixed as source and sourcePos like vanilla
         var blockTarget = BlockProvider("blockPos");
         var entityTarget = EntityProvider("entity");
         var storageTarget = StorageProvider("storage");
@@ -58,20 +58,20 @@ public static class DataCommand
         dispatcher.Register(root);
     }
 
-    //AddTarget 为一个目标挂上 merge/get/remove/modify 四棵子树 对应原版 register 里的循环
-    //动作字面量在外层 目标在内层 即 /data get block <位置> <路径>
+    //AddTarget hangs the four subtrees merge/get/remove/modify on a target, maps to the loop in vanilla register
+    //Action literals on the outside, the target on the inside, i.e. /data get block <pos> <path>
     private static void AddTarget<TPos>(LiteralArgumentBuilder<CommandSourceStack> root, TargetProvider<TPos> target,
         TargetProvider<BlockCoordinates> blockSource, TargetProvider<EntitySelector> entitySource,
         TargetProvider<Identifier> storageSource)
     {
-        //merge <目标> <nbt>
+        //merge <target> <nbt>
         var mergeNbt = RequiredArgumentBuilder<CommandSourceStack, CompoundTag>
             .Argument("nbt", CompoundTagArgument.CompoundTag());
         mergeNbt.Executes(context => MergeData(context, target.Access(context),
             CompoundTagArgument.GetCompoundTag(context, "nbt")));
         root.Then(Literal("merge").Then(target.Node(position => position.Then(mergeNbt))));
 
-        //get <目标> [<路径> [<倍率>]]
+        //get <target> [<path> [<scale>]]
         var getScale = RequiredArgumentBuilder<CommandSourceStack, double>
             .Argument("scale", DoubleArgumentType.DoubleArg());
         getScale.Executes(context => GetNumeric(context, target.Access(context),
@@ -86,15 +86,15 @@ public static class DataCommand
             .Executes(context => GetData(context, target.Access(context)))
             .Then(getPath))));
 
-        //remove <目标> <路径>
+        //remove <target> <path>
         var removePath = RequiredArgumentBuilder<CommandSourceStack, NbtPath>
             .Argument("path", NbtPathArgument.NbtPathArg());
         removePath.Executes(context => RemoveData(context, target.Access(context),
             NbtPathArgument.GetPath(context, "path")));
         root.Then(Literal("remove").Then(target.Node(position => position.Then(removePath))));
 
-        //modify <目标> <目标路径> <动作> <来源>
-        //目标路径节点先建好再挂动作 动作要把它当父节点继续挂子树
+        //modify <target> <target path> <action> <source>
+        //The target path node is built first, then actions hang on it; an action treats it as a parent for further subtrees
         var targetPathNode = RequiredArgumentBuilder<CommandSourceStack, NbtPath>
             .Argument("targetPath", NbtPathArgument.NbtPathArg());
         AddActions(targetPathNode, target, blockSource, entitySource, storageSource);
@@ -104,13 +104,13 @@ public static class DataCommand
     private static LiteralArgumentBuilder<CommandSourceStack> Literal(string name)
         => LiteralArgumentBuilder<CommandSourceStack>.Literal(name);
 
-    //AddActions 挂上 modify 的五个动作 每个动作下面再挂三种取值来源
+    //AddActions hangs modify's five actions; each action then hangs the three value sources
     private static TParent AddActions<TParent, TPos>(TParent parent, TargetProvider<TPos> target,
         TargetProvider<BlockCoordinates> blockSource, TargetProvider<EntitySelector> entitySource,
         TargetProvider<Identifier> storageSource)
         where TParent : ArgumentBuilder<CommandSourceStack, TParent>
     {
-        //insert <索引> <来源> 索引为负按原版从尾部算
+        //insert <index> <source>; a negative index counts from the end like vanilla
         var insert = AddSources(
             RequiredArgumentBuilder<CommandSourceStack, int>.Argument("index", IntegerArgumentType.Integer()),
             target, (context, data, path, source) => path.Insert(context.GetArgument<int>("index"), data, source),
@@ -135,13 +135,13 @@ public static class DataCommand
         return parent;
     }
 
-    //AddSources 在动作节点下挂 value/from/string 三类来源 对应原版 decorateModification
+    //AddSources hangs the value/from/string sources under an action node, maps to vanilla decorateModification
     private static TParent AddSources<TParent, TPos>(TParent parent, TargetProvider<TPos> target,
         DataManipulator manipulator, TargetProvider<BlockCoordinates> blockSource,
         TargetProvider<EntitySelector> entitySource, TargetProvider<Identifier> storageSource)
         where TParent : ArgumentBuilder<CommandSourceStack, TParent>
     {
-        //value <标签> 直接给一个 SNBT 标签
+        //value <tag> gives an SNBT tag directly
         parent.Then(LiteralArgumentBuilder<CommandSourceStack>.Literal("value")
             .Then(RequiredArgumentBuilder<CommandSourceStack, Tag>.Argument("value", NbtTagArgument.NbtTag())
                 .Executes(context => ManipulateData(context, target, manipulator,
@@ -153,12 +153,12 @@ public static class DataCommand
         return parent;
     }
 
-    //AddSourceBranches 挂某个来源的 from 与 string 两棵子树 对应原版 sourceProvider.wrap 的两处调用
+    //AddSourceBranches hangs the from and string subtrees of a source, maps to the two calls of vanilla sourceProvider.wrap
     private static void AddSourceBranches<TParent, TPos, TSrc>(TParent parent, TargetProvider<TPos> target,
         DataManipulator manipulator, TargetProvider<TSrc> source)
         where TParent : ArgumentBuilder<CommandSourceStack, TParent>
     {
-        //from <来源> [<来源路径>]
+        //from <source> [<source path>]
         var fromPath = RequiredArgumentBuilder<CommandSourceStack, NbtPath>.Argument("sourcePath", NbtPathArgument.NbtPathArg());
         fromPath.Executes(context => ManipulateData(context, target, manipulator,
             NbtPathArgument.GetPath(context, "sourcePath").Get(source.Access(context).GetData())));
@@ -167,7 +167,7 @@ public static class DataCommand
             .Then(fromPath));
         parent.Then(LiteralArgumentBuilder<CommandSourceStack>.Literal("from").Then(fromNode));
 
-        //string <来源> [<来源路径> [<起点> [<终点>]]]
+        //string <source> [<source path> [<start> [<end>]]]
         var stringEnd = RequiredArgumentBuilder<CommandSourceStack, int>.Argument("end", IntegerArgumentType.Integer());
         stringEnd.Executes(context => ManipulateString(context, target, manipulator, source,
             context.GetArgument<int>("start"), context.GetArgument<int>("end")));
@@ -187,9 +187,9 @@ public static class DataCommand
         parent.Then(LiteralArgumentBuilder<CommandSourceStack>.Literal("string").Then(stringNode));
     }
 
-    // ============ 动作实现 ============
+    // ============ action implementations ============
 
-    //ManipulateData 执行修改并写回 改动数为 0 按原版报错 对应原版 manipulateData
+    //ManipulateData performs the change and writes back; a change count of 0 errors like vanilla, maps to vanilla manipulateData
     private static int ManipulateData<TPos>(CommandContext<CommandSourceStack> context, TargetProvider<TPos> target,
         DataManipulator manipulator, List<Tag> source)
     {
@@ -204,7 +204,7 @@ public static class DataCommand
         return result;
     }
 
-    //ManipulateString 按 string 来源取值并做子串截取后再修改
+    //ManipulateString takes a value from the string source, slices it, then modifies
     private static int ManipulateString<TPos, TSrc>(CommandContext<CommandSourceStack> context, TargetProvider<TPos> target,
         DataManipulator manipulator, TargetProvider<TSrc> source, int? start, int? end)
     {
@@ -212,7 +212,7 @@ public static class DataCommand
         return ManipulateData(context, target, manipulator, Stringify(data, start, end));
     }
 
-    //MergeIntoPath 把来源里的复合标签合并进目标路径 对应原版 modify merge
+    //MergeIntoPath merges the source's compound tag into the target path, maps to vanilla modify merge
     private static int MergeIntoPath(CommandContext<CommandSourceStack> context, CompoundTag target,
         NbtPath targetPath, List<Tag> source)
     {
@@ -236,7 +236,7 @@ public static class DataCommand
         return changedCount;
     }
 
-    //RemoveData 删除路径命中的标签并写回 对应原版 removeData
+    //RemoveData deletes the tags hit by the path and writes back, maps to vanilla removeData
     private static int RemoveData(CommandContext<CommandSourceStack> context, IDataAccessor accessor, NbtPath path)
     {
         var commandSource = Source(context);
@@ -248,7 +248,7 @@ public static class DataCommand
         return count;
     }
 
-    //MergeData 整份合并并写回 对应原版 mergeData
+    //MergeData merges the whole data and writes back, maps to vanilla mergeData
     private static int MergeData(CommandContext<CommandSourceStack> context, IDataAccessor accessor, CompoundTag nbt)
     {
         var commandSource = Source(context);
@@ -262,7 +262,7 @@ public static class DataCommand
         return 1;
     }
 
-    //GetData 整份查询 回执是格式化后的 NBT 对应原版 getData
+    //GetData queries the whole data; the reply is the formatted NBT, maps to vanilla getData
     private static int GetData(CommandContext<CommandSourceStack> context, IDataAccessor accessor)
     {
         var commandSource = Source(context);
@@ -270,7 +270,7 @@ public static class DataCommand
         return 1;
     }
 
-    //GetData 按路径查询 返回值按原版取数字取整/列表与复合大小/字符串长度
+    //GetData queries by path; the return value is rounded for numbers / size for lists and compounds / length for strings like vanilla
     private static int GetData(CommandContext<CommandSourceStack> context, IDataAccessor accessor, NbtPath path)
     {
         var commandSource = Source(context);
@@ -287,7 +287,7 @@ public static class DataCommand
         return length;
     }
 
-    //GetNumeric 按路径取数字乘倍率 对应原版 getNumeric
+    //GetNumeric takes a number by path times a scale, maps to vanilla getNumeric
     private static int GetNumeric(CommandContext<CommandSourceStack> context, IDataAccessor accessor,
         NbtPath path, double scale)
     {
@@ -299,7 +299,7 @@ public static class DataCommand
         return value;
     }
 
-    //GetSingleTag 取路径命中的唯一标签 命中多个按原版报错
+    //GetSingleTag gets the single tag hit by the path; more than one errors like vanilla
     private static Tag GetSingleTag(NbtPath path, IDataAccessor accessor)
     {
         var tags = path.Get(accessor.GetData());
@@ -307,15 +307,15 @@ public static class DataCommand
         return tags[0];
     }
 
-    // ============ 来源处理 ============
+    // ============ source handling ============
 
-    //Singleton 取来源的整份数据 对应原版 getSingletonSource
+    //Singleton takes the source's whole data, maps to vanilla getSingletonSource
     private static List<Tag> Singleton<TSrc>(TargetProvider<TSrc> source,
         CommandContext<CommandSourceStack> context)
         => new() { source.Access(context).GetData() };
 
-    //Stringify 把来源标签转成字符串标签 可再按起止下标截取 对应原版 stringifyTagList
-    //负数下标按原版从尾部算 越界报错
+    //Stringify converts the source tag to a string tag, optionally sliced by start/end, maps to vanilla stringifyTagList
+    //Negative indices count from the end like vanilla; out of range errors
     private static List<Tag> Stringify(List<Tag> source, int? start, int? end)
     {
         var result = new List<Tag>(source.Count);
@@ -336,7 +336,7 @@ public static class DataCommand
         return result;
     }
 
-    //GetAsText 取标签的文本形式 只有字符串与数字能转 对应原版 getAsText
+    //GetAsText takes the tag's text form; only strings and numbers convert, maps to vanilla getAsText
     private static string GetAsText(Tag tag) => tag switch
     {
         StringTag text => text.Value,
@@ -346,14 +346,14 @@ public static class DataCommand
 
     private static int Offset(int index, int length) => index >= 0 ? index : length + index;
 
-    // ============ 目标提供者 ============
+    // ============ target providers ============
 
-    //DataManipulator 修改动作 对应原版 DataManipulator
+    //DataManipulator modification action, maps to vanilla DataManipulator
     private delegate int DataManipulator(CommandContext<CommandSourceStack> context, CompoundTag target,
         NbtPath targetPath, List<Tag> source);
 
-    //TargetProvider 目标提供者 对应原版 DataCommands.DataProvider
-    //TPos 是定位参数类型 方块坐标/实体选择器/存储 id 定位节点每次新建与原本一致
+    //TargetProvider target provider, maps to vanilla DataCommands.DataProvider
+    //TPos is the locating argument type: block coordinate/entity selector/storage id; the locating node is rebuilt each time like vanilla
     private sealed class TargetProvider<TPos>(
         string name,
         Func<RequiredArgumentBuilder<CommandSourceStack, TPos>> locator,
@@ -361,13 +361,13 @@ public static class DataCommand
     {
         public IDataAccessor Access(CommandContext<CommandSourceStack> context) => access(context);
 
-        //Node 生成 <目标名> <定位参数> rest 拼出的一层 对应原版 wrap
+        //Node builds the layer from <target name> <locating argument> rest, maps to vanilla wrap
         public LiteralArgumentBuilder<CommandSourceStack> Node(
             Func<RequiredArgumentBuilder<CommandSourceStack, TPos>, RequiredArgumentBuilder<CommandSourceStack, TPos>> rest)
             => LiteralArgumentBuilder<CommandSourceStack>.Literal(name).Then(rest(locator()));
     }
 
-    //BlockProvider 方块实体目标 位置没有方块实体时报错
+    //BlockProvider block entity target; errors when there is no block entity at the position
     private static TargetProvider<BlockCoordinates> BlockProvider(string parameterName) => new(
         "block",
         () => RequiredArgumentBuilder<CommandSourceStack, BlockCoordinates>.Argument(parameterName, BlockPosArgument.BlockPos()),
@@ -382,13 +382,13 @@ public static class DataCommand
             return new BlockDataAccessor(level, source.Server.PlayerList, entity, pos);
         });
 
-    //EntityProvider 实体目标 玩家与关卡实体都能取
+    //EntityProvider entity target; both players and level entities can be taken
     private static TargetProvider<EntitySelector> EntityProvider(string parameterName) => new(
         "entity",
         () => RequiredArgumentBuilder<CommandSourceStack, EntitySelector>.Argument(parameterName, EntityArgument.Entity()),
         context => new EntityDataAccessor(EntityArgument.GetSingleTarget(context, parameterName)));
 
-    //StorageProvider 命令存储目标 定位参数是存储 id
+    //StorageProvider command storage target; the locating argument is the storage id
     private static TargetProvider<Identifier> StorageProvider(string parameterName) => new(
         "storage",
         () => RequiredArgumentBuilder<CommandSourceStack, Identifier>.Argument(parameterName, IdentifierArgument.Id()),

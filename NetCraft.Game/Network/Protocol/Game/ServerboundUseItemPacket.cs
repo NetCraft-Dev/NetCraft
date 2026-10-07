@@ -1,8 +1,8 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundUseItemPacket 数据包对应原版 ServerboundUseItemPacket
-//字段 Hand(InteractionHand) Sequence(int) YRot(float) XRot(float)
-//客户端对空气按使用键时发送 与服务端 use_item_on 区分
+//ServerboundUseItemPacket use item packet, maps to vanilla ServerboundUseItemPacket
+//Fields: Hand(InteractionHand), Sequence(int), YRot(float), XRot(float)
+//Sent when the client presses the use key into the air, distinct from the serverbound use_item_on
 public sealed record ServerboundUseItemPacket(InteractionHand Hand, int Sequence, float YRot, float XRot)
     : Packet<ServerGamePacketListener>
 {
@@ -14,7 +14,7 @@ public sealed record ServerboundUseItemPacket(InteractionHand Hand, int Sequence
 
     private sealed class UseItemCodec : StreamCodec<FriendlyByteBuf, ServerboundUseItemPacket>
     {
-        //原版 writeEnum(hand) 即 VarInt 枚举序号 后接 sequence VarInt 与两个朝向 float
+        //Vanilla writeEnum(hand), i.e. a VarInt enum ordinal, followed by sequence VarInt and two rotation floats
         public ServerboundUseItemPacket Decode(FriendlyByteBuf buf)
         {
             var hand = buf.ReadEnum<InteractionHand>();

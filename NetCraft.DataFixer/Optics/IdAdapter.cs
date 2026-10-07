@@ -2,11 +2,11 @@ namespace NetCraft.DataFixer.Optics;
 
 using System;
 
-//IdAdapter恒等适配器对应原版com.mojang.datafixers.optics.IdAdapter
-//from/to直接返回原值S/T相同
+//IdAdapter identity adapter maps to vanilla com.mojang.datafixers.optics.IdAdapter
+//from/to return the original value directly; S/T are the same
 internal sealed class IdAdapter<S, T> : Adapter<S, T, S, T>
 {
-    //单例缓存类型参数擦除后共享
+    //singleton cached, shared after type parameter erasure
     internal static readonly IdAdapter<object, object> Instance = new();
 
     private IdAdapter() { }

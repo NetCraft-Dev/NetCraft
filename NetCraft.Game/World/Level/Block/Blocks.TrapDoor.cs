@@ -8,21 +8,21 @@ using NetCraft.Storage;
 using NetCraft.Storage.Updates;
 using NetCraft.Game.World.Phys.Collision;
 using Direction = NetCraft.Primitives.Direction;
-//命名空间段 Enums 的 Half 与 System.Half 同名 用别名区分
+//The Enums namespace segment Half clashes with System.Half, an alias distinguishes them
 using Half = NetCraft.Registry.Enums.Half;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//活板门 对应原版 net.minecraft.world.level.block.TrapDoorBlock
-//手动开合看材质能否徒手开 红石按信号开合 点到侧面时按点击高度定上下半
-//原版的含水回流调度本作没有流体刻 略去
+//Trapdoors, maps to vanilla net.minecraft.world.level.block.TrapDoorBlock
+//Manual open and close depends on whether the material allows bare-handed use, redstone opens and closes by signal and clicking a side picks the half from the click height
+//The vanilla waterlogged reflow scheduling is omitted since this project has no fluid ticks
 public static partial class Blocks
 {
     public static readonly TrapDoorBlock OAK_TRAPDOOR = new("oak_trapdoor", BlockSet.Wood);
     public static readonly TrapDoorBlock IRON_TRAPDOOR = new("iron_trapdoor", BlockSet.Iron);
     public static readonly TrapDoorBlock COPPER_TRAPDOOR = new("copper_trapdoor", BlockSet.Copper);
 
-    //RegisterTrapDoors 活板门登记进真实方块表 注册名到材质档照原版 Blocks.java
+    //RegisterTrapDoors registers trapdoors into the real block table, registry name to material tier follows vanilla Blocks.java
     private static void RegisterTrapDoors(Dictionary<string, BlockBehaviour> real)
     {
         RegisterTrapDoor(real, OAK_TRAPDOOR);
@@ -53,7 +53,7 @@ public static partial class Blocks
 
     public sealed class TrapDoorBlock : BlockBehaviour
     {
-        //TrapDoorShapes 贴北面那条三像素厚的板转出的六向形状 对应原版 TrapDoorBlock.SHAPES
+        //TrapDoorShapes the six-direction shapes rotated from a three-pixel-thick panel on the north face, maps to vanilla TrapDoorBlock.SHAPES
         private static readonly Dictionary<Direction, VoxelShape> TrapDoorShapes =
             NetCraft.Primitives.Phys.Shapes.RotateAll(NetCraft.Registry.Block.BoxZ(16.0, 13.0, 16.0));
 
@@ -67,22 +67,22 @@ public static partial class Blocks
         {
             _name = name;
             _material = material;
-            //铁活板门不能徒手开 其余材质都可以 对应原版 BlockSetType.canOpenByHand
+            //Iron trapdoors cannot be opened bare-handed while the other tiers can, maps to vanilla BlockSetType.canOpenByHand
             _canOpenByHand = material != BlockSet.Iron;
             (_openSound, _closeSound) = SoundsOf(material);
         }
 
         public override Identifier Id => Identifier.WithDefaultNamespace(_name);
 
-        //木质活板门硬度 3 铁质 5 对应原版二者 strength
+        //Wooden trapdoor hardness 3 and iron 5, maps to the strength of each in vanilla
         public override float DestroySpeed => _material == BlockSet.Iron ? 5f : 3f;
 
-        //木质空手可挖 铁与铜要正确工具
+        //Wood is mineable bare-handed, iron and copper need the correct tool
         public override bool RequiresCorrectToolForDrops
             => _material is BlockSet.Iron or BlockSet.Copper;
 
-        //Properties 状态按 blocks.txt 的 facing|half|open|powered|waterlogged 走
-        //表里那份是另建的属性实例 GetValue 取不到 必须自己声明 顺序变了全局状态 id 会错位
+        //Properties states follow facing|half|open|powered|waterlogged in blocks.txt
+        //The one in the table is a separately built property instance that GetValue cannot find; it must be declared here, and changing the order shifts the global state ids
         public override IDictionary<string, PropertyBase> Properties => new Dictionary<string, PropertyBase>
         {
             ["facing"] = BlockStateProperties.HorizontalFacing,
@@ -92,7 +92,7 @@ public static partial class Blocks
             ["waterlogged"] = BlockStateProperties.Waterlogged,
         };
 
-        //GetShape 开着时板子立向朝向那面 关着时按上下半贴顶或贴底 对应原版 getShape
+        //GetShape the panel stands toward the facing when open and hugs the top or bottom per the half when closed, maps to vanilla getShape
         public override VoxelShape GetShape(BlockState state, BlockGetter level, BlockPos pos,
             CollisionContext context)
         {
@@ -102,8 +102,8 @@ public static partial class Blocks
             return TrapDoorShapes[key];
         }
 
-        //GetStateForPlacement 点到侧面时按点击高度定上下半 否则按点击面贴顶或贴底
-        //落位时旁边已有信号则直接落成打开且通电 对应原版 getStateForPlacement
+        //GetStateForPlacement the half comes from the click height when clicking a side, otherwise the top or bottom follows the clicked face
+        //An existing signal beside places it already open and powered, maps to vanilla getStateForPlacement
         public override BlockState? GetStateForPlacement(ServerLevel level, BlockPos pos, Direction face,
             Direction horizontalFacing, Direction lookingDirection, Vec3 hitLocal)
         {
@@ -118,7 +118,7 @@ public static partial class Blocks
             return state.SetValue(BlockStateProperties.Open, true).SetValue(BlockStateProperties.Powered, true);
         }
 
-        //UseOn 徒手开合 打不开的材质直接不受理 对应原版 useWithoutItem
+        //UseOn bare-hand open and close, tiers that cannot be opened are rejected outright, maps to vanilla useWithoutItem
         public override bool UseOn(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state,
             Direction face)
         {
@@ -127,7 +127,7 @@ public static partial class Blocks
             return true;
         }
 
-        //NeighborChanged 信号翻转时跟着开关并按新信号记通电态 对应原版 neighborChanged
+        //NeighborChanged opens and closes on a signal flip and records the powered state from the new signal, maps to vanilla neighborChanged
         public override void NeighborChanged(ServerLevel level, BlockPos pos, BlockState state,
             NetCraft.Registry.Block changedBlock, bool movedByPiston)
         {
@@ -142,7 +142,7 @@ public static partial class Blocks
                 BlockUpdateFlags.Clients);
         }
 
-        //Toggle 翻一下开合位并出声 对应原版 toggle
+        //Toggle flips the open state and plays the sound, maps to vanilla toggle
         private void Toggle(ServerLevel level, BlockPos pos, BlockState state, ServerPlayer? player)
         {
             var updated = state.Cycle(BlockStateProperties.Open);
@@ -150,14 +150,14 @@ public static partial class Blocks
             PlaySound(level, pos, updated.GetValue(BlockStateProperties.Open), player);
         }
 
-        //PlaySound 开合音效 音高在 0.9 到 1.0 之间抖动 对应原版 playSound
+        //PlaySound open and close sound, the pitch jitters between 0.9 and 1.0, maps to vanilla playSound
         private void PlaySound(ServerLevel level, BlockPos pos, bool opening, ServerPlayer? player)
         {
             var sound = opening ? _openSound : _closeSound;
             level.PlaySound(sound, SoundSource.Blocks, pos, 1f, Random.Shared.NextSingle() * 0.1f + 0.9f);
         }
 
-        //SoundsOf 材质档对应的开合音效 对应原版 BlockSetType 各档的 trapdoorOpen/trapdoorClose
+        //SoundsOf the open and close sounds for a material tier, maps to trapdoorOpen/trapdoorClose of each vanilla BlockSetType tier
         private static (SoundEvent Open, SoundEvent Close) SoundsOf(BlockSet material) => material switch
         {
             BlockSet.Iron => (SoundEvents.IronTrapdoorOpen, SoundEvents.IronTrapdoorClose),
@@ -169,7 +169,7 @@ public static partial class Blocks
             _ => (SoundEvents.WoodenTrapdoorOpen, SoundEvents.WoodenTrapdoorClose),
         };
 
-        //ToPropertyFacing 几何方向折成方块属性用的枚举成员 活板门只会用到水平四个
+        //ToPropertyFacing converts a geometry direction into the enum member used by block properties, trapdoors only use the four horizontal ones
         private static NetCraft.Registry.Enums.Direction ToPropertyFacing(Direction direction)
         {
             if (direction == Direction.North) return NetCraft.Registry.Enums.Direction.north;
@@ -178,7 +178,7 @@ public static partial class Blocks
             return NetCraft.Registry.Enums.Direction.east;
         }
 
-        //ToGeometry 属性枚举折回几何方向 只用来查形状表
+        //ToGeometry converts the property enum back to a geometry direction, only used to look up shape tables
         private static Direction ToGeometry(NetCraft.Registry.Enums.Direction direction) => direction switch
         {
             NetCraft.Registry.Enums.Direction.north => Direction.North,

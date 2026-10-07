@@ -4,13 +4,13 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//Climate 多噪声气候参数系统对应原版 net.minecraft.world.level.levelgen.Climate
-//持有 6 个维度参数temperature/humidity/continentalness/erosion/depth/weirdness
-//MultiNoiseBiomeSource 用 ParameterPoint 与目标点距离查找最近 Biome
+//Climate multi-noise climate parameter system, maps to vanilla net.minecraft.world.level.levelgen.Climate
+//Holds the six dimension parameters temperature/humidity/continentalness/erosion/depth/weirdness
+//MultiNoiseBiomeSource uses ParameterPoint distance to a target point to find the nearest biome
 public static class Climate
 {
-    //Parameter 单维度参数范围对应原版 Climate.Parameter
-    //持有 min/max 表示参数取值范围用于参数空间距离计算
+    //Parameter single-dimension parameter range, maps to vanilla Climate.Parameter
+    //Holds min/max for the parameter range used in parameter-space distance computation
     public readonly struct Parameter
     {
         public long Min { get; }
@@ -22,13 +22,13 @@ public static class Climate
             Max = max;
         }
 
-        //Single 单值参数 min == max
+        //Single single-value parameter, min == max
         public static Parameter Single(long value) => new(value, value);
 
-        //Point 单值参数对应原版 Parameter.point 浮点先量化
+        //Point single-value parameter, maps to vanilla Parameter.point; the float is quantised first
         public static Parameter Point(float value) => Span(value, value);
 
-        //Span 浮点区间参数对应原版 Parameter.span(float,float)
+        //Span float range parameter, maps to vanilla Parameter.span(float,float)
         public static Parameter Span(float min, float max)
         {
             if (min > max)
@@ -36,7 +36,7 @@ public static class Climate
             return new Parameter(QuantizeCoord(min), QuantizeCoord(max));
         }
 
-        //Span 参数区间合并对应原版 Parameter.span(Parameter,Parameter)
+        //Span parameter range merge, maps to vanilla Parameter.span(Parameter,Parameter)
         public static Parameter Span(Parameter min, Parameter max)
         {
             if (min.Min > max.Max)
@@ -44,22 +44,22 @@ public static class Climate
             return new Parameter(min.Min, max.Max);
         }
 
-        //Merge 与另一区间求并集对应原版 Parameter.span(Parameter)
-        //只用于 RTree 合并孩子包围盒 不要求两个区间有先后关系
+        //Merge unions with another range, maps to vanilla Parameter.span(Parameter)
+        //Only used by the RTree to merge child bounding boxes; the two ranges need not be ordered
         public Parameter Merge(Parameter other)
             => new(Math.Min(Min, other.Min), Math.Max(Max, other.Max));
 
-        //Value 中心值用于参数空间距离计算对应原版 parameter.spaceToBlock
+        //Value centre value used in parameter-space distance computation, maps to vanilla parameter.spaceToBlock
         public long Value => (Min + Max) >> 1;
 
-        //Range 参数范围跨度
+        //Range parameter span
         public long Range => Max - Min;
 
         public override string ToString() => Min == Max ? $"[{Min}]" : $"[{Min}..{Max}]";
     }
 
-    //ParameterPoint 多维度参数点对应原版 Climate.ParameterPoint
-    //持有 6 个 Climate.Parameter 与 offset 用于 MultiNoiseBiomeSource 距离查找
+    //ParameterPoint multi-dimensional parameter point, maps to vanilla Climate.ParameterPoint
+    //Holds six Climate.Parameters plus offset, used by MultiNoiseBiomeSource distance lookups
     public sealed class ParameterPoint
     {
         public Parameter Temperature { get; }
@@ -88,8 +88,8 @@ public static class Climate
             Offset = offset;
         }
 
-        //Fitness 参数点与目标气候的适应度对应原版 Climate.ParameterPoint.fitness
-        //6 维取区间距离平方和 offset 项原版取自身平方 结果越小越贴合目标
+        //Fitness fitness of the parameter point against the target climate, maps to vanilla Climate.ParameterPoint.fitness
+        //Sum of squared range distances over 6 dimensions; the offset term is squared against itself, matching vanilla; lower is a better fit
         public long Fitness(TargetPoint target)
             => Square(ParameterDistance(Temperature, target.Temperature))
              + Square(ParameterDistance(Humidity, target.Humidity))
@@ -100,8 +100,8 @@ public static class Climate
              + Square(Offset);
     }
 
-    //TargetPoint 某坐标采样出的 6 维气候量化值对应原版 Climate.TargetPoint
-    //出生点气候搜索拿它当目标 搜索时深度维固定归零
+    //TargetPoint the 6-dimensional climate values sampled at a coordinate, maps to vanilla Climate.TargetPoint
+    //The spawn point climate search uses it as the target and fixes depth at zero during the search
     public readonly struct TargetPoint
     {
         public long Temperature { get; }
@@ -122,13 +122,13 @@ public static class Climate
             Weirdness = weirdness;
         }
 
-        //ZeroDepth 深度维归零对应原版出生点搜索里的 zeroDepthTargetPoint
+        //ZeroDepth zeroes the depth dimension, maps to zeroDepthTargetPoint in the vanilla spawn search
         public TargetPoint ZeroDepth()
             => new(Temperature, Humidity, Continentalness, Erosion, 0L, Weirdness);
     }
 
-    //Sampler 噪声采样器接口对应原版 Climate.Sampler
-    //MultiNoiseBiomeSource 用此接口按坐标采样 6 维度参数
+    //Sampler noise sampler interface, maps to vanilla Climate.Sampler
+    //MultiNoiseBiomeSource uses it to sample the six dimension parameters by coordinate
     public interface Sampler
     {
         Parameter Temperature(int x, int y, int z);
@@ -139,7 +139,7 @@ public static class Climate
         Parameter Weirdness(int x, int y, int z);
     }
 
-    //ConstantSampler 常量采样器所有维度返回固定参数测试用
+    //ConstantSampler constant sampler returning fixed parameters for every dimension, used in tests
     public sealed class ConstantSampler : Sampler
     {
         public Parameter TemperatureValue { get; }
@@ -169,10 +169,10 @@ public static class Climate
         public Parameter Weirdness(int x, int y, int z) => WeirdnessValue;
     }
 
-    //NoiseRouterSampler 基于 NoiseRouter 6 个气候维度密度函数的真实采样器
-    //对应原版 Climate.Sampler 的 NoiseRouterData 实现
-    //把密度值 double 量化为 long 后包装为 Parameter.Single
-    //量化精度对齐原版 Climate.quantize 把 double 映射到 long 空间
+    //NoiseRouterSampler real sampler based on the six climate dimension density functions of a NoiseRouter
+    //Maps to the NoiseRouterData implementation of vanilla Climate.Sampler
+    //Quantises the density double to long and wraps it in Parameter.Single
+    //The quantisation precision matches vanilla Climate.quantize, mapping a double into long space
     public sealed class NoiseRouterSampler : Sampler
     {
         private readonly NoiseRouter _router;
@@ -192,27 +192,27 @@ public static class Climate
         public Parameter Weirdness(int x, int y, int z)
             => Parameter.Single(Quantize(_router.Ridges, x, y, z));
 
-        //Quantize 采样密度值后量化为 long 对应原版 Climate.quantizeCoord
-        //系数必须与 QuantizeCoord 一致 原版是 ×10000 写成 ×1000 会让采样点整体小十倍 距离全偏
+        //Quantize samples the density and quantises it to long, maps to vanilla Climate.quantizeCoord
+        //The factor must match QuantizeCoord; vanilla uses ×10000, and ×1000 would shrink every sample tenfold and skew all distances
         private static long Quantize(DensityFunction function, int x, int y, int z)
         {
             var ctx = ReusableContext.Set(x, y, z);
             return QuantizeCoord((float)function.Compute(ctx));
         }
 
-        //ReusableContext 逐点复用的采样上下文
-        //原版每个采样点 new 一个 SinglePointContext 靠 JIT 标量替换消掉 .NET 的逃逸分析不处理堆对象
-        //一次气候采样 6 个维度要 new 6 次 每块近十万次 是分配表里最大的一处
-        //采样器被多个生成线程共享 所以按线程各持一个 被调用的密度函数不会把上下文留存
+        //ReusableContext per-point reusable sampling context
+        //Vanilla allocates a SinglePointContext per sample and relies on JIT scalar replacement; .NET escape analysis does not handle heap objects
+        //One climate sample needs six allocations across the six dimensions and a chunk needs nearly a hundred thousand, the biggest entry in the allocation table
+        //The sampler is shared across generation threads, so each thread holds its own; the called density functions never retain the context
         [ThreadStatic] private static SinglePointContext? _reusableContext;
 
         private static SinglePointContext ReusableContext
             => _reusableContext ??= new SinglePointContext(0, 0, 0);
     }
 
-    //Distance 计算采样点与参数表条目的参数空间距离 对应原版 Climate.RTree.Node.distance
-    //逐维度取区间距离再求平方和 落在条目区间内的维度贡献 0 这正是原版最近邻语义
-    //7 个维度都参与 offset 按单值区间处理
+    //Distance parameter-space distance between a sample point and a parameter list entry, maps to vanilla Climate.RTree.Node.distance
+    //Takes the range distance per dimension then sums the squares; dimensions inside the entry's range contribute 0, which is the vanilla nearest-neighbour semantics
+    //All 7 dimensions take part and offset is treated as a single-value range
     public static long Distance(ParameterPoint target, ParameterPoint point)
     {
         return Square(ParameterDistance(point.Temperature, target.Temperature.Min))
@@ -224,8 +224,8 @@ public static class Climate
              + Square(ParameterDistance(Parameter.Single(point.Offset), target.Offset));
     }
 
-    //ParameterDistance 单维度区间到取值的距离 对应原版 Parameter.distance(long)
-    //取值大于区间上界取上界差 小于下界取下界差 落在区间内为 0
+    //ParameterDistance distance from a single-dimension range to a value, maps to vanilla Parameter.distance(long)
+    //Above the max takes the max difference, below the min takes the min difference, and inside the range is 0
     private static long ParameterDistance(Parameter span, long target)
     {
         var above = target - span.Max;
@@ -235,12 +235,12 @@ public static class Climate
 
     private static long Square(long value) => value * value;
 
-    //SpawnSearchMaxRadius 出生点搜索最大半径对应原版 Climate$SpawnFinder.MAX_RADIUS
+    //SpawnSearchMaxRadius max spawn search radius, maps to vanilla Climate$SpawnFinder.MAX_RADIUS
     private const long SpawnSearchMaxRadius = 2048;
 
-    //FindSpawnPosition 出生点气候径向搜索对应原版 Climate.findSpawnPosition
-    //先算原点适应度 再从 512 到 2048 与 32 到 512 各绕一圈 圈上取到更贴合的即替换
-    //适应度含到原点的平方距离偏置 同样贴合时优先离原点近的
+    //FindSpawnPosition radial climate search for the spawn point, maps to vanilla Climate.findSpawnPosition
+    //Computes the origin fitness, then loops from 512 to 2048 and from 32 to 512, replacing on any better fit along the ring
+    //Fitness includes a squared-distance bias from the origin, so an equally fitting point nearer the origin wins
     public static BlockPos FindSpawnPosition(IReadOnlyList<ParameterPoint> targetClimates, Sampler sampler)
     {
         var best = SpawnCandidateAt(targetClimates, sampler, 0, 0);
@@ -249,8 +249,8 @@ public static class Climate
         return best.Location;
     }
 
-    //RadialSearch 绕当前最优候选做环形采样对应原版 Climate$SpawnFinder.radialSearch
-    //角度步进取半径增量的比值 保证每圈采样点数与半径成比例
+    //RadialSearch samples a ring around the current best candidate, maps to vanilla Climate$SpawnFinder.radialSearch
+    //The angle step is the ratio of the radius increment, keeping the number of samples per ring proportional to the radius
     private static void RadialSearch(IReadOnlyList<ParameterPoint> targetClimates, Sampler sampler,
         float maxRadius, float radiusIncrement, ref SpawnCandidate best)
     {
@@ -272,8 +272,8 @@ public static class Climate
         }
     }
 
-    //SpawnCandidateAt 采样一列气候取与各目标点的最小适应度 对应原版 getSpawnPositionAndFitness
-    //深度维固定 0 适应度乘最大半径平方再加到原点的平方距离 距离偏置让搜索别跑太远
+    //SpawnCandidateAt samples a climate column and takes the minimum fitness against the target points, maps to vanilla getSpawnPositionAndFitness
+    //Depth is fixed at 0; fitness is multiplied by the square of the max radius and the squared distance from the origin is added, biasing the search to stay close
     private static SpawnCandidate SpawnCandidateAt(
         IReadOnlyList<ParameterPoint> targetClimates, Sampler sampler, int blockX, int blockZ)
     {
@@ -285,8 +285,8 @@ public static class Climate
         return new SpawnCandidate(new BlockPos(blockX, 0, blockZ), fitness);
     }
 
-    //SampleTarget 按 block 坐标采样 6 维气候对应原版 Climate.Sampler.sample
-    //原版按 quart 采样这里先折算到 quart 对齐的 block 坐标 y 固定 0
+    //SampleTarget samples the 6-dimensional climate at a block coordinate, maps to vanilla Climate.Sampler.sample
+    //Vanilla samples by quart; here the coordinate is folded to a quart-aligned block coordinate with y fixed at 0
     private static TargetPoint SampleTarget(Sampler sampler, int blockX, int blockZ)
     {
         var x = QuartPos.ToBlock(QuartPos.FromBlock(blockX));
@@ -300,7 +300,7 @@ public static class Climate
             sampler.Weirdness(x, 0, z).Min);
     }
 
-    //SpawnCandidate 出生点候选 记坐标与适应度对应原版 Climate$SpawnFinder$Result
+    //SpawnCandidate spawn candidate recording location and fitness, maps to vanilla Climate$SpawnFinder$Result
     private readonly struct SpawnCandidate
     {
         public BlockPos Location { get; }
@@ -313,13 +313,13 @@ public static class Climate
         }
     }
 
-    //QuantizeCoord 浮点参数映射到 long 参数空间对应原版 Climate.quantizeCoord
+    //QuantizeCoord maps a float parameter into long parameter space, maps to vanilla Climate.quantizeCoord
     public static long QuantizeCoord(float coord) => (long)(coord * 10000.0f);
 
-    //UnquantizeCoord long 参数还原为浮点对应原版 Climate.unquantizeCoord
+    //UnquantizeCoord restores a long parameter to a float, maps to vanilla Climate.unquantizeCoord
     public static float UnquantizeCoord(long coord) => coord / 10000.0f;
 
-    //Parameters 六维度浮点单值参数点对应原版 Climate.parameters(float ...)
+    //Parameters six-dimension float single-value parameter point, maps to vanilla Climate.parameters(float ...)
     public static ParameterPoint Parameters(
         float temperature, float humidity, float continentalness,
         float erosion, float depth, float weirdness, float offset)
@@ -328,20 +328,20 @@ public static class Climate
             Parameter.Point(erosion), Parameter.Point(depth), Parameter.Point(weirdness),
             QuantizeCoord(offset));
 
-    //Parameters 六维度区间参数点对应原版 Climate.parameters(Parameter ...)
+    //Parameters six-dimension range parameter point, maps to vanilla Climate.parameters(Parameter ...)
     public static ParameterPoint Parameters(
         Parameter temperature, Parameter humidity, Parameter continentalness,
         Parameter erosion, Parameter depth, Parameter weirdness, float offset)
         => new(temperature, humidity, continentalness, erosion, depth, weirdness, QuantizeCoord(offset));
 
-    //ParameterCodec 单维度参数范围 codec 对应原版 Climate.Parameter.CODEC
-    //单浮点写为单值范围双元素列表写为范围
+    //ParameterCodec single-dimension parameter range codec, maps to vanilla Climate.Parameter.CODEC
+    //A bare float writes as a single-value range and a two-element list writes as a range
     public static readonly Codec<Parameter> ParameterCodec = new ClimateParameterCodec();
 
-    //ParameterPointCodec 六维度参数点 codec 对应原版 Climate.ParameterPoint.CODEC
+    //ParameterPointCodec six-dimension parameter point codec, maps to vanilla Climate.ParameterPoint.CODEC
     public static readonly Codec<ParameterPoint> ParameterPointCodec = BuildParameterPointCodec();
 
-    //BuildParameterPointCodec 六参数 + offset 字段
+    //BuildParameterPointCodec six parameters + the offset field
     private static Codec<ParameterPoint> BuildParameterPointCodec()
         => RecordCodecBuilder.Of7(
             ParameterCodec.FieldOf("temperature").ForGetter<ParameterPoint, Parameter>(p => p.Temperature),
@@ -356,7 +356,7 @@ public static class Climate
                     QuantizeCoord((float)offset)));
 }
 
-//ClimateParameterCodec 单维度参数 codec 接受单浮点或 [min,max] 列表
+//ClimateParameterCodec single-dimension parameter codec, accepting a bare float or a [min,max] list
 internal sealed class ClimateParameterCodec : ScalarCodec<Climate.Parameter>
 {
     public override DataResult<Climate.Parameter> Parse<U>(DynamicOps<U> ops, U input)
@@ -392,19 +392,19 @@ internal sealed class ClimateParameterCodec : ScalarCodec<Climate.Parameter>
     }
 }
 
-//MultiNoiseBiomeSourceParameterList 多噪声生物群系参数列表对应原版 MultiNoiseBiomeSourceParameterList
-//持有 ParameterPoint -> Holder<Biome> 映射MultiNoiseBiomeSource 用此列表查找最近 Biome
+//MultiNoiseBiomeSourceParameterList multi-noise biome parameter list, maps to vanilla MultiNoiseBiomeSourceParameterList
+//Holds the ParameterPoint -> Holder<Biome> mappings; MultiNoiseBiomeSource uses this list to find the nearest biome
 public sealed class MultiNoiseBiomeSourceParameterList
 {
     public IReadOnlyList<(Climate.ParameterPoint Point, Holder<Biome> Biome)> Entries { get; }
 
-    //Preset 生成此表的预设 null 表示手工构造
+    //Preset the preset that generated this list; null means hand-built
     public MultiNoisePreset? Preset { get; }
 
-    //Index 最近邻搜索树 条目有几千条 线性遍历会让每次采样都扫全表
+    //Index nearest-neighbour search tree; with thousands of entries a linear scan would walk the whole list on every sample
     private readonly ClimateRTree<Holder<Biome>>? _index;
 
-    //Codec 参数表 JSON 编解码对应原版 DIRECT_CODEC
+    //Codec parameter list JSON codec, maps to vanilla DIRECT_CODEC
     public static readonly Codec<MultiNoiseBiomeSourceParameterList> Codec =
         MultiNoiseBiomeSourceParameterListCodec.Instance;
 
@@ -423,7 +423,7 @@ public sealed class MultiNoiseBiomeSourceParameterList
         _index = Entries.Count == 0 ? null : ClimateRTree<Holder<Biome>>.Create(Entries);
     }
 
-    //FindClosest 查找参数空间距离最近的 Biome Holder 对应原版 parameterList.findValue
+    //FindClosest finds the biome Holder nearest in parameter space, maps to vanilla parameterList.findValue
     public Holder<Biome> FindClosest(Climate.ParameterPoint target)
         => _index?.Search(target) ?? throw new InvalidOperationException("parameter list is empty");
 }

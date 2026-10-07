@@ -5,50 +5,50 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Scores;
 
-//ScoreboardSaveData 计分板存档 对应原版 net.minecraft.world.scores.ScoreboardSaveData
-//存 data/minecraft/scoreboard.dat 顶层四键 Objectives/PlayerScores/DisplaySlots/Teams
+//ScoreboardSaveData scoreboard save data, maps to vanilla net.minecraft.world.scores.ScoreboardSaveData
+//Stored at data/minecraft/scoreboard.dat with four top-level keys Objectives/PlayerScores/DisplaySlots/Teams
 public sealed class ScoreboardSaveData : SavedData
 {
-    //TypeId 存档标识 对应原版 minecraft:scoreboard
+    //TypeId save identifier, maps to vanilla minecraft:scoreboard
     private const string TypeId = "minecraft:scoreboard";
 
-    //Type SavedData 工厂空档建空载体
+    //Type SavedData factory, builds an empty payload when the slot is empty
     public static readonly SavedDataType<ScoreboardSaveData> Type = new ScoreboardSaveType();
 
     private Packed _data = Packed.Empty;
 
     public override string Id => TypeId;
 
-    //Data 读存档载体
+    //Data reads the save payload
     public Packed Data => _data;
 
-    //SetData 写存档载体并标脏 对应原版 setData
+    //SetData writes the save payload and marks it dirty, maps to vanilla setData
     public void SetData(Packed data)
     {
         _data = data;
         SetDirty();
     }
 
-    //Save 用 codec 把载体编成 NBT 对应原版 save
+    //Save encodes the payload into NBT with the codec, maps to vanilla save
     public override CompoundTag Save(CompoundTag tag)
     {
         var encoded = Packed.Codec.EncodeStart(NbtOps.Instance, _data);
         return encoded.Result().IsPresent && encoded.GetOrThrow() is CompoundTag compound ? compound : tag;
     }
 
-    //Packed 存档载体四部分 对应原版 ScoreboardSaveData.Packed
+    //Packed the four parts of the save payload, maps to vanilla ScoreboardSaveData.Packed
     public sealed record Packed(
         IReadOnlyList<Objective.Packed> Objectives,
         IReadOnlyList<Scoreboard.PackedScore> Scores,
         Dictionary<DisplaySlot, string> DisplaySlots,
         IReadOnlyList<PlayerTeam.Packed> Teams)
     {
-        //Empty 空载体 对应原版 EMPTY
+        //Empty empty payload, maps to vanilla EMPTY
         public static readonly Packed Empty = new(Array.Empty<Objective.Packed>(),
             Array.Empty<Scoreboard.PackedScore>(), new Dictionary<DisplaySlot, string>(),
             Array.Empty<PlayerTeam.Packed>());
 
-        //Codec 持久化编解码 顶层四键 Objectives/PlayerScores/DisplaySlots/Teams 对应原版 CODEC
+        //Codec persistence codec, top-level keys Objectives/PlayerScores/DisplaySlots/Teams, maps to vanilla CODEC
         public static readonly Codec<Packed> Codec = RecordCodecBuilder.Of4(
             Objective.Packed.Codec.ListOf()
                 .OptionalFieldOf("Objectives", Array.Empty<Objective.Packed>())
@@ -65,7 +65,7 @@ public sealed class ScoreboardSaveData : SavedData
             (objectives, scores, displaySlots, teams) => new Packed(objectives, scores, displaySlots, teams));
     }
 
-    //ScoreboardSaveType 存档工厂 从 NBT 用 codec 解析出载体
+    //ScoreboardSaveType save factory, parses the payload from NBT with the codec
     private sealed class ScoreboardSaveType : SavedDataType<ScoreboardSaveData>
     {
         public string Id => TypeId;

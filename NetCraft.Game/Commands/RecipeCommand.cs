@@ -7,9 +7,9 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.Commands;
 
-//RecipeCommand recipe 命令对应原版 net.minecraft.server.commands.RecipeCommand
-//原版 give/take 走 ServerRecipeBook(awardRecipes/resetRecipes) 操作玩家配方书
-//NC 尚无配方书子系统(无玩家配方记录 配方书协议包也仅占位) 故两分支只保留参数树 执行回执未实现
+//RecipeCommand recipe command, maps to vanilla net.minecraft.server.commands.RecipeCommand
+//Vanilla give/take go through ServerRecipeBook (awardRecipes/resetRecipes) to operate the player's recipe book
+//NC has no recipe book subsystem yet (no player recipe records, the recipe book packets are placeholders), so both branches keep only the argument tree and the reply is not implemented
 public static class RecipeCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -32,11 +32,11 @@ public static class RecipeCommand
                         .Executes(Unsupported)))));
     }
 
-    //Unsupported 配方书子系统缺位 两动作统一回执不支持
+    //Unsupported the recipe book subsystem is absent, both actions reply unsupported
     private static int Unsupported(CommandContext<CommandSourceStack> context)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
-        source.SendFailure("NC 尚无配方书子系统 /recipe 暂未实现");
+        source.SendFailure("NC has no recipe book subsystem yet; /recipe is not implemented");
         return 0;
     }
 }

@@ -6,11 +6,11 @@ using System.Collections.Generic;
 using NetCraft.Codec;
 using T = NetCraft.DataFixer.Types;
 
-//DataFixUtils工具类对应原版com.mojang.datafixers.DataFixUtils
-//提供Optional组合与版本key编码
+//DataFixUtils utility class maps to vanilla com.mojang.datafixers.DataFixUtils
+//provides Optional composition and version key encoding
 public static class DataFixUtils
 {
-    //smallestEncompassingPowerOfTwo返回最小包围的2幂
+    //smallestEncompassingPowerOfTwo returns the smallest enclosing power of two
     public static int SmallestEncompassingPowerOfTwo(int input)
     {
         int result = input - 1;
@@ -29,52 +29,52 @@ public static class DataFixUtils
         31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
     };
 
-    //ceillog2向上取log2
+    //ceillog2 rounds up log2
     public static int Ceillog2(int input)
     {
         input = IsPowerOfTwo(input) ? input : SmallestEncompassingPowerOfTwo(input);
         return MULTIPLY_DE_BRUIJN_BIT_POSITION[(int)((uint)input * 0x077CB531 >> 27) & 0x1F];
     }
 
-    //make执行工厂
+    //make invokes the factory
     public static T Make<T>(Func<T> factory) => factory();
 
-    //make对值执行consumer后返回
+    //make applies a consumer to the value then returns it
     public static T Make<T>(T t, Action<T> consumer)
     {
         consumer(t);
         return t;
     }
 
-    //orElse取Optional值或默认
+    //orElse takes the Optional value or the default
     public static U OrElse<U>(Optional<U> optional, U other)
         => optional.IsPresent ? optional.Get() : other;
 
-    //orElseGet取Optional值或惰性默认
+    //orElseGet takes the Optional value or a lazy default
     public static U OrElseGet<U>(Optional<U> optional, Func<U> other)
         => optional.IsPresent ? optional.Get() : other();
 
-    //or返回首个有值的Optional
+    //or returns the first Optional with a value
     public static Optional<U> Or<U>(Optional<U> optional, Func<Optional<U>> other)
         => optional.IsPresent ? optional : other();
 
-    //makeKey按版本与子版本合成key
+    //makeKey composes a key from version and subversion
     public static int MakeKey(int version) => MakeKey(version, 0);
 
     public static int MakeKey(int version, int subVersion) => version * 10 + subVersion;
 
-    //getVersion从key取版本
+    //getVersion takes the version from the key
     public static int GetVersion(int key) => key / 10;
 
-    //getSubVersion从key取子版本
+    //getSubVersion takes the subversion from the key
     public static int GetSubVersion(int key) => key % 10;
 
-    //consumerToFunction把Action转为Func
+    //consumerToFunction converts an Action to a Func
     public static Func<T, T> ConsumerToFunction<T>(Action<T> consumer)
         => s => { consumer(s); return s; };
 
-    //writeAndReadTypedOrThrow对应原版net.minecraft.util.Util.writeAndReadTypedOrThrow
-    //把typed用源ops写后用fn修复再用目标ops读失败用partial值
+    //writeAndReadTypedOrThrow maps to vanilla net.minecraft.util.Util.writeAndReadTypedOrThrow
+    //writes typed with the source ops, fixes with fn, then reads with the target ops; uses the partial value on failure
     public static Typed<object> WriteAndReadTypedOrThrow<TOld, TNew>(
         Typed<TOld> typed, T.Type<TNew> newType, Func<Dynamic<object>, Dynamic<object>> fn)
     {
@@ -83,12 +83,12 @@ public static class DataFixUtils
         return ReadTypedOrThrow((T.Type<object>)(object)newType!, fixedDynamic, true);
     }
 
-    //readTypedOrThrow对应原版net.minecraft.util.Util.readTypedOrThrow两参数版默认不接收partial
+    //readTypedOrThrow maps to the two-parameter vanilla net.minecraft.util.Util.readTypedOrThrow, which takes no partial by default
     public static Typed<object> ReadTypedOrThrow<TA>(T.Type<TA> type, Dynamic<object> dynamic)
         => ReadTypedOrThrow(type, dynamic, false);
 
-    //readTypedOrThrow对应原版net.minecraft.util.Util.readTypedOrThrow三参数版
-    //acceptPartial为true时优先用partial值
+    //readTypedOrThrow maps to the three-parameter vanilla net.minecraft.util.Util.readTypedOrThrow
+    //when acceptPartial is true, the partial value is preferred
     public static Typed<object> ReadTypedOrThrow<TA>(T.Type<TA> type, Dynamic<object> dynamic, bool acceptPartial)
     {
         var result = type.Read(dynamic);

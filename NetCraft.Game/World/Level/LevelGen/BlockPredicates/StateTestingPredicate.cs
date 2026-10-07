@@ -4,15 +4,15 @@ using NetCraft.Registry.State;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//StateTestingPredicate 状态测试基类对应原版 StateTestingPredicate
-//先按 offset 偏移取方块状态 再交给子类判定状态本身
+//StateTestingPredicate state-testing base, maps to vanilla StateTestingPredicate
+//First fetch the block state at the offset, then let the subclass test the state itself
 public abstract class StateTestingPredicate : BlockPredicate
 {
     protected readonly Vec3i Offset;
 
     protected StateTestingPredicate(Vec3i offset) => Offset = offset;
 
-    //Test 只判方块状态对应原版 test(BlockState)
+    //Test tests only the block state, maps to vanilla test(BlockState)
     protected abstract bool Test(BlockState state);
 
     public sealed override bool Test(WorldGenRegion level, BlockPos origin)
@@ -21,7 +21,7 @@ public abstract class StateTestingPredicate : BlockPredicate
         return Test(level.GetBlockState(pos.X, pos.Y, pos.Z));
     }
 
-    //StateTestingCodec 偏移字段 对应原版 stateTestingCodec
+    //StateTestingCodec the offset field, maps to vanilla stateTestingCodec
     protected static MapCodec<Vec3i> StateTestingCodec()
         => Vec3iCodec.Offset16.OptionalFieldOf("offset", Vec3i.Zero);
 }

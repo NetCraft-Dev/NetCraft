@@ -2,15 +2,15 @@ using NetCraft.Network.Protocol.Ping;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//GameProtocols play 协议注册
-//对应原版 net.minecraft.network.protocol.game.GameProtocols
-//ID 由 GamePacketTypes 按原版注册顺序严格对齐 26.2 保证真实客户端可解码
-//clientbound 注册玩家进世界必需包 + common 心跳/断开 clientbound 由服务端发送
-//serverbound 注册真实客户端进 Play 后主动发送的包（move/chunk ack/player_loaded 等）
-//未注册的包解码报"未知包"被丢弃不影响连接
+//GameProtocols play protocol registration
+//Maps to vanilla net.minecraft.network.protocol.game.GameProtocols
+//IDs are strictly aligned with the vanilla registration order for 26.2 by GamePacketTypes, so real clients can decode
+//clientbound registers the packets required for a player to enter the world + common keepalive/disconnect sent by the server
+//serverbound registers the packets a real client actively sends after entering play (move/chunk ack/player_loaded etc.)
+//An unregistered packet decodes to "unknown packet" and is dropped without affecting the connection
 public static class GameProtocols
 {
-    //ServerboundTemplate SERVERBOUND play 协议模板
+    //ServerboundTemplate SERVERBOUND play protocol template
     public static readonly SimpleUnboundProtocol<ServerGamePacketListener> ServerboundTemplate =
         new ProtocolInfoBuilder<ServerGamePacketListener>(
             ConnectionProtocol.Play, FlowDirection.Serverbound)
@@ -44,13 +44,13 @@ public static class GameProtocols
             .AddPacket(GamePacketTypes.ServerboundPlayerAbilities, ServerboundPlayerAbilitiesPacket.StreamCodec)
             .AddPacket(GamePacketTypes.ServerboundPickItemFromBlock, ServerboundPickItemFromBlockPacket.StreamCodec)
             .AddPacket(GamePacketTypes.ServerboundPickItemFromEntity, ServerboundPickItemFromEntityPacket.StreamCodec)
-            //ping_request 由客户端 PingDebugMonitor 周期性发 服务端回 pong_response 原版 play 协议 id 38
+            //ping_request is sent periodically by the client's PingDebugMonitor and the server replies with pong_response; vanilla play protocol id 38
             .AddPacketCommon(GamePacketTypes.ServerboundPingRequest, ServerboundPingRequestPacket.StreamCodec)
             .AddPacketCommon(CommonPacketTypes.ServerboundPong, ServerboundPongPacket.StreamCodec)
             .AddPacket(GamePacketTypes.ServerboundSetCarriedItem, ServerboundSetCarriedItemPacket.StreamCodec)
             .AddPacket(GamePacketTypes.ServerboundSetCreativeModeSlot, ServerboundSetCreativeModeSlotPacket.StreamCodec)
             .AddPacket(GamePacketTypes.ServerboundRecipeBookChangeSettings, ServerboundRecipeBookChangeSettingsPacket.StreamCodec)
-            //S4.186 补齐常见交互类 serverbound 包 原版客户端打开界面操作时会发 不注册会刷未知包告警
+            //S4.186 adds common interaction serverbound packets; a vanilla client sends them when opening screens, and not registering them spams unknown-packet warnings
             .AddPacket(GamePacketTypes.ServerboundRecipeBookSeenRecipe, ServerboundRecipeBookSeenRecipePacket.StreamCodec)
             .AddPacket(GamePacketTypes.ServerboundRenameItem, ServerboundRenameItemPacket.StreamCodec)
             .AddPacket(GamePacketTypes.ServerboundSelectTrade, ServerboundSelectTradePacket.StreamCodec)
@@ -76,14 +76,14 @@ public static class GameProtocols
             .AddPacket(GamePacketTypes.ServerboundUseItem, ServerboundUseItemPacket.StreamCodec)
             .BuildUnbound();
 
-    //Serverbound 绑定后的 SERVERBOUND ProtocolInfo
+    //Serverbound the bound SERVERBOUND ProtocolInfo
     public static readonly ProtocolInfo<ServerGamePacketListener> Serverbound =
         ServerboundTemplate.Bind();
 
-    //ClientboundTemplate CLIENTBOUND play 协议模板
-    //S3 加入 chunk 发送链路注册 Login/PlayerInfo/SystemChat 外补齐 SendJoinPackets 全序列与区块包
-    //S4 对齐 26.2 包 ID 补 common 心跳/断开保证真实客户端可解码
-    //C3 补容器与装备包注册
+    //ClientboundTemplate CLIENTBOUND play protocol template
+    //S3 adds the chunk send chain, registering beyond Login/PlayerInfo/SystemChat the full SendJoinPackets sequence and chunk packets
+    //S4 aligns the 26.2 packet IDs and adds common keepalive/disconnect so real clients can decode
+    //C3 adds container and equipment packet registration
     public static readonly SimpleUnboundProtocol<ClientGamePacketListener> ClientboundTemplate =
         new ProtocolInfoBuilder<ClientGamePacketListener>(
             ConnectionProtocol.Play, FlowDirection.Clientbound)
@@ -135,7 +135,7 @@ public static class GameProtocols
             .AddPacket(GamePacketTypes.ClientboundSetBorderSize, ClientboundSetBorderSizePacket.StreamCodec)
             .AddPacket(GamePacketTypes.ClientboundSetBorderWarningDelay, ClientboundSetBorderWarningDelayPacket.StreamCodec)
             .AddPacket(GamePacketTypes.ClientboundSetBorderWarningDistance, ClientboundSetBorderWarningDistancePacket.StreamCodec)
-            //set_camera 旁观相机切换 玩家跟随相机实体时下发 漏注册会被连接层丢弃客户端视角不切
+            //set_camera spectator camera switch, sent when the player follows a camera entity; if not registered the connection layer drops it and the client camera does not switch
             .AddPacket(GamePacketTypes.ClientboundSetCamera, ClientboundSetCameraPacket.StreamCodec)
             .AddPacket(GamePacketTypes.ClientboundSetChunkCacheCenter, ClientboundSetChunkCacheCenterPacket.StreamCodec)
             .AddPacket(GamePacketTypes.ClientboundSetChunkCacheRadius, ClientboundSetChunkCacheRadiusPacket.StreamCodec)
@@ -161,15 +161,15 @@ public static class GameProtocols
             .AddPacket(GamePacketTypes.ClientboundTickingState, ClientboundTickingStatePacket.StreamCodec)
             .AddPacket(GamePacketTypes.ClientboundTickingStep, ClientboundTickingStepPacket.StreamCodec)
             .AddPacketCommon(CommonPacketTypes.ClientboundTransfer, ClientboundTransferPacket.StreamCodec)
-            //药水效果同步包 未注册会被连接层丢弃 客户端看不到效果图标
+            //Mob effect sync packets; if not registered the connection layer drops them and the client shows no effect icons
             .AddPacket(GamePacketTypes.ClientboundRemoveMobEffect, ClientboundRemoveMobEffectPacket.StreamCodec)
             .AddPacket(GamePacketTypes.ClientboundUpdateMobEffect, ClientboundUpdateMobEffectPacket.StreamCodec)
-            //pong_response 是 ping_request 的回复 原版 play 协议 id 62 客户端据此算延迟
+            //pong_response is the reply to ping_request; vanilla play protocol id 62, used by the client to compute latency
             .AddPacketCommon(GamePacketTypes.ClientboundPongResponse, ClientboundPongResponsePacket.StreamCodec)
             .AddPacketCommon(CommonPacketTypes.ClientboundUpdateTags, ClientboundUpdateTagsPacket.StreamCodec)
             .BuildUnbound();
 
-    //Clientbound 绑定后的 CLIENTBOUND ProtocolInfo
+    //Clientbound the bound CLIENTBOUND ProtocolInfo
     public static readonly ProtocolInfo<ClientGamePacketListener> Clientbound =
         ClientboundTemplate.Bind();
 }

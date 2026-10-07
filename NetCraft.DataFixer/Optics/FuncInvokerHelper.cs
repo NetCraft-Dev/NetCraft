@@ -5,13 +5,13 @@ using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 
-//FuncInvokerHelper缓存委托反射Invoke对齐Java类型擦除后虚方法分派
-//委托invoke严格类型检查下Func<A,B>的A与运行时实际类型参数不匹配抛InvalidCastException
-//用表达式树编译Func<object,object>包装委托invoke绕过运行时类型检查
+//FuncInvokerHelper caches delegate reflective Invoke, aligning with Java virtual dispatch after type erasure
+//under strict type checking, delegate invoke throws InvalidCastException when Func<A,B>'s A does not match the actual runtime type parameter
+//compiles a Func<object,object> with an expression tree to wrap delegate invoke, bypassing the runtime type check
 internal static class FuncInvokerHelper
 {
-    //缓存(funcType, argType) -> Func<object, object, object>
-    //第一参数是委托实例第二参数是参数值返回结果对象
+    //caches (funcType, argType) -> Func<object, object, object>
+    //the first argument is the delegate instance, the second is the argument value, and it returns the result object
     private static readonly ConcurrentDictionary<(Type funcType, Type argType), Func<object, object, object>> _invokeCache = new();
 
     public static object Invoke(object func, object arg)
@@ -26,8 +26,8 @@ internal static class FuncInvokerHelper
             var funcParam = Expression.Parameter(typeof(object), "f");
             var argParam = Expression.Parameter(typeof(object), "a");
 
-            //arg运行时类型IdentityTraversal<A,B>与paramType App2<Mu<A,B>,object,object>不同
-            //用Unsafe.As cast arg到paramType绕过委托invoke的CLR协变检查对齐Java类型擦除
+            //the runtime type of arg, IdentityTraversal<A,B>, differs from paramType App2<Mu<A,B>,object,object>
+            //use Unsafe.As to cast arg to paramType, bypassing the delegate invoke CLR covariance check and aligning with Java type erasure
             var castArgMethod = typeof(FuncInvokerHelper)
                 .GetMethod(nameof(CastTo), BindingFlags.NonPublic | BindingFlags.Static)!
                 .MakeGenericMethod(paramType);
@@ -44,8 +44,8 @@ internal static class FuncInvokerHelper
         return invoker(func, arg!);
     }
 
-    //CastTo用Unsafe.As绕过C#严格泛型不变量让object转任意类型T
-    //对齐Java类型擦除语义避免castclass运行时检查失败
+    //CastTo uses Unsafe.As to bypass C# strict generic invariance, converting object to any type T
+    //aligns with Java type erasure semantics, avoiding castclass runtime check failure
     private static T CastTo<T>(object obj)
     {
         var local = obj;

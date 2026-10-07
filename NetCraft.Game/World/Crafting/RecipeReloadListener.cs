@@ -3,8 +3,8 @@ using NetCraft.Resources;
 
 namespace NetCraft.Game.World.Crafting;
 
-//RecipeReloadListener 配方重载监听 对应原版 RecipeManager 挂进 ReloadableServerResources 的那一环
-//每次重载把数据包 recipe 目录重新读进 RecipeManager
+//RecipeReloadListener recipe reload listener, maps to the hook attaching vanilla RecipeManager into ReloadableServerResources
+//Every reload re-reads the datapack recipe directory into RecipeManager
 public sealed class RecipeReloadListener : PreparableReloadListener
 {
     private readonly RecipeManager _recipes;

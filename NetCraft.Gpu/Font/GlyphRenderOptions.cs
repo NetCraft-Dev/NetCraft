@@ -1,9 +1,9 @@
 namespace NetCraft.Gpu.Font;
 
-//GlyphRenderOptions 字形渲染参数对标原版 BakedSheetGlyph$GlyphInstance
-//封装 x/y/color/shadowColor/bold/italic/boldOffset/shadowOffset
-//替代原版 Style 业务对象 Gpu 层不引入富文本语义
-//HasShadow 由 ShadowColor!=0 判断对标原版 hasShadow=shadowColor()!=0
+//GlyphRenderOptions glyph render params, maps to vanilla BakedSheetGlyph$GlyphInstance
+//Wraps x/y/color/shadowColor/bold/italic/boldOffset/shadowOffset
+//Replaces the vanilla Style domain object; the GPU layer avoids rich-text semantics
+//HasShadow is determined by ShadowColor!=0, maps to vanilla hasShadow=shadowColor()!=0
 public readonly record struct GlyphRenderOptions(
     float X,
     float Y,
@@ -14,14 +14,14 @@ public readonly record struct GlyphRenderOptions(
     float BoldOffset,
     float ShadowOffset)
 {
-    //HasShadow 阴影色非0表示需要绘制阴影对标原版 GlyphInstance.hasShadow
+    //HasShadow a non-zero shadow color means a shadow must be drawn, maps to vanilla GlyphInstance.hasShadow
     public bool HasShadow => ShadowColor != 0;
 
-    //Simple 创建无阴影无样式的普通字形参数
+    //Simple creates plain glyph params with no shadow or styling
     public static GlyphRenderOptions Simple(float x, float y, int color)
         => new(x, y, color, 0, false, false, 1.0f, 1.0f);
 
-    //WithShadow 创建带阴影的字形参数 shadowColor 阴影色 shadowOffset 偏移
+    //WithShadow creates glyph params with a shadow; shadowColor is the shadow color and shadowOffset the offset
     public GlyphRenderOptions WithShadow(int shadowColor, float shadowOffset)
         => this with { ShadowColor = shadowColor, ShadowOffset = shadowOffset };
 }

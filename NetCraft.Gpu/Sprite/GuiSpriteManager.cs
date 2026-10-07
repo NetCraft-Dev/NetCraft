@@ -3,11 +3,11 @@ using System.Text.Json;
 
 namespace NetCraft.Gpu.Sprite;
 
-//GuiSpriteManager identifier → GuiSprite 缓存对标原版 TextureAtlas guiSprites
-//assetsRoot 指向 extracted/assets 目录由 Game 层注入 AppContext.BaseDirectory/assets
-//identifier 格式 namespace:path 路径分隔符 / 转 DirectorySeparatorChar
-//懒加载 PNG 调 GuiResourceManager.RegisterTexture 读同名 .mcmeta 文件
-//LoadSprite 为 protected virtual 供测试覆盖避免依赖 GpuDevice
+//GuiSpriteManager identifier → GuiSprite cache, maps to vanilla TextureAtlas guiSprites
+//assetsRoot points to the extracted/assets directory, injected by the Game layer as AppContext.BaseDirectory/assets
+//identifier format namespace:path path separator / converted to DirectorySeparatorChar
+//Lazily loads the PNG via GuiResourceManager.RegisterTexture and reads the same-named .mcmeta file
+//LoadSprite is protected virtual for tests to override without depending on GpuDevice
 public class GuiSpriteManager
 {
     private readonly string _assetsRoot;
@@ -20,9 +20,9 @@ public class GuiSpriteManager
         _resourceManager = resourceManager;
     }
 
-    //GetSprite 按 identifier 取 GuiSprite 未加载则懒加载 PNG + .mcmeta
-    //找不到 PNG 返回 null 调用方自行处理 fallback
-    //缓存命中直接返回上一次结果包含 null 结果避免重复 IO
+    //GetSprite gets a GuiSprite by identifier, lazily loading the PNG + .mcmeta if not loaded
+    //Returns null when the PNG is not found; the caller handles the fallback
+    //On a cache hit it returns the previous result including null results, avoiding repeated IO
     public GuiSprite? GetSprite(string identifier)
     {
         if (_cache.TryGetValue(identifier, out var cached)) return cached;
@@ -31,15 +31,15 @@ public class GuiSpriteManager
         return sprite;
     }
 
-    //ClearCache swapchain 重建时由 VulkanGuiApp 调清空缓存
-    //textureId 可能变化旧 GuiSprite 持有的 TextureSetup 失效
+    //ClearCache called by VulkanGuiApp to clear the cache on swapchain recreation
+    //textureId may change, invalidating the TextureSetup held by old GuiSprites
     public void ClearCache() => _cache.Clear();
 
-    //LoadSprite 加载 PNG + .mcmeta 组装 GuiSprite
+    //LoadSprite loads the PNG + .mcmeta and assembles a GuiSprite
     //identifier "minecraft:textures/gui/sprites/widget/button" →
     //  pngPath = {assetsRoot}/minecraft/textures/gui/sprites/widget/button.png
     //  mcmetaPath = {assetsRoot}/minecraft/textures/gui/sprites/widget/button.png.mcmeta
-    //virtual 供测试覆盖避免真实文件 IO 和 GpuDevice 依赖
+    //virtual for tests to override without real file IO and GpuDevice dependency
     protected virtual GuiSprite? LoadSprite(string identifier)
     {
         var (ns, path) = SplitIdentifier(identifier);
@@ -66,7 +66,7 @@ public class GuiSpriteManager
             }
             catch
             {
-                //解析失败用默认 Stretch 渲染不阻断
+                //A parse failure falls back to the default Stretch without blocking
             }
         }
 
@@ -75,7 +75,7 @@ public class GuiSpriteManager
 
     //SplitIdentifier "minecraft:textures/gui/sprites/widget/button"
     //  → ("minecraft", "textures/gui/sprites/widget/button")
-    //  无冒号 → ("minecraft", identifier) 对标 AssetsFontResourceAccessor
+    //  no colon → ("minecraft", identifier), maps to AssetsFontResourceAccessor
     private protected static (string ns, string path) SplitIdentifier(string identifier)
     {
         var idx = identifier.IndexOf(':');

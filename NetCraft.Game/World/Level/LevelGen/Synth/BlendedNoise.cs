@@ -3,10 +3,10 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Synth;
 
-//BlendedNoise 混合噪声对应原版 net.minecraft.world.level.levelgen.synth.BlendedNoise
-//实现 SimpleFunction 接口作为主地形噪声源
-//8 倍频 mainNoise 控制平滑过渡16 倍频 minLimit/maxLimit 提供高低频细节
-//compute 用 mainNoise 插值在 minLimit/maxLimit 之间得到混合密度
+//BlendedNoise blended noise, maps to vanilla net.minecraft.world.level.levelgen.synth.BlendedNoise
+//Implements SimpleFunction as the main terrain noise source
+//8-octave mainNoise drives smooth blending; 16-octave minLimit/maxLimit supply high and low frequency detail
+//compute interpolates between minLimit/maxLimit using mainNoise to get the blended density
 public sealed class BlendedNoise : SimpleFunction
 {
     private readonly PerlinNoise _minLimitNoise;
@@ -21,13 +21,13 @@ public sealed class BlendedNoise : SimpleFunction
     private readonly double _xzScale;
     private readonly double _yScale;
 
-    //CreateUnseeded 未种子化工厂对应原版 createUnseeded
-    //用于序列化数据反序列化时占位withNewRandom 后注入真实随机源
+    //CreateUnseeded unseeded factory, maps to vanilla createUnseeded
+    //Acts as a placeholder during deserialization; withNewRandom injects the real random source afterwards
     public static BlendedNoise CreateUnseeded(double xzScale, double yScale, double xzFactor, double yFactor, double smearScaleMultiplier)
         => new(new XoroshiroRandomSource(0L), xzScale, yScale, xzFactor, yFactor, smearScaleMultiplier);
 
-    //构造对应原版 @VisibleForTesting 构造
-    //三个 PerlinNoise 走 CreateLegacyForBlendedNoise 路径-15..0 与 -7..0 倍频
+    //Constructor, maps to the vanilla @VisibleForTesting constructor
+    //The three PerlinNoise instances use the CreateLegacyForBlendedNoise path with -15..0 and -7..0 octaves
     public BlendedNoise(RandomSource random, double xzScale, double yScale, double xzFactor, double yFactor, double smearScaleMultiplier)
     {
         _minLimitNoise = PerlinNoise.CreateLegacyForBlendedNoise(random, RangeClosed(-15, 0));
@@ -43,15 +43,15 @@ public sealed class BlendedNoise : SimpleFunction
         _maxValue = _minLimitNoise.MaxBrokenValue(_yMultiplier);
     }
 
-    //WithNewRandom 注入新随机源返回新实例对应原版 withNewRandom
-    //RandomState 构造时调此方法把占位 BlendedNoise 替换为带种子的实例
+    //WithNewRandom inject a new random source and return a new instance, maps to vanilla withNewRandom
+    //RandomState calls this during construction to replace the placeholder BlendedNoise with a seeded instance
     public BlendedNoise WithNewRandom(RandomSource terrainRandom)
         => new(terrainRandom, _xzScale, _yScale, _xzFactor, _yFactor, _smearScaleMultiplier);
 
     public double Compute(FunctionContext context)
         => ComputeAt(context.BlockX, context.BlockY, context.BlockZ);
 
-    //ComputeAt 按三个方块坐标求值 供批量求值路径按点循环调用
+    //ComputeAt evaluate at three block coordinates; the batch path loops over points and calls this
     internal double ComputeAt(int blockX, int blockY, int blockZ)
     {
         double blendMin = 0.0;
@@ -106,14 +106,14 @@ public sealed class BlendedNoise : SimpleFunction
 
     public double MaxValue => _maxValue;
 
-    //五个缩放参数暴露给 Codec 序列化
+    //The five scale parameters exposed for codec serialization
     public double XzScale => _xzScale;
     public double YScale => _yScale;
     public double XzFactor => _xzFactor;
     public double YFactor => _yFactor;
     public double SmearScaleMultiplier => _smearScaleMultiplier;
 
-    //RangeClosed 模拟 Java IntStream.rangeClosed(from, to) 含端点
+    //RangeClosed mimics Java IntStream.rangeClosed(from, to), inclusive
     private static IEnumerable<int> RangeClosed(int from, int to)
     {
         for (var i = from; i <= to; i++)

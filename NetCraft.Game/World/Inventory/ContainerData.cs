@@ -1,28 +1,28 @@
 namespace NetCraft.Game.World.Inventory;
 
-//ContainerData 数值型数据槽对应原版 net.minecraft.world.inventory.ContainerData
-//菜单里非物品状态(熔炼进度/切石机选中项)靠它同步给客户端 走 container_set_data 包
+//ContainerData numeric data slots, maps to vanilla net.minecraft.world.inventory.ContainerData
+//Non-item menu state (smelting progress / stonecutter selection) is synced to the client through it, via the container_set_data packet
 public interface ContainerData
 {
-    //Count 数据项个数
+    //Count number of data entries
     int Count { get; }
 
-    //Get 读第 index 项
+    //Get reads entry index
     int Get(int index);
 
-    //Set 写第 index 项
+    //Set writes entry index
     void Set(int index, int value);
 }
 
-//DataSlot 单值数据槽对应原版 net.minecraft.world.inventory.DataSlot
-//菜单自己持有值 不需要后端存储
+//DataSlot single-value data slot, maps to vanilla net.minecraft.world.inventory.DataSlot
+//The menu holds the value itself, no backing store needed
 public sealed class DataSlot : ContainerData
 {
     private int _value;
 
     private DataSlot() { }
 
-    //Standalone 建一个独立数据槽
+    //Standalone creates an independent data slot
     public static DataSlot Standalone() => new();
 
     public int Count => 1;

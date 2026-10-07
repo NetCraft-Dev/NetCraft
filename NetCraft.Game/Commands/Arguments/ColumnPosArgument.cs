@@ -6,11 +6,11 @@ using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;
 
-//ColumnCoordinates 两段水平坐标对应原版 ColumnPosArgument 解析出的列坐标
-//与 BlockCoordinates 的差别是只取水平两段 不支持局部坐标
+//ColumnCoordinates two horizontal coordinates, maps to the column coordinate parsed by vanilla ColumnPosArgument
+//Difference from BlockCoordinates: only the two horizontal segments, no local coordinates
 public sealed record ColumnCoordinates(WorldCoordinate X, WorldCoordinate Z)
 {
-    //GetColumn 按执行者位置求绝对方块坐标 调用方再用它换算区块坐标
+    //GetColumn resolves the absolute block coordinate from the executor's position; the caller converts it to chunk coordinates
     public (int X, int Z) GetColumn(ServerCommandSource source)
     {
         var pos = source.Position;
@@ -18,8 +18,8 @@ public sealed record ColumnCoordinates(WorldCoordinate X, WorldCoordinate Z)
     }
 }
 
-//ColumnPosArgument 列坐标参数对应原版 net.minecraft.commands.arguments.coordinates.ColumnPosArgument
-//forceload 用它定位区块列 语法 0 0 或 ~ ~1
+//ColumnPosArgument column coordinate argument, maps to vanilla net.minecraft.commands.arguments.coordinates.ColumnPosArgument
+//Used by forceload to locate a chunk column; syntax: 0 0 or ~ ~1
 public sealed class ColumnPosArgument : ArgumentType<ColumnCoordinates>
 {
     public static readonly SimpleCommandExceptionType ErrorNotComplete =
@@ -41,7 +41,7 @@ public sealed class ColumnPosArgument : ArgumentType<ColumnCoordinates>
         return new ColumnCoordinates(x, z);
     }
 
-    //GetColumn 取解析结果并按执行者位置求绝对方块坐标
+    //GetColumn takes the parse result and resolves the absolute block coordinate from the executor's position
     public static (int X, int Z) GetColumn(CommandContext<CommandSourceStack> context, string name)
         => context.GetArgument<ColumnCoordinates>(name).GetColumn((ServerCommandSource)context.GetSource());
 

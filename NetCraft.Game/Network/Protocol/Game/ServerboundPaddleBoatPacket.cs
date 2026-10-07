@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundPaddleBoatPacket 数据包对应原版 ServerboundPaddleBoatPacket
-//字段 Left(boolean) Right(boolean)
+//ServerboundPaddleBoatPacket paddle boat packet, maps to vanilla ServerboundPaddleBoatPacket
+//Fields: Left(boolean), Right(boolean)
 public sealed record ServerboundPaddleBoatPacket(bool Left, bool Right) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundPaddleBoatPacket> StreamCodec { get; } = new PaddleBoatCodec();
@@ -12,7 +12,7 @@ public sealed record ServerboundPaddleBoatPacket(bool Left, bool Right) : Packet
 
     private sealed class PaddleBoatCodec : StreamCodec<FriendlyByteBuf, ServerboundPaddleBoatPacket>
     {
-        //划船时上报左右桨划动状态 顺序 Left 在前
+        //While rowing, reports the left/right paddle state, with Left first
         public ServerboundPaddleBoatPacket Decode(FriendlyByteBuf buf)
             => new(buf.ReadBoolean(), buf.ReadBoolean());
 

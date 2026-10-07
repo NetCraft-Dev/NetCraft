@@ -1,11 +1,11 @@
 namespace NetCraft.Game.World.Items;
 
-//VanillaItems 原版 26.2 ITEM 注册表物品名有序清单
-//数据由反射原版客户端 jar 的 BuiltInRegistries.ITEM 导出 id 即网络序号
-//客户端按本地 vanilla ITEM 表解析 ItemStack 序号 顺序错位会显示成别的物品
+//VanillaItems ordered list of item names from the vanilla 26.2 ITEM registry
+//The data is exported by reflecting BuiltInRegistries.ITEM in the vanilla client jar, the id is the network index
+//The client resolves ItemStack indices from its local vanilla ITEM table, a shifted order shows the wrong item
 internal static class VanillaItems
 {
-    //Order id 从 0 起 长度须与原版注册表一致
+    //Order ids start at 0 and the length must match the vanilla registry
     public static readonly string[] Order = new string[]
     {
         "air", "stone", "granite", "polished_granite", "diorite", "polished_diorite", "andesite", "polished_andesite", "deepslate", "cobbled_deepslate",

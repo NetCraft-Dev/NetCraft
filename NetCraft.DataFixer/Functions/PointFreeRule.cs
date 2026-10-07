@@ -7,25 +7,25 @@ using NetCraft.DataFixer.Types.Families;
 using NetCraft.Util;
 using OpticsClass = NetCraft.DataFixer.Optics.Optics;
 
-//PointFreeRule无点函数重写规则对应原版com.mojang.datafixers.functions.PointFreeRule
-//对PointFree应用优化变换
+//PointFreeRule point-free function rewrite rule maps to vanilla com.mojang.datafixers.functions.PointFreeRule
+//applies optimization transforms to PointFree
 public abstract class PointFreeRule
 {
-    //rewrite对PointFree应用规则子类提供
+    //rewrite applies the rule to a PointFree; provided by subclasses
     public abstract Optional<PointFree<T>> Rewrite<T>(PointFree<T> expr);
 
-    //rewriteOrNop应用规则失败返回原表达式
+    //rewriteOrNop applies the rule and returns the original expression on failure
     public PointFree<T> RewriteOrNop<T>(PointFree<T> expr)
         => Rewrite(expr).OrElse(expr);
 
-    //applyIfPresent非空时应用规则
+    //applyIfPresent applies the rule when present
     public Optional<PointFree<T>> ApplyIfPresent<T>(Optional<PointFree<T>> expr)
         => expr.IsPresent ? Rewrite<T>(expr.Get()) : Optional<PointFree<T>>.Empty();
 
-    //view规则名
+    //view rule name
     public abstract string Name();
 
-    //Nop空规则直接返回原表达式
+    //Nop empty rule returns the original expression directly
     public sealed class NopRule : PointFreeRule
     {
         public static readonly NopRule Instance = new();
@@ -37,7 +37,7 @@ public abstract class PointFreeRule
         public override string Name() => "nop";
     }
 
-    //Seq顺序应用多个规则返回最后一个结果
+    //Seq applies multiple rules in order and returns the last result
     public sealed class SeqRule : PointFreeRule
     {
         private readonly PointFreeRule[] _rules;
@@ -62,7 +62,7 @@ public abstract class PointFreeRule
         public override int GetHashCode() => _rules?.GetHashCode() ?? 0;
     }
 
-    //Choice按顺序尝试规则首个命中即返回
+    //Choice tries the rules in order and returns on the first match
     public sealed class ChoiceRule : PointFreeRule
     {
         private readonly PointFreeRule[] _rules;
@@ -90,7 +90,7 @@ public abstract class PointFreeRule
         public override int GetHashCode() => _rules?.GetHashCode() ?? 0;
     }
 
-    //All对全部子项应用规则委托到expr.All
+    //All applies the rule to all children, delegating to expr.All
     public sealed class AllRule : PointFreeRule
     {
         private readonly PointFreeRule _rule;
@@ -102,7 +102,7 @@ public abstract class PointFreeRule
         public override string Name() => "all";
     }
 
-    //One对唯一子项应用规则委托到expr.One
+    //One applies the rule to the single child, delegating to expr.One
     public sealed class OneRule : PointFreeRule
     {
         private readonly PointFreeRule _rule;
@@ -114,7 +114,7 @@ public abstract class PointFreeRule
         public override string Name() => "one";
     }
 
-    //Once先尝试整体重写失败则对子项应用规则一次
+    //Once first tries a whole rewrite; on failure applies the rule once to the children
     public sealed class OnceRule : PointFreeRule
     {
         private readonly PointFreeRule _rule;
@@ -133,7 +133,7 @@ public abstract class PointFreeRule
         public override string Name() => "once";
     }
 
-    //Many反复应用规则直到不再变化
+    //Many repeatedly applies the rule until it stops changing
     public sealed class ManyRule : PointFreeRule
     {
         private readonly PointFreeRule _rule;
@@ -160,7 +160,7 @@ public abstract class PointFreeRule
         public override string Name() => "many";
     }
 
-    //Everywhere先topDown后递归all再bottomUp
+    //Everywhere runs topDown, then recursive all, then bottomUp
     public sealed class EverywhereRule : PointFreeRule
     {
         private readonly PointFreeRule _topDown;
@@ -182,37 +182,37 @@ public abstract class PointFreeRule
         public override string Name() => "everywhere";
     }
 
-    //nop工厂返回NopRule单例
+    //nop factory returns the NopRule singleton
     public static PointFreeRule Nop() => NopRule.Instance;
 
-    //seq顺序组合多个规则
+    //seq composes multiple rules in order
     public static PointFreeRule Seq(params PointFreeRule[] rules) => new SeqRule(rules);
 
-    //choice按序尝试首个命中
+    //choice tries each in order and returns the first match
     public static PointFreeRule Choice(params PointFreeRule[] rules)
     {
         if (rules.Length == 1) return rules[0];
         return new ChoiceRule(rules);
     }
 
-    //all对所有子项应用规则
+    //all applies the rule to all children
     public static PointFreeRule All(PointFreeRule rule) => new AllRule(rule);
 
-    //one对唯一子项应用规则
+    //one applies the rule to the single child
     public static PointFreeRule One(PointFreeRule rule) => new OneRule(rule);
 
-    //once先整体后子项只命中一次
+    //once applies to the whole then the children, matching only once
     public static PointFreeRule Once(PointFreeRule rule) => new OnceRule(rule);
 
-    //many反复应用直到稳定
+    //many applies repeatedly until it stabilizes
     public static PointFreeRule Many(PointFreeRule rule) => new ManyRule(rule);
 
-    //everywhere递归到处应用topDown+bottomUp
+    //everywhere applies recursively via topDown+bottomUp
     public static PointFreeRule Everywhere(PointFreeRule topDown, PointFreeRule bottomUp)
         => new EverywhereRule(topDown, bottomUp);
 
-    //BangEta单元 eta 展开规则对应原版 PointFreeRule.BangEta
-    //Bang 表达式自身不匹配Func<A,EmptyPart> 类型包装为 Bang<A>
+    //BangEta unit eta expansion rule maps to vanilla PointFreeRule.BangEta
+    //a Bang expression itself does not match Func<A,EmptyPart>; wrap the type as Bang<A>
     public sealed class BangEtaRule : PointFreeRule
     {
         public static readonly BangEtaRule Instance = new();
@@ -247,8 +247,8 @@ public abstract class PointFreeRule
         public override string Name() => "bangEta";
     }
 
-    //LensAppId ap lens id 化简为 id 对应原版 PointFreeRule.LensAppId
-    //Apply 的 func 是 ProfunctorTransformer 且 arg 是 Id 时替换为 Functions.Id(first)
+    //LensAppId simplifies ap lens id to id, maps to vanilla PointFreeRule.LensAppId
+    //when Apply's func is a ProfunctorTransformer and arg is Id, replace with Functions.Id(first)
     public sealed class LensAppIdRule : PointFreeRule
     {
         public static readonly LensAppIdRule Instance = new();
@@ -292,9 +292,9 @@ public abstract class PointFreeRule
         public override string Name() => "lensAppId";
     }
 
-    //AppNest ap 嵌套合并规则对应原版 PointFreeRule.AppNest
+    //AppNest ap nesting merge rule maps to vanilla PointFreeRule.AppNest
     //(ap f1 (ap f2 arg)) -> (ap (f1 ◦ f2) arg)
-    //反射判断Apply嵌套两个func都是ProfunctorTransformer时走Cap用optic.Compose否则走Functions.Comp
+    //reflectively detects nested Apply whose two funcs are both ProfunctorTransformer; use Cap with optic.Compose, otherwise Functions.Comp
     public sealed class AppNestRule : PointFreeRule
     {
         public static readonly AppNestRule Instance = new();
@@ -326,7 +326,7 @@ public abstract class PointFreeRule
                 return Optional<PointFree<T>>.Empty();
             }
             var composed = Compose(firstFunc, secondFunc);
-            //直接new Apply跳过反射Invoke运行时类型检查对齐Java类型擦除语义
+            //construct Apply directly to skip the runtime type check of reflective Invoke, aligning with Java type erasure semantics
             var composedObj = composed;
             var composedCast = System.Runtime.CompilerServices.Unsafe.As<object, PointFree<Func<object, T>>>(ref composedObj);
             var secondArgObj = secondArg;
@@ -335,8 +335,8 @@ public abstract class PointFreeRule
             return Optional<PointFree<T>>.Of(result);
         }
 
-        //Compose 合并两个func都是ProfunctorTransformer时走Cap否则走Functions.Comp
-        //用Unsafe.As绕过反射Invoke对PointFree泛型参数的运行时类型检查对齐Java类型擦除语义
+        //Compose merges when both funcs are ProfunctorTransformer; use Cap, otherwise Functions.Comp
+        //use Unsafe.As to bypass the reflective Invoke runtime type check on the PointFree generic parameter, aligning with Java type erasure semantics
         private static object Compose(object first, object second)
         {
             var firstType = first.GetType();
@@ -355,7 +355,7 @@ public abstract class PointFreeRule
             return Functions.Comp<object, object, object>(firstFunc, secondFunc);
         }
 
-        //Cap 通过optic.Compose合并两个ProfunctorTransformer再包装回ProfunctorTransformer
+        //Cap merges two ProfunctorTransformers via optic.Compose and wraps the result back into a ProfunctorTransformer
         private static object Cap(object first, object second)
         {
             var firstOptic = first.GetType().GetProperty("Optic")!.GetValue(first);
@@ -376,16 +376,16 @@ public abstract class PointFreeRule
         public override string Name() => "appNest";
     }
 
-    //CompRewrite 组合重写抽象基类对应原版 PointFreeRule.CompRewrite
-    //对 Comp 的相邻 function 做 DoRewrite 重写子类提供
-    //Rewrite 默认实现处理 Comp 链路用 LinkedList 模拟 ArrayDeque 双向操作
+    //CompRewrite composite rewrite abstract base class maps to vanilla PointFreeRule.CompRewrite
+    //DoRewrite rewrites adjacent functions of a Comp; provided by subclasses
+    //the default Rewrite implementation processes the Comp chain, using LinkedList to emulate ArrayDeque's two-ended operations
     public abstract class CompRewrite : PointFreeRule
     {
         public abstract Optional<PointFree<Func<object, object>>> DoRewrite(
             PointFree<Func<object, object>> first,
             PointFree<Func<object, object>> second);
 
-        //Rewrite 默认实现处理 Comp 数组按序合并相邻function命中则替换回写到队列
+        //the default Rewrite implementation processes the Comp array, merging adjacent functions in order and writing replacements back to the queue
         public override Optional<PointFree<T>> Rewrite<T>(PointFree<T> expr)
         {
             var exprType = expr.GetType();
@@ -393,7 +393,7 @@ public abstract class PointFreeRule
             {
                 return Optional<PointFree<T>>.Empty();
             }
-            //Functions是Comp方法非属性用GetMethod反射调用拿object[]
+            //Functions.Comp is a method, not a property, so use GetMethod reflective invocation to get object[]
             var funcMethod = exprType.GetMethod("Functions")!;
             var functions = (object[])funcMethod.Invoke(expr, null)!;
             var rewriteOpt = RewriteArray(functions);
@@ -408,13 +408,13 @@ public abstract class PointFreeRule
                 var rewriteCast = System.Runtime.CompilerServices.Unsafe.As<object, PointFree<T>>(ref rewriteObj!);
                 return Optional<PointFree<T>>.Of(rewriteCast);
             }
-            //Comp<object,object>继承PointFree<Func<object,object>>对齐原版类型擦除后Comp<?>语义
+            //Comp<object,object> inherits PointFree<Func<object,object>>, aligning with vanilla Comp<?> after type erasure
             var compType = typeof(Comp<,>).MakeGenericType(typeof(object), typeof(object));
-            //Activator.CreateInstance参数需显式包object[]避免rewrite被当params展开
+            //Activator.CreateInstance needs the argument explicitly wrapped in object[], otherwise rewrite is expanded as params
             return Optional<PointFree<T>>.Of((PointFree<T>)Activator.CreateInstance(compType, new object?[] { rewrite, null })!);
         }
 
-        //RewriteArray 用 LinkedList 双向队列处理相邻function命中替换
+        //RewriteArray uses a LinkedList two-ended queue to replace matched adjacent functions
         private Optional<object[]> RewriteArray(object[] functions)
         {
             var result = new LinkedList<object>();
@@ -444,14 +444,14 @@ public abstract class PointFreeRule
                 : Optional<object[]>.Empty();
         }
 
-        //AsPF用Unsafe.As把object当PointFree<Func<object,object>>用对齐Java类型擦除
+        //AsPF uses Unsafe.As to treat object as PointFree<Func<object,object>>, aligning with Java type erasure
         private static PointFree<Func<object, object>> AsPF(object function)
         {
             var obj = function;
             return System.Runtime.CompilerServices.Unsafe.As<object, PointFree<Func<object, object>>>(ref obj);
         }
 
-        //AddFirst Comp 展开逆序加入队列头部其他直接加头部对齐原版 addFirst
+        //AddFirst splices an expanded Comp in reverse at the queue head; others go directly to the head, aligning with vanilla addFirst
         private static void AddFirst(LinkedList<object> queue, object function)
         {
             var funcType = function.GetType();
@@ -474,7 +474,7 @@ public abstract class PointFreeRule
             => new TogetherRule(rules);
     }
 
-    //TogetherRule 多个 CompRewrite 按序尝试首个命中
+    //TogetherRule tries multiple CompRewrites in order and returns the first match
     private sealed class TogetherRule : CompRewrite
     {
         private readonly CompRewrite[] _rules;
@@ -495,9 +495,9 @@ public abstract class PointFreeRule
         public override string Name() => "together";
     }
 
-    //SortProj π1/π2 顺序重排对应原版 PointFreeRule.SortProj
+    //SortProj reorders π1/π2, maps to vanilla PointFreeRule.SortProj
     //(ap π1 f)◦(ap π2 g) -> (ap π2 g)◦(ap π1 f)
-    //first 最外层 optic 是 Proj2 second 最外层 optic 是 Proj1 时交换两者顺序
+    //swap first and second when first's outermost optic is Proj2 and second's is Proj1
     public sealed class SortProjRule : CompRewrite
     {
         public static readonly SortProjRule Instance = new();
@@ -511,9 +511,9 @@ public abstract class PointFreeRule
         public override string Name() => "sortProj";
     }
 
-    //SortInj i1/i2 顺序重排对应原版 PointFreeRule.SortInj
+    //SortInj reorders i1/i2, maps to vanilla PointFreeRule.SortInj
     //(ap i1 f)◦(ap i2 g) -> (ap i2 g)◦(ap i1 f)
-    //first 最外层 optic 是 Inj2 second 最外层 optic 是 Inj1 时交换两者顺序
+    //swap first and second when first's outermost optic is Inj2 and second's is Inj1
     public sealed class SortInjRule : CompRewrite
     {
         public static readonly SortInjRule Instance = new();
@@ -527,10 +527,10 @@ public abstract class PointFreeRule
         public override string Name() => "sortInj";
     }
 
-    //SortOptic 公共交换逻辑供 SortProj/SortInj 复用
-    //用反射拿 Apply.Func/Arg/Type 与 ProfunctorTransformer.Optic
-    //用 CastOuterUncheckedObject 改外层类型 DSL.AndObject/OrObject 构造新外层
-    //用 Unsafe.As 强转构造新 Apply 与 Comp 对齐 Java 类型擦除语义
+    //SortOptic common swap logic reused by SortProj/SortInj
+    //use reflection to get Apply.Func/Arg/Type and ProfunctorTransformer.Optic
+    //use CastOuterUncheckedObject to change the outer type; DSL.AndObject/OrObject builds the new outer type
+    //use Unsafe.As to cast-construct the new Apply and Comp, aligning with Java type erasure semantics
     private static Optional<PointFree<Func<object, object>>> SortOptic(
         PointFree<Func<object, object>> first,
         PointFree<Func<object, object>> second,
@@ -548,15 +548,15 @@ public abstract class PointFreeRule
         if (!firstCheck(firstOuter!)) return Empty;
         if (!secondCheck(secondOuter!)) return Empty;
 
-        //input = secondType.First() (ProductType<A,B> 或 SumType<A,B>)
-        //output = firstType.Second() (ProductType<A2,B2> 或 SumType<A2,B2>)
+        //input = secondType.First() (ProductType<A,B> or SumType<A,B>)
+        //output = firstType.Second() (ProductType<A2,B2> or SumType<A2,B2>)
         var input = secondType!.GetType().GetMethod("First")!.Invoke(secondType, null);
         var output = firstType!.GetType().GetMethod("Second")!.Invoke(firstType, null);
         var inputSecond = input!.GetType().GetMethod("Second")!.Invoke(input, null);
         var outputFirst = output!.GetType().GetMethod("First")!.Invoke(output, null);
 
-        //newOuter = DSL.AndObject/OrObject(outputFirst, inputSecond) 对应 Pair<A2,B> 或 Either<A2,B>
-        //用 object 接收因 OrObject 与 AndObject 返回类型不兼容对齐 Java 类型擦除后 Type<?> 语义
+        //newOuter = DSL.AndObject/OrObject(outputFirst, inputSecond), maps to Pair<A2,B> or Either<A2,B>
+        //receive with object because OrObject and AndObject return incompatible types, aligning with Java type-erasure Type<?> semantics
         object newOuter = isSum
             ? DSL.OrObject(outputFirst!, inputSecond!)
             : DSL.AndObject(outputFirst!, inputSecond!);
@@ -566,18 +566,18 @@ public abstract class PointFreeRule
         //firstFunc.castOuterUnchecked(input, newOuter) -> ProfunctorTransformer<Pair<A,B>, Pair<A2,B>, A, A2>
         var newFirstFunc = firstFunc!.GetType().GetMethod("CastOuterUncheckedObject")!.Invoke(firstFunc, new object[] { input, newOuter });
 
-        //new Apply(newSecondFunc, secondArg) 与 new Apply(newFirstFunc, firstArg)
+        //new Apply(newSecondFunc, secondArg) and new Apply(newFirstFunc, firstArg)
         var secondApply = NewApplyObject(newSecondFunc!, secondArg!);
         var firstApply = NewApplyObject(newFirstFunc!, firstArg!);
 
-        //new Comp(secondApply, firstApply) 复合顺序对应原版 new Comp<>(secondPart, firstPart)
+        //new Comp(secondApply, firstApply) composes in order, maps to vanilla new Comp<>(secondPart, firstPart)
         var comp = NewCompObject(secondApply, firstApply);
         return Optional<PointFree<Func<object, object>>>.Of((PointFree<Func<object, object>>)(object)comp);
     }
 
-    //LensComp lens 复合合并对应原版 PointFreeRule.LensComp
+    //LensComp lens composition merge maps to vanilla PointFreeRule.LensComp
     //(ap lens f)◦(ap lens g) -> (ap lens (f ◦ g))
-    //两个 ProfunctorTransformer 的 optic 有公共前缀时合并前缀与 fork 后段
+    //when two ProfunctorTransformers' optics share a common prefix, merge the prefix and fork the remainder
     public sealed class LensCompRule : CompRewrite
     {
         public static readonly LensCompRule Instance = new();
@@ -592,13 +592,13 @@ public abstract class PointFreeRule
             if (!IsProfunctorTransformer(firstFunc, out var firstOptic)) return Empty;
             if (!IsProfunctorTransformer(secondFunc, out var secondOptic)) return Empty;
 
-            //分解两个 optic 为 Element 列表找公共前缀
+            //decompose both optics into Element lists to find the common prefix
             var firstElements = (System.Collections.IList)firstOptic!.GetType().GetProperty("Elements")!.GetValue(firstOptic)!;
             var secondElements = (System.Collections.IList)secondOptic!.GetType().GetProperty("Elements")!.GetValue(secondOptic)!;
             var prefixSize = FindCommonPrefix(firstElements, secondElements);
             if (prefixSize == 0) return Empty;
 
-            //全等时 capApp(optic, capComp(arg1, arg2)) 直接复合 arg
+            //on full equality capApp(optic, capComp(arg1, arg2)) composes arg directly
             if (prefixSize == firstElements.Count && prefixSize == secondElements.Count)
             {
                 var comp = NewCompObject(firstArg!, secondArg!);
@@ -606,7 +606,7 @@ public abstract class PointFreeRule
                 return Optional<PointFree<Func<object, object>>>.Of(AsPF(appResult));
             }
 
-            //部分前缀 prefix + firstFork + secondFork
+            //partial prefix: prefix + firstFork + secondFork
             var firstBounds = (System.Collections.IEnumerable)firstOptic!.GetType().GetProperty("Bounds")!.GetValue(firstOptic)!;
             var secondBounds = (System.Collections.IEnumerable)secondOptic!.GetType().GetProperty("Bounds")!.GetValue(secondOptic)!;
             var bounds = MergeBounds(firstBounds, secondBounds);
@@ -626,14 +626,14 @@ public abstract class PointFreeRule
             return Optional<PointFree<Func<object, object>>>.Of(AsPF(result));
         }
 
-        //AsPF用Unsafe.As把任意PointFree当PointFree<Func<object,object>>用对齐Java类型擦除
+        //AsPF uses Unsafe.As to treat any PointFree as PointFree<Func<object,object>>, aligning with Java type erasure
         private static PointFree<Func<object, object>> AsPF(object function)
         {
             var obj = function;
             return System.Runtime.CompilerServices.Unsafe.As<object, PointFree<Func<object, object>>>(ref obj);
         }
 
-        //FindCommonPrefix 找两个 Element 列表中 optic 相同的最长前缀长度
+        //FindCommonPrefix finds the longest prefix length where the optics match in two Element lists
         private static int FindCommonPrefix(System.Collections.IList first, System.Collections.IList second)
         {
             var size = Math.Min(first.Count, second.Count);
@@ -648,7 +648,7 @@ public abstract class PointFreeRule
             return size;
         }
 
-        //SubList 取 IList 中 [start, start+count) 的元素构造新 List<object>
+        //SubList takes elements [start, start+count) from an IList and builds a new List<object>
         private static List<object> SubList(System.Collections.IList source, int start, int count)
         {
             var result = new List<object>(count);
@@ -656,7 +656,7 @@ public abstract class PointFreeRule
             return result;
         }
 
-        //MergeBounds 合并两个 bounds 序列为 HashSet<object>
+        //MergeBounds merges two bounds sequences into a HashSet<object>
         private static HashSet<object> MergeBounds(System.Collections.IEnumerable first, System.Collections.IEnumerable second)
         {
             var set = new HashSet<object>();
@@ -665,8 +665,8 @@ public abstract class PointFreeRule
             return set;
         }
 
-        //CapApp optic 为空时直接返回 f 否则构造 ProfunctorTransformer + Apply
-        //对应原版 capApp new ProfunctorTransformer<>(optic).app(f)
+        //CapApp returns f directly when optic is empty, otherwise builds ProfunctorTransformer + Apply
+        //maps to vanilla capApp new ProfunctorTransformer<>(optic).app(f)
         private static object CapApp(object optic, object arg)
         {
             var elements = (System.Collections.IList)optic.GetType().GetProperty("Elements")!.GetValue(optic)!;
@@ -675,7 +675,7 @@ public abstract class PointFreeRule
             return NewApplyObject(pt, arg);
         }
 
-        //NewTypedOptic 用反射构造 TypedOptic<object,object,object,object>(bounds, elements)
+        //NewTypedOptic reflectively constructs TypedOptic<object,object,object,object>(bounds, elements)
         private static object NewTypedOptic(HashSet<object> bounds, List<object> elements)
         {
             var typedOpticType = typeof(TypedOptic<,,,>)
@@ -683,7 +683,7 @@ public abstract class PointFreeRule
             return Activator.CreateInstance(typedOpticType, bounds, elements)!;
         }
 
-        //NewProfunctorTransformer直接new避免Activator按运行时类型查构造函数失败
+        //NewProfunctorTransformer uses new directly, avoiding Activator failing to find the constructor by runtime type
         private static object NewProfunctorTransformer(object optic)
         {
             var opticObj = optic;
@@ -694,8 +694,8 @@ public abstract class PointFreeRule
         public override string Name() => "lensComp";
     }
 
-    //TryGetApplyFuncArg 从 PointFree 拿 Apply.Func/Arg/Type 三元组
-    //非 Apply 或 Func/Arg 为 null 时返回 false
+    //TryGetApplyFuncArg gets the Apply.Func/Arg/Type triple from a PointFree
+    //returns false when not an Apply or when Func/Arg is null
     private static bool TryGetApplyFuncArg(
         PointFree<Func<object, object>> expr,
         out object func, out object arg, out object type)
@@ -709,7 +709,7 @@ public abstract class PointFreeRule
         return func is not null && arg is not null;
     }
 
-    //IsProfunctorTransformer 检查 func 是否是 ProfunctorTransformer<,,,> 并输出其 Optic 属性
+    //IsProfunctorTransformer checks whether func is a ProfunctorTransformer<,,,> and outputs its Optic property
     private static bool IsProfunctorTransformer(object func, out object optic)
     {
         optic = null!;
@@ -719,7 +719,7 @@ public abstract class PointFreeRule
         return optic is not null;
     }
 
-    //NewApplyObject 用 Unsafe.As 强转构造 Apply<object,object> 对齐 Java 类型擦除
+    //NewApplyObject uses Unsafe.As to cast-construct Apply<object,object>, aligning with Java type erasure
     private static object NewApplyObject(object func, object arg)
     {
         var funcObj = func;
@@ -729,7 +729,7 @@ public abstract class PointFreeRule
         return new Apply<object, object>(funcCast, argCast);
     }
 
-    //NewCompObject 用 Functions.Comp<object,object,object> 构造复合函数
+    //NewCompObject builds a composite function via Functions.Comp<object,object,object>
     private static object NewCompObject(object first, object second)
     {
         var firstObj = first;
@@ -742,9 +742,9 @@ public abstract class PointFreeRule
     private static Optional<PointFree<Func<object, object>>> Empty
         => Optional<PointFree<Func<object, object>>>.Empty();
 
-    //CataFuseSame 相同 fold 融合对应原版 PointFreeRule.CataFuseSame
+    //CataFuseSame fuses identical folds, maps to vanilla PointFreeRule.CataFuseSame
     //(fold g ◦ in) ◦ fold (f ◦ in) -> fold (g ◦ f ◦ in)
-    //要求 firstFold 与 secondFold 同 family 同 index 且每个 index 最多一处同时修改
+    //requires firstFold and secondFold to share the same family and index, and at most one modification per index
     public sealed class CataFuseSameRule : CompRewrite
     {
         public static readonly CataFuseSameRule Instance = new();
@@ -791,7 +791,7 @@ public abstract class PointFreeRule
             return Optional<PointFree<Func<object, object>>>.Of((PointFree<Func<object, object>>)(object)function);
         }
 
-        //GetCompose firstAlgFunc.Compose(secondAlgFunc) 把 second 输出接 first 输入对齐原版
+        //GetCompose firstAlgFunc.Compose(secondAlgFunc) connects second's output to first's input, aligning with vanilla
         private static RewriteResult<object, object> GetCompose(
             RewriteResult<object, object> firstAlgFunc,
             RewriteResult<object, object> secondAlgFunc)
@@ -800,9 +800,9 @@ public abstract class PointFreeRule
         public override string Name() => "cataFuseSame";
     }
 
-    //CataFuseDifferent 不同 fold 融合对应原版 PointFreeRule.CataFuseDifferent
+    //CataFuseDifferent fuses different folds, maps to vanilla PointFreeRule.CataFuseDifferent
     //(fold g ◦ in) ◦ fold (f ◦ in) -> fold (g ◦ f ◦ in)
-    //要求两个 fold 不修改同一 index 且 recData 不相交
+    //requires the two folds not to modify the same index and their recData to be disjoint
     public sealed class CataFuseDifferentRule : CompRewrite
     {
         public static readonly CataFuseDifferentRule Instance = new();
@@ -863,27 +863,27 @@ public abstract class PointFreeRule
         public override string Name() => "cataFuseDifferent";
     }
 
-    //BangEta 工厂返回单例
+    //BangEta factory returns the singleton
     public static PointFreeRule BangEta() => BangEtaRule.Instance;
 
-    //LensAppId 工厂返回单例
+    //LensAppId factory returns the singleton
     public static PointFreeRule LensAppId() => LensAppIdRule.Instance;
 
-    //AppNest 工厂返回单例占位
+    //AppNest factory returns a singleton placeholder
     public static PointFreeRule AppNest() => AppNestRule.Instance;
 
-    //SortProj 工厂返回单例占位
+    //SortProj factory returns a singleton placeholder
     public static CompRewrite SortProj() => SortProjRule.Instance;
 
-    //SortInj 工厂返回单例占位
+    //SortInj factory returns a singleton placeholder
     public static CompRewrite SortInj() => SortInjRule.Instance;
 
-    //LensComp 工厂返回单例占位
+    //LensComp factory returns a singleton placeholder
     public static CompRewrite LensComp() => LensCompRule.Instance;
 
-    //CataFuseSame 工厂返回单例占位
+    //CataFuseSame factory returns a singleton placeholder
     public static CompRewrite CataFuseSame() => CataFuseSameRule.Instance;
 
-    //CataFuseDifferent 工厂返回单例占位
+    //CataFuseDifferent factory returns a singleton placeholder
     public static CompRewrite CataFuseDifferent() => CataFuseDifferentRule.Instance;
 }

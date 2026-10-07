@@ -3,12 +3,12 @@ using Silk.NET.Vulkan;
 
 namespace NetCraft.Gpu.Vulkan;
 
-//ClearColorValue 浮点 RGBA 清屏色
+//ClearColorValue float RGBA clear color
 public readonly record struct ClearColorValueRGBA(float R, float G, float B, float A);
 
-//VulkanRenderPipeline Vulkan 后端渲染管线
-//4.3 改造移除传统 RenderPass 改走 dynamic rendering pipeline 创建用 PipelineRenderingCreateInfoKHR PNext 链
-//附件 ImageView 由 VulkanRenderPass(Vulkan IRenderPass 实现) 在 CmdBeginRenderingKHR 时传入
+//VulkanRenderPipeline Vulkan backend render pipeline
+//4.3 rework removes the traditional RenderPass and uses dynamic rendering; pipeline creation uses the PipelineRenderingCreateInfoKHR PNext chain
+//The attachment ImageView is passed by VulkanRenderPass (the Vulkan IRenderPass implementation) at CmdBeginRenderingKHR
 public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
 {
     private readonly Vk _vk;
@@ -24,7 +24,7 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
     public Silk.NET.Vulkan.Pipeline Pipeline => _pipeline;
     public PipelineLayout PipelineLayout => _pipelineLayout;
     public Extent2D Extent => _extent;
-    //ColorFormat 颜色附件格式供 VulkanRenderPass 构造 RenderingAttachmentInfoKHR 用
+    //ColorFormat color attachment format for VulkanRenderPass to build RenderingAttachmentInfoKHR
     public Format ColorFormat => _colorFormat;
     public ClearColorValueRGBA ClearColor { get; set; }
 
@@ -48,7 +48,7 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
         _pipeline = CreateGraphicsPipeline(description);
     }
 
-    //FromDescription 从 description 创建管线目标格式和 extent 从 description 取默认 B8G8R8A8Unorm/800x600
+    //FromDescription creates the pipeline from the description; the target format and extent default to B8G8R8A8Unorm/800x600
     public static VulkanRenderPipeline FromDescription(VulkanGpuDevice device, RenderPipelineDescription description)
     {
         var fmt = description.TargetFormat ?? GpuImageFormat.B8G8R8A8Unorm;
@@ -73,14 +73,14 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
             ShaderModule module;
             if (_vk.CreateShaderModule(_device, &createInfo, null, &module) != Result.Success)
             {
-                throw new InvalidOperationException("ShaderModule 创建失败");
+                throw new InvalidOperationException("ShaderModule creation failed");
             }
             return module;
         }
     }
 
-    //CreatePipelineLayout 从 description.DescriptorLayouts 取 VkDescriptorSetLayout 数组创建 PipelineLayout
-    //空列表时 SetLayoutCount=0 仍创建空 layout 供纯 gl_VertexIndex shader 用
+    //CreatePipelineLayout takes the VkDescriptorSetLayout array from description.DescriptorLayouts to create a PipelineLayout
+    //With an empty list SetLayoutCount=0 and an empty layout is still created for pure gl_VertexIndex shaders
     private PipelineLayout CreatePipelineLayout(RenderPipelineDescription description)
     {
         var layouts = description.DescriptorLayouts;
@@ -88,7 +88,7 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
         for (int i = 0; i < layouts.Count; i++)
         {
             if (layouts[i] is not VulkanDescriptorLayout vkLayout)
-                throw new ArgumentException("DescriptorLayout 必须是 VulkanDescriptorLayout");
+                throw new ArgumentException("DescriptorLayout must be a VulkanDescriptorLayout");
             layoutHandles[i] = vkLayout.Handle;
         }
         fixed (DescriptorSetLayout* p = layoutHandles)
@@ -103,7 +103,7 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
             PipelineLayout layout;
             if (_vk.CreatePipelineLayout(_device, &layoutInfo, null, &layout) != Result.Success)
             {
-                throw new InvalidOperationException("PipelineLayout 创建失败");
+                throw new InvalidOperationException("PipelineLayout creation failed");
             }
             return layout;
         }
@@ -129,8 +129,8 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
         shaderStages[0] = vertStage;
         shaderStages[1] = fragStage;
 
-        //顶点输入布局从 description.VertexBindings 构建
-        //Silk.NET 的 VertexInputBindingDescription 含 managed 字段无法 stackalloc T* 用 array + fixed
+        //The vertex input layout is built from description.VertexBindings
+        //Silk.NET's VertexInputBindingDescription has managed fields so stackalloc T* is impossible; array + fixed is used
         var bindings = description.VertexBindings;
         var bindingDescsArray = new VertexInputBindingDescription[bindings.Count];
         var attrDescsList = new List<VertexInputAttributeDescription>();
@@ -177,7 +177,7 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
             ViewportCount = 1,
             PViewports = &viewport,
             ScissorCount = 1,
-            //DynamicScissorEnabled 时 scissor 由 vkCmdSetScissor 动态提供 PScissors 置 null
+            //With DynamicScissorEnabled the scissor is provided dynamically by vkCmdSetScissor and PScissors is null
             PScissors = description.DynamicScissorEnabled ? null : &scissor
         };
         var rasterizer = new PipelineRasterizationStateCreateInfo
@@ -224,9 +224,9 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
         colorBlending.BlendConstants[2] = 0.0f;
         colorBlending.BlendConstants[3] = 0.0f;
 
-        //depthTest=true 时启用深度测试和写入深度比较函数从 description 读不再硬编码
-        //DepthStencilState.DEFAULT 用 GreaterOrEqual 配合 reversed-Z clearDepth=0 但 Vulkan 标准 [0,1] Less+clearDepth=1
-        //当前 Camera 投影用标准 Vulkan 深度 Less 匹配 terrain pipeline 用 GreaterOrEqual 匹配实体 pipeline
+        //With depthTest=true depth test and write are enabled; the compare function is read from the description instead of hardcoded
+        //DepthStencilState.DEFAULT uses GreaterOrEqual with reversed-Z clearDepth=0, but standard Vulkan [0,1] uses Less+clearDepth=1
+        //The current Camera projection uses standard Vulkan depth Less, matching terrain pipelines; entity pipelines match with GreaterOrEqual
         var depthStencil = new PipelineDepthStencilStateCreateInfo
         {
             SType = StructureType.PipelineDepthStencilStateCreateInfo,
@@ -251,8 +251,8 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
                 VertexAttributeDescriptionCount = (uint)attrDescsList.Count,
                 PVertexAttributeDescriptions = attrDescs
             };
-            //PipelineRenderingCreateInfoKHR 4.3 改造走 dynamic rendering pipeline 创建
-            //RenderPass=null 时驱动按此结构附件格式创建 pipeline 兼容 CmdBeginRenderingKHR
+            //PipelineRenderingCreateInfoKHR 4.3 rework for dynamic rendering pipeline creation
+            //With RenderPass=null the driver creates the pipeline from this struct's attachment format, compatible with CmdBeginRenderingKHR
             var colorFormat = _colorFormat;
             var renderingInfo = new PipelineRenderingCreateInfoKHR
             {
@@ -276,13 +276,13 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
                 PDepthStencilState = &depthStencil,
                 PColorBlendState = &colorBlending,
                 Layout = _pipelineLayout,
-                //RenderPass=null 走 dynamic rendering 路径 PNext 链提供 PipelineRenderingCreateInfoKHR
+                //RenderPass=null takes the dynamic rendering path with the PNext chain providing PipelineRenderingCreateInfoKHR
                 RenderPass = default,
                 Subpass = 0,
                 BasePipelineHandle = default
             };
-            //DynamicScissorEnabled 启用 VK_DYNAMIC_STATE_SCISSOR 运行时 vkCmdSetScissor 设置裁剪
-            //dynamicStates/dynamicStateInfo 在 fixed 块顶层 stackalloc 作用域覆盖 CreateGraphicsPipelines 调用
+            //DynamicScissorEnabled enables VK_DYNAMIC_STATE_SCISSOR, setting the scissor at runtime with vkCmdSetScissor
+            //dynamicStates/dynamicStateInfo are stackalloc'd at the top of the fixed block with a scope covering the CreateGraphicsPipelines call
             var dynamicStates = stackalloc DynamicState[1];
             dynamicStates[0] = DynamicState.Scissor;
             var dynamicStateInfo = new PipelineDynamicStateCreateInfo
@@ -297,7 +297,7 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
             }
             if (_vk.CreateGraphicsPipelines(_device, default, 1, &pipelineInfo, null, &pipeline) != Result.Success)
             {
-                throw new InvalidOperationException("GraphicsPipeline 创建失败");
+                throw new InvalidOperationException("GraphicsPipeline creation failed");
             }
         }
         SilkMarshal.Free((nint)vertStage.PName);
@@ -334,7 +334,7 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
         _ => throw new ArgumentOutOfRangeException(nameof(topo))
     };
 
-    //ToVkCompareOp 把 NetCraft.Gpu.Pipeline.CompareOp 映射到 Silk.NET.Vulkan.CompareOp
+    //ToVkCompareOp maps NetCraft.Gpu.Pipeline.CompareOp to Silk.NET.Vulkan.CompareOp
     private static Silk.NET.Vulkan.CompareOp ToVkCompareOp(NetCraft.Gpu.Pipeline.CompareOp op) => op switch
     {
         NetCraft.Gpu.Pipeline.CompareOp.Never => Silk.NET.Vulkan.CompareOp.Never,
@@ -353,7 +353,7 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
         if (_disposed) return;
         _vk.DestroyPipeline(_device, _pipeline, null);
         _vk.DestroyPipelineLayout(_device, _pipelineLayout, null);
-        //4.3 改造移除传统 RenderPass 不再 DestroyRenderPass
+        //4.3 rework removes the traditional RenderPass and no longer DestroyRenderPass
         _vk.DestroyShaderModule(_device, _fragModule, null);
         _vk.DestroyShaderModule(_device, _vertModule, null);
         _disposed = true;

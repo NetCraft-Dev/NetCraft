@@ -3,17 +3,17 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.World.Crafting;
 
-//ShapedRecipePattern 有序配方图案对应原版 ShapedRecipePattern
-//把 key/pattern 展开成宽高加原料表 空格记 null 匹配时按最小包围盒比对 必要时试一次左右翻转
+//ShapedRecipePattern shaped recipe pattern, maps to vanilla ShapedRecipePattern
+//Expands key/pattern into width, height and an ingredient table, spaces record null; matching compares against the minimal bounding box and tries one horizontal mirror when needed
 public sealed class ShapedRecipePattern
 {
-    //MaxSize 图案最大边长 对应原版 MAX_SIZE
+    //MaxSize maximum pattern side length, maps to vanilla MAX_SIZE
     public const int MaxSize = 3;
 
-    //EmptySlot 图案里的空格 对应原版 EMPTY_SLOT
+    //EmptySlot a space in the pattern, maps to vanilla EMPTY_SLOT
     public const char EmptySlot = ' ';
 
-    //Codec 图案 JSON 形态 形如 {"key":{"A":"minecraft:stick"},"pattern":["A ","AA"]}
+    //Codec pattern JSON form, like {"key":{"A":"minecraft:stick"},"pattern":["A ","AA"]}
     public static readonly Codec<ShapedRecipePattern> Codec = new ShapedRecipePatternCodec();
 
     private readonly Ingredient?[] _ingredients;
@@ -35,15 +35,15 @@ public sealed class ShapedRecipePattern
         _symmetrical = IsSymmetrical(width, height, _ingredients);
     }
 
-    //Width/Height 图案宽高
+    //Width/Height pattern width and height
     public int Width { get; }
     public int Height { get; }
 
-    //Ingredients 线性排列的原料 null 表示该格必须为空
+    //Ingredients linearly arranged ingredients, null means the slot must be empty
     public IReadOnlyList<Ingredient?> Ingredients => _ingredients;
 
-    //Matches 输入网格是否命中该图案 对应原版 matches
-    //先比非空格数再比宽高 最后逐格比原料 左右对称的图案不必试翻转
+    //Matches whether the input grid hits this pattern, maps to vanilla matches
+    //Compares the non-empty slot count then the width and height, finally the ingredients slot by slot; symmetric patterns skip the mirror attempt
     public bool Matches(CraftingInput input)
     {
         if (input.IngredientCount != _ingredientCount) return false;
@@ -65,11 +65,11 @@ public sealed class ShapedRecipePattern
         return true;
     }
 
-    //TestSlot 空位要求输入为空 非空位要求原料命中
+    //TestSlot an empty position requires the input to be empty, a filled one requires the ingredient to match
     private static bool TestSlot(Ingredient? ingredient, ItemStack stack)
         => ingredient is null ? stack.IsEmpty() : ingredient.Matches(stack);
 
-    //IsSymmetrical 图案左右翻转后是否一样 一样就没必要再试翻转 对应原版 Util.isSymmetrical
+    //IsSymmetrical whether the pattern is the same after a horizontal mirror; if so the mirror attempt is unnecessary, maps to vanilla Util.isSymmetrical
     private static bool IsSymmetrical(int width, int height, IReadOnlyList<Ingredient?> ingredients)
     {
         if (width == 1) return true;
@@ -84,13 +84,13 @@ public sealed class ShapedRecipePattern
         return true;
     }
 
-    //Unpack 把 key 与 pattern 展开成图案 对应原版 ShapedRecipePattern.unpack
-    //图案先裁掉四周空行空列 key 里定义了却没被图案用到的符号视为错误
+    //Unpack expands key and pattern into the pattern, maps to vanilla ShapedRecipePattern.unpack
+    //The pattern is first trimmed of empty rows and columns; symbols defined in key but unused by the pattern are an error
     public static NetCraft.Codec.DataResult<ShapedRecipePattern> Unpack(PatternData data)
     {
         var shrunk = Shrink(data.Pattern);
         if (shrunk.Length == 0)
-            return NetCraft.Codec.DataResult<ShapedRecipePattern>.Error(() => "配方图案不合法: 图案全是空行");
+            return NetCraft.Codec.DataResult<ShapedRecipePattern>.Error(() => "invalid recipe pattern: the pattern is all empty rows");
         var width = shrunk[0].Length;
         var height = shrunk.Length;
         var ingredients = new List<Ingredient?>(width * height);
@@ -106,18 +106,18 @@ public sealed class ShapedRecipePattern
                 }
                 if (!data.Key.TryGetValue(symbol, out var ingredient))
                     return NetCraft.Codec.DataResult<ShapedRecipePattern>.Error(
-                        () => $"配方图案用到符号 '{symbol}' 但 key 里没有定义");
+                        () => $"recipe pattern uses symbol '{symbol}' which is not defined in key");
                 ingredients.Add(ingredient);
                 unusedSymbols.Remove(symbol);
             }
         if (unusedSymbols.Count > 0)
             return NetCraft.Codec.DataResult<ShapedRecipePattern>.Error(
-                () => $"配方 key 定义了图案没用到的符号: {string.Join(",", unusedSymbols)}");
+                () => $"recipe key defines symbols unused by the pattern: {string.Join(",", unusedSymbols)}");
         return NetCraft.Codec.DataResult<ShapedRecipePattern>.Success(new ShapedRecipePattern(width, height, ingredients));
     }
 
-    //Shrink 裁掉图案四周的空行空列 对应原版 ShapedRecipePattern.shrink
-    //全空行不参与包围盒 顶部与底部的空行整体去掉 左右按最宽范围对齐
+    //Shrink trims the empty rows and columns around the pattern, maps to vanilla ShapedRecipePattern.shrink
+    //All-empty rows do not participate in the bounding box; leading and trailing empty rows are dropped and the sides align to the widest range
     public static string[] Shrink(IReadOnlyList<string> pattern)
     {
         var left = int.MaxValue;
@@ -159,12 +159,12 @@ public sealed class ShapedRecipePattern
         return index;
     }
 
-    //PatternData 图案原始数据对应原版 ShapedRecipePattern.Data
+    //PatternData raw pattern data, maps to vanilla ShapedRecipePattern.Data
     public sealed record PatternData(IReadOnlyDictionary<char, Ingredient> Key, IReadOnlyList<string> Pattern);
 }
 
-//ShapedRecipePatternCodec 图案编解码对应原版 ShapedRecipePattern.MAP_CODEC
-//字段 key 是符号到原料的对象 pattern 是字符串数组 校验规则与 Data.PATTERN_CODEC 一致
+//ShapedRecipePatternCodec pattern codec, maps to vanilla ShapedRecipePattern.MAP_CODEC
+//The key field is an object from symbol to ingredient and pattern is a string array, validation matches Data.PATTERN_CODEC
 internal sealed class ShapedRecipePatternCodec : ScalarCodec<ShapedRecipePattern>
 {
     public override DataResult<ShapedRecipePattern> Parse<U>(DynamicOps<U> ops, U input)
@@ -174,69 +174,69 @@ internal sealed class ShapedRecipePatternCodec : ScalarCodec<ShapedRecipePattern
     {
         var keyField = map.Get("key");
         if (!keyField.IsPresent)
-            return DataResult<ShapedRecipePattern>.Error(() => "配方缺 key 字段");
+            return DataResult<ShapedRecipePattern>.Error(() => "recipe is missing the key field");
         var patternField = map.Get("pattern");
         if (!patternField.IsPresent)
-            return DataResult<ShapedRecipePattern>.Error(() => "配方缺 pattern 字段");
+            return DataResult<ShapedRecipePattern>.Error(() => "recipe is missing the pattern field");
 
         return ParseKey(ops, keyField.Get()).FlatMap(key =>
             ParsePattern(ops, patternField.Get()).FlatMap(pattern =>
                 ShapedRecipePattern.Unpack(new ShapedRecipePattern.PatternData(key, pattern))));
     }
 
-    //ParseKey 解析符号到原料的映射 符号必须是单字符且不能用空格
+    //ParseKey parses the symbol-to-ingredient map, symbols must be a single character and cannot be a space
     private static DataResult<IReadOnlyDictionary<char, Ingredient>> ParseKey<U>(DynamicOps<U> ops, U node)
     {
         var values = ops.GetMapValues(node);
         if (!values.Result().IsPresent)
-            return DataResult<IReadOnlyDictionary<char, Ingredient>>.Error(() => "配方 key 必须是对象");
+            return DataResult<IReadOnlyDictionary<char, Ingredient>>.Error(() => "recipe key must be an object");
         var key = new Dictionary<char, Ingredient>();
         foreach (var pair in values.GetOrThrow())
         {
             var symbolResult = ops.GetStringValue(pair.First);
             if (!symbolResult.Result().IsPresent)
-                return DataResult<IReadOnlyDictionary<char, Ingredient>>.Error(() => "配方 key 的符号必须是字符串");
+                return DataResult<IReadOnlyDictionary<char, Ingredient>>.Error(() => "recipe key symbols must be strings");
             var symbol = symbolResult.GetOrThrow();
             if (symbol.Length != 1)
                 return DataResult<IReadOnlyDictionary<char, Ingredient>>.Error(
-                    () => $"配方 key 的符号必须只有一个字符: '{symbol}'");
+                    () => $"a recipe key symbol must be exactly one character: '{symbol}'");
             if (symbol[0] == ShapedRecipePattern.EmptySlot)
-                return DataResult<IReadOnlyDictionary<char, Ingredient>>.Error(() => "配方 key 不能用空格作符号");
+                return DataResult<IReadOnlyDictionary<char, Ingredient>>.Error(() => "recipe key cannot use a space as a symbol");
             var ingredientResult = Ingredient.Codec.Parse(ops, pair.Second);
             if (!ingredientResult.Result().IsPresent)
                 return DataResult<IReadOnlyDictionary<char, Ingredient>>.Error(
-                    () => $"配方 key 的符号 '{symbol}' 原料不合法: {ingredientResult.Result().ToString()}");
+                    () => $"invalid ingredient for recipe key symbol '{symbol}': {ingredientResult.Result().ToString()}");
             key[symbol[0]] = ingredientResult.GetOrThrow();
         }
         return DataResult<IReadOnlyDictionary<char, Ingredient>>.Success(key);
     }
 
-    //ParsePattern 解析图案数组 最多 3 行 每行等宽且不超过 3 列
+    //ParsePattern parses the pattern array, at most 3 rows, each of equal width and no more than 3 columns
     private static DataResult<IReadOnlyList<string>> ParsePattern<U>(DynamicOps<U> ops, U node)
     {
         var stream = ops.GetStream(node);
         if (!stream.Result().IsPresent)
-            return DataResult<IReadOnlyList<string>>.Error(() => "配方 pattern 必须是字符串数组");
+            return DataResult<IReadOnlyList<string>>.Error(() => "recipe pattern must be a string array");
         var lines = new List<string>();
         foreach (var element in stream.GetOrThrow())
         {
             var lineResult = ops.GetStringValue(element);
             if (!lineResult.Result().IsPresent)
-                return DataResult<IReadOnlyList<string>>.Error(() => "配方 pattern 的每一项都必须是字符串");
+                return DataResult<IReadOnlyList<string>>.Error(() => "every recipe pattern entry must be a string");
             lines.Add(lineResult.GetOrThrow());
         }
-        if (lines.Count == 0) return DataResult<IReadOnlyList<string>>.Error(() => "配方 pattern 不能为空");
+        if (lines.Count == 0) return DataResult<IReadOnlyList<string>>.Error(() => "recipe pattern cannot be empty");
         if (lines.Count > ShapedRecipePattern.MaxSize)
             return DataResult<IReadOnlyList<string>>.Error(
-                () => $"配方 pattern 最多 {ShapedRecipePattern.MaxSize} 行");
+                () => $"recipe pattern has at most {ShapedRecipePattern.MaxSize} rows");
         var firstLength = lines[0].Length;
         foreach (var line in lines)
         {
             if (line.Length > ShapedRecipePattern.MaxSize)
                 return DataResult<IReadOnlyList<string>>.Error(
-                    () => $"配方 pattern 每行最多 {ShapedRecipePattern.MaxSize} 列");
+                    () => $"each recipe pattern row has at most {ShapedRecipePattern.MaxSize} columns");
             if (line.Length != firstLength)
-                return DataResult<IReadOnlyList<string>>.Error(() => "配方 pattern 每行必须等宽");
+                return DataResult<IReadOnlyList<string>>.Error(() => "every recipe pattern row must have the same width");
         }
         return DataResult<IReadOnlyList<string>>.Success(lines);
     }

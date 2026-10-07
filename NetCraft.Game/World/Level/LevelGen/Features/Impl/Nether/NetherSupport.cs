@@ -7,46 +7,46 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Nether;
 
-//NetherSupport 下界与末地特征共用的方块获取 位置遍历与高度工具
+//NetherSupport shared block access, position traversal and height tools for nether and end features
 internal static class NetherSupport
 {
-    //NyliumTag 菌岩标签 对应原版 BlockTags.NYLIUM
+    //NyliumTag nylium tag, maps to vanilla BlockTags.NYLIUM
     public static readonly TagKey<RegBlock> NyliumTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("nylium"));
 
-    //SupportsChorusPlantTag 可支撑紫颂植株的方块标签 对应原版 BlockTags.SUPPORTS_CHORUS_PLANT
+    //SupportsChorusPlantTag tag of blocks that support chorus plants, maps to vanilla BlockTags.SUPPORTS_CHORUS_PLANT
     public static readonly TagKey<RegBlock> SupportsChorusPlantTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("supports_chorus_plant"));
 
-    //SupportsChorusFlowerTag 可支撑紫颂花的方块标签 对应原版 BlockTags.SUPPORTS_CHORUS_FLOWER
+    //SupportsChorusFlowerTag tag of blocks that support chorus flowers, maps to vanilla BlockTags.SUPPORTS_CHORUS_FLOWER
     public static readonly TagKey<RegBlock> SupportsChorusFlowerTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("supports_chorus_flower"));
 
-    //State 按注册名取方块默认状态 方块表里没有该方块时退回空气
+    //State default block state by registry name; falls back to air when the block is missing
     public static BlockState State(string path)
         => BuiltInRegistries.BLOCK.GetValue(Identifier.WithDefaultNamespace(path))?.DefaultBlockState
             ?? Blocks.AIR.DefaultBlockState;
 
-    //Block 按注册名取方块 未注册时退回空气
+    //Block fetch a block by registry name; falls back to air when unregistered
     public static RegBlock Block(string path)
         => BuiltInRegistries.BLOCK.GetValue(Identifier.WithDefaultNamespace(path)) ?? Blocks.AIR;
 
-    //GetBlockState 按位置取方块状态
+    //GetBlockState fetch the block state at the position
     public static BlockState GetBlockState(WorldGenRegion level, BlockPos pos)
         => level.GetBlockState(pos.X, pos.Y, pos.Z);
 
-    //IsAir 该位置是否为空 对应原版 isEmptyBlock
+    //IsAir whether the position is air, maps to vanilla isEmptyBlock
     public static bool IsAir(WorldGenRegion level, BlockPos pos) => GetBlockState(level, pos).Owner.IsAir;
 
-    //IsBlock 该位置是否为指定方块 对应原版 BlockState.is(Block)
+    //IsBlock whether the position is the given block, maps to vanilla BlockState.is(Block)
     public static bool IsBlock(WorldGenRegion level, BlockPos pos, RegBlock block)
         => GetBlockState(level, pos).Owner == block;
 
-    //MatchesTag 该位置方块是否属于标签 标签未装载时按不匹配处理
+    //MatchesTag whether the block at the position is in the tag; treat an unloaded tag as no match
     public static bool MatchesTag(WorldGenRegion level, BlockPos pos, TagKey<RegBlock> tag)
         => StateMatchesTag(GetBlockState(level, pos), tag);
 
-    //StateMatchesTag 该状态所属方块是否属于标签 标签未装载时按不匹配处理
+    //StateMatchesTag whether the state's block is in the tag; treat an unloaded tag as no match
     public static bool StateMatchesTag(BlockState state, TagKey<RegBlock> tag)
     {
         var set = BuiltInRegistries.BLOCK.Get(tag);
@@ -54,42 +54,42 @@ internal static class NetherSupport
             && set.Contains(BuiltInRegistries.BLOCK.WrapAsHolder(state.Owner));
     }
 
-    //CanBeReplaced 该状态能否被替换 对应原版 BlockState.canBeReplaced
+    //CanBeReplaced whether the state can be replaced, maps to vanilla BlockState.canBeReplaced
     public static bool CanBeReplaced(BlockState state)
         => state.Owner is BlockBehaviour behaviour && behaviour.CanBeReplaced;
 
-    //CanSurvive 该状态能否留在原位 对应原版 canSurvive 未接入服务端世界时按可存活处理
+    //CanSurvive whether the state can stay in place, maps to vanilla canSurvive; treated as surviving while no server world is wired up
     public static bool CanSurvive(WorldGenRegion level, BlockPos pos, BlockState state)
         => level.Level is not { } server
             || state.Owner is not BlockBehaviour behaviour
             || behaviour.CanSurvive(server, pos, state);
 
-    //MinY 可生成范围最低 Y 对应原版 getMinY
+    //MinY lowest Y of the generation range, maps to vanilla getMinY
     public static int MinY(WorldGenRegion level) => level.MinSectionY * 16;
 
-    //MaxBuildHeight 可生成范围的开区间上界 对应原版 getMaxBuildHeight
+    //MaxBuildHeight exclusive upper bound of the generation range, maps to vanilla getMaxBuildHeight
     public static int MaxBuildHeight(WorldGenRegion level) => (level.MaxSectionY + 1) * 16;
 
-    //MaxY 可生成范围最高 Y 包含式 对应原版 getMaxY
+    //MaxY highest Y of the generation range, inclusive, maps to vanilla getMaxY
     public static int MaxY(WorldGenRegion level) => MaxBuildHeight(level) - 1;
 
-    //IsOutsideBuildHeight 该 Y 是否越出可生成范围 对应原版 isOutsideBuildHeight
+    //IsOutsideBuildHeight whether the Y is outside the generation range, maps to vanilla isOutsideBuildHeight
     public static bool IsOutsideBuildHeight(WorldGenRegion level, int y)
         => y < MinY(level) || y >= MaxBuildHeight(level);
 
-    //SetBlock 放置方块 对应原版 Feature.setBlock
+    //SetBlock place a block, maps to vanilla Feature.setBlock
     public static void SetBlock(WorldGenRegion level, BlockPos pos, BlockState state)
         => level.SetBlockState(pos.X, pos.Y, pos.Z, state);
 
-    //DistManhattan 两点的曼哈顿距离 对应原版 BlockPos.distManhattan
+    //DistManhattan Manhattan distance between two points, maps to vanilla BlockPos.distManhattan
     public static int DistManhattan(BlockPos a, BlockPos b)
         => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) + Math.Abs(a.Z - b.Z);
 
-    //ToOptional 可空方块位置转 Optional 对应原版 Optional.ofNullable
+    //ToOptional convert a nullable block position to Optional, maps to vanilla Optional.ofNullable
     public static Optional<BlockPos> ToOptional(BlockPos? pos)
         => pos.HasValue ? Optional<BlockPos>.Of(pos.Value) : Optional<BlockPos>.Empty();
 
-    //BetweenClosed 闭区间长方体的遍历顺序 z 最外 y 居中 x 最内 对应原版 BlockPos.betweenClosed
+    //BetweenClosed iteration order over a closed bounding box: z outer, y middle, x inner. maps to vanilla BlockPos.betweenClosed
     public static IEnumerable<BlockPos> BetweenClosed(int minX, int minY, int minZ, int maxX, int maxY, int maxZ)
     {
         for (var z = minZ; z <= maxZ; z++)
@@ -98,8 +98,8 @@ internal static class NetherSupport
             yield return new BlockPos(x, y, z);
     }
 
-    //WithinManhattan 曼哈顿球内按层展开的遍历 对应原版 BlockPos.withinManhattan
-    //层级与镜像补充都照抄原版 顺序变了同种子长出的地形会不同
+    //WithinManhattan layer-by-layer traversal inside a Manhattan ball, maps to vanilla BlockPos.withinManhattan
+    //Layer and mirror order are copied from vanilla; a different order changes terrain for the same seed
     public static IEnumerable<BlockPos> WithinManhattan(BlockPos origin, int reachX, int reachY, int reachZ)
     {
         var maxDepth = reachX + reachY + reachZ;

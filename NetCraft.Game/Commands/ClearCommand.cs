@@ -10,17 +10,17 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.Commands;
 
-//ClearCommand clear 命令对应原版 net.minecraft.server.commands.ClearInventoryCommands
-//clear 清空自己 clear <targets> 清空目标 两者不限物品
-//clear <targets> <item> 只清匹配的物品 clear <targets> <item> <maxCount> 最多清 maxCount 个
-//maxCount 为 0 时只统计不删除 对应原版的 test 模式
+//ClearCommand clear command, maps to vanilla net.minecraft.server.commands.ClearInventoryCommands
+//clear clears your own items; clear <targets> clears the targets' items, both unrestricted by item
+//clear <targets> <item> clears only matching items; clear <targets> <item> <maxCount> clears at most maxCount
+//maxCount of 0 only counts without removing, maps to the vanilla test mode
 public static class ClearCommand
 {
     private static readonly DynamicCommandExceptionType ErrorSingle =
-        new(name => new LiteralMessage($"未能清除 {name} 的任何物品"));
+        new(name => new LiteralMessage($"found no items to clear for {name}"));
 
     private static readonly DynamicCommandExceptionType ErrorMultiple =
-        new(count => new LiteralMessage($"未能清除 {count} 个玩家的任何物品"));
+        new(count => new LiteralMessage($"found no items to clear for {count} players"));
 
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
@@ -40,13 +40,13 @@ public static class ClearCommand
                             IntegerArgumentType.GetInteger(context, "maxCount")))))));
     }
 
-    //SelfTargets 省略 targets 时默认作用于执行者自己 对应原版 getPlayerOrException
-    //控制台执行时没有玩家 这里按原版抛"只能由玩家执行" 不能往列表里塞 null 后面取背包会炸
+    //SelfTargets applies to the executor when targets is omitted, maps to vanilla getPlayerOrException
+    //There is no player when run from the console; throws vanilla's "players only" here, not a null pushed into the list or the inventory lookup blows up later
     private static IReadOnlyList<ServerPlayer> SelfTargets(CommandContext<CommandSourceStack> context)
         => new[] { ((ServerCommandSource)context.GetSource()).PlayerOrThrow };
 
-    //Clear 清除匹配物品并回执 对应原版 clearInventory
-    //maxCount 为 -1 表示不限 为 0 表示只统计不删除
+    //Clear removes matching items and reports, maps to vanilla clearInventory
+    //maxCount -1 means unlimited, 0 means count only
     private static int Clear(CommandContext<CommandSourceStack> context, IReadOnlyList<ServerPlayer> players,
         Predicate<ItemStack> predicate, int maxCount)
     {
@@ -55,7 +55,7 @@ public static class ClearCommand
         foreach (var player in players)
         {
             count += ClearOrCountMatching(player.Inventory, predicate, maxCount, maxCount == 0);
-            //清完同步背包 增量变更不足以让客户端把整格清空显示出来
+            //Sync the inventory after clearing; incremental changes are not enough to clear a whole slot on the client
             player.ContainerMenu?.SendAllDataToRemote();
         }
         if (count == 0)
@@ -66,23 +66,23 @@ public static class ClearCommand
         if (maxCount == 0)
         {
             source.SendSuccess(players.Count == 1
-                ? $"已找到 {count} 个匹配的物品"
-                : $"已在 {players.Count} 个玩家处找到 {count} 个匹配的物品");
+                ? $"found {count} matching items"
+                : $"found {count} matching items across {players.Count} players");
         }
         else if (players.Count == 1)
         {
-            source.SendSuccess($"已从 {players[0].Profile.Name} 清除 {count} 个物品");
+            source.SendSuccess($"cleared {count} items from {players[0].Profile.Name}");
         }
         else
         {
-            source.SendSuccess($"已从 {players.Count} 个玩家清除 {count} 个物品");
+            source.SendSuccess($"cleared {count} items from {players.Count} players");
         }
         return count;
     }
 
-    //ClearOrCountMatching 遍历物品栏清除匹配物品 对应原版 ContainerHelper.clearOrCountMatchingItems
-    //countOnly 为真只累加数量不动物品 maxCount 为 -1 表示不限
-    //只清背包 36 格 护甲与副手不在原版 clearOrCountMatchingItems 的作用范围内
+    //ClearOrCountMatching iterates the inventory to clear matching items, maps to vanilla ContainerHelper.clearOrCountMatchingItems
+    //countOnly only accumulates the count; maxCount -1 means unlimited
+    //Only the 36 backpack slots are cleared; armor and offhand are outside the vanilla clearOrCountMatchingItems scope
     private static int ClearOrCountMatching(PlayerInventory inventory, Predicate<ItemStack> predicate,
         int maxCount, bool countOnly)
     {

@@ -1,8 +1,8 @@
 namespace NetCraft.Gpu;
 
-//Divisor 均分工具对标原版 com.mojang.math.Divisor
-//把 total 均分为 parts 份余数分到前几个每次 NextInt 返回一份
-//GridLayout 把跨多行多列的元素高度/宽度均分到各行列用
+//Divisor division helper, maps to vanilla com.mojang.math.Divisor
+//Splits total into parts shares with the remainder going to the first few; each NextInt returns one share
+//Used by GridLayout to divide the height/width of multi-row/column elements across rows and columns
 public struct Divisor
 {
     private readonly int _total;
@@ -16,8 +16,8 @@ public struct Divisor
         _given = 0;
     }
 
-    //NextInt 返回下一份 baseShare=total/parts 余数分到前 remainder 份
-    //总 parts 次调用之和等于 total
+    //NextInt returns the next share; baseShare=total/parts with the remainder spread over the first remainder shares
+    //The sum over all parts calls equals total
     public int NextInt()
     {
         if (_given >= _parts) return 0;

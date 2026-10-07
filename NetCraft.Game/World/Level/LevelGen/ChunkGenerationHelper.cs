@@ -8,14 +8,14 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//ChunkGenerationHelper 区块生成辅助类
-//把 ChunkGenerator + ChunkStatusProcessor 包装成 ServerChunkCache 需要的 generator 回调
-//存档未命中时按 ChunkStatus 状态机流水线从 EMPTY 推进到 FULL 生成新 chunk
+//ChunkGenerationHelper chunk generation helper
+//Wraps ChunkGenerator + ChunkStatusProcessor into the generator callback ServerChunkCache needs
+//On a cache miss it drives the ChunkStatus state machine pipeline from EMPTY to FULL to generate a new chunk
 public static class ChunkGenerationHelper
 {
-    //CreateGenerator 创建 generator 闭包 同时把共享的结构管理器交回调用方供落盘与读档使用
-    //minSectionY/sectionsCount 用于构造 SimpleLevelHeightAccessor 决定生成 chunk 的区段范围
-    //worldSeed 用于结构放置判定 chunkProvider 提供邻块 未接时装饰退化为只看中心区块
+    //CreateGenerator creates the generator closure and hands the shared structure manager back to the caller for saving and loading
+    //minSectionY/sectionsCount build the SimpleLevelHeightAccessor and fix the section range of generated chunks
+    //worldSeed drives structure placement; chunkProvider supplies neighbours and, when absent, decoration degrades to the centre chunk only
     public static (Func<ChunkPos, ChunkAccess?> Generator, StructureFeatureManager Structures) CreateGenerator(
         ChunkGenerator generator,
         int minSectionY,
@@ -27,22 +27,22 @@ public static class ChunkGenerationHelper
         bool generateStructures = true)
     {
         var level = new SimpleLevelHeightAccessor(minSectionY, sectionsCount);
-        //世界种子注入生成器 噪声随机状态与结构放置都按它派生 与调用方随机源解耦
+        //The world seed is injected into the generator; noise random state and structure placement derive from it, decoupled from the caller's random source
         generator.WorldSeed = worldSeed;
-        //基准种子只取一次 之后每区块由坐标派生独立随机源
+        //The base seed is drawn once; each chunk then derives its own random source from its coordinate
         var baseSeed = random.NextLong();
         var structureRegistry = BuildStructureRegistry(worldSeed);
-        //结构结果整个维度共享一份 每个区块各建一份的话装饰阶段看不到邻块已装配的结构
+        //Structure results are shared across the dimension; one per chunk would hide neighbouring chunks' assembled structures during decoration
         var structures = new StructureFeatureManager(generator, structureRegistry)
         {
-            //服务端配置 generate-structures 关掉后连结构模板都不会加载
+            //With the server generate-structures option off, not even structure templates are loaded
             ShouldGenerateStructures = generateStructures,
         };
         Func<ChunkPos, ChunkAccess?> generatorFunc = pos =>
         {
-            //每个区块用独立 processor 与随机源 生成在线程池并发执行
-            //共享实例会破坏 RandomSource 内部状态导致生成卡死
-            //按坐标派生种子保证同一区块可重现
+            //Each chunk gets its own processor and random source; generation runs concurrently on the thread pool
+            //A shared instance would corrupt the RandomSource internal state and stall generation
+            //Deriving the seed from the coordinate keeps a chunk reproducible
             var processor = new ChunkStatusProcessor(generator, RandomSource.Create(baseSeed + pos.Pack()),
                 structureRegistry, worldSeed, chunkProvider, structures);
             return GenerateChunk(processor, level, factory, pos);
@@ -50,24 +50,24 @@ public static class ChunkGenerationHelper
         return (generatorFunc, structures);
     }
 
-    //BuildStructureRegistry 把已装载的结构集合灌进放置注册表
-    //对应原版 ChunkGenerator 构造时持有的全部结构集合 缺一个该集合的结构就永远不生成
+    //BuildStructureRegistry feeds the loaded structure sets into the placement registry
+    //Matches all structure sets held by vanilla ChunkGenerator at construction; missing one means that set's structures never generate
     private static StructurePlacementRegistry BuildStructureRegistry(long worldSeed)
     {
         var registry = new StructurePlacementRegistry(worldSeed);
         foreach (var holder in BuiltInRegistries.STRUCTURE_SET.ListElements())
         {
-            //Registry 层与 Game 层都有 StructureSet 名字 Game 层才是带放置参数的实际类型
+            //Both the Registry layer and the Game layer have a StructureSet name; the Game layer is the real type carrying placement parameters
             if (holder.Value is NetCraft.Game.World.Level.LevelGen.Structure.StructureSet set)
                 registry.AddSet(set);
         }
         return registry;
     }
 
-    //GenerateChunk 单 chunk 生成流程对应原版 chunk generator 流水线
-    //1. 构造 ProtoChunk 状态 EMPTY
-    //2. 走 ChunkStatusProcessor.ProcessToStatus 推进到 FULL
-    //3. 返回 proto 供 ServerChunkCache 缓存
+    //GenerateChunk single-chunk generation flow, maps to the vanilla chunk generator pipeline
+    //1. Build a ProtoChunk at status EMPTY
+    //2. Advance to FULL through ChunkStatusProcessor.ProcessToStatus
+    //3. Return the proto for ServerChunkCache to cache
     private static ChunkAccess GenerateChunk(
         ChunkStatusProcessor processor,
         LevelHeightAccessor level,

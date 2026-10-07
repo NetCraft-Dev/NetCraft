@@ -11,36 +11,36 @@ using RedstoneSide = NetCraft.Registry.Enums.RedstoneSide;
 
 namespace NetCraft.Game.World.Level.Block;
 
-//Blocks 红石线部分 与 Blocks.cs 同一个类分开文件免得主文件太长
-//红石线是整个红石系统的骨架 连接模型决定外观与对接 功率传播决定信号怎么衰减
+//Blocks redstone wire part; same class as Blocks.cs in a separate file to keep the main file short
+//Redstone wire is the backbone of the whole redstone system; the connection model decides appearance and connections and power propagation decides how signals decay
 public static partial class Blocks
 {
-    //RedstoneWireBlock 红石线 对应原版 RedStoneWireBlock
-    //四向连接状态各三值 加上 0-15 功率 一共 1296 个状态
-    //信号只沿连上的方向传 每根线把收到的最大信号减一后作为自己的功率
+    //RedstoneWireBlock redstone wire, maps to vanilla RedStoneWireBlock
+    //Four connection states with three values each plus power 0-15, 1296 states in total
+    //Signals only travel along connected directions and each wire takes the largest received signal minus one as its own power
     public sealed class RedstoneWireBlock : BlockBehaviour
     {
-        //_shouldSignal 读邻居信号期间要临时关掉自己的信号源标记
-        //不关的话 getBestNeighborSignal 会把邻接红石线的信号也算进来 形成自反馈
+        //_shouldSignal temporarily turns off its own signal source flag while reading neighbor signals
+        //Without turning it off getBestNeighborSignal would also count neighboring wire signals and create self-feedback
         private bool _shouldSignal = true;
 
-        //_crossState 十字态四向都连上 点击切换与形状重算的起点 对应原版 crossState
+        //_crossState the cross state with all four directions connected, the starting point for click toggling and shape recomputation, maps to vanilla crossState
         private BlockState? _crossState;
 
-        //形状按四面连接方式组合 3^4 种静态一次算完 对应原版 makeShapes 里的 getShapeForEachState
-        //中心点 + 四向水平薄板 上爬方向再叠一块竖板
-        //缺了它形状落到默认整格 该格天光被当成实心挡住 红石线那格会比原版暗
+        //Shapes combine the four connection states, 3^4 of them computed once statically, maps to getShapeForEachState in vanilla makeShapes
+        //A center dot plus four horizontal thin plates, with a vertical plate added on upward-climbing directions
+        //Without it the shape falls back to a full block, sky light is treated as blocked and the wire's cell is darker than vanilla
         private static readonly Dictionary<(RedstoneSide, RedstoneSide, RedstoneSide, RedstoneSide), VoxelShape>
             ShapeTable = BuildShapeTable();
 
         private static Dictionary<(RedstoneSide, RedstoneSide, RedstoneSide, RedstoneSide), VoxelShape>
             BuildShapeTable()
         {
-            //中心圆点 10 像素宽 1 像素高
+            //Center dot, 10 pixels wide and 1 pixel high
             var dot = NetCraft.Registry.Block.Column(10.0, 0.0, 1.0);
-            //水平延伸板 从中心伸到该方向的半格处
+            //Horizontal extension plate stretching from the center to the half-block point in that direction
             var floor = Shapes.RotateHorizontal(NetCraft.Registry.Block.BoxZ(10.0, 0.0, 1.0, 0.0, 8.0));
-            //上爬竖板 满高且贴在该方向的内侧
+            //Upward vertical plate, full height and against the inner side of that direction
             var up = Shapes.RotateHorizontal(NetCraft.Registry.Block.BoxZ(10.0, 16.0, 0.0, 1.0));
             var sides = new[] { RedstoneSide.none, RedstoneSide.side, RedstoneSide.up };
             var table = new Dictionary<(RedstoneSide, RedstoneSide, RedstoneSide, RedstoneSide), VoxelShape>();
@@ -58,7 +58,7 @@ public static partial class Blocks
             return table;
         }
 
-        //Extend 把某一向的连接形状并进整体形状 上爬态叠竖板 对应原版那个 switch
+        //Extend merges one direction's connection shape into the overall shape, stacking the vertical plate for upward states, maps to the vanilla switch
         private static VoxelShape Extend(VoxelShape shape, RedstoneSide side, Direction direction,
             Dictionary<Direction, VoxelShape> floor, Dictionary<Direction, VoxelShape> up)
             => side switch
@@ -77,7 +77,7 @@ public static partial class Blocks
 
         public override Identifier Id => Identifier.WithDefaultNamespace("redstone_wire");
 
-        //原版红石线 instabreak 硬度 0 空手秒破
+        //Vanilla redstone wire is instabreak with hardness 0, broken bare-handed instantly
         public override float DestroySpeed => 0f;
 
         public override IDictionary<string, PropertyBase> Properties => new Dictionary<string, PropertyBase>
@@ -89,17 +89,17 @@ public static partial class Blocks
             ["west"] = BlockStateProperties.WestRedstone,
         };
 
-        //红石线不是导体也不是完整立方体 原版靠 noCollision 让默认谓词落空
-        //不覆写的话 NC 的整格实心近似会把红石线判成导体 信号就不衰减了
+        //Redstone wire is neither a conductor nor a full cube; vanilla uses noCollision to make the default predicate fail
+        //Without the override NC's full-solid approximation would treat wire as a conductor and signals would never decay
         public override bool IsRedstoneConductor(ServerLevel level, BlockPos pos, BlockState state) => false;
 
         public override bool IsFaceSturdy(ServerLevel level, BlockPos pos, BlockState state, Direction direction)
             => false;
 
-        //IsSignalSource 读邻居期间关掉 对应原版 shouldSignal 字段
+        //IsSignalSource is turned off while reading neighbors, maps to the vanilla shouldSignal field
         public override bool IsSignalSource => _shouldSignal;
 
-        //原版默认态四向 NONE 功率 0
+        //The vanilla default state is NONE in all four directions with power 0
         protected override BlockState CreateDefaultState()
             => StateDefinition.PossibleStates[0]
                 .SetValue(BlockStateProperties.NorthRedstone, RedstoneSide.none)
@@ -108,32 +108,32 @@ public static partial class Blocks
                 .SetValue(BlockStateProperties.WestRedstone, RedstoneSide.none)
                 .SetValue(BlockStateProperties.Power, 0);
 
-        //CrossState 十字态四向都算连上 对应原版 crossState
+        //CrossState the cross state with all four directions connected, maps to vanilla crossState
         private BlockState CrossState => _crossState ??= DefaultBlockState
             .SetValue(BlockStateProperties.NorthRedstone, RedstoneSide.side)
             .SetValue(BlockStateProperties.EastRedstone, RedstoneSide.side)
             .SetValue(BlockStateProperties.SouthRedstone, RedstoneSide.side)
             .SetValue(BlockStateProperties.WestRedstone, RedstoneSide.side);
 
-        //CanSurvive 下方那格朝上的面够坚固或本身是漏斗 对应原版 canSurvive
+        //CanSurvive the upward face of the cell below is sturdy or the block itself is a hopper, maps to vanilla canSurvive
         public override bool CanSurvive(ServerLevel level, BlockPos pos, BlockState state)
         {
             var below = pos.Offset(Direction.Down);
             return level.GetBlockState(below) is { } support && CanSurviveOn(level, below, support);
         }
 
-        //CanSurviveOn 能否当红石线的支撑 对应原版 canSurviveOn
-        //原版活板门单独放行 本作活板门还是占位块 整格实心近似已经覆盖 不再单列
+        //CanSurviveOn whether it can support redstone wire, maps to vanilla canSurviveOn
+        //Vanilla lets trapdoors through separately; trapdoors are still placeholders here and the full-solid approximation already covers them, so they are not listed
         private static bool CanSurviveOn(ServerLevel level, BlockPos supportPos, BlockState supportState)
             => IsFaceSturdyAt(level, supportPos, supportState, Direction.Up)
                 || supportState.Owner.Id == RedstoneIds.Hopper;
 
-        //GetStateForPlacement 放下时按周围算一遍连接 对应原版同名方法
+        //GetStateForPlacement computes the connections from the surroundings on placement, maps to the vanilla method of the same name
         public override BlockState? GetStateForPlacement(ServerLevel level, BlockPos pos, Direction face,
             Direction horizontalFacing) => GetConnectionState(level, CrossState, pos);
 
-        //GetConnectionState 先补齐缺的连接再按十字/点补 SIDE 对应原版同名方法
-        //点是四向都没连 十字是四向都连 这两种形态点击时会互相切换所以单独判
+        //GetConnectionState fills in missing connections then adds SIDEs for a cross or dot, maps to the vanilla method of the same name
+        //A dot has no connections and a cross has all four; these two toggle each other on click so they are handled separately
         private static BlockState GetConnectionState(ServerLevel level, BlockState state, BlockPos pos)
         {
             var wasDot = IsDot(state);
@@ -143,7 +143,7 @@ public static partial class Blocks
                 && !computed.GetValue(BlockStateProperties.SouthRedstone).IsConnected();
             var eastWestEmpty = !computed.GetValue(BlockStateProperties.EastRedstone).IsConnected()
                 && !computed.GetValue(BlockStateProperties.WestRedstone).IsConnected();
-            //南北都空就补上东南西 东西都空就补上南北 补出来的是 SIDE 不是 UP
+            //Empty north and south fill in east, south and west; empty east and west fill in north and south; what is added is a SIDE, not UP
             if (!computed.GetValue(BlockStateProperties.WestRedstone).IsConnected() && northSouthEmpty)
                 computed = computed.SetValue(BlockStateProperties.WestRedstone, RedstoneSide.side);
             if (!computed.GetValue(BlockStateProperties.EastRedstone).IsConnected() && northSouthEmpty)
@@ -155,13 +155,13 @@ public static partial class Blocks
             return computed;
         }
 
-        //DefaultWireStateWithPower 取默认态但保留传入状态的功率 对应原版那两处 setValue(POWER, ...)
+        //DefaultWireStateWithPower takes the default state but keeps the passed state's power, maps to the two setValue(POWER, ...) calls in vanilla
         private static BlockState DefaultWireStateWithPower(BlockState state)
             => REDSTONE_WIRE.DefaultBlockState.SetValue(BlockStateProperties.Power,
                 state.GetValue(BlockStateProperties.Power));
 
-        //GetMissingConnections 给四向里还没连上的重算连接 对应原版同名方法
-        //canConnectUp 决定这一轮能不能把连接抬到 UP 上方是导体的话红石线爬不上去
+        //GetMissingConnections recomputes the connections not yet made in the four directions, maps to the vanilla method of the same name
+        //canConnectUp decides whether connections can be raised to UP this round; if the block above is a conductor the wire cannot climb
         private static BlockState GetMissingConnections(ServerLevel level, BlockState state, BlockPos pos)
         {
             var canConnectUp = !IsRedstoneConductor(level, pos.Offset(Direction.Up));
@@ -174,7 +174,7 @@ public static partial class Blocks
             return state;
         }
 
-        //GetConnectingSide 算某一侧该连成什么 对应原版两个重载
+        //GetConnectingSide computes what a side should connect as, maps to the two vanilla overloads
         private static RedstoneSide GetConnectingSide(ServerLevel level, BlockPos pos, Direction direction)
             => GetConnectingSide(level, pos, direction, !IsRedstoneConductor(level, pos.Offset(Direction.Up)));
 
@@ -185,8 +185,8 @@ public static partial class Blocks
             if (level.GetBlockState(neighbourPos) is not { } neighbour) return RedstoneSide.none;
             if (canConnectUp)
             {
-                //邻居上方能架线且上方那格也对接得上 就把连接抬到 UP
-                //上方站不稳时退成 SIDE 对应原版那个 isPlaceableAbove 分支
+                //If wire can be placed above the neighbor and the cell above also connects, the connection is raised to UP
+                //When it cannot stand above it falls back to SIDE, maps to the vanilla isPlaceableAbove branch
                 var canPlaceAbove = CanSurviveOn(level, neighbourPos, neighbour);
                 if (canPlaceAbove
                     && ShouldConnectTo(level.GetBlockState(neighbourPos.Offset(Direction.Up))))
@@ -203,15 +203,15 @@ public static partial class Blocks
             return RedstoneSide.none;
         }
 
-        //ShouldConnectTo 该方块能不能跟红石线对接 对应原版两个重载
-        //红石线恒连 中继器两个口都连 观察者只连它输出那一侧 其余信号源也算连
+        //ShouldConnectTo whether the block can connect with redstone wire, maps to the two vanilla overloads
+        //Wire always connects, repeaters connect on both ports, observers connect only on their output side and other signal sources also count as connected
         private static bool ShouldConnectTo(BlockState? state, Direction? direction = null)
         {
             if (state is not { } block) return false;
             if (block.Owner.Id == RedstoneIds.Wire) return true;
             if (block.Owner.Id != RedstoneIds.Repeater)
             {
-                //观察者只朝 FACING 那一侧对接 观察者 P2-6 才落地 之前它是占位块没有这个属性
+                //An observer connects only toward its FACING side; the observer lands in P2-6 and was a placeholder without this property before
                 if (block.Owner.Id == RedstoneIds.Observer)
                     return direction is { } side
                         && block.HasProperty(BlockStateProperties.FacingProperty)
@@ -222,7 +222,7 @@ public static partial class Blocks
             return repeaterDirection == direction || repeaterDirection.Opposite == direction;
         }
 
-        //UpdateShape 上方变化重算整个连接 侧面变化按需重算或整体重算 对应原版同名方法
+        //UpdateShape recomputes the whole connection on a vertical change and recomputes as needed or entirely on a side change, maps to the vanilla method of the same name
         public override BlockState UpdateShape(ServerLevel level, BlockPos pos, BlockState state,
             Direction directionToNeighbour, BlockPos neighbourPos, BlockState neighbourState)
         {
@@ -232,15 +232,15 @@ public static partial class Blocks
                 return GetConnectionState(level, state, pos);
             var property = SideProperty(directionToNeighbour);
             var sideConnection = GetConnectingSide(level, pos, directionToNeighbour);
-            //连没连上没变且本来就是十字 只改这一侧的值就够了
+            //When the connection did not change and it was already a cross, changing only this side's value is enough
             if (sideConnection.IsConnected() == state.GetValue(property).IsConnected() && !IsCross(state))
                 return state.SetValue(property, sideConnection);
             var baseState = CrossState.SetValue(BlockStateProperties.Power, state.GetValue(BlockStateProperties.Power));
             return GetConnectionState(level, baseState.SetValue(property, sideConnection), pos);
         }
 
-        //UpdateIndirectNeighbourShapes 角落联动 对应原版同名方法
-        //邻格不是红石线时 它上下两格的斜角红石线要跟着重算连接 这就是红石线的爬坡与下坡
+        //UpdateIndirectNeighbourShapes corner coupling, maps to the vanilla method of the same name
+        //When the neighbor is not wire, the diagonal wires above and below it must recompute their connections, this is the wire climbing up and down
         public override void UpdateIndirectNeighbourShapes(ServerLevel level, BlockPos pos, BlockState state,
             int updateFlags, int updateLimit)
         {
@@ -254,7 +254,7 @@ public static partial class Blocks
             }
         }
 
-        //ShapeUpdateCorner 斜角那格是红石线就给它发一次形状更新 对应原版那两段重复代码
+        //ShapeUpdateCorner sends a shape update to the diagonal cell when it is wire, maps to the two duplicated blocks in vanilla
         private static void ShapeUpdateCorner(ServerLevel level, BlockPos cornerPos, Direction direction,
             int updateFlags, int updateLimit)
         {
@@ -264,27 +264,27 @@ public static partial class Blocks
                 level.GetBlockState(sourcePos) ?? AIR.DefaultBlockState, updateFlags, updateLimit);
         }
 
-        //GetSignal 只有连上的方向才给信号 朝上恒给 对应原版同名方法
+        //GetSignal gives signals only in connected directions and always upward, maps to the vanilla method of the same name
         public override int GetSignal(ServerLevel level, BlockPos pos, BlockState state, Direction direction)
         {
             if (!_shouldSignal || direction == Direction.Down) return 0;
             var power = OwnSignal(level, pos, state);
             if (power == 0) return 0;
             if (direction == Direction.Up) return power;
-            //查询者在 direction 反向侧 要看的是那一侧连没连上
+            //The querier is on the opposite side of direction, so what matters is whether that side is connected
             var property = SideProperty(direction.Opposite);
             return GetConnectionState(level, state, pos).GetValue(property).IsConnected() ? power : 0;
         }
 
-        //GetDirectSignal 与自身信号一致 对应原版同名方法
+        //GetDirectSignal matches its own signal, maps to the vanilla method of the same name
         public override int GetDirectSignal(ServerLevel level, BlockPos pos, BlockState state, Direction direction)
             => _shouldSignal ? GetSignal(level, pos, state, direction) : 0;
 
         public override int OwnSignal(ServerLevel level, BlockPos pos, BlockState state)
             => state.GetValue(BlockStateProperties.Power);
 
-        //GetBlockSignal 邻居给的最强信号 读之前先关掉自己的信号源标记 对应原版同名方法
-        //不关的话邻接红石线会把自己的功率当成新信号源回灌 红石线就永远衰减不下去
+        //GetBlockSignal the strongest signal from neighbors; its own signal source flag is turned off before reading, maps to the vanilla method of the same name
+        //Without turning it off, neighboring wire would feed its own power back as a new signal source and wire would never decay
         public int GetBlockSignal(ServerLevel level, BlockPos pos)
         {
             _shouldSignal = false;
@@ -293,8 +293,8 @@ public static partial class Blocks
             return signal;
         }
 
-        //UpdatePowerStrength 算目标功率并写回 对应原版 DefaultRedstoneWireEvaluator
-        //写回只用 Clients 位 改动之后本体与六向邻居各自的邻接都要重算
+        //UpdatePowerStrength computes the target power and writes it back, maps to vanilla DefaultRedstoneWireEvaluator
+        //The write-back uses only the Clients flag; after a change this block and the neighbors of all six directions must recompute
         private void UpdatePowerStrength(ServerLevel level, BlockPos pos, BlockState state)
         {
             var targetStrength = CalculateTargetStrength(level, pos);
@@ -307,7 +307,7 @@ public static partial class Blocks
                 level.UpdateNeighborsAt(pos.Offset(direction), this);
         }
 
-        //CalculateTargetStrength 邻居信号与相邻红石线来的信号取最大 对应原版同名方法
+        //CalculateTargetStrength takes the max of neighbor signals and signals from adjacent wire, maps to the vanilla method of the same name
         private int CalculateTargetStrength(ServerLevel level, BlockPos pos)
         {
             var blockSignal = GetBlockSignal(level, pos);
@@ -315,8 +315,8 @@ public static partial class Blocks
             return Math.Max(blockSignal, GetIncomingWireSignal(level, pos));
         }
 
-        //GetIncomingWireSignal 四向邻格及其上下斜角的红石线功率 减一后取最大 对应原版同名方法
-        //减一就是红石线每走一格衰减一级 斜角那两格绕过了这一级衰减的判定由邻居是不是导体决定
+        //GetIncomingWireSignal takes the wire power of the four neighboring cells plus their upper and lower diagonals, subtracting one and taking the max, maps to the vanilla method of the same name
+        //Subtracting one is a single level of decay per block; the two diagonal cells bypass that decay and whether they apply is decided by whether the neighbor is a conductor
         private static int GetIncomingWireSignal(ServerLevel level, BlockPos pos)
         {
             var abovePos = pos.Offset(Direction.Up);
@@ -342,13 +342,13 @@ public static partial class Blocks
             return Math.Max(0, wireSignal - 1);
         }
 
-        //GetWireSignal 那格是红石线就取它的功率 对应原版同名方法
+        //GetWireSignal takes the power of that cell when it is wire, maps to the vanilla method of the same name
         private static int GetWireSignal(BlockState? state)
             => state is { } wire && wire.Owner.Id == RedstoneIds.Wire
                 ? wire.GetValue(BlockStateProperties.Power)
                 : 0;
 
-        //NeighborChanged 邻接变化重算功率 站不住就掉 对应原版同名方法
+        //NeighborChanged recomputes the power on a neighbor change and drops when it cannot stand, maps to the vanilla method of the same name
         public override void NeighborChanged(ServerLevel level, BlockPos pos, BlockState state,
             NetCraft.Registry.Block changedBlock, bool movedByPiston)
         {
@@ -360,7 +360,7 @@ public static partial class Blocks
             level.BlockUpdateSink?.DestroyBlock(pos, true, BlockUpdateFlags.UpdateLimitDefault);
         }
 
-        //OnPlace 放下后先算一次功率再通知上下与周围的红石线 对应原版同名方法
+        //OnPlace computes the power once then notifies the wire above, below and around, maps to the vanilla method of the same name
         public override void OnPlace(ServerLevel level, BlockPos pos, BlockState state, BlockState oldState,
             bool movedByPiston)
         {
@@ -371,7 +371,7 @@ public static partial class Blocks
             UpdateNeighborsOfNeighboringWires(level, pos);
         }
 
-        //AffectNeighborsAfterRemoval 拆掉后六向都要重算 对应原版同名方法
+        //AffectNeighborsAfterRemoval all six directions must recompute after removal, maps to the vanilla method of the same name
         public override void AffectNeighborsAfterRemoval(ServerLevel level, BlockPos pos, BlockState state,
             bool movedByPiston)
         {
@@ -382,7 +382,7 @@ public static partial class Blocks
             UpdateNeighborsOfNeighboringWires(level, pos);
         }
 
-        //UpdateNeighborsOfNeighboringWires 周围红石线的角落也要跟着动 对应原版同名方法
+        //UpdateNeighborsOfNeighboringWires the corners of surrounding wire must move too, maps to the vanilla method of the same name
         private void UpdateNeighborsOfNeighboringWires(ServerLevel level, BlockPos pos)
         {
             foreach (var direction in HorizontalDirections)
@@ -396,7 +396,7 @@ public static partial class Blocks
             }
         }
 
-        //CheckCornerChangeAt 那格是红石线就让本体与六向邻居都重算 对应原版同名方法
+        //CheckCornerChangeAt recomputes this block and the six neighbors when that cell is wire, maps to the vanilla method of the same name
         private void CheckCornerChangeAt(ServerLevel level, BlockPos pos)
         {
             if (level.GetBlockState(pos)?.Owner.Id != RedstoneIds.Wire) return;
@@ -405,8 +405,8 @@ public static partial class Blocks
                 level.UpdateNeighborsAt(pos.Offset(direction), this);
         }
 
-        //UseOn 右键在十字与点之间切换 对应原版 useWithoutItem
-        //原版只在本来就是十字或点的时候才动手 普通拐角形状点了没反应
+        //UseOn right click toggles between cross and dot, maps to vanilla useWithoutItem
+        //Vanilla only acts when it was already a cross or dot; clicking a normal corner shape does nothing
         public override bool UseOn(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state,
             Direction face)
         {
@@ -421,7 +421,7 @@ public static partial class Blocks
             return true;
         }
 
-        //UpdatesOnShapeChange 连接状态变了的那些方向要通知到支撑方块 对应原版同名方法
+        //UpdatesOnShapeChange the directions whose connection state changed must notify their support blocks, maps to the vanilla method of the same name
         private static void UpdatesOnShapeChange(ServerLevel level, BlockPos pos, BlockState oldState,
             BlockState newState)
         {
@@ -436,29 +436,29 @@ public static partial class Blocks
             }
         }
 
-        //IsCross 四向都连上 对应原版同名方法
+        //IsCross all four directions connected, maps to the vanilla method of the same name
         private static bool IsCross(BlockState state)
             => state.GetValue(BlockStateProperties.NorthRedstone).IsConnected()
                 && state.GetValue(BlockStateProperties.SouthRedstone).IsConnected()
                 && state.GetValue(BlockStateProperties.EastRedstone).IsConnected()
                 && state.GetValue(BlockStateProperties.WestRedstone).IsConnected();
 
-        //IsDot 四向都没连 对应原版同名方法
+        //IsDot no direction connected, maps to the vanilla method of the same name
         private static bool IsDot(BlockState state)
             => !state.GetValue(BlockStateProperties.NorthRedstone).IsConnected()
                 && !state.GetValue(BlockStateProperties.SouthRedstone).IsConnected()
                 && !state.GetValue(BlockStateProperties.EastRedstone).IsConnected()
                 && !state.GetValue(BlockStateProperties.WestRedstone).IsConnected();
 
-        //HorizontalDirections 水平四向 顺序照原版 Direction.Plane.HORIZONTAL
-        //红石的更新顺序敏感 不能按轴另排
+        //HorizontalDirections the four horizontal directions in the order of vanilla Direction.Plane.HORIZONTAL
+        //Redstone is sensitive to update order, it cannot be reordered by axis
         private static readonly Direction[] HorizontalDirections =
         {
             Direction.North, Direction.South, Direction.West, Direction.East,
         };
 
-        //SideProperty 水平方向取对应的连接属性 对应原版 PROPERTY_BY_DIRECTION
-        //只对水平方向有定义 调用点必须先过滤 与原版 EnumMap 落到 null 的行为一致
+        //SideProperty gets the matching connection property for a horizontal direction, maps to vanilla PROPERTY_BY_DIRECTION
+        //Only defined for horizontal directions and call sites must filter first, matching vanilla EnumMap falling to null
         private static EnumProperty<RedstoneSide> SideProperty(Direction direction) => direction.Id3D switch
         {
             Direction.NorthId => BlockStateProperties.NorthRedstone,
@@ -467,15 +467,15 @@ public static partial class Blocks
             _ => BlockStateProperties.EastRedstone,
         };
 
-        //IsRedstoneConductor 那格是不是红石导体 对应原版 BlockState.isRedstoneConductor
+        //IsRedstoneConductor whether that cell is a redstone conductor, maps to vanilla BlockState.isRedstoneConductor
         private static bool IsRedstoneConductor(ServerLevel level, BlockPos pos)
             => level.GetBlockState(pos) is { } state
                 && state.Owner is IBlockSignalBehaviour behaviour
                 && behaviour.IsRedstoneConductor(level, pos, state);
 
-        //IsFaceSturdyAt 那格朝某面是否够坚固 对应原版 BlockState.isFaceSturdy
-        //面坚固不在信号契约里 只有方块行为自己知道 所以按 BlockBehaviour 取
-        //名字避开本类覆写的 IsFaceSturdy
+        //IsFaceSturdyAt whether that cell's face toward a direction is sturdy enough, maps to vanilla BlockState.isFaceSturdy
+        //Face sturdiness is not in the signal contract and only the block behavior knows it, so it is taken from BlockBehaviour
+        //The name avoids the IsFaceSturdy overridden by this class
         private static bool IsFaceSturdyAt(ServerLevel level, BlockPos pos, BlockState state, Direction direction)
             => state.Owner is BlockBehaviour behaviour && behaviour.IsFaceSturdy(level, pos, state, direction);
     }

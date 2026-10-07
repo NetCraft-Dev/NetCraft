@@ -2,24 +2,24 @@ using System.Numerics;
 
 namespace NetCraft.Gpu;
 
-//ItemStackRenderState 物品渲染状态对标原版 ItemStackRenderState
-//持有 BakedQuad 列表 submit 时把 pose 快照+quads+tint 丢给 SubmitNodeCollector 延迟渲染
-//PoC 简化单层无 LayerRenderState 分层无 specialRenderer/foilType 完整版有 activeLayerCount
-//TrackingItemStackRenderState 子类收集 modelIdentity 作 GuiItemAtlas 缓存键
+//ItemStackRenderState item render state, maps to vanilla ItemStackRenderState
+//Holds a BakedQuad list; on submit it hands the pose snapshot+quads+tint to SubmitNodeCollector for deferred rendering
+//The PoC simplifies to one layer without LayerRenderState layering and without specialRenderer/foilType; the full version has activeLayerCount
+//TrackingItemStackRenderState subclass collecting modelIdentity as the GuiItemAtlas cache key
 public class ItemStackRenderState
 {
     private List<BakedQuad> _quads = new();
-    //ModelIdentityElements 物品身份标识 TrackingItemStackRenderState 重写收集
+    //ModelIdentityElements item identity elements collected by the TrackingItemStackRenderState override
     public virtual void AppendModelIdentityElement(object element) { }
 
-    //SetQuads 设置物品的 BakedQuad 列表 ItemModel.update 时填充
+    //SetQuads sets the item's BakedQuad list, filled by ItemModel.update
     public void SetQuads(List<BakedQuad> quads) => _quads = quads;
 
     public bool UsesBlockLight { get; set; } = true;
     public bool IsAnimated { get; set; }
 
-    //Submit 把 pose 快照+quads 丢给 collector 延迟渲染
-    //对标原版 item.submit(poseStack, collector, light, overlay, outline)
+    //Submit hands the pose snapshot+quads to the collector for deferred rendering
+    //maps to vanilla item.submit(poseStack, collector, light, overlay, outline)
     public void Submit(PoseStack poseStack, ItemSubmitCollector collector,
         int lightCoords, int overlayCoords, int outlineColor)
     {
@@ -28,8 +28,8 @@ public class ItemStackRenderState
     }
 }
 
-//TrackingItemStackRenderState GUI 物品缓存键对标原版 TrackingItemStackRenderState
-//收集 modelIdentityElements 作 GuiItemAtlas GetOrUpdate 的 key
+//TrackingItemStackRenderState GUI item cache key, maps to vanilla TrackingItemStackRenderState
+//Collects modelIdentityElements as the GuiItemAtlas GetOrUpdate key
 public sealed class TrackingItemStackRenderState : ItemStackRenderState
 {
     private readonly List<object> _identityElements = new();
@@ -37,13 +37,13 @@ public sealed class TrackingItemStackRenderState : ItemStackRenderState
     public override void AppendModelIdentityElement(object element)
         => _identityElements.Add(element);
 
-    //ModelIdentity 返回身份标识列表引用相等比较作缓存键
+    //ModelIdentity returns the identity list; reference equality comparison is used as the cache key
     public object ModelIdentity => _identityElements;
 }
 
-//ItemSubmitCollector 物品提交收集器对标原版 SubmitNodeCollector
-//收集 submit 的 pose 快照+quads 后续 ItemFeatureRenderer.Execute 写到 VertexConsumer
-//PoC 简化为 List<SubmitNode> 不做 phase 分组(solid/translucent)原版有 15 个 phase
+//ItemSubmitCollector item submit collector, maps to vanilla SubmitNodeCollector
+//Collects submitted pose snapshots+quads; later ItemFeatureRenderer.Execute writes them to the VertexConsumer
+//The PoC simplifies to List<SubmitNode> without phase grouping (solid/translucent); vanilla has 15 phases
 public sealed class ItemSubmitCollector
 {
     public readonly List<ItemSubmitNode> Nodes = new();
@@ -55,8 +55,8 @@ public sealed class ItemSubmitCollector
     }
 }
 
-//ItemSubmitNode 单次提交的延迟渲染节点对标原版 ItemFeatureRenderer.Submit
-//存 pose 快照(quads 引用共享不拷贝) light/overlay/tint execute 时用 putBakedQuad 写出
+//ItemSubmitNode deferred render node for one submit, maps to vanilla ItemFeatureRenderer.Submit
+//Stores a pose snapshot (quads are shared by reference, not copied) light/overlay/tint written out with putBakedQuad at execute
 public readonly struct ItemSubmitNode
 {
     public readonly Matrix4x4 Pose;

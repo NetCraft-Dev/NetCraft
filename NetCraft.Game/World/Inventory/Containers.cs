@@ -6,12 +6,12 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Inventory;
 
-//ContainerHelper 容器通用操作 对应原版 net.minecraft.world.ContainerHelper
-//投掷器的容器搬运与后续漏斗共用这里的插入逻辑
+//ContainerHelper common container operations, maps to vanilla net.minecraft.world.ContainerHelper
+//The dispenser's container transfer and future hoppers share the insert logic here
 public static class ContainerHelper
 {
-    //AddItem 把一个物品栈塞进目标容器 返回没放下的剩余
-    //先填同类可堆叠的槽再找空槽 与原版 HopperBlockEntity.addItem 的两轮顺序一致
+    //AddItem inserts a stack into the target container, returns the remainder that did not fit
+    //Fills matching stackable slots first, then finds empty ones, same two-pass order as vanilla HopperBlockEntity.addItem
     public static ItemStack AddItem(Container container, ItemStack stack)
     {
         if (stack.IsEmpty()) return stack;
@@ -21,7 +21,7 @@ public static class ContainerHelper
         return remaining;
     }
 
-    //FillExistingSlots 先往已有的同类槽里叠
+    //FillExistingSlots stacks into existing matching slots first
     private static ItemStack FillExistingSlots(Container container, ItemStack stack)
     {
         var remaining = stack;
@@ -40,7 +40,7 @@ public static class ContainerHelper
         return remaining;
     }
 
-    //FillEmptySlots 再找空槽整栈放
+    //FillEmptySlots then places the whole stack into empty slots
     private static ItemStack FillEmptySlots(Container container, ItemStack stack)
     {
         var remaining = stack;
@@ -57,11 +57,11 @@ public static class ContainerHelper
     }
 }
 
-//Containers 容器与世界交互的工具 对应原版 net.minecraft.world.Containers
+//Containers utilities for container-world interaction, maps to vanilla net.minecraft.world.Containers
 public static class Containers
 {
-    //DropContents 把容器内容物逐槽丢到方块位置 对应原版 dropContents
-    //容器方块实体被移除时调它 对应原版 BaseContainerBlockEntity.preRemoveSideEffects
+    //DropContents drops the container contents slot by slot at the block position, maps to vanilla dropContents
+    //Called when a container block entity is removed, maps to vanilla BaseContainerBlockEntity.preRemoveSideEffects
     public static void DropContents(PersistentServerLevel level, BlockPos pos, Container container)
     {
         for (var i = 0; i < container.Size; i++)
@@ -73,8 +73,8 @@ public static class Containers
         }
     }
 
-    //UpdateNeighboursAfterDestroy 方块被移除后通知邻居重新判断 对应原版 updateNeighboursAfterDestroy
-    //容器可能是比较器的输入源 拆掉后要让它重算
+    //UpdateNeighboursAfterDestroy notifies neighbours to re-evaluate after a block is removed, maps to vanilla updateNeighboursAfterDestroy
+    //A container may feed a comparator, so it must recompute after being broken
     public static void UpdateNeighboursAfterDestroy(BlockState state, ServerLevel level, BlockPos pos)
         => level.UpdateNeighborsAt(pos, state.Owner);
 }

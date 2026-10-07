@@ -1,15 +1,15 @@
 namespace NetCraft.ModLoader;
 
-//VersionConstraint 模组依赖的版本约束判定
-//约束写法
-//  *        任意版本 与不写这个依赖等价
-//  1.2.3    段前缀匹配 1.2 能匹配 1.2.3 与 1.2
-//  ^1.2.3   同主版本且不小于基准 主版本为 0 时改看次版本 0.1 与 0.2 算不兼容
-//  >=1.2.3  不小于基准
-//版本号只取各段的前导数字 26.2-netcraft 按 26.2 参与比较
+//VersionConstraint: version constraint evaluation for mod dependencies
+//Constraint syntax
+//  *        any version, equivalent to omitting the dependency
+//  1.2.3    segment prefix match; 1.2 matches both 1.2.3 and 1.2
+//  ^1.2.3   same major and not below the baseline; when the major is 0 it compares minor instead, so 0.1 and 0.2 are incompatible
+//  >=1.2.3  not below the baseline
+//Version numbers take only the leading digits of each segment, so 26.2-netcraft compares as 26.2
 internal static class VersionConstraint
 {
-    //Matches 版本是否满足约束 约束为空或 * 时一律通过
+    //Matches: whether the version satisfies the constraint; empty or * always passes
     public static bool Matches(string? constraint, string? version)
     {
         if (string.IsNullOrWhiteSpace(constraint))
@@ -45,13 +45,13 @@ internal static class VersionConstraint
         return true;
     }
 
-    //Major 主版本段 取不到算 0
+    //Major: the major segment, counted as 0 if absent
     private static int Major(int[] parts) => parts.Length > 0 ? parts[0] : 0;
 
-    //Minor 次版本段 取不到算 0
+    //Minor: the minor segment, counted as 0 if absent
     private static int Minor(int[] parts) => parts.Length > 1 ? parts[1] : 0;
 
-    //Compare 逐段比较 缺的段按 0 补 返回 -1 / 0 / 1
+    //Compare: compares segment by segment, missing segments are padded with 0, returns -1 / 0 / 1
     private static int Compare(int[] left, int[] right)
     {
         var length = Math.Max(left.Length, right.Length);
@@ -65,7 +65,7 @@ internal static class VersionConstraint
         return 0;
     }
 
-    //ParseParts 取版本号各段的数字前缀 遇到不以数字开头的段就截断
+    //ParseParts: takes the digit prefix of each version segment and stops at the first segment not starting with a digit
     private static int[] ParseParts(string? version)
     {
         if (string.IsNullOrWhiteSpace(version))

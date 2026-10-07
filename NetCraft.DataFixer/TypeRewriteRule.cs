@@ -8,26 +8,26 @@ using NetCraft.DataFixer.Functions;
 using NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Util;
 
-//TypeRewriteRule类型重写规则对应原版TypeRewriteRule
-//对Type<A>应用规则返回Optional<RewriteResult<A,?>>
+//TypeRewriteRule type rewrite rule maps to vanilla TypeRewriteRule
+//applies a rule to Type<A>, returning Optional<RewriteResult<A,?>>
 public interface TypeRewriteRule
 {
-    //rewrite对type应用规则
+    //rewrite applies the rule to type
     Optional<RewriteResult<A, object>> Rewrite<A>(Type<A> type);
 
-    //nop无操作规则单例
+    //nop no-op rule singleton
     static TypeRewriteRule Nop() => NopRule.INSTANCE;
 
-    //seq组合多个规则按顺序应用
+    //seq composes multiple rules, applied in order
     static TypeRewriteRule Seq(List<TypeRewriteRule> rules) => new SeqRule(rules);
 
-    //seq组合两个规则
+    //seq composes two rules
     static TypeRewriteRule Seq(TypeRewriteRule first, TypeRewriteRule second)
         => ReferenceEquals(first, Nop()) ? second
             : ReferenceEquals(second, Nop()) ? first
             : Seq(new List<TypeRewriteRule> { first, second });
 
-    //seq组合首个与可变参
+    //seq composes the first with a params array
     static TypeRewriteRule Seq(TypeRewriteRule firstRule, params TypeRewriteRule[] rules)
     {
         TypeRewriteRule rule = firstRule;
@@ -38,50 +38,50 @@ public interface TypeRewriteRule
         return rule;
     }
 
-    //orElse首个失败时应用第二
+    //orElse applies the second when the first fails
     static TypeRewriteRule OrElse(TypeRewriteRule first, TypeRewriteRule second)
         => new OrElseRule(first, () => second);
 
-    //orElse首个失败时惰性应用第二
+    //orElse lazily applies the second when the first fails
     static TypeRewriteRule OrElse(TypeRewriteRule first, Func<TypeRewriteRule> second)
         => new OrElseRule(first, second);
 
-    //all对所有子类型应用规则
+    //all applies the rule to all child types
     static TypeRewriteRule All(TypeRewriteRule rule, bool recurse, bool checkIndex)
         => new AllRule(rule, recurse, checkIndex);
 
-    //one对唯一子类型应用规则
+    //one applies the rule to the single child type
     static TypeRewriteRule One(TypeRewriteRule rule) => new OneRule(rule);
 
-    //once应用一次失败回退到one递归
+    //once applies once; on failure falls back to recursive one
     static TypeRewriteRule Once(TypeRewriteRule rule)
         => OrElse(rule, () => One(Once(rule)));
 
-    //checkOnce检查应用结果为nop时回调
+    //checkOnce verifies the result and invokes the callback on nop
     static TypeRewriteRule CheckOnce(TypeRewriteRule rule, Action<Type<object>> onFail)
         => new CheckOnceRule(rule, onFail);
 
-    //everywhere到处递归应用规则
+    //everywhere applies the rule recursively everywhere
     static TypeRewriteRule Everywhere(TypeRewriteRule rule, PointFreeRule optimizationRule, bool recurse, bool checkIndex)
         => new EverywhereRule(rule, optimizationRule, recurse, checkIndex);
 
-    //ifSame按目标类型匹配时返回value
+    //ifSame returns value when the target type matches
     static TypeRewriteRule IfSame<B>(Type<B> targetType, RewriteResult<B, object> value)
         => new IfSameRule<B>(targetType, value);
 
-    //NopRule无操作规则实现
+    //NopRule no-op rule implementation
     public sealed class NopRule : TypeRewriteRule
     {
         public static readonly NopRule INSTANCE = new();
         private NopRule() { }
         public Optional<RewriteResult<A, object>> Rewrite<A>(Type<A> type)
             => Optional<RewriteResult<A, object>>.Of(RewriteResult<A, object>.Nop(type));
-        //单例比较所有NopRule相等
+        //singleton comparison; all NopRule instances are equal
         public override bool Equals(object? obj) => obj is NopRule;
         public override int GetHashCode() => typeof(NopRule).GetHashCode();
     }
 
-    //SeqRule顺序组合按前一条结果newType作为下一条输入对齐原版cap1链式
+    //SeqRule sequential composition; the previous result's newType is fed as the next input, aligning with vanilla cap1 chaining
     public sealed class SeqRule : TypeRewriteRule
     {
         private readonly List<TypeRewriteRule> _rules;
@@ -97,10 +97,10 @@ public interface TypeRewriteRule
             }
             return Optional<RewriteResult<A, object>>.Of(result);
         }
-        //cap1把前一条结果f.view.newType作为下一条rule的输入结果与f复合
-        //newType可能是NamedType<object>等Type<Pair<...>>子类C#严格泛型下不能强转Type<B>
-        //用TypeObjectConverterFactory.AsObjectType包装对齐Java类型擦除语义
-        //s运行时类型为RewriteResult<具体A,object>编译时RewriteResult<B,object>强转失败用Unsafe.As
+        //cap1 uses the previous result's f.view.newType as the next rule's input and composes the result with f
+        //newType may be a Type<Pair<...>> subclass such as NamedType<object>; under C# strict generics it cannot be cast to Type<B>
+        //wrap with TypeObjectConverterFactory.AsObjectType, aligning with Java type erasure semantics
+        //at runtime s is RewriteResult<concrete A,object> but is RewriteResult<B,object> at compile time; the cast fails, so use Unsafe.As
         private static Optional<RewriteResult<A, object>> Cap1<A, B>(TypeRewriteRule rule, RewriteResult<A, B> f)
         {
             var newTypeObj = (object)TypeObjectConverterFactory.AsObjectType(f.View().NewType()!);
@@ -113,7 +113,7 @@ public interface TypeRewriteRule
                 return ComposeResult<A, B, object>(sCast, f);
             });
         }
-        //composeResult把后继s与前置f复合对齐原版RewriteResult.compose
+        //composeResult composes the successor s with the predecessor f, aligning with vanilla RewriteResult.compose
         private static RewriteResult<A, object> ComposeResult<A, B, C>(RewriteResult<B, C> first, RewriteResult<A, B> second)
         {
             var composed = first.View().Compose(second.View());
@@ -121,7 +121,7 @@ public interface TypeRewriteRule
                 (View<A, object>)(object)composed,
                 second.RecData());
         }
-        //按规则列表结构比较让RewriteCacheKey命中缓存避免无限递归
+        //compares by rule-list structure so RewriteCacheKey hits the cache and avoids infinite recursion
         public override bool Equals(object? obj)
             => obj is SeqRule that && _rules.SequenceEqual(that._rules);
         public override int GetHashCode()
@@ -132,7 +132,7 @@ public interface TypeRewriteRule
         }
     }
 
-    //OrElseRule分支规则
+    //OrElseRule branch rule
     public sealed class OrElseRule : TypeRewriteRule
     {
         private readonly TypeRewriteRule _first;
@@ -148,13 +148,13 @@ public interface TypeRewriteRule
             if (result.IsPresent) return result;
             return _second().Rewrite(type);
         }
-        //_second是工厂委托引用比较结构按_first比较
+        //_second is a factory delegate; the reference is compared, and structure is compared by _first
         public override bool Equals(object? obj)
             => obj is OrElseRule that && Equals(_first, that._first);
         public override int GetHashCode() => _first?.GetHashCode() ?? 0;
     }
 
-    //AllRule对所有子类型应用规则
+    //AllRule applies the rule to all child types
     public sealed class AllRule : TypeRewriteRule
     {
         private readonly TypeRewriteRule _rule;
@@ -168,20 +168,20 @@ public interface TypeRewriteRule
         }
         public Optional<RewriteResult<A, object>> Rewrite<A>(Type<A> type)
             => Optional<RewriteResult<A, object>>.Of(type.All(_rule, _recurse, _checkIndex));
-        //按rule+标志位结构比较
+        //compares by rule + flag structure
         public override bool Equals(object? obj)
             => obj is AllRule that && Equals(_rule, that._rule) && _recurse == that._recurse && _checkIndex == that._checkIndex;
         public override int GetHashCode() => unchecked(((_rule?.GetHashCode() ?? 0) * 31 + _recurse.GetHashCode()) * 31 + _checkIndex.GetHashCode());
     }
 
-    //OneRule对唯一子类型应用规则
+    //OneRule applies the rule to the single child type
     public sealed record OneRule(TypeRewriteRule Rule) : TypeRewriteRule
     {
         public Optional<RewriteResult<A, object>> Rewrite<A>(Type<A> type)
             => type.One(Rule);
     }
 
-    //EverywhereRule到处递归应用规则
+    //EverywhereRule applies the rule recursively everywhere
     public sealed class EverywhereRule : TypeRewriteRule
     {
         private readonly TypeRewriteRule _rule;
@@ -197,7 +197,7 @@ public interface TypeRewriteRule
         }
         public Optional<RewriteResult<A, object>> Rewrite<A>(Type<A> type)
             => type.Everywhere(_rule, _optimizationRule, _recurse, _checkIndex);
-        //按rule+opt+标志位结构比较让RewriteCacheKey命中
+        //compares by rule + opt + flag structure so RewriteCacheKey hits
         public override bool Equals(object? obj)
             => obj is EverywhereRule that && Equals(_rule, that._rule) && Equals(_optimizationRule, that._optimizationRule)
                 && _recurse == that._recurse && _checkIndex == that._checkIndex;
@@ -205,7 +205,7 @@ public interface TypeRewriteRule
             => unchecked((((_rule?.GetHashCode() ?? 0) * 31 + (_optimizationRule?.GetHashCode() ?? 0)) * 31 + _recurse.GetHashCode()) * 31 + _checkIndex.GetHashCode());
     }
 
-    //IfSameRule按目标类型匹配规则
+    //IfSameRule matches by the target type
     public sealed class IfSameRule<B> : TypeRewriteRule
     {
         private readonly Type<B> _targetType;
@@ -217,13 +217,13 @@ public interface TypeRewriteRule
         }
         public Optional<RewriteResult<A, object>> Rewrite<A>(Type<A> type)
             => type.IfSame(_targetType, _value);
-        //按目标类型+值结构比较
+        //compares by target type + value structure
         public override bool Equals(object? obj)
             => obj is IfSameRule<B> that && Equals(_targetType, that._targetType) && Equals(_value, that._value);
         public override int GetHashCode() => unchecked(((_targetType?.GetHashCode() ?? 0) * 31) + (_value?.GetHashCode() ?? 0));
     }
 
-    //CheckOnceRule检查应用结果为nop时回调
+    //CheckOnceRule verifies the result and invokes the callback on nop
     public sealed class CheckOnceRule : TypeRewriteRule
     {
         private readonly TypeRewriteRule _rule;
@@ -242,7 +242,7 @@ public interface TypeRewriteRule
             }
             return result;
         }
-        //_onFail委托引用比较rule结构比较
+        //_onFail is a delegate; the reference is compared, and rule structure is compared
         public override bool Equals(object? obj)
             => obj is CheckOnceRule that && Equals(_rule, that._rule) && Equals(_onFail, that._onFail);
         public override int GetHashCode() => unchecked(((_rule?.GetHashCode() ?? 0) * 31) + (_onFail?.GetHashCode() ?? 0));

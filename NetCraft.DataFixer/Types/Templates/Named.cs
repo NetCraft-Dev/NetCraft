@@ -11,26 +11,26 @@ using NetCraft.DataFixer.Types.Families;
 using NetCraft.DataFixer.Util;
 using OpticsClass = NetCraft.DataFixer.Optics.Optics;
 
-//Named命名包装模板对应原版com.mojang.datafixers.types.templates.Named
-//给元素类型附加名称用于调试与编解码
+//Named named wrapper template maps to vanilla com.mojang.datafixers.types.templates.Named
+//attaches a name to the element type for debugging and codecs
 public sealed record Named(string Name, TypeTemplate Element) : TypeTemplate
 {
     public int Size() => Element.Size();
 
-    //apply每个index用DSL.named包装
+    //apply wraps with DSL.named at each index
     public TypeFamily Apply(TypeFamily family)
         => new NamedFamily(this, family);
 
-    //applyO直接复用元素的applyO
+    //applyO directly reuses the element's applyO
     public FamilyOptic<object, object> ApplyO<A, B>(FamilyOptic<A, B> input, T.Type<A> aType, T.Type<B> bType)
         => TypeFamily.FamilyOptic<object, object>(i => Element.ApplyO(input, aType, bType).Apply(i));
 
-    //findFieldOrType直接委托给元素
+    //findFieldOrType delegates directly to the element
     public Either<TypeTemplate, T.Type<object>.FieldNotFoundException> FindFieldOrType<A, B>(
         int index, string? name, T.Type<A> type, T.Type<B> resultType)
         => Element.FindFieldOrType(index, name, type, resultType);
 
-    //hmap每个index对元素应用hmap后用cap包装为Named
+    //hmap applies hmap to the element at each index, then wraps it as a Named via cap
     public Func<int, RewriteResult<object, object>> Hmap(TypeFamily family, Func<int, RewriteResult<object, object>> function)
         => index =>
         {
@@ -38,25 +38,25 @@ public sealed record Named(string Name, TypeTemplate Element) : TypeTemplate
             return Cap(family, index, elementResult);
         };
 
-    //Cap把元素重写结果用NamedType.fix包装为Named层
+    //Cap wraps the element rewrite result into a Named layer via NamedType.fix
     private RewriteResult<object, object> Cap<A>(TypeFamily family, int index, RewriteResult<A, object> elementResult)
     {
         var typeObj = Apply(family).Apply(index)!;
-        //NamedFamily.Apply用TypeObjectWrapper包装NamedType对齐Java类型擦除
-        //Cap需要NamedType<A>实例从Inner取
+        //NamedFamily.Apply wraps NamedType with TypeObjectWrapper, aligning with Java type erasure
+        //Cap needs a NamedType<A> instance, taken from Inner
         var namedType = typeObj is T.TypeObjectWrapper w
             ? (NamedType<A>)w.Inner
             : (NamedType<A>)(object)typeObj;
         var fixResult = NamedType<A>.Fix(namedType, elementResult);
-        //NamedType.Fix返回RewriteResult<Pair<string,A>,object>强转RewriteResult<object,object>失败
-        //用Unsafe.As绕过运行时类型检查对齐Java类型擦除
+        //NamedType.Fix returns RewriteResult<Pair<string,A>,object>; casting to RewriteResult<object,object> fails
+        //use Unsafe.As to bypass the runtime type check and align with Java type erasure
         var fixObj = (object)fixResult;
         return System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<object, object>>(ref fixObj);
     }
 
     public override string ToString() => "NamedTypeTag[" + Name + ": " + Element + "]";
 
-    //NamedFamily按index返回DSL.named包装的子类型
+    //NamedFamily returns the child type wrapped with DSL.named at each index
     private sealed class NamedFamily : TypeFamily
     {
         private readonly Named _template;
@@ -72,7 +72,7 @@ public sealed record Named(string Name, TypeTemplate Element) : TypeTemplate
                     _template.Element.Apply(_family).Apply(index)!));
     }
 
-    //NamedType带名称的类型持有Pair<String,A>作为值
+    //NamedType named type holding Pair<String,A> as its value
     public sealed class NamedType<A> : T.Type<NetCraft.DataFixer.Util.Pair<string, A>>
     {
         private readonly string _name;
@@ -87,8 +87,8 @@ public sealed record Named(string Name, TypeTemplate Element) : TypeTemplate
         public string Name() => _name;
         public T.Type<A> Element() => _element;
 
-        //fix元素重写结果为nop时返回nop否则用Proj2+Adapter投射对齐原版NamedType.fix+wrapOptic
-        //原版wrapOptic用Optics.proj2()外层提取Pair.Second再compose内层optic
+        //fix returns nop when the element rewrite result is nop; otherwise projects via Proj2+Adapter, aligning with vanilla NamedType.fix+wrapOptic
+        //vanilla wrapOptic uses Optics.proj2() to extract Pair.Second at the outer level, then composes the inner optic
         public static RewriteResult<NetCraft.DataFixer.Util.Pair<string, A>, object> Fix<A2>(
             NamedType<A2> type, RewriteResult<A2, object> instance)
         {
@@ -98,11 +98,11 @@ public sealed record Named(string Name, TypeTemplate Element) : TypeTemplate
             }
             var newType = T.TypeObjectConverterFactory.AsObjectType(
                 DSL.Named(type.Name(), instance.View().NewType()!))!;
-            //newType是TypeObjectWrapper继承Type<object>无法直接强转为Type<Pair<string,object>>
-            //用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+            //newType is a TypeObjectWrapper inheriting Type<object>; it cannot be cast directly to Type<Pair<string,object>>
+            //use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
             var newTypeObj = (object)newType!;
             var newTypeCast = System.Runtime.CompilerServices.Unsafe.As<object, Type<NetCraft.DataFixer.Util.Pair<string, object>>>(ref newTypeObj);
-            //外层Proj2提取Pair.Second对齐原版Optics.proj2()
+            //the outer Proj2 extracts Pair.Second, aligning with vanilla Optics.proj2()
             var proj2Optic = new TypedOptic<NetCraft.DataFixer.Util.Pair<string, A2>, NetCraft.DataFixer.Util.Pair<string, object>, A2, object>(
                 typeof(ICartesianMu),
                 type!,
@@ -110,19 +110,19 @@ public sealed record Named(string Name, TypeTemplate Element) : TypeTemplate
                 instance.View().Type()!,
                 instance.View().NewType()!,
                 OpticsClass.Proj2<string, A2, object>());
-            //内层Adapter从A2到object对齐原版TypedOptic.adapter(view.type, view.newType)
+            //the inner Adapter goes from A2 to object, aligning with vanilla TypedOptic.adapter(view.type, view.newType)
             var innerAdapter = TypedOptics.Adapter<A2, object>(
                 instance.View().Type()!,
                 instance.View().NewType()!);
-            //外层Proj2 Compose 内层Adapter对齐原版.compose(optic)
+            //the outer Proj2 composes the inner Adapter, aligning with vanilla .compose(optic)
             var wrappedOptic = proj2Optic.Compose(innerAdapter);
             var wrappedObj = (object)wrappedOptic;
             var wrappedCast = System.Runtime.CompilerServices.Unsafe.As<object, TypedOptic<NetCraft.DataFixer.Util.Pair<string, A2>, NetCraft.DataFixer.Util.Pair<string, object>, object, object>>(ref wrappedObj);
             var opticViewResult = T.Type<NetCraft.DataFixer.Util.Pair<string, A2>>.OpticView(type!,
                 (RewriteResult<object, object>)(object)instance,
                 wrappedCast);
-            //OpticView返回RewriteResult<Pair<string,A2>,Pair<string,object>>强转为RewriteResult<Pair<string,A>,object>失败
-            //用Unsafe.As绕过T泛型不变量对齐Java类型擦除
+            //OpticView returns RewriteResult<Pair<string,A2>,Pair<string,object>>; casting to RewriteResult<Pair<string,A>,object> fails
+            //use Unsafe.As to bypass the T generic invariance and align with Java type erasure
             var opticViewObj = (object)opticViewResult;
             return System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<NetCraft.DataFixer.Util.Pair<string, A>, object>>(ref opticViewObj);
         }
@@ -140,30 +140,30 @@ public sealed record Named(string Name, TypeTemplate Element) : TypeTemplate
             return Optional<RewriteResult<NetCraft.DataFixer.Util.Pair<string, A>, object>>.Of(Fix(this, (RewriteResult<A, object>)view.Get()));
         }
 
-        //findFieldTypeOpt委托给被命名元素
+        //findFieldTypeOpt delegates to the named element
         public override Optional<T.Type<object>> FindFieldTypeOpt(string name)
             => _element.FindFieldTypeOpt(name);
 
-        //findChoiceType委托给被命名元素对应原版NamedType.findChoiceType
+        //findChoiceType delegates to the named element, maps to vanilla NamedType.findChoiceType
         public override Optional<object> FindChoiceType(string name, int index)
             => _element.FindChoiceType(name, index);
 
-        //findTypeInChildren委托element.findType并wrapOptic包装外层为NamedType对齐原版NamedType.findTypeInChildren
-        //NamedChoiceFinder.Match在NamedType上不命中返回Continue后走FindTypeInChildren委托到element让Match在TaggedChoiceType上重试命中
-        //wrapOptic用Optics.proj2把NamedType投射到element再compose optic应用
+        //findTypeInChildren delegates to element.findType and wrapOptic wraps the outer type as a NamedType, aligning with vanilla NamedType.findTypeInChildren
+        //NamedChoiceFinder.Match misses on a NamedType and returns Continue, then FindTypeInChildren delegates to element so Match retries and hits on the TaggedChoiceType
+        //wrapOptic uses Optics.proj2 to project NamedType onto element, then composes optic
         public override Either<TypedOptic<object, object, FT, FR>, FieldNotFoundException> FindTypeInChildren<FT, FR>(
             T.Type<FT> type, T.Type<FR> resultType, TypeMatcher<FT, FR> matcher, bool recurse)
         {
-            //NamedType<A>继承Type<Pair<string,A>> _element是Type<A>
-            //TypeMatcher/FieldNotFoundException是Type<A>的嵌套类型在不同Type<X>实例化下编译期不同
-            //用Unsafe.As把外层matcher和Either转成Type<A>的对应类型
+            //NamedType<A> inherits Type<Pair<string,A>>; _element is Type<A>
+            //TypeMatcher/FieldNotFoundException are nested types of Type<A> and differ at compile time across Type<X> instantiations
+            //use Unsafe.As to convert the outer matcher and Either to the corresponding types of Type<A>
             var elemMatcher = System.Runtime.CompilerServices.Unsafe.As<TypeMatcher<FT, FR>, T.Type<A>.TypeMatcher<FT, FR>>(ref matcher!);
             var elemResultObj = (object)_element.FindType(type, resultType, elemMatcher, recurse);
             var elementResult = System.Runtime.CompilerServices.Unsafe.As<object, Either<TypedOptic<object, object, FT, FR>, T.Type<A>.FieldNotFoundException>>(ref elemResultObj);
             if (elementResult.IsRight)
             {
-                //Continue/FieldNotFoundException是Type<X>嵌套类型在不同Type实例化下是不同CLR类型
-                //跨泛型is判断失败按类型名识别Continue语义对齐原版跨Type委托行为
+                //Continue/FieldNotFoundException are nested types of Type<X> and are different CLR types across Type instantiations
+                //cross-generic is checks fail, so detect Continue semantics by type name, aligning with vanilla cross-Type delegation behavior
                 var rightObj = (object)elementResult.GetRight().Get();
                 if (rightObj.GetType().Name == "Continue")
                 {
@@ -172,8 +172,8 @@ public sealed record Named(string Name, TypeTemplate Element) : TypeTemplate
                 return Either<TypedOptic<object, object, FT, FR>, FieldNotFoundException>.Right(new FieldNotFoundException(rightObj.ToString()!));
             }
             var optic = elementResult.GetLeft().Get();
-            //外层proj2把Pair<String,A>投射到A再compose optic应用A->B
-            //sType/tType用DSL.named包装保持NamedType外层类型链
+            //the outer proj2 projects Pair<String,A> to A, then composes optic applying A->B
+            //sType/tType are wrapped with DSL.named to preserve the NamedType outer type chain
             var namedSType = (T.Type<NetCraft.DataFixer.Util.Pair<string, object>>)(object)DSL.Named(_name, optic.SType()!)!;
             var namedTType = (T.Type<NetCraft.DataFixer.Util.Pair<string, object>>)(object)DSL.Named(_name, optic.TType()!)!;
             var proj2Optic = new TypedOptic<NetCraft.DataFixer.Util.Pair<string, object>, NetCraft.DataFixer.Util.Pair<string, object>, object, object>(
@@ -183,17 +183,17 @@ public sealed record Named(string Name, TypeTemplate Element) : TypeTemplate
                 optic.SType()!,
                 optic.TType()!,
                 Optics.Proj2<string, object, object>());
-            //proj2Optic内层焦点Pair<string,object>=optic.S/T Compose把焦点换成optic.A/B
-            //对齐原版wrap方法的wrapOptic.compose(optic)
+            //proj2Optic's inner focus is Pair<string,object>=optic.S/T; Compose swaps the focus to optic.A/B
+            //aligns with the vanilla wrap method's wrapOptic.compose(optic)
             var composed = proj2Optic.Compose(optic);
-            //composed外层Pair<string,object>需castOuter为object/object对齐返回类型
+            //the composed outer Pair<string,object> needs castOuter to object/object to match the return type
             var casted = composed.CastOuterUncheckedObject((object)namedSType!, (object)namedTType!);
             var composedObj = (object)casted;
             var composedCast = System.Runtime.CompilerServices.Unsafe.As<object, TypedOptic<object, object, FT, FR>>(ref composedObj);
             return Either<TypedOptic<object, object, FT, FR>, FieldNotFoundException>.Left(composedCast);
         }
 
-        //findCheckedType委托给被命名元素对应原版NamedType.findCheckedType
+        //findCheckedType delegates to the named element, maps to vanilla NamedType.findCheckedType
         public override Optional<T.Type<object>> FindCheckedType(int index)
             => _element.FindCheckedType(index);
 
@@ -203,11 +203,11 @@ public sealed record Named(string Name, TypeTemplate Element) : TypeTemplate
         public override TypeTemplate BuildTemplate()
             => DSL.Named(_name, _element.Template());
 
-        //buildCodec按原版逻辑decode附加name encode校验name后委托元素codec
+        //buildCodec aligns with vanilla: decode attaches name, encode verifies name then delegates to the element codec
         protected override Codec<NetCraft.DataFixer.Util.Pair<string, A>> BuildCodec()
             => new NamedCodec(this);
 
-        //NamedCodec命名codec decode给值附加name encode校验name匹配后委托元素
+        //NamedCodec named codec; decode attaches name to the value, encode verifies the name matches then delegates to the element
         private sealed class NamedCodec : ScalarCodec<NetCraft.DataFixer.Util.Pair<string, A>>
         {
             private readonly NamedType<A> _type;
@@ -219,9 +219,9 @@ public sealed record Named(string Name, TypeTemplate Element) : TypeTemplate
                 {
                     return DataResult<U>.Error(() => "Named type name doesn't match: expected: " + _type._name + ", got: " + input.First);
                 }
-                //_element编译时Type<A>运行时可能是TaggedChoiceType<string>继承Type<Pair<string,object>>
-                //虚方法Type<A>.Codec()在运行时类型vtable不存在抛EntryPointNotFoundException
-                //用AsObjectType包装为TypeObjectWrapper通过反射调用对齐Java类型擦除
+                //_element is Type<A> at compile time but may be TaggedChoiceType<string> at runtime, inheriting Type<Pair<string,object>>
+                //the virtual method Type<A>.Codec() is absent from the runtime type's vtable, throwing EntryPointNotFoundException
+                //wrap with AsObjectType as a TypeObjectWrapper and invoke reflectively, aligning with Java type erasure
                 var wrapped = T.TypeObjectConverterFactory.AsObjectType(_type._element);
                 return wrapped.Codec().EncodeStart(ops, input.Second);
             }
@@ -230,7 +230,7 @@ public sealed record Named(string Name, TypeTemplate Element) : TypeTemplate
             {
                 var wrapped = T.TypeObjectConverterFactory.AsObjectType(_type._element);
                 var result = wrapped.Codec().Parse(ops, input);
-                //result是DataResult<object>实际值是A类型Unsafe.As强转对齐Java类型擦除
+                //result is DataResult<object> but the actual value is type A; use Unsafe.As to cast, aligning with Java type erasure
                 var casted = System.Runtime.CompilerServices.Unsafe.As<DataResult<object>, DataResult<A>>(ref result);
                 return casted.Map(v => NetCraft.DataFixer.Util.Pair<string, A>.Of(_type._name, v));
             }

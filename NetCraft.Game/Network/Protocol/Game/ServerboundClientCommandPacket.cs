@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundClientCommandPacket 客户端命令包对应原版 ServerboundClientCommandPacket
-//字段 Action(ClientCommandAction) 如请求重生/请求统计/请求游戏规则值
+//ServerboundClientCommandPacket client command packet, maps to vanilla ServerboundClientCommandPacket
+//Field: Action(ClientCommandAction), e.g. request respawn / request stats / request game rule values
 public sealed record ServerboundClientCommandPacket(ClientCommandAction Action) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundClientCommandPacket> StreamCodec { get; } = new ClientCommandCodec();
@@ -12,7 +12,7 @@ public sealed record ServerboundClientCommandPacket(ClientCommandAction Action) 
 
     private sealed class ClientCommandCodec : StreamCodec<FriendlyByteBuf, ServerboundClientCommandPacket>
     {
-        //原版 writeEnum(action) 即 VarInt 枚举序号
+        //Vanilla writeEnum(action), i.e. a VarInt enum ordinal
         public ServerboundClientCommandPacket Decode(FriendlyByteBuf buf)
             => new((ClientCommandAction)buf.ReadVarInt());
 
@@ -21,7 +21,7 @@ public sealed record ServerboundClientCommandPacket(ClientCommandAction Action) 
     }
 }
 
-//ClientCommandAction 客户端命令动作对应原版 ServerboundClientCommandPacket.Action
+//ClientCommandAction client command action, maps to vanilla ServerboundClientCommandPacket.Action
 public enum ClientCommandAction
 {
     PerformRespawn,

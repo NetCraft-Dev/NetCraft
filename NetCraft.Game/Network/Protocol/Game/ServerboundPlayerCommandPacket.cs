@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundPlayerCommandPacket 实体动作包对应原版 ServerboundPlayerCommandPacket
-//疾跑潜行起跳落地等实体状态切换 字段 Id(VarInt) Action(VarInt枚举) Data(VarInt)
+//ServerboundPlayerCommandPacket entity action packet, maps to vanilla ServerboundPlayerCommandPacket
+//Entity state switches such as sprinting/sneaking/start riding jump/stopping riding jump; fields: Id(VarInt), Action(VarInt enum), Data(VarInt)
 public sealed record ServerboundPlayerCommandPacket(int Id, PlayerCommandAction Action, int Data)
     : Packet<ServerGamePacketListener>
 {
@@ -25,7 +25,7 @@ public sealed record ServerboundPlayerCommandPacket(int Id, PlayerCommandAction 
     }
 }
 
-//PlayerCommandAction 实体动作枚举声明顺序即网络序号与原版 Action 对齐
+//PlayerCommandAction entity action enum, declaration order is the network ordinal and aligns with vanilla Action
 public enum PlayerCommandAction
 {
     StopSleeping,

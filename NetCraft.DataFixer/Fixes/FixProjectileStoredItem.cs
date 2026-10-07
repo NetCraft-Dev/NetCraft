@@ -4,8 +4,8 @@ using T = NetCraft.DataFixer.Types;
 
 namespace NetCraft.DataFixer.Fixes;
 
-//投射物存储物品修复对应原版FixProjectileStoredItem
-//1.20.5为trident/arrow/spectral_arrow实体补充Item字段trident直转arrow/spectral_arrow按药水类型分流
+//projectile stored item fix, maps to vanilla FixProjectileStoredItem
+//1.20.5 adds an Item field for trident/arrow/spectral_arrow entities; trident converts directly, arrow/spectral_arrow branch by potion type
 public class FixProjectileStoredItem : DataFix
 {
     private const string EMPTY_POTION = "minecraft:empty";
@@ -23,10 +23,10 @@ public class FixProjectileStoredItem : DataFix
                 FixChoice("minecraft:spectral_arrow", FixSpectralArrow)));
     }
 
-    //subFixer委托签名按输入Typed与输出Type返回新Typed
+    //subFixer delegate signature: takes an input Typed and output Type, returns a new Typed
     private delegate Typed<object> SubFixer(Typed<object> input, T.Type<object> outputType);
 
-    //fixChoice按实体名构造命名选择查找并应用修复函数
+    //fixChoice builds a named choice finder by entity name and applies the fix function
     private Func<Typed<object>, Typed<object>> FixChoice(string entityName, SubFixer fixer)
     {
         var inputEntityChoiceType = GetInputSchema().GetChoiceType(References.Entity, entityName);
@@ -35,21 +35,21 @@ public class FixProjectileStoredItem : DataFix
         return input => input.UpdateTyped(entityF, outputEntityChoiceType, typed => fixer(typed, outputEntityChoiceType));
     }
 
-    //fixArrow按Potion字段判断是否tipped_arrow写入Item字段
+    //fixArrow checks the Potion field to decide arrow vs tipped_arrow and writes the Item field
     private static Typed<object> FixArrow(Typed<object> typed, T.Type<object> outputType)
         => DataFixUtils.WriteAndReadTypedOrThrow<object, object>(typed, outputType,
             input => input.Set(FixConstants.DecoratedPotBlockEntityItem, CreateItemStack(input, GetArrowType(input))));
 
-    //getArrowType按Potion字段值是否为空判断arrow还是tipped_arrow
+    //getArrowType decides arrow vs tipped_arrow based on whether the Potion field is empty
     private static string GetArrowType(Dynamic<object> input)
         => input.Get("Potion").AsString(EMPTY_POTION).Equals(EMPTY_POTION) ? "minecraft:arrow" : "minecraft:tipped_arrow";
 
-    //fixSpectralArrow写入spectral_arrow的Item字段
+    //fixSpectralArrow writes the spectral_arrow Item field
     private static Typed<object> FixSpectralArrow(Typed<object> typed, T.Type<object> outputType)
         => DataFixUtils.WriteAndReadTypedOrThrow<object, object>(typed, outputType,
             input => input.Set(FixConstants.DecoratedPotBlockEntityItem, CreateItemStack(input, "minecraft:spectral_arrow")));
 
-    //createItemStack构造{id:名字,Count:1}的物品map
+    //createItemStack builds the {id:name,Count:1} item map
     private static Dynamic<object> CreateItemStack(Dynamic<object> input, string itemName)
         => input.CreateMap(new[]
         {
@@ -57,7 +57,7 @@ public class FixProjectileStoredItem : DataFix
             new Pair<Dynamic<object>, Dynamic<object>>(input.CreateString("Count"), input.CreateInt(1))
         });
 
-    //castUnchecked直接复用ExtraDataFixUtils.Cast做未检查类型转换
+    //castUnchecked reuses ExtraDataFixUtils.Cast for an unchecked type conversion
     private static Typed<object> CastUnchecked(Typed<object> input, T.Type<object> outputType)
         => ExtraDataFixUtils.Cast<object, object>(outputType, input);
 }

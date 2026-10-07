@@ -5,17 +5,17 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Items.Component.Predicates;
 
-//EnchantmentsPredicate 附魔谓词基类 列表里每条附魔谓词都要成立
-//对应原版 net.minecraft.core.component.predicates.EnchantmentsPredicate
+//EnchantmentsPredicate base class for enchantment predicates, every enchantment predicate in the list must hold
+//Maps to vanilla net.minecraft.core.component.predicates.EnchantmentsPredicate
 public abstract class EnchantmentsPredicate : SingleComponentItemPredicate<ItemEnchantments>
 {
     protected EnchantmentsPredicate(IReadOnlyList<EnchantmentPredicate> enchantments)
         => EnchantmentPredicates = enchantments;
 
-    //EnchantmentPredicates 判定用的附魔谓词列表 属性名不能与嵌套类 Enchantments 同名
+    //EnchantmentPredicates list of enchantment predicates used for matching; the property cannot share the name of the nested class Enchantments
     public IReadOnlyList<EnchantmentPredicate> EnchantmentPredicates { get; }
 
-    //CodecOf 列表编解码加构造器 对应原版 codec
+    //CodecOf list codec plus constructor, maps to vanilla codec
     public static Codec<T> CodecOf<T>(Func<IReadOnlyList<EnchantmentPredicate>, T> constructor)
         where T : EnchantmentsPredicate
         => EnchantmentPredicate.Codec.ListOf().ComapFlatMap(
@@ -24,7 +24,7 @@ public abstract class EnchantmentsPredicate : SingleComponentItemPredicate<ItemE
 
     public abstract DataComponentType<object> ComponentType { get; }
 
-    //MatchesValue 逐条附魔谓词都要在附魔表里找到匹配
+    //MatchesValue every enchantment predicate must find a match in the enchantment map
     public bool MatchesValue(ItemEnchantments appliedEnchantments)
     {
         foreach (var enchantment in EnchantmentPredicates)
@@ -32,7 +32,7 @@ public abstract class EnchantmentsPredicate : SingleComponentItemPredicate<ItemE
         return true;
     }
 
-    //Enchantments 普通附魔谓词 对应原版 Enchantments
+    //Enchantments plain enchantment predicate, maps to vanilla Enchantments
     public sealed class Enchantments : EnchantmentsPredicate
     {
         public static readonly Codec<Enchantments> Codec = CodecOf<Enchantments>(list => new Enchantments(list));
@@ -42,7 +42,7 @@ public abstract class EnchantmentsPredicate : SingleComponentItemPredicate<ItemE
         public override DataComponentType<object> ComponentType => DataComponents.ENCHANTMENTS;
     }
 
-    //StoredEnchantments 附魔书谓词 对应原版 StoredEnchantments
+    //StoredEnchantments stored enchantments predicate, maps to vanilla StoredEnchantments
     public sealed class StoredEnchantments : EnchantmentsPredicate
     {
         public static readonly Codec<StoredEnchantments> Codec =

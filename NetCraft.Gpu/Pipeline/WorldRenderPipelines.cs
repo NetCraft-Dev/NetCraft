@@ -1,14 +1,14 @@
 namespace NetCraft.Gpu.Pipeline;
 
-//WorldRenderPipelines 世界渲染 pipeline 注册表对标原版 RenderPipelines 的 terrain 系列
-//3 个 terrain pipeline 共享 TERRAIN_SNIPPET 仅 blend/define 差异
-//set 0 MATRICES_PROJECTION 含 ViewProj mat4 CPU 端 bake section offset 进顶点 shader 端 Model=Identity
-//set 1 SAMPLER0_SAMPLER1 atlas 纹理图集 + lightmap 光照贴图
-//face shading bake 进顶点 color 不需要 Lighting UBO 方向光照
+//WorldRenderPipelines world render pipeline registry, maps to the terrain series of vanilla RenderPipelines
+//The 3 terrain pipelines share TERRAIN_SNIPPET, differing only in blend/define
+//set 0 MATRICES_PROJECTION with a ViewProj mat4; the CPU side bakes the section offset into the vertices and the shader uses Model=Identity
+//set 1 SAMPLER0_SAMPLER1 atlas texture + lightmap
+//Face shading is baked into the vertex color, so the Lighting UBO directional lighting is not needed
 public static class WorldRenderPipelines
 {
-    //TERRAIN_SNIPPET terrain 基础 snippet 所有 terrain pipeline 共享
-    //顶点格式 POSITION_COLOR_UV_LIGHT_NORMAL 与 ITEM_3D 一致 Quads 拓扑 深度 GEQUAL 写入
+    //TERRAIN_SNIPPET terrain base snippet shared by all terrain pipelines
+    //Vertex format POSITION_COLOR_UV_LIGHT_NORMAL, same as ITEM_3D, Quads topology, depth GEQUAL with write
     public static readonly Snippet TERRAIN_SNIPPET = PipelineBuilder.From()
         .WithVertexShader("core/terrain")
         .WithFragmentShader("core/terrain")
@@ -20,21 +20,21 @@ public static class WorldRenderPipelines
         .WithPrimitiveTopology(PrimitiveTopology.Quads)
         .BuildSnippet();
 
-    //SOLID_TERRAIN 不透明 terrain pipeline 无 blend 无 alpha cutout
-    //用于石头泥土等完全不透明方块 6 面全渲染深度写入
+    //SOLID_TERRAIN opaque terrain pipeline, no blend, no alpha cutout
+    //Used for fully opaque blocks like stone and dirt; all 6 faces render with depth write
     public static readonly RenderPipeline SOLID_TERRAIN = RenderPipelines.Register(PipelineBuilder.From(TERRAIN_SNIPPET)
         .WithLocation("pipeline/solid_terrain")
         .Build());
 
-    //CUTOUT_TERRAIN alpha cutout terrain pipeline 无 blend shader discard alpha<0.5
-    //用于树叶花草等镂空纹理 不混合直接 discard 透明像素保持深度正确
+    //CUTOUT_TERRAIN alpha-cutout terrain pipeline, no blend, shader discards alpha<0.5
+    //Used for cutout textures like leaves and plants; no blend, transparent pixels discarded to keep depth correct
     public static readonly RenderPipeline CUTOUT_TERRAIN = RenderPipelines.Register(PipelineBuilder.From(TERRAIN_SNIPPET)
         .WithLocation("pipeline/cutout_terrain")
         .WithShaderDefine("ALPHA_CUTOUT")
         .Build());
 
-    //TRANSLUCENT_TERRAIN 半透明 terrain pipeline TRANSLUCENT blend 不写深度避免遮挡
-    //用于水冰玻璃等半透明方块 按 RenderLayer 顺序在 Solid/Cutout 之后渲染
+    //TRANSLUCENT_TERRAIN translucent terrain pipeline TRANSLUCENT blend with no depth write to avoid occlusion
+    //Used for translucent blocks like water, ice and glass; rendered after Solid/Cutout in RenderLayer order
     public static readonly RenderPipeline TRANSLUCENT_TERRAIN = RenderPipelines.Register(PipelineBuilder.From(TERRAIN_SNIPPET)
         .WithLocation("pipeline/translucent_terrain")
         .WithColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))

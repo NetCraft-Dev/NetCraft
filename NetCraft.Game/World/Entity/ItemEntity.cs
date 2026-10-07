@@ -9,59 +9,59 @@ using NetCraft.Util;
 
 namespace NetCraft.Game.World.Entity;
 
-//ItemEntity 掉落物实体对应原版 net.minecraft.world.entity.item.ItemEntity
-//按原版实现: 重力 0.04 / 空气阻力 0.98 / 落地水平摩擦乘脚下方块摩擦 / 落地竖直速度反弹 -0.5
-//相邻同类掉落物按 2 或 40 刻合并 / 存活 6000 刻或血量归零后移除 / 同物品同组件才合并
-//存档字段名与类型对齐原版 Item/Age/PickupDelay/Health(short)/Owner/Thrower
-//本作没有流体系统 水中与岩浆运动分支未接入
-//命名空间段与实体基类同名 基类必须写全限定名
+//ItemEntity item entity, maps to vanilla net.minecraft.world.entity.item.ItemEntity
+//Follows vanilla: gravity 0.04 / air drag 0.98 / ground horizontal friction multiplied by the block below / landing vertical speed bounces to -0.5
+//Adjacent same-type item entities merge every 2 or 40 ticks / removed after 6000 ticks or when health hits zero / only same item and components merge
+//Save field names and types align with vanilla Item/Age/PickupDelay/Health(short)/Owner/Thrower
+//This project has no fluid system, the water and lava motion branches are not wired up
+//The namespace segment shares a name with the entity base class, so the base class must be fully qualified
 public sealed class ItemEntity : NetCraft.Registry.Entity
 {
-    //InfinitePickupDelay 永不拾取的哨兵值 对应原版 32767
+    //InfinitePickupDelay sentinel for never pickable, maps to vanilla 32767
     public const int InfinitePickupDelay = 32767;
 
-    //InfiniteLifetime 无限存活哨兵值 对应原版 -32768 读到它就不再递增存活刻数
+    //InfiniteLifetime sentinel for unlimited lifetime, maps to vanilla -32768, reading it stops incrementing the age
     public const int InfiniteLifetime = -32768;
 
-    //Lifetime 掉落物自然消失的刻数 对应原版 6000
+    //Lifetime ticks before an item entity naturally disappears, maps to vanilla 6000
     public const int Lifetime = 6000;
 
-    //DefaultHealth 默认血量 对应原版 5 归零即移除
+    //DefaultHealth default health, maps to vanilla 5, removed when it hits zero
     public const int DefaultHealth = 5;
 
-    //DefaultPickupDelay 默认拾取冷却刻数 对应原版 10
+    //DefaultPickupDelay default pickup cooldown ticks, maps to vanilla 10
     public const int DefaultPickupDelay = 10;
 
-    //DataItemIndex 物品栈的实体数据索引 对应原版 ItemEntity.DATA_ITEM
-    //Entity 自身占 0-7 八个数据 掉落物的是第 9 个 双端共用这个常量保证同步口径一致
+    //DataItemIndex entity data index of the item stack, maps to vanilla ItemEntity.DATA_ITEM
+    //Entity occupies eight data slots 0-7, the item entity's is the 9th, both sides share this constant so sync stays consistent
     public const byte DataItemIndex = 8;
 
-    //BounceFactor 落地竖直速度反弹系数 对应原版 -0.5
+    //BounceFactor vertical speed bounce factor on landing, maps to vanilla -0.5
     private const double BounceFactor = -0.5;
 
-    //MinHorizontalSpeedSqr 水平速度低于该平方值视为静止 对应原版 1.0E-5
+    //MinHorizontalSpeedSqr horizontal speed below this squared value counts as at rest, maps to vanilla 1.0E-5
     private const double MinHorizontalSpeedSqr = 1e-5;
 
-    //DefaultFriction 关卡未接入时的兜底方块摩擦 与原版方块默认值一致
+    //DefaultFriction fallback block friction when the level is not wired up, same as the vanilla block default
     private const double DefaultFriction = 0.6f;
 
     private readonly EntityType<object> _type;
     private ItemStack _item = ItemStack.Empty;
 
-    //ItemEntity 构造 实体类型由注册时绑定 决定注册名与网络序号
+    //ItemEntity constructor, the entity type is bound at registration and determines the registry name and network index
     public ItemEntity(EntityType<object> type)
     {
         _type = type;
-        //浮动相位与初始朝向都取随机数 对应原版构造里的 bobOffs 与 setYRot
-        //不随机的话同批生成的掉落物浮动与朝向完全同步 看着像一排整齐的方块
+        //The bob phase and initial rotation are random, maps to bobOffs and setYRot in the vanilla constructor
+        //Without randomness items spawned together bob and face in perfect sync, looking like a neat row of blocks
         BobOffset = Random.Shared.NextSingle() * MathF.PI * 2f;
         YRot = Random.Shared.NextSingle() * 360f;
-        //元数据声明 物品栈是掉落物唯一同步的数据 对应原版 defineSynchedData
+        //Synched data declaration, the item stack is the only data synced for an item entity, maps to vanilla defineSynchedData
         SyncedData.Define(DataItemIndex, EntityDataSerializers.ItemStackId, ItemStack.Empty);
     }
 
-    //ItemEntity 按坐标与物品构造 对应原版 ItemEntity(Level, x, y, z, ItemStack)
-    //初速为随机水平散布加固定上抛 落地后自然铺开而不是原地堆成一摞
+    //ItemEntity constructor from position and item, maps to vanilla ItemEntity(Level, x, y, z, ItemStack)
+    //Initial velocity is a random horizontal spread plus a fixed upward toss, so items spread out on landing instead of stacking in place
     public ItemEntity(EntityType<object> type, double x, double y, double z, ItemStack item) : this(type)
     {
         Pos = new Vec3(x, y, z);
@@ -72,20 +72,20 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
             Random.Shared.NextDouble() * 0.2 - 0.1);
     }
 
-    //Id 实体注册名取自已绑定的类型
+    //Id entity registry name taken from the bound type
     public override Identifier Id => _type.Id;
 
-    //Type 实体类型 追踪器按它取视距与网络序号
+    //Type entity type, the tracker uses it to get the tracking range and network index
     public override EntityType<object>? Type => _type;
 
-    //DefaultGravity 掉落物重力 0.04 小于默认的 0.08 对应原版 getDefaultGravity
+    //DefaultGravity item entity gravity 0.04, less than the default 0.08, maps to vanilla getDefaultGravity
     public override double DefaultGravity => 0.04;
 
-    //SavesHealth 掉落物的 Health 是 short 且语义独立 基类不代写 float Health
+    //SavesHealth the item entity's Health is a short with independent meaning, the base class does not write the float Health
     protected override bool SavesHealth => false;
 
-    //Item 持有的物品栈 空栈实体没有存在意义会自行移除
-    //赋值即同步给观察者 对应原版 setItem 写 DATA_ITEM
+    //Item the held item stack, an empty stack makes the entity pointless so it removes itself
+    //Assigning syncs to observers, maps to vanilla setItem writing DATA_ITEM
     public ItemStack Item
     {
         get => _item;
@@ -96,26 +96,26 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
         }
     }
 
-    //Age 已存活刻数 到 Lifetime 自然消失
+    //Age ticks survived, disappears naturally at Lifetime
     public int Age { get; set; }
 
-    //PickupDelay 剩余不可拾取刻数 0 表示可拾取 32767 表示永不拾取
+    //PickupDelay remaining ticks before pickup is allowed, 0 means pickable and 32767 means never
     public int PickupDelay { get; set; }
 
-    //ItemHealth 掉落物血量 对应原版 ItemEntity.health
-    //与生物基类的 Entity.Health 同名但语义独立 故单独一个属性
+    //ItemHealth item entity health, maps to vanilla ItemEntity.health
+    //Shares the name with the mob base class Entity.Health but has independent meaning, so it is a separate property
     public int ItemHealth { get; private set; } = DefaultHealth;
 
-    //Owner 只允许该玩家拾取 对应原版 target 为 null 表示任何人可拾取
+    //Owner only this player may pick it up, maps to vanilla target, null means anyone can pick it up
     public Guid? Owner { get; set; }
 
-    //Thrower 投掷者 对应原版 thrower
+    //Thrower the thrower, maps to vanilla thrower
     public Guid? Thrower { get; set; }
 
-    //BobOffset 上下浮动的相位 对应原版 bobOffs 由生成时的随机数决定
+    //BobOffset phase of the up-down bob, maps to vanilla bobOffs, decided by a random number at spawn
     public float BobOffset { get; }
 
-    //Tick 每刻推进 顺序对齐原版 ItemEntity.tick
+    //Tick advances each tick, order aligns with vanilla ItemEntity.tick
     public override void Tick()
     {
         if (Item.IsEmpty())
@@ -125,9 +125,9 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
         }
         TickBase();
         if (PickupDelay > 0 && PickupDelay != InfinitePickupDelay) PickupDelay--;
-        //本作没有流体判定 水下与岩浆分支不做 一律按重力处理
+        //This project has no fluid checks, the underwater and lava branches are skipped and everything follows gravity
         Velocity = new Vec3(Velocity.X, Velocity.Y - DefaultGravity, Velocity.Z);
-        //贴地的静止掉落物不必每刻重算 原版按 (tickCount + id) % 4 错开刷新
+        //A grounded resting item entity need not be recomputed every tick, vanilla staggers refreshes with (tickCount + id) % 4
         if (!OnGround || HorizontalSpeedSqr(Velocity) > MinHorizontalSpeedSqr || (TickCount + EntityId) % 4 == 0)
         {
             Move(Velocity);
@@ -135,11 +135,11 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
             var friction = airDrag;
             if (OnGround) friction *= GroundFriction();
             Velocity = new Vec3(Velocity.X * friction, Velocity.Y * airDrag, Velocity.Z * friction);
-            //落地时竖直速度反向衰减 对应原版 -0.5
+            //Vertical speed is reversed and damped on landing, maps to vanilla -0.5
             if (OnGround && Velocity.Y < 0)
                 Velocity = new Vec3(Velocity.X, Velocity.Y * BounceFactor, Velocity.Z);
         }
-        //跨方块格时合并检查更频繁 对应原版 rate = moved ? 2 : 40
+        //Merge checks are more frequent on block crossing, maps to vanilla rate = moved ? 2 : 40
         var moved = Mth.Floor(PreviousPos.X) != Mth.Floor(Pos.X)
             || Mth.Floor(PreviousPos.Y) != Mth.Floor(Pos.Y)
             || Mth.Floor(PreviousPos.Z) != Mth.Floor(Pos.Z);
@@ -148,10 +148,10 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
         if (Age >= Lifetime) Discard();
     }
 
-    //PlayerTouch 玩家碰到掉落物时尝试拾取 对应原版 ItemEntity.playerTouch
-    //交给的栈就是实体自己的那一个 内核就地放进多少就从这里扣多少
-    //只有整栈放得下(或创造模式吞掉剩余)才算拾取成功 发 take item 包给拾取者并播入手音效
-    //部分放入时本刻不结算 剩余量留在实体上等下一次接触 与原版 add 返回 false 的分支一致
+    //PlayerTouch tries to pick up when a player touches the item entity, maps to vanilla ItemEntity.playerTouch
+    //The stack handed over is the entity's own, whatever the core inserts in place is deducted here
+    //Pickup only succeeds when the whole stack fits (or creative swallows the rest); a take item packet goes to the picker and the pickup sound plays
+    //A partial insert is not settled this tick, the remainder stays on the entity until the next contact, same as the vanilla branch where add returns false
     public void PlayerTouch(ServerPlayer player)
     {
         if (HasPickUpDelay) return;
@@ -164,8 +164,8 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
         Discard();
     }
 
-    //Hurt 掉落物受伤 直接扣自己的血量 不走生物的无敌帧与死亡流程 对应原版 hurtServer
-    //掉落物不受击退 来源参数收下但不用
+    //Hurt damage to an item entity directly reduces its own health without the mob invulnerability frames and death flow, maps to vanilla hurtServer
+    //Item entities are not knocked back, the source parameter is accepted but unused
     public override bool Hurt(float amount, Vec3? knockbackSource = null)
     {
         ItemHealth -= (int)amount;
@@ -174,36 +174,36 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
         return true;
     }
 
-    //SetDefaultPickUpDelay 落地拾取冷却 10 刻 对应原版 setDefaultPickUpDelay
+    //SetDefaultPickUpDelay pickup cooldown on landing, 10 ticks, maps to vanilla setDefaultPickUpDelay
     public void SetDefaultPickUpDelay() => PickupDelay = DefaultPickupDelay;
 
-    //SetNoPickUpDelay 立即可拾取 对应原版 setNoPickUpDelay
+    //SetNoPickUpDelay immediately pickable, maps to vanilla setNoPickUpDelay
     public void SetNoPickUpDelay() => PickupDelay = 0;
 
-    //SetNeverPickUp 永不拾取 对应原版 setNeverPickUp
+    //SetNeverPickUp never pickable, maps to vanilla setNeverPickUp
     public void SetNeverPickUp() => PickupDelay = InfinitePickupDelay;
 
-    //SetPickUpDelay 指定拾取冷却刻数 对应原版 setPickUpDelay
+    //SetPickUpDelay sets the pickup cooldown ticks, maps to vanilla setPickUpDelay
     public void SetPickUpDelay(int ticks) => PickupDelay = ticks;
 
-    //HasPickUpDelay 是否仍在拾取冷却 对应原版 hasPickUpDelay
+    //HasPickUpDelay whether it is still on pickup cooldown, maps to vanilla hasPickUpDelay
     public bool HasPickUpDelay => PickupDelay > 0;
 
-    //SetUnlimitedLifetime 无限存活 对应原版 setUnlimitedLifetime
+    //SetUnlimitedLifetime unlimited lifetime, maps to vanilla setUnlimitedLifetime
     public void SetUnlimitedLifetime() => Age = InfiniteLifetime;
 
-    //SetExtendedLifetime 再续 6000 刻 对应原版 setExtendedLifetime
+    //SetExtendedLifetime extends by another 6000 ticks, maps to vanilla setExtendedLifetime
     public void SetExtendedLifetime() => Age = -Lifetime;
 
-    //MakeFakeItem 变成不可拾取且马上消失的表现用掉落物 对应原版 makeFakeItem
+    //MakeFakeItem turns it into a cosmetic item entity that cannot be picked up and despawns at once, maps to vanilla makeFakeItem
     public void MakeFakeItem()
     {
         SetNeverPickUp();
         Age = Lifetime - 1;
     }
 
-    //MergeWithNeighbours 与半格范围内同类掉落物合并 对应原版 mergeWithNeighbours
-    //范围查询走关卡的空间索引 分桶结果不精确故再按包围盒相交过滤
+    //MergeWithNeighbours merges with same-type item entities within half a block, maps to vanilla mergeWithNeighbours
+    //The range query uses the level's spatial index, bucket results are imprecise so they are filtered again by bounding box intersection
     public void MergeWithNeighbours()
     {
         if (!IsMergable || Level is not PersistentServerLevel level) return;
@@ -213,18 +213,18 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
             if (ReferenceEquals(candidate, this) || candidate is not ItemEntity other) continue;
             if (!area.Intersects(other.BoundingBox) || !other.IsMergable) continue;
             TryToMerge(other);
-            //合并后本实体可能已被移除 原版同样在这里直接返回
+            //After merging this entity may already be removed, vanilla also returns here directly
             if (IsRemoved) return;
         }
     }
 
-    //IsMergable 该掉落物能否参与合并 对应原版 isMergable
-    //永不拾取/无限存活/已到寿命/已堆满的都不合并
+    //IsMergable whether this item entity can take part in merging, maps to vanilla isMergable
+    //Never-pickable, unlimited-lifetime, expired and already full ones do not merge
     public bool IsMergable
         => !IsRemoved && PickupDelay != InfinitePickupDelay && Age != InfiniteLifetime
             && Age < Lifetime && !Item.IsEmpty() && Item.GetCount() < Item.GetMaxStackSize();
 
-    //AreMergable 两栈能否合并 对应原版 areMergable
+    //AreMergable whether two stacks can merge, maps to vanilla areMergable
     public static bool AreMergable(ItemStack first, ItemStack second)
     {
         if (first.IsEmpty() || second.IsEmpty()) return false;
@@ -232,26 +232,26 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
         return first.IsSameItemAndComponentsAs(second);
     }
 
-    //GetSpin 掉落物旋转相位 对应原版 getSpin 客户端渲染用
+    //GetSpin item entity spin phase, maps to vanilla getSpin for client rendering
     public static float GetSpin(float ageInTicks, float bobOffset) => ageInTicks / 20f + bobOffset;
 
-    //VisualRotationYInDegrees 掉落物朝向角 对应原版 getVisualRotationYInDegrees
+    //VisualRotationYInDegrees item entity facing angle, maps to vanilla getVisualRotationYInDegrees
     public float VisualRotationYInDegrees
         => 180f - GetSpin(Age + 0.5f, BobOffset) / (MathF.PI * 2f) * 360f;
 
-    //AddAdditionalSaveData 存档字段名与类型对齐原版 基类已跳过 float Health
+    //AddAdditionalSaveData save field names and types align with vanilla, the base class already skips the float Health
     protected override void AddAdditionalSaveData(CompoundTag tag)
     {
         tag.PutShort("Health", (short)ItemHealth);
         tag.PutShort("Age", (short)Age);
         tag.PutShort("PickupDelay", (short)PickupDelay);
-        //原版两个字段都按 UUIDUtil.CODEC 写 即 4 个 int 的数组
+        //Both fields are written with UUIDUtil.CODEC in vanilla, that is an array of 4 ints
         if (Thrower is { } thrower) tag.PutIntArray("Thrower", UuidToIntArray(thrower));
         if (Owner is { } owner) tag.PutIntArray("Owner", UuidToIntArray(owner));
         if (!Item.IsEmpty()) ItemStack.WriteNbt(tag, "Item", Item);
     }
 
-    //ReadAdditionalSaveData 读回物品与状态 物品不可用时当场移除
+    //ReadAdditionalSaveData reads back the item and state, removes the entity on the spot when the item is unusable
     protected override void ReadAdditionalSaveData(CompoundTag tag)
     {
         ItemHealth = tag.GetShort("Health")?.Value ?? DefaultHealth;
@@ -260,11 +260,11 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
         if (tag.GetIntArray("Thrower") is { } thrower) Thrower = IntArrayToUuid(thrower.Value);
         if (tag.GetIntArray("Owner") is { } owner) Owner = IntArrayToUuid(owner.Value);
         Item = ItemStack.ReadNbt(tag.GetCompound("Item"));
-        //存档里没有可用物品与 summon 给空 NBT 一样当场移除
+        //No usable item in the save is the same as summoning with empty NBT and removes it on the spot
         if (Item.IsEmpty()) Discard();
     }
 
-    //TryToMerge 数量少的并进数量多的 对应原版 tryToMerge
+    //TryToMerge merges the lesser stack into the greater, maps to vanilla tryToMerge
     private void TryToMerge(ItemEntity other)
     {
         if (!AreMergable(Item, other.Item)) return;
@@ -272,8 +272,8 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
         else Merge(other, this);
     }
 
-    //Merge 把 from 的数量搬进 to 并取两者的拾取延迟较大值与年龄较小值
-    //数量搬空后 from 立即移除 对应原版 fromStack.isEmpty() 分支
+    //Merge moves the count from into to and takes the larger pickup delay and smaller age of the two
+    //Once the count is drained from is removed immediately, maps to the vanilla fromStack.isEmpty() branch
     private static void Merge(ItemEntity to, ItemEntity from)
     {
         var toStack = to.Item;
@@ -287,8 +287,8 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
         if (fromStack.IsEmpty()) from.Discard();
     }
 
-    //GroundFriction 脚下方块的摩擦系数 对应原版 getBlockPosBelowThatAffectsMyMovement
-    //关卡未接入或该位置无方块时退回默认摩擦
+    //GroundFriction friction of the block below, maps to vanilla getBlockPosBelowThatAffectsMyMovement
+    //Falls back to the default friction when the level is not wired up or there is no block at the position
     private double GroundFriction()
     {
         if (Level is not PersistentServerLevel level) return DefaultFriction;
@@ -296,6 +296,6 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
         return level.GetBlockState(below)?.Owner.Friction ?? (float)DefaultFriction;
     }
 
-    //HorizontalSpeedSqr 水平速度平方
+    //HorizontalSpeedSqr squared horizontal speed
     private static double HorizontalSpeedSqr(Vec3 velocity) => velocity.X * velocity.X + velocity.Z * velocity.Z;
 }

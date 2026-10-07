@@ -4,16 +4,16 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.World.Entity;
 
-//AbstractHurtingProjectile 火球类投射物基类 对应原版 net.minecraft.world.entity.projectile.hurtingprojectile.AbstractHurtingProjectile
-//这类投射物不受重力 只按阻力减速 飞行途中会引燃碰到的东西
+//AbstractHurtingProjectile fireball-like projectile base class, maps to vanilla net.minecraft.world.entity.projectile.hurtingprojectile.AbstractHurtingProjectile
+//These projectiles ignore gravity, only slow down by drag and ignite what they touch in flight
 public abstract class AbstractHurtingProjectile : Projectile
 {
     protected AbstractHurtingProjectile(EntityType<object> type) : base(type) { }
 
-    //DefaultGravity 火球不受重力 对应原版 AbstractHurtingProjectile 不加重力
+    //DefaultGravity fireballs ignore gravity, maps to vanilla AbstractHurtingProjectile not adding gravity
     public override double DefaultGravity => 0.0;
 
-    //AirDrag 火球空气阻力 0.95 对应原版 0.95
+    //AirDrag fireball air drag 0.95, maps to vanilla 0.95
     public override double AirDrag => 0.95;
 
     public override void Tick()
@@ -34,12 +34,12 @@ public abstract class AbstractHurtingProjectile : Projectile
     }
 }
 
-//SmallFireball 小火球 对应原版 net.minecraft.world.entity.projectile.hurtingprojectile.SmallFireball
-//火焰弹投出去就是它 命中生物造成 5 点伤害 命中方块在空气处点一把火
-//原版还会给生物附加 5 秒着火 本作没有着火刻数体系故只造成伤害
+//SmallFireball small fireball, maps to vanilla net.minecraft.world.entity.projectile.hurtingprojectile.SmallFireball
+//A thrown fire charge becomes this, it deals 5 damage to mobs and lights a fire in the air next to a hit block
+//Vanilla also sets mobs on fire for 5 seconds; this project has no fire ticks, so it only deals damage
 public sealed class SmallFireball : AbstractHurtingProjectile
 {
-    //FireDamage 命中生物的伤害 对应原版 5.0f
+    //FireDamage damage dealt to mobs, maps to vanilla 5.0f
     private const float FireDamage = 5f;
 
     public SmallFireball(EntityType<object> type) : base(type) { }
@@ -47,7 +47,7 @@ public sealed class SmallFireball : AbstractHurtingProjectile
     protected override void OnHitEntity(ProjectileHitResult hit)
     {
         base.OnHitEntity(hit);
-        //以火球自身位置为来源 命中目标会被沿飞行方向击退
+        //The source is the fireball's own position, the target is knocked back along the flight direction
         hit.Entity?.Hurt(FireDamage, Pos);
         Discard();
     }
@@ -59,7 +59,7 @@ public sealed class SmallFireball : AbstractHurtingProjectile
         Discard();
     }
 
-    //PlaceFire 命中面的外侧格是空气就点一把火 对应原版命中方块后的引燃
+    //PlaceFire lights a fire when the slot outside the hit face is air, maps to the vanilla ignition after a block hit
     private void PlaceFire(ProjectileHitResult hit)
     {
         if (Level is not PersistentServerLevel level) return;

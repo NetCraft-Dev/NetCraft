@@ -1,16 +1,16 @@
-# 原版 26.2 方块注册表 顺序即原版 Blocks.java 声明顺序
-# 每行 注册名<TAB>属性定义[<TAB>扩展段]
-# 属性定义用 | 分隔 形如 名:bool / 名:int:min:max / 名:enum:枚举名:值1,值2
-# 扩展段用 ; 分隔 支持两项
-#   default=名:值,名:值  默认状态覆盖 只列与原版 any() 不同的属性
-#     对应原版构造器末尾的 registerDefaultState 缺了它默认状态会落在 any() 上
-#     而 BooleanProperty 值序是 true,false 枚举取声明序 any() 往往是错的那个
-#   place=类别          放置朝向的通用实现类别
-#     沿类链取第一个定义 getStateForPlacement 的类 只有原版通用实现的几类能照搬
-#   occlude=false        该方块不遮挡光线 对应原版 Properties.noOcclusion
-#   conductor=false/true 红石导体特例 对应原版 Properties.isRedstoneConductor
-#     原版默认按碰撞形状满不满格算 玻璃 树叶这类满格却设 never；灵魂沙 泥巴不满格却设 always
-#     只写这两类特例 没写的按形状判定
+# Vanilla 26.2 block registry, ordered as declared in vanilla Blocks.java
+# Each line: registry name<TAB>property definition[<TAB>extension section]
+# Property definitions are separated by |, in the form name:bool / name:int:min:max / name:enum:enumName:value1,value2
+# Extension sections are separated by ; and support two entries
+#   default=name:value,name:value  default-state overrides, listing only properties that differ from vanilla any()
+#     maps to registerDefaultState at the end of the vanilla constructor; without it the default state falls back to any()
+#     but BooleanProperty orders values as true,false and enums use declaration order, so any() is often the wrong one
+#   place=category          general placement-facing implementation category
+#     walks the class chain to the first class that defines getStateForPlacement; only the vanilla generic implementations can be copied
+#   occlude=false        the block does not block light, maps to vanilla Properties.noOcclusion
+#   conductor=false/true redstone conductor special case, maps to vanilla Properties.isRedstoneConductor
+#     vanilla defaults to checking whether the collision shape fills a full block; glass and leaves fill it yet set never, soul sand and mud do not fill it yet set always
+#     only these two special cases are written; anything unlisted is decided by shape
 air
 stone
 granite

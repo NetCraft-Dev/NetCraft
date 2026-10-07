@@ -4,8 +4,8 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//游戏业务字面常量集合集中替代原版散落在各业务类的TAG_*/Fields.*
-//避免引入NetCraft.Game依赖按需直接用字面值
+//A collection of game business literal constants, replacing the TAG_*/Fields.* scattered across the vanilla business classes
+//Uses literal values directly as needed to avoid a NetCraft.Game dependency
 public static class FixConstants
 {
     public const string LivingEntityAttributes = "attributes";

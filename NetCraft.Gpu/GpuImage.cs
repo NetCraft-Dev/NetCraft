@@ -1,6 +1,6 @@
 namespace NetCraft.Gpu;
 
-//GpuImageFormat 像素格式
+//GpuImageFormat pixel format
 public enum GpuImageFormat
 {
     R8G8B8A8Unorm,
@@ -10,7 +10,7 @@ public enum GpuImageFormat
     D32Sfloat
 }
 
-//GpuImageUsage 图像用途支持按位组合 blur offscreen 需 ColorAttachment|SampledImage
+//GpuImageUsage image usage, bitwise combinable; a blur offscreen needs ColorAttachment|SampledImage
 [Flags]
 public enum GpuImageUsage
 {
@@ -19,7 +19,7 @@ public enum GpuImageUsage
     DepthAttachment = 4
 }
 
-//GpuImageDescription 图像创建描述
+//GpuImageDescription image creation description
 public sealed class GpuImageDescription
 {
     public int Width { get; set; }
@@ -29,8 +29,8 @@ public sealed class GpuImageDescription
     public int MipLevels { get; set; } = 1;
 }
 
-//GpuImage GPU 图像/纹理抽象对应原版 blaze3d Texture
-//子类提供 Upload 和创建 ImageView 入口
+//GpuImage GPU image/texture abstraction, corresponds to vanilla blaze3d Texture
+//Subclasses provide Upload and the ImageView creation entry point
 public abstract class GpuImage : IDisposable
 {
     public int Width { get; }
@@ -48,20 +48,20 @@ public abstract class GpuImage : IDisposable
         MipLevels = desc.MipLevels;
     }
 
-    //Upload 上传像素数据字节数据长度需匹配 Width*Height*像素字节数
+    //Upload uploads pixel data; the byte length must match Width*Height*bytes per pixel
     public abstract void Upload(ReadOnlySpan<byte> pixels);
 
-    //UploadRegion 按区域上传像素到已存在的图集纹理对应原版 GlyphBitmap.upload(x,y,texture)
-    //用于动态字形烘焙首次 Upload 后按需把新字形像素写到图集子区域
-    //默认实现抛 NotSupportedException 后端按需 override
+    //UploadRegion uploads pixels region-wise into an existing atlas texture, corresponds to vanilla GlyphBitmap.upload(x,y,texture)
+    //Used by dynamic glyph baking: after the first Upload, writes new glyph pixels into atlas sub-regions on demand
+    //The default throws NotSupportedException; backends override as needed
     public virtual void UploadRegion(int x, int y, int width, int height, ReadOnlySpan<byte> pixels)
-        => throw new NotSupportedException("UploadRegion 未在此后端实现");
+        => throw new NotSupportedException("UploadRegion is not implemented in this backend");
 
-    //Readback 把 GPU 图像像素读回 CPU 字节数组供集成测试验证渲染结果
-    //返回字节数组长度 = Width*Height*像素字节数(R8G8B8A8=4)
-    //默认实现抛 NotSupportedException 仅 Vulkan 后端 override 供 gpugui 测试用
+    //Readback reads GPU image pixels back into a CPU byte array for integration tests to verify render output
+    //The returned byte array length = Width*Height*bytes per pixel (R8G8B8A8=4)
+    //The default throws NotSupportedException; only the Vulkan backend overrides it, for gpugui tests
     public virtual byte[] Readback()
-        => throw new NotSupportedException("Readback 未在此后端实现");
+        => throw new NotSupportedException("Readback is not implemented in this backend");
 
     public virtual void Dispose() { }
 }

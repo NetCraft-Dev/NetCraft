@@ -5,8 +5,8 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.Commands.Data;
 
-//StorageDataAccessor 命令存储数据访问对应原版 net.minecraft.server.commands.data.StorageDataAccessor
-//目标是命令自己用的键值存储 与方块/实体无关 常用来在命令之间传值
+//StorageDataAccessor command storage data access, maps to vanilla net.minecraft.server.commands.data.StorageDataAccessor
+//The target is the key-value storage commands use themselves, unrelated to blocks/entities, often used to pass values between commands
 public sealed class StorageDataAccessor : IDataAccessor
 {
     private readonly CommandStorage _storage;
@@ -22,11 +22,11 @@ public sealed class StorageDataAccessor : IDataAccessor
 
     public CompoundTag GetData() => _storage.Get(_id);
 
-    public string ModifiedSuccess => $"已修改存储 {_id} 的数据";
+    public string ModifiedSuccess => $"modified data of storage {_id}";
 
     public string PrintSuccess(Tag data)
-        => $"存储 {_id} 的数据:\n{NbtUtils.PrettyPrint(data, false)}";
+        => $"data of storage {_id}:\n{NbtUtils.PrettyPrint(data, false)}";
 
     public string PrintSuccess(NbtPath path, double scale, int value)
-        => $"存储 {_id} 的 {path} 乘以 {scale:0.00} 后为 {value}";
+        => $"the {path} of storage {_id} times {scale:0.00} is {value}";
 }

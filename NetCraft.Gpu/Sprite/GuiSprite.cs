@@ -1,10 +1,10 @@
 namespace NetCraft.Gpu.Sprite;
 
-//GuiSprite 单个 sprite 对应一张 PNG + .mcmeta scaling 配置
-//简化版 TextureAtlasSprite NetCraft 不做图集打包每个 sprite 独立 GpuImage
-//TextureId 由 GuiResourceManager.RegisterTexture 返回供 GuiRenderContext.DrawImage 用
-//Texture 持有 GpuImage+Sampler 由 GuiResourceManager 注册
-//Width/Height 是源 PNG 实际像素尺寸 Scaling 是.mcmeta 解析结果
+//GuiSprite a single sprite corresponding to one PNG + .mcmeta scaling config
+//A simplified TextureAtlasSprite; NetCraft does no atlas packing, each sprite gets its own GpuImage
+//TextureId returned by GuiResourceManager.RegisterTexture for GuiRenderContext.DrawImage
+//Texture holds the GpuImage+Sampler registered by GuiResourceManager
+//Width/Height are the source PNG's actual pixel size Scaling is the parsed .mcmeta result
 public sealed class GuiSprite
 {
     public int TextureId { get; }

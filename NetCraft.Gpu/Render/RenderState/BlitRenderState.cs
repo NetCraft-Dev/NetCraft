@@ -3,8 +3,8 @@ using RenderPipeline = NetCraft.Gpu.Pipeline.RenderPipeline;
 
 namespace NetCraft.Gpu;
 
-//BlitRenderState 单张纹理 blit 渲染状态对标原版 BlitRenderState
-//不可变 record 携带 pose/几何/uv/颜色/scissor 全量快照参与 GuiRenderState 排序合批
+//BlitRenderState single-texture blit render state, maps to vanilla BlitRenderState
+//Immutable record carrying a full snapshot of pose/geometry/uv/color/scissor, participating in GuiRenderState sorting and batching
 public sealed record BlitRenderState(
     RenderPipeline Pipeline,
     TextureSetup TextureSetup,
@@ -15,7 +15,7 @@ public sealed record BlitRenderState(
     ScreenRectangle ScissorArea,
     ScreenRectangle Bounds) : GuiElementRenderState
 {
-    //构造重载不传 bounds 时由几何+pose+scissor 自动推导
+    //The constructor overload without bounds derives it automatically from the geometry+pose+scissor
     public BlitRenderState(
         RenderPipeline pipeline,
         TextureSetup textureSetup,
@@ -29,7 +29,7 @@ public sealed record BlitRenderState(
     {
     }
 
-    //BuildVertices 写 4 顶点四边形 pose 在此处 bake 进顶点位置
+    //BuildVertices writes a 4-vertex quad; the pose is baked into the vertex positions here
     public void BuildVertices(IVertexConsumer consumer)
     {
         consumer.AddVertexWith2DPose(Pose, X0, Y0, U0, V0, Color);
@@ -38,7 +38,7 @@ public sealed record BlitRenderState(
         consumer.AddVertexWith2DPose(Pose, X1, Y0, U1, V0, Color);
     }
 
-    //GetBounds 由几何矩形经 pose 变换后与 scissor 求交得出最终 Bounds
+    //GetBounds intersects the pose-transformed geometry rectangle with the scissor for the final bounds
     private static ScreenRectangle GetBounds(int x0, int y0, int x1, int y1, Matrix3x2 pose, ScreenRectangle scissorArea)
     {
         var raw = new ScreenRectangle(x0, y0, x1 - x0, y1 - y0).TransformMaxBounds(pose);

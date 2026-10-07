@@ -7,8 +7,8 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//数据组件残留修复抽象父类对应原版net.minecraft.util.datafix.fixes.DataComponentRemainderFix
-//子类实现fixComponent处理指定组件的修改/移位/重命名
+//Data component remainder fix abstract parent, maps to vanilla net.minecraft.util.datafix.fixes.DataComponentRemainderFix
+//Subclasses implement fixComponent to modify/move/rename the given component
 public abstract class DataComponentRemainderFix : DataFix
 {
     private readonly string _name;

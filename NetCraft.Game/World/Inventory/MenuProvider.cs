@@ -3,13 +3,13 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.World.Inventory;
 
-//MenuProvider 菜单提供者对应原版 net.minecraft.world.MenuProvider
-//方块实体与其它可交互对象实现它 打开界面时把标题与构造方式交给玩家侧
+//MenuProvider menu provider, maps to vanilla net.minecraft.world.MenuProvider
+//Block entities and other interactable objects implement it, handing the title and construction to the player side when a screen opens
 public interface MenuProvider
 {
-    //DisplayName 界面标题
+    //DisplayName screen title
     Component DisplayName { get; }
 
-    //CreateMenu 构造菜单 返回 null 表示当前打不开
+    //CreateMenu builds the menu, null means it cannot be opened right now
     AbstractContainerMenu? CreateMenu(int containerId, PlayerInventory inventory, ServerPlayer player);
 }

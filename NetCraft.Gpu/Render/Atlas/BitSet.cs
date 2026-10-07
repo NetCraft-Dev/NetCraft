@@ -2,8 +2,8 @@ using System.Runtime.CompilerServices;
 
 namespace NetCraft.Gpu;
 
-//BitSet 固定长度位集合对标 java.util.BitSet 供 DynamicAtlasAllocator 用
-//Set/Clear/NextSetBit O(1) 按 ulong 分桶内部存储
+//BitSet fixed-length bit set, maps to java.util.BitSet, used by DynamicAtlasAllocator
+//Set/Clear/NextSetBit O(1) with internal storage bucketed by ulong
 public sealed class BitSet
 {
     private readonly ulong[] _bits;
@@ -15,14 +15,14 @@ public sealed class BitSet
         _bits = new ulong[(size + 63) >> 6];
     }
 
-    //Set 把 [from,to) 范围位设为 1
+    //Set sets the bits in the range [from,to) to 1
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Set(int from, int to)
     {
         for (var i = from; i < to; i++) Set(i);
     }
 
-    //Set 单位设为 1
+    //Set sets a single bit to 1
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Set(int index)
     {
@@ -30,7 +30,7 @@ public sealed class BitSet
         _bits[index >> 6] |= 1UL << (index & 63);
     }
 
-    //Clear 单位设为 0
+    //Clear sets a single bit to 0
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Clear(int index)
     {
@@ -38,8 +38,8 @@ public sealed class BitSet
         _bits[index >> 6] &= ~(1UL << (index & 63));
     }
 
-    //NextSetBit 从 from 开始找下一个为 1 的位返回索引无返回 -1
-    //用 System.Numerics.BitOperations.TrailingZeroCount 计算最低有效位
+    //NextSetBit finds the next bit set to 1 starting at from and returns its index, or -1 if none
+    //Uses System.Numerics.BitOperations.TrailingZeroCount to compute the lowest set bit
     public int NextSetBit(int from)
     {
         if (from < 0) from = 0;

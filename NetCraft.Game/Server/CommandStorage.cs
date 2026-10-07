@@ -4,16 +4,16 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Server;
 
-//CommandStorage 命令存储对应原版 net.minecraft.world.level.storage.CommandStorage
-///data 的 storage 目标读写的就是它
-//按命名空间切成独立的 SavedData 文件 data/<命名空间>/command_storage.dat
-//文件内容形如 {"contents":{"路径":标签}} 与原本对齐
+//CommandStorage command storage, maps to vanilla net.minecraft.world.level.storage.CommandStorage
+//What /data's storage target reads and writes
+//Split into separate SavedData files by namespace: data/<namespace>/command_storage.dat
+//The file content looks like {"contents":{"path":tag}}, aligned with vanilla
 public sealed class CommandStorage
 {
-    //ContainerFileName 容器文件名 与命名空间拼成 SavedData id
+    //ContainerFileName the container file name, joined with the namespace into the SavedData id
     private const string ContainerFileName = "command_storage";
 
-    //ContentsTag 容器内实际内容的包装键 对应原本 Container.CODEC 的 contents 字段
+    //ContentsTag the wrapper key for the container's actual content, maps to the contents field of vanilla Container.CODEC
     private const string ContentsTag = "contents";
 
     private readonly SavedDataStorage _dataStorage;
@@ -21,18 +21,18 @@ public sealed class CommandStorage
 
     public CommandStorage(SavedDataStorage dataStorage) => _dataStorage = dataStorage;
 
-    //Get 取指定 id 的内容 不存在返回空复合标签 对应原版 get
+    //Get takes the content of the given id; a missing one returns an empty compound tag, maps to vanilla get
     public CompoundTag Get(Identifier id)
     {
         var container = FindContainer(id.Namespace);
         return container is null ? new CompoundTag() : container.Get(id.Path);
     }
 
-    //Set 写入指定 id 的内容 空标签等价删除 对应原版 set
+    //Set writes the content of the given id; an empty tag is equivalent to deletion, maps to vanilla set
     public void Set(Identifier id, CompoundTag contents)
         => GetOrCreateContainer(id.Namespace).Put(id.Path, contents);
 
-    //Keys 已存在的全部键 供补全与调试查询 对应原版 keys
+    //Keys all existing keys, for suggestions and debug queries, maps to vanilla keys
     public IEnumerable<Identifier> Keys()
     {
         foreach (var (ns, container) in _containers)
@@ -40,7 +40,7 @@ public sealed class CommandStorage
                 yield return Identifier.FromNamespaceAndPath(ns, path);
     }
 
-    //FindContainer 先查内存再查磁盘 不存在返回 null 不建实例 对应原版 getContainer
+    //FindContainer checks memory then disk; a missing one returns null without creating an instance, maps to vanilla getContainer
     private Container? FindContainer(string ns)
     {
         if (_containers.TryGetValue(ns, out var cached)) return cached;
@@ -49,7 +49,7 @@ public sealed class CommandStorage
         return loaded;
     }
 
-    //GetOrCreateContainer 取或新建容器 对应原版 getOrCreateContainer
+    //GetOrCreateContainer gets or creates a container, maps to vanilla getOrCreateContainer
     private Container GetOrCreateContainer(string ns)
     {
         if (_containers.TryGetValue(ns, out var cached)) return cached;
@@ -61,7 +61,7 @@ public sealed class CommandStorage
     private static SavedDataType<Container> TypeOf(string ns)
         => new ContainerType(Identifier.FromNamespaceAndPath(ns, ContainerFileName));
 
-    //ContainerType 单命名空间容器的数据类型描述符
+    //ContainerType the data type descriptor for a single-namespace container
     private sealed class ContainerType(Identifier id) : SavedDataType<Container>
     {
         public string Id => id.ToString();
@@ -69,7 +69,7 @@ public sealed class CommandStorage
         public Container Create(CompoundTag tag, RegistryAccess registryAccess) => Container.Load(id, tag);
     }
 
-    //Container 单个命名空间的存储内容 对应原版 CommandStorage.Container
+    //Container the storage content of a single namespace, maps to vanilla CommandStorage.Container
     internal sealed class Container(string id) : SavedData
     {
         private readonly Dictionary<string, CompoundTag> _storage = new();
@@ -78,11 +78,11 @@ public sealed class CommandStorage
 
         public IEnumerable<string> Paths => _storage.Keys;
 
-        //Get 取内容 不存在的键返回空复合标签 对应原版 Container.get
+        //Get takes content; a missing key returns an empty compound tag, maps to vanilla Container.get
         public CompoundTag Get(string path)
             => _storage.TryGetValue(path, out var tag) ? tag : new CompoundTag();
 
-        //Put 写入内容 空标签等价删除 对应原版 Container.put
+        //Put writes content; an empty tag is equivalent to deletion, maps to vanilla Container.put
         public void Put(string path, CompoundTag contents)
         {
             if (contents.Count == 0) _storage.Remove(path);
@@ -98,7 +98,7 @@ public sealed class CommandStorage
             return tag;
         }
 
-        //Load 从存档读回内容 非复合值与非复合标签的条目跳过
+        //Load reads the content back from the save; entries that are not compound values/tags are skipped
         public static Container Load(Identifier id, CompoundTag tag)
         {
             var container = new Container(id.ToString());

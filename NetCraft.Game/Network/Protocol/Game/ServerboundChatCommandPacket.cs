@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundChatCommandPacket 玩家执行斜杠命令对应原版 ServerboundChatCommandPacket
-//26.2 移除了命令签名 字段只剩 Command(String) 带签名走独立的 chat_command_signed 包
+//ServerboundChatCommandPacket player executing a slash command, maps to vanilla ServerboundChatCommandPacket
+//26.2 removed command signatures, leaving only Command(String); signed commands go through the separate chat_command_signed packet
 public sealed record ServerboundChatCommandPacket(string Command) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundChatCommandPacket> StreamCodec { get; } = new ChatCommandCodec();

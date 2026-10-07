@@ -9,20 +9,20 @@ using NetCraft.Network.Chat;
 
 namespace NetCraft.Game.Commands;
 
-//TitleCommand title 命令对应原版 net.minecraft.server.commands.TitleCommand
-//clear/reset/title/subtitle/actionbar/times 六支 目标为多玩家
-//组件不做选择器解析 对应原版 getRawComponent 而非 getResolvedComponent
+//TitleCommand title command, maps to vanilla net.minecraft.server.commands.TitleCommand
+//Six branches clear/reset/title/subtitle/actionbar/times, targeting multiple players
+//Components do no selector resolution, maps to vanilla getRawComponent rather than getResolvedComponent
 public static class TitleCommand
 {
-    //SendTitleText 标题正文 显示在屏幕中央
+    //SendTitleText the title body, shown in the screen center
     private static readonly Action<ServerPlayer, Component> SendTitleText =
         (player, text) => player.Connection.Send(new ClientboundSetTitleTextPacket(text));
 
-    //SendSubtitleText 副标题 显示在标题下方
+    //SendSubtitleText the subtitle, shown below the title
     private static readonly Action<ServerPlayer, Component> SendSubtitleText =
         (player, text) => player.Connection.Send(new ClientboundSetSubtitleTextPacket(text));
 
-    //SendActionBarText 动作栏文字 走专用包与原版 title actionbar 一致
+    //SendActionBarText the action bar text, sent through the dedicated packet like vanilla title actionbar
     private static readonly Action<ServerPlayer, Component> SendActionBarText =
         (player, text) => player.Connection.Send(new ClientboundSetActionBarTextPacket(text));
 
@@ -42,19 +42,19 @@ public static class TitleCommand
                             ComponentArgument.TextComponent())
                         .Executes(c => ShowTitle((ServerCommandSource)c.GetSource(),
                             EntityArgument.GetPlayers(c, "targets"), ComponentArgument.GetRawComponent(c, "title"),
-                            "标题", SendTitleText))))
+                            "title", SendTitleText))))
                 .Then(LiteralArgumentBuilder<CommandSourceStack>.Literal("subtitle")
                     .Then(RequiredArgumentBuilder<CommandSourceStack, Component>.Argument("title",
                             ComponentArgument.TextComponent())
                         .Executes(c => ShowTitle((ServerCommandSource)c.GetSource(),
                             EntityArgument.GetPlayers(c, "targets"), ComponentArgument.GetRawComponent(c, "title"),
-                            "副标题", SendSubtitleText))))
+                            "subtitle", SendSubtitleText))))
                 .Then(LiteralArgumentBuilder<CommandSourceStack>.Literal("actionbar")
                     .Then(RequiredArgumentBuilder<CommandSourceStack, Component>.Argument("title",
                             ComponentArgument.TextComponent())
                         .Executes(c => ShowTitle((ServerCommandSource)c.GetSource(),
                             EntityArgument.GetPlayers(c, "targets"), ComponentArgument.GetRawComponent(c, "title"),
-                            "动作栏", SendActionBarText))))
+                            "actionbar", SendActionBarText))))
                 .Then(LiteralArgumentBuilder<CommandSourceStack>.Literal("times")
                     .Then(RequiredArgumentBuilder<CommandSourceStack, int>.Argument("fadeIn", TimeArgument.Time())
                         .Then(RequiredArgumentBuilder<CommandSourceStack, int>.Argument("stay", TimeArgument.Time())
@@ -66,37 +66,37 @@ public static class TitleCommand
                                     IntegerArgumentType.GetInteger(c, "fadeOut")))))))));
     }
 
-    //ClearTitle 清除标题 resetTimes 为真时顺带把动画时长复位 对应原版 clear/reset 两支
+    //ClearTitle clears the title; when resetTimes is true it also resets the animation durations, maps to vanilla clear/reset
     private static int ClearTitle(ServerCommandSource source, IReadOnlyList<ServerPlayer> targets, bool resetTimes)
     {
         foreach (var player in targets)
             player.Connection.Send(new ClientboundClearTitlesPacket(resetTimes));
         source.SendSuccess(targets.Count == 1
-            ? $"已{(resetTimes ? "重置" : "清除")} {targets[0].Profile.Name} 的标题"
-            : $"已{(resetTimes ? "重置" : "清除")} {targets.Count} 个玩家的标题");
+            ? $"{(resetTimes ? "reset" : "cleared")} the title of {targets[0].Profile.Name}"
+            : $"{(resetTimes ? "reset" : "cleared")} the title of {targets.Count} players");
         return targets.Count;
     }
 
-    //ShowTitle 把组件按指定通道发给每个目标 对应原版 showTitle
+    //ShowTitle sends the component to each target on the given channel, maps to vanilla showTitle
     private static int ShowTitle(ServerCommandSource source, IReadOnlyList<ServerPlayer> targets, Component title,
         string type, Action<ServerPlayer, Component> send)
     {
         foreach (var player in targets) send(player, title);
         source.SendSuccess(targets.Count == 1
-            ? $"已向 {targets[0].Profile.Name} 发送{type}"
-            : $"已向 {targets.Count} 个玩家发送{type}");
+            ? $"sent {type} to {targets[0].Profile.Name}"
+            : $"sent {type} to {targets.Count} players");
         return targets.Count;
     }
 
-    //SetTimes 设置标题淡入停留淡出刻数 对应原版 setTimes
+    //SetTimes sets the title fade-in/stay/fade-out ticks, maps to vanilla setTimes
     private static int SetTimes(ServerCommandSource source, IReadOnlyList<ServerPlayer> targets,
         int fadeIn, int stay, int fadeOut)
     {
         foreach (var player in targets)
             player.Connection.Send(new ClientboundSetTitlesAnimationPacket(fadeIn, stay, fadeOut));
         source.SendSuccess(targets.Count == 1
-            ? $"已设置 {targets[0].Profile.Name} 的标题动画时长"
-            : $"已设置 {targets.Count} 个玩家的标题动画时长");
+            ? $"set the title animation durations of {targets[0].Profile.Name}"
+            : $"set the title animation durations of {targets.Count} players");
         return targets.Count;
     }
 }

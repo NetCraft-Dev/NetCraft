@@ -9,13 +9,13 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Nether;
 
-//WeepingVinesFeature 垂泪藤特征 对应原版 WeepingVinesFeature
-//挂在菌岩与下界疙瘩块下方的藤蔓群
+//WeepingVinesFeature weeping vines feature, maps to vanilla WeepingVinesFeature
+//Vine clusters hanging below nylium and nether wart blocks
 public sealed class WeepingVinesFeature : Feature<NoneFeatureConfiguration>
 {
     private const string FeatureId = "weeping_vines";
 
-    //VineAge 藤蔓头年龄 0-25 对应原版 GrowingPlantHeadBlock.AGE
+    //VineAge vine head age 0-25, maps to vanilla GrowingPlantHeadBlock.AGE
     private static readonly IntegerProperty VineAge = new("age", 0, 25);
 
     public static readonly WeepingVinesFeature Instance = Register(
@@ -39,7 +39,7 @@ public sealed class WeepingVinesFeature : Feature<NoneFeatureConfiguration>
         return true;
     }
 
-    //PlaceRoofNetherWart 在天花板蔓延下界疙瘩块 对应原版 placeRoofNetherWart
+    //PlaceRoofNetherWart spread nether wart blocks across the ceiling, maps to vanilla placeRoofNetherWart
     private static void PlaceRoofNetherWart(WorldGenRegion level, RandomSource random, BlockPos origin,
         RegBlock netherrack, RegBlock netherWartBlock)
     {
@@ -63,7 +63,7 @@ public sealed class WeepingVinesFeature : Feature<NoneFeatureConfiguration>
         }
     }
 
-    //PlaceRoofWeepingVines 在天花板下方挂垂泪藤 对应原版 placeRoofWeepingVines
+    //PlaceRoofWeepingVines hang weeping vines below the ceiling, maps to vanilla placeRoofWeepingVines
     private static void PlaceRoofWeepingVines(WorldGenRegion level, RandomSource random, BlockPos origin,
         RegBlock netherrack, RegBlock netherWartBlock)
     {
@@ -83,8 +83,8 @@ public sealed class WeepingVinesFeature : Feature<NoneFeatureConfiguration>
         }
     }
 
-    //PlaceWeepingVinesColumn 从起点向下铺垂泪藤 对应原版 placeWeepingVinesColumn
-    //菌盖挂藤与下界天花挂藤共用 供 HugeFungusFeature 复用
+    //PlaceWeepingVinesColumn lay weeping vines downward from the start, maps to vanilla placeWeepingVinesColumn
+    //Shared by cap vines and nether ceiling vines, reused by HugeFungusFeature
     internal static void PlaceWeepingVinesColumn(WorldGenRegion level, RandomSource random, BlockPos start,
         int totalHeight, int minAge, int maxAge)
     {
@@ -108,7 +108,7 @@ public sealed class WeepingVinesFeature : Feature<NoneFeatureConfiguration>
     }
 }
 
-//TwistingVinesConfig 缠怨藤配置 对应原版 TwistingVinesConfig
+//TwistingVinesConfig twisting vines configuration, maps to vanilla TwistingVinesConfig
 public sealed class TwistingVinesConfig : FeatureConfiguration
 {
     public static readonly Codec<TwistingVinesConfig> Codec =
@@ -131,13 +131,13 @@ public sealed class TwistingVinesConfig : FeatureConfiguration
     }
 }
 
-//TwistingVinesFeature 缠怨藤特征 对应原版 TwistingVinesFeature
-//从菌岩地面往上长的藤蔓群
+//TwistingVinesFeature twisting vines feature, maps to vanilla TwistingVinesFeature
+//Vine clusters growing up from nylium ground
 public sealed class TwistingVinesFeature : Feature<TwistingVinesConfig>
 {
     private const string FeatureId = "twisting_vines";
 
-    //VineAge 藤蔓头年龄 0-25 对应原版 GrowingPlantHeadBlock.AGE
+    //VineAge vine head age 0-25, maps to vanilla GrowingPlantHeadBlock.AGE
     private static readonly IntegerProperty VineAge = new("age", 0, 25);
 
     public static readonly TwistingVinesFeature Instance = Register(
@@ -171,7 +171,7 @@ public sealed class TwistingVinesFeature : Feature<TwistingVinesConfig>
         return true;
     }
 
-    //FindFirstAirBlockAboveGround 从该列向下找到地面再回到地面上第一格空气 对应原版 findFirstAirBlockAboveGround
+    //FindFirstAirBlockAboveGround search down to the ground then back up to the first air cell above it, maps to vanilla findFirstAirBlockAboveGround
     private static bool FindFirstAirBlockAboveGround(WorldGenRegion level, ref BlockPos pos)
     {
         while (true)
@@ -184,7 +184,7 @@ public sealed class TwistingVinesFeature : Feature<TwistingVinesConfig>
         return true;
     }
 
-    //IsInvalidPlacementLocation 脚下必须是菌岩或下界疙瘩且当前格为空 对应原版 isInvalidPlacementLocation
+    //IsInvalidPlacementLocation the cell below must be nylium or nether wart and the current cell must be air, maps to vanilla isInvalidPlacementLocation
     private static bool IsInvalidPlacementLocation(WorldGenRegion level, BlockPos pos)
     {
         if (!NetherSupport.IsAir(level, pos)) return true;
@@ -194,7 +194,7 @@ public sealed class TwistingVinesFeature : Feature<TwistingVinesConfig>
             && below != NetherSupport.Block("warped_wart_block");
     }
 
-    //PlaceWeepingVinesColumn 从起点向上铺缠怨藤 对应原版 placeWeepingVinesColumn
+    //PlaceWeepingVinesColumn lay twisting vines upward from the start, maps to vanilla placeWeepingVinesColumn
     private static void PlaceWeepingVinesColumn(WorldGenRegion level, RandomSource random, BlockPos start,
         int totalHeight, int minAge, int maxAge)
     {

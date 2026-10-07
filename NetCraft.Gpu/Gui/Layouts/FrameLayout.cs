@@ -1,8 +1,8 @@
 namespace NetCraft.Gpu;
 
-//FrameLayout 帧布局对标原版 FrameLayout extends AbstractLayout
-//所有子元素在同一矩形内按各自 align 对齐默认居中
-//提供静态 centerInRectangle/alignInRectangle 给手动定位场景用
+//FrameLayout frame layout, maps to vanilla FrameLayout extends AbstractLayout
+//All children align within the same rectangle by their own align, centered by default
+//Provides static centerInRectangle/alignInRectangle for manual positioning
 public sealed class FrameLayout : AbstractLayout
 {
     private readonly List<ChildContainer> _children = new();
@@ -16,13 +16,13 @@ public sealed class FrameLayout : AbstractLayout
 
     public FrameLayout(int x, int y, int minWidth, int minHeight) : base(x, y, minWidth, minHeight)
     {
-        //默认子元素居中对齐对标原版 defaults().align(0.5,0.5)
+        //Children are centered by default, maps to vanilla defaults().align(0.5,0.5)
         _defaultChildSettings = LayoutSettings.Defaults().Align(0.5f, 0.5f);
         SetMinDimensions(minWidth, minHeight);
     }
 
-    //SetMinWidth/SetMinHeight/SetMinDimensions 链式设置最小尺寸
-    //ArrangeElements 结果尺寸不小于此值
+    //SetMinWidth/SetMinHeight/SetMinDimensions chained minimum-size setters
+    //ArrangeElements result size is never smaller than this
     public FrameLayout SetMinWidth(int minWidth) { _minWidth = minWidth; return this; }
     public FrameLayout SetMinHeight(int minHeight) { _minHeight = minHeight; return this; }
     public FrameLayout SetMinDimensions(int minWidth, int minHeight)
@@ -31,7 +31,7 @@ public sealed class FrameLayout : AbstractLayout
     public LayoutSettings NewChildLayoutSettings() => _defaultChildSettings.Copy();
     public LayoutSettings DefaultChildLayoutSetting() => _defaultChildSettings;
 
-    //ArrangeElements 取所有子元素最大宽高不小于 minDim 再按 align 在结果矩形内定位
+    //ArrangeElements takes the children's max width/height, not below minDim, then positions by align within the result rectangle
     public override void ArrangeElements()
     {
         base.ArrangeElements();
@@ -67,14 +67,14 @@ public sealed class FrameLayout : AbstractLayout
 
     public override void RemoveChildren() => _children.Clear();
 
-    //CenterInRectangle 将元素居中放到指定矩形内
+    //CenterInRectangle centers the element in the given rectangle
     public static void CenterInRectangle(ILayoutElement widget, int x, int y, int width, int height)
         => AlignInRectangle(widget, x, y, width, height, 0.5f, 0.5f);
 
     public static void CenterInRectangle(ILayoutElement widget, GuiRectangle rectangle)
         => CenterInRectangle(widget, rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
 
-    //AlignInRectangle 按 alignX/alignY 将元素对齐到矩形内
+    //AlignInRectangle aligns the element within the rectangle by alignX/alignY
     public static void AlignInRectangle(ILayoutElement widget, GuiRectangle rectangle, float alignX, float alignY)
         => AlignInRectangle(widget, rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height, alignX, alignY);
 
@@ -84,8 +84,8 @@ public sealed class FrameLayout : AbstractLayout
         AlignInDimension(y, height, widget.Height, v => widget.Y = v, alignY);
     }
 
-    //AlignInDimension 在 pos 起点 length 长度内按 align 放置 widgetLength 的元素
-    //align=0 贴左/上 align=0.5 居中 align=1 贴右/下
+    //AlignInDimension places a widgetLength element by align within pos start and length
+    //align=0 left/top align=0.5 center align=1 right/bottom
     public static void AlignInDimension(int pos, int length, int widgetLength, Action<int> setWidgetPos, float align)
     {
         int offset = (int)Math.Round(Lerp(align, 0.0f, length - widgetLength));
@@ -94,7 +94,7 @@ public sealed class FrameLayout : AbstractLayout
 
     private static float Lerp(float t, float a, float b) => a + (b - a) * t;
 
-    //ChildContainer 帧布局子元素容器仅包装 child+settings 不额外存行列
+    //ChildContainer frame-layout child container wrapping only child+settings without extra row/column state
     private sealed class ChildContainer : ChildWrapper
     {
         public ChildContainer(ILayoutElement child, LayoutSettings settings) : base(child, settings) { }

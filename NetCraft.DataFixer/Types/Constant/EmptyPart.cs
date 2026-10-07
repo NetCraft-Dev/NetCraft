@@ -6,29 +6,29 @@ using NetCraft.DataFixer;
 using NetCraft.DataFixer.Types.Templates;
 using NetCraft.DataFixer.Util;
 
-//EmptyPart空单元类型对应原版com.mojang.datafixers.types.constant.EmptyPart
-//用作递归类型家族的占位空类型point返回Unit
+//EmptyPart empty unit type maps to vanilla com.mojang.datafixers.types.constant.EmptyPart
+//used as the placeholder empty type of recursive type families; point returns Unit
 public sealed class EmptyPart : Type<Unit>
 {
     public override string ToString() => "EmptyPart";
 
-    //point返回Unit单例
+    //point returns the Unit singleton
     public override Optional<Unit> Point<T>(DynamicOps<T> ops)
         => Optional<Unit>.Of(Unit.Instance);
 
-    //空类型只与自身相等
+    //the empty type equals only itself
     public override bool Equals(object? o, bool ignoreRecursionPoints, bool checkIndex)
         => ReferenceEquals(this, o);
 
-    //空类型模板用constType包装自身
+    //empty type template wraps itself with constType
     public override TypeTemplate BuildTemplate()
         => DSL.ConstType(this);
 
-    //空类型codec解码总是Unit编码空
+    //empty type codec always decodes to Unit and encodes empty
     protected override Codec<Unit> BuildCodec()
         => new EmptyUnitCodec();
 
-    //EmptyUnitCodec空类型编解码器解码返回Unit编码空
+    //EmptyUnitCodec empty type codec; decode returns Unit and encode is empty
     private sealed class EmptyUnitCodec : AbstractMapCodec<Unit>
     {
         public override DataResult<Unit> Decode<U>(DynamicOps<U> ops, MapLike<U> input)

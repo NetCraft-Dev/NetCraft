@@ -9,8 +9,8 @@ using System.Collections.Generic;
 using NetCraft.DataFixer.Fixes;
 using NetCraft.DataFixer.Types.Templates;
 
-//V2505对应原版net.minecraft.util.datafix.schemas.V2505
-//1.20.2注册piglin实体带Inventory字段列表
+//V2505 maps to vanilla net.minecraft.util.datafix.schemas.V2505
+//1.20.2 registers the piglin entity with an Inventory field list
 public class V2505 : NamespacedSchema
 {
     public V2505(int versionKey, Schema? parent) : base(versionKey, parent) { }

@@ -7,20 +7,20 @@ using T = NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Families;
 using NetCraft.DataFixer.Util;
 
-//Hook钩子模板对应原版com.mojang.datafixers.types.templates.Hook
-//在元素类型的读前与写后插入hook函数
+//Hook hook template maps to vanilla com.mojang.datafixers.types.templates.Hook
+//inserts hook functions before reading and after writing the element type
 public sealed record Hook(TypeTemplate Element, Hook.IHookFunction PreRead, Hook.IHookFunction PostWrite) : TypeTemplate
 {
-    //HookFunction钩子函数接口对Dynamic值做读前或写后变换
+    //HookFunction hook function interface; transforms a Dynamic value before read or after write
     public interface IHookFunction
     {
-        //Identity恒等钩子默认实例
+        //Identity identity hook default instance
         public static readonly IHookFunction Identity = new IdentityHookFunction();
 
         T Apply<T>(DynamicOps<T> ops, T value);
     }
 
-    //IdentityHookFunction恒等钩子实现
+    //IdentityHookFunction identity hook implementation
     private sealed class IdentityHookFunction : IHookFunction
     {
         public T Apply<T>(DynamicOps<T> ops, T value) => value;
@@ -28,20 +28,20 @@ public sealed record Hook(TypeTemplate Element, Hook.IHookFunction PreRead, Hook
 
     public int Size() => Element.Size();
 
-    //apply每个index用DSL.hook包装元素类型
+    //apply wraps the element type with DSL.hook at each index
     public TypeFamily Apply(TypeFamily family)
         => new HookFamily(this, family);
 
-    //applyO直接复用元素的applyO
+    //applyO directly reuses the element's applyO
     public FamilyOptic<object, object> ApplyO<A, B>(FamilyOptic<A, B> input, T.Type<A> aType, T.Type<B> bType)
         => TypeFamily.FamilyOptic<object, object>(i => Element.ApplyO(input, aType, bType).Apply(i));
 
-    //findFieldOrType直接委托给元素
+    //findFieldOrType delegates directly to the element
     public Either<TypeTemplate, T.Type<object>.FieldNotFoundException> FindFieldOrType<A, B>(
         int index, string? name, T.Type<A> type, T.Type<B> resultType)
         => Element.FindFieldOrType(index, name, type, resultType);
 
-    //hmap每个index对元素应用hmap后用cap包装为Hook
+    //hmap applies hmap to the element at each index, then wraps it as a Hook via cap
     public Func<int, RewriteResult<object, object>> Hmap(TypeFamily family, Func<int, RewriteResult<object, object>> function)
         => index =>
         {
@@ -49,13 +49,13 @@ public sealed record Hook(TypeTemplate Element, Hook.IHookFunction PreRead, Hook
             return Cap(family, index, elementResult);
         };
 
-    //Cap把元素重写结果用HookType.fix包装为Hook层
+    //Cap wraps the element rewrite result into a Hook layer via HookType.fix
     private RewriteResult<object, object> Cap<A>(TypeFamily family, int index, RewriteResult<A, object> elementResult)
         => (RewriteResult<object, object>)(object)HookType<A>.Fix((HookType<A>)(object)Apply(family).Apply(index)!, elementResult);
 
     public override string ToString() => "Hook[" + Element + ", " + PreRead + ", " + PostWrite + "]";
 
-    //HookFamily按index返回DSL.hook包装的子类型
+    //HookFamily returns the child type wrapped with DSL.hook at each index
     private sealed class HookFamily : TypeFamily
     {
         private readonly Hook _template;
@@ -71,7 +71,7 @@ public sealed record Hook(TypeTemplate Element, Hook.IHookFunction PreRead, Hook
                 _template.PreRead, _template.PostWrite);
     }
 
-    //HookType带钩子的包装类型编解码时调用钩子
+    //HookType hook-wrapped type; invokes the hook during encode/decode
     public sealed class HookType<A> : T.Type<A>
     {
         private readonly T.Type<A> _delegate;
@@ -85,11 +85,11 @@ public sealed record Hook(TypeTemplate Element, Hook.IHookFunction PreRead, Hook
             _postWrite = postWrite;
         }
 
-        //buildCodec按原版decode用preRead变换后委托encode用postWrite变换
+        //buildCodec aligns with vanilla: decode transforms via preRead then delegates, encode transforms via postWrite
         protected override Codec<A> BuildCodec()
             => new HookCodec(this);
 
-        //HookCodec钩子codec decode用preRead encode用postWrite
+        //HookCodec hook codec; decode uses preRead, encode uses postWrite
         private sealed class HookCodec : ScalarCodec<A>
         {
             private readonly HookType<A> _type;
@@ -103,11 +103,11 @@ public sealed record Hook(TypeTemplate Element, Hook.IHookFunction PreRead, Hook
                 => _type._delegate.Codec().Parse(ops, _type._preRead.Apply(ops, input));
         }
 
-        //all对元素应用规则后用fix包装
+        //all applies the rule to the element, then wraps with fix
         public override RewriteResult<A, object> All(object rule, bool recurse, bool checkIndex)
             => Fix(this, _delegate.RewriteOrNop(rule));
 
-        //one对元素应用规则后用fix包装
+        //one applies the rule to the element, then wraps with fix
         public override Optional<RewriteResult<A, object>> One(object rule)
         {
             var view = ((TypeRewriteRule)rule).Rewrite(_delegate);
@@ -115,7 +115,7 @@ public sealed record Hook(TypeTemplate Element, Hook.IHookFunction PreRead, Hook
             return Optional<RewriteResult<A, object>>.Of(Fix(this, (RewriteResult<A, object>)view.Get()));
         }
 
-        //findFieldTypeOpt委托给被包装元素
+        //findFieldTypeOpt delegates to the wrapped element
         public override Optional<T.Type<object>> FindFieldTypeOpt(string name)
             => _delegate.FindFieldTypeOpt(name);
 
@@ -125,7 +125,7 @@ public sealed record Hook(TypeTemplate Element, Hook.IHookFunction PreRead, Hook
         public override TypeTemplate BuildTemplate()
             => DSL.Hook(_delegate.Template(), _preRead, _postWrite);
 
-        //fix元素重写结果为nop时返回nop否则用adapter投射并castOuter为Hook层
+        //fix returns nop when the element rewrite result is nop; otherwise projects via adapter and castOuter to a Hook layer
         public static RewriteResult<A, object> Fix<A2>(HookType<A2> type, RewriteResult<A2, object> instance)
         {
             if (instance.View().IsNop())

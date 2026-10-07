@@ -4,8 +4,8 @@ using NetCraft.Commands.Context;
 
 namespace NetCraft.Game.Commands;
 
-//ListPlayersCommand list 命令对应原版 net.minecraft.server.commands.ListPlayersCommand
-//逐个回执在线玩家 uuids 分支额外带上档案 id
+//ListPlayersCommand list command, maps to vanilla net.minecraft.server.commands.ListPlayersCommand
+//Reports online players one by one; the uuids branch also includes the profile id
 public static class ListPlayersCommand
 {
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -16,12 +16,12 @@ public static class ListPlayersCommand
                 .Executes(context => ShowPlayers(context, true))));
     }
 
-    //ShowPlayers 先给一行汇总再逐个列出 原版走 translatable 这里直接拼文本
+    //ShowPlayers gives a summary line first then lists them; vanilla uses translatable, this assembles text directly
     private static int ShowPlayers(CommandContext<CommandSourceStack> context, bool withIds)
     {
         if (context.GetSource() is not ServerCommandSource source) return 0;
         var players = source.Server.PlayerList.Players;
-        source.SendSuccess($"当前有 {players.Count} 名玩家在线 上限 {source.Server.PlayerList.MaxPlayers}");
+        source.SendSuccess($"there are {players.Count} players online, limit {source.Server.PlayerList.MaxPlayers}");
         foreach (var player in players)
             source.SendSuccess(withIds ? $"{player.Profile.Name} ({player.Profile.Id})" : player.Profile.Name);
         return players.Count;

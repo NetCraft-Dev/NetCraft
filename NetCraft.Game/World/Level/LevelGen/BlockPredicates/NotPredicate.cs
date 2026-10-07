@@ -3,7 +3,7 @@ using NetCraft.Primitives;
 
 namespace NetCraft.Game.World.Level.LevelGen.BlockPredicates;
 
-//NotPredicate 取反对应原版 NotPredicate
+//NotPredicate negates, maps to vanilla NotPredicate
 public class NotPredicate : BlockPredicate
 {
     public static readonly Codec<NotPredicate> Codec = new SingleFieldMapCodec<NotPredicate, BlockPredicate>(

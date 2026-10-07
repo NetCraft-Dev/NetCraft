@@ -1,13 +1,13 @@
 namespace NetCraft.DataFixer;
 
-//FamilyOptic类型家族的optic集合对应原版com.mojang.datafixers.FamilyOptic
-//按index返回对应TypedOptic
+//FamilyOptic optic collection of a type family, maps to vanilla com.mojang.datafixers.FamilyOptic
+//returns the corresponding TypedOptic by index
 public sealed class FamilyOptic<A, B>
 {
     private readonly Func<int, TypedOptic<object, object, A, B>> _optics;
 
     public FamilyOptic(Func<int, TypedOptic<object, object, A, B>> optics) => _optics = optics;
 
-    //apply按索引取得对应TypedOptic
+    //apply takes the corresponding TypedOptic by index
     public TypedOptic<object, object, A, B> Apply(int index) => _optics(index);
 }

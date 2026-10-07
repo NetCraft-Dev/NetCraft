@@ -7,22 +7,22 @@ using HeightmapRegistry = NetCraft.Registry.Heightmap;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//SurfaceRules 表面规则系统对应原版 net.minecraft.world.level.levelgen.SurfaceRules
-//提供条件源 ConditionSource 与规则源 RuleSource 两类可序列化对象
-//MATERIAL_CONDITION/MATERIAL_RULE 用 MapCodec<object> 弱类型对齐跨层方案
-//求值按"每个方块现算"实现 不照搬原版的 Condition 懒求值对象层 结果等价
+//SurfaceRules is the surface rule system, maps to vanilla net.minecraft.world.level.levelgen.SurfaceRules
+//Provides two kinds of serializable objects: condition source ConditionSource and rule source RuleSource
+//MATERIAL_CONDITION/MATERIAL_RULE use a weakly typed MapCodec<object> to align with the cross-layer plan
+//Evaluation is implemented "per block on demand"; it does not copy vanilla's lazy Condition object layer, results are equivalent
 public static class SurfaceRules
 {
-    //Context 规则求值上下文 由 SurfaceSystem 每列 updateXZ 一次 每方块 updateY 一次
-    //字段语义对齐原版 SurfaceRules.Context 各 Condition 的求值公式直接读这些字段
+    //Context is the rule evaluation context; SurfaceSystem calls updateXZ once per column and updateY once per block
+    //Field semantics align with vanilla SurfaceRules.Context; each Condition's evaluation formula reads these fields directly
     public sealed class Context
     {
-        //HowFarBelowPreliminarySurface 初步地表以下仍参与构建的深度对应原版同名常量
+        //HowFarBelowPreliminarySurface is the depth below the preliminary surface still involved in building, maps to the vanilla constant of the same name
         private const int HowFarBelowPreliminarySurface = 8;
-        //SurfaceCellSize 初步地表按 16 格格子取四角插值对应原版 SURFACE_CELL_SIZE
+        //SurfaceCellSize samples the preliminary surface on a 16-block grid with corner interpolation, maps to vanilla SURFACE_CELL_SIZE
         private const int SurfaceCellSize = 16;
 
-        //DefaultMinY/DefaultHeight 主世界维度高度范围 供 VerticalAnchor 解算兜底
+        //DefaultMinY/DefaultHeight is the overworld dimension height range, used as a fallback for VerticalAnchor resolution
         public const int DefaultMinY = -64;
         public const int DefaultHeight = 384;
 
@@ -43,9 +43,9 @@ public static class SurfaceRules
         public int BlockX { get; private set; }
         public int BlockY { get; private set; }
         public int BlockZ { get; private set; }
-        //SurfaceDepth 该列地表厚度噪声 原版 getSurfaceDepth 结果
+        //SurfaceDepth is this column's surface depth noise, the result of vanilla getSurfaceDepth
         public int SurfaceDepth { get; private set; }
-        //WaterHeight 该列最近一次水面高度 无流体时为 int.MinValue 对应原版 waterHeight
+        //WaterHeight is this column's most recent water surface height, int.MinValue when there is no fluid, maps to vanilla waterHeight
         public int WaterHeight { get; private set; } = int.MinValue;
         public int StoneDepthBelow { get; private set; }
         public int StoneDepthAbove { get; private set; }
@@ -61,7 +61,7 @@ public static class SurfaceRules
             Height = height;
         }
 
-        //UpdateXZ 换列时调用 重算 surfaceDepth 并让按列缓存失效
+        //UpdateXZ is called when switching columns; recomputes surfaceDepth and invalidates per-column caches
         public void UpdateXZ(int blockX, int blockZ)
         {
             BlockX = blockX;
@@ -71,7 +71,7 @@ public static class SurfaceRules
             _hasMinSurfaceLevel = false;
         }
 
-        //UpdateY 换方块时调用 生物群系按 y 变化因此一并失效
+        //UpdateY is called when switching blocks; the biome varies with y and is invalidated too
         public void UpdateY(int stoneDepthAbove, int stoneDepthBelow, int waterHeight, int blockY)
         {
             BlockY = blockY;
@@ -81,7 +81,7 @@ public static class SurfaceRules
             _biome = null;
         }
 
-        //GetSurfaceSecondary 次级地表噪声按列懒算 对应原版 getSurfaceSecondary
+        //GetSurfaceSecondary lazily computes the secondary surface noise per column, maps to vanilla getSurfaceSecondary
         public double GetSurfaceSecondary()
         {
             if (!_hasSurfaceSecondary)
@@ -92,8 +92,8 @@ public static class SurfaceRules
             return _surfaceSecondary;
         }
 
-        //GetMinSurfaceLevel 初步地表下限 取 16 格格子四角插值再减 surfaceDepth 与 8 格余量
-        //对应原版 getMinSurfaceLevel 无 NoiseChunk 时退化为海平面 仅测试路径会走到
+        //GetMinSurfaceLevel is the lower bound of the preliminary surface: 16-grid corner interpolation minus surfaceDepth and an 8-block margin
+        //Maps to vanilla getMinSurfaceLevel; degrades to sea level when there is no NoiseChunk, only the test path hits this
         public int GetMinSurfaceLevel()
         {
             if (_hasMinSurfaceLevel) return _minSurfaceLevel;
@@ -116,7 +116,7 @@ public static class SurfaceRules
             return _minSurfaceLevel;
         }
 
-        //GetBiome 当前方块所在群系 按 y 懒取对应原版 getBiome
+        //GetBiome is the biome at the current block, lazily fetched by y, maps to vanilla getBiome
         public Biome GetBiome()
         {
             if (_biome is null)
@@ -126,10 +126,10 @@ public static class SurfaceRules
 
         public int GetSeaLevel() => _system.SeaLevel;
 
-        //GetBand 恶地条带材质 对应原版 bandlands 规则引用的 surfaceSystem.getBand
+        //GetBand is the badlands band material, maps to surfaceSystem.getBand referenced by vanilla's bandlands rule
         public BlockState GetBand() => _system.GetBand(BlockX, BlockY, BlockZ);
 
-        //SampleNoise 按噪声数据取采样器 2d 只按 XZ 缓存 3d 按 XY Z缓存对应原版 getNoiseSampler
+        //SampleNoise gets the sampler for a noise; 2d caches by XZ only, 3d caches by XY Z, maps to vanilla getNoiseSampler
         public double SampleNoise(NoiseHolder noise, bool is3d)
         {
             if (!_samplers.TryGetValue(noise, out var sampler))
@@ -140,15 +140,15 @@ public static class SurfaceRules
             return sampler.Value;
         }
 
-        //GetRandomFactory 取命名位置随机工厂供 vertical_gradient 抽概率
+        //GetRandomFactory gets the named positional random factory used by vertical_gradient to roll a probability
         public PositionalRandomFactory? GetRandomFactory(Identifier name)
             => _system.RandomState?.GetOrCreateRandomFactory(name);
 
-        //GetHeight 取该列 WORLD_SURFACE_WG 高度供 steep 条件比较邻列坡度
+        //GetHeight gets this column's WORLD_SURFACE_WG height for the steep condition to compare neighbor slopes
         public int GetHeight(int localX, int localZ)
             => _chunk?.GetHeight(HeightmapRegistry.Types.WorldSurfaceWg, localX, localZ) ?? int.MinValue;
 
-        //NoiseSampler 单个噪声的采样缓存 同一坐标重复求值时只算一次
+        //NoiseSampler caches a single noise sample; re-evaluation at the same coordinates computes only once
         private sealed class NoiseSampler
         {
             private readonly Context _owner;
@@ -185,28 +185,28 @@ public static class SurfaceRules
         }
     }
 
-    //SurfaceType 石头上/下表面朝向对应原版 CaveSurface
+    //SurfaceType is the stone top/bottom surface facing, maps to vanilla CaveSurface
     public enum SurfaceType
     {
         Floor,
         Ceiling
     }
 
-    //ConditionSource 条件源注册到 MATERIAL_CONDITION 注册表
-    //实现按 Context 决定是否进入某条规则分支
+    //ConditionSource is registered in the MATERIAL_CONDITION registry
+    //Implementations decide via Context whether to enter a rule branch
     public interface ConditionSource
     {
         bool Test(Context context);
     }
 
-    //RuleSource 规则源注册到 MATERIAL_RULE 注册表
-    //返回替换后的 BlockState返回 null 表示不替换
+    //RuleSource is registered in the MATERIAL_RULE registry
+    //Returns the replaced BlockState, or null for no replacement
     public interface RuleSource
     {
         BlockState? Apply(Context context, BlockState current);
     }
 
-    //BlockStateRule 持有固定 BlockState 直接替换对应原版 SurfaceRules.state
+    //BlockStateRule holds a fixed BlockState and replaces directly, maps to vanilla SurfaceRules.state
     public sealed class BlockStateRule : RuleSource
     {
         public BlockState State { get; }
@@ -219,7 +219,7 @@ public static class SurfaceRules
         public BlockState? Apply(Context context, BlockState current) => State;
     }
 
-    //IfTrue 条件成立时应用嵌套规则对应原版 SurfaceRules.ifTrue
+    //IfTrue applies the nested rule when the condition holds, maps to vanilla SurfaceRules.ifTrue
     public sealed class IfTrue : RuleSource
     {
         public ConditionSource Condition { get; }
@@ -235,11 +235,11 @@ public static class SurfaceRules
             => Condition.Test(context) ? Then.Apply(context, current) : null;
     }
 
-    //Sequence 顺序规则列表首个命中即返回对应原版 SurfaceRules.sequence
-    //不是后面的覆盖前面的 基岩这类排在前面的规则必须能挡住后面的 deepslate
+    //Sequence returns on the first hit in the ordered rule list, maps to vanilla SurfaceRules.sequence
+    //It is not that later rules override earlier ones; rules placed first such as bedrock must be able to block later deepslate
     public sealed class Sequence : RuleSource
     {
-        //Rules 规则数组 每个方块都要从头走一遍 存数组才能走索引路径而不是装箱的接口枚举器
+        //Rules is the rule array; every block walks it from the start, storing an array allows index access instead of a boxing interface enumerator
         public RuleSource[] Rules { get; }
 
         public Sequence(IReadOnlyList<RuleSource> rules)
@@ -258,13 +258,13 @@ public static class SurfaceRules
         }
     }
 
-    //AbovePreliminarySurface 测试 y 是否在初步地表下限之上对应原版 above_preliminary_surface
+    //AbovePreliminarySurface tests whether y is above the preliminary surface lower bound, maps to vanilla above_preliminary_surface
     public sealed class AbovePreliminarySurface : ConditionSource
     {
         public bool Test(Context context) => context.BlockY >= context.GetMinSurfaceLevel();
     }
 
-    //StoneDepth 测试距地表石头深度是否在阈值内对应原版 SurfaceRules.stoneDepth
+    //StoneDepth tests whether the stone depth from the surface is within the threshold, maps to vanilla SurfaceRules.stoneDepth
     public sealed class StoneDepth : ConditionSource
     {
         public int Offset { get; }
@@ -281,7 +281,7 @@ public static class SurfaceRules
             Surface = surface;
         }
 
-        //Test 天花板取 stoneDepthBelow 地板取 stoneDepthAbove 阈值含 1 + offset + 两级地表厚度
+        //Test uses stoneDepthBelow for ceilings and stoneDepthAbove for floors; the threshold includes 1 + offset + both surface depths
         public bool Test(Context context)
         {
             var stoneDepth = Surface == SurfaceType.Ceiling ? context.StoneDepthBelow : context.StoneDepthAbove;
@@ -293,8 +293,8 @@ public static class SurfaceRules
         }
     }
 
-    //VerticalGradient 按 y 递增概率出现对应原版 vertical_gradient
-    //true_at_and_below 以下恒真 false_at_and_above 以上恒假 中间按位置随机取概率
+    //VerticalGradient appears with a probability increasing along y, maps to vanilla vertical_gradient
+    //Always true at or below true_at_and_below, always false at or above false_at_and_above, and positional random in between
     public sealed class VerticalGradient : ConditionSource
     {
         public Identifier RandomName { get; }
@@ -309,7 +309,7 @@ public static class SurfaceRules
             RandomName = randomName;
         }
 
-        //VerticalGradient 不带随机名的简化构造 中间段用默认位置随机源
+        //Simplified VerticalGradient constructor without a random name; the middle section uses the default positional random source
         public VerticalGradient(VerticalAnchor trueAtAndBelow, VerticalAnchor falseAtAndAbove)
             : this(trueAtAndBelow, falseAtAndAbove, Identifier.WithDefaultNamespace("default"))
         {
@@ -329,7 +329,7 @@ public static class SurfaceRules
         }
     }
 
-    //Not 取反条件对应原版 SurfaceRules.not
+    //Not is the negation condition, maps to vanilla SurfaceRules.not
     public sealed class Not : ConditionSource
     {
         public ConditionSource Inner { get; }
@@ -342,16 +342,16 @@ public static class SurfaceRules
         public bool Test(Context context) => !Inner.Test(context);
     }
 
-    //BiomeCondition 测试当前生物群系是否匹配对应原版 SurfaceRules.biome
-    //biome_is 既可以是显式群系列表 也可以是 "#命名空间:标签" 形式
+    //BiomeCondition tests whether the current biome matches, maps to vanilla SurfaceRules.biome
+    //biome_is can be either an explicit biome list or the "#namespace:tag" form
     public sealed class BiomeCondition : ConditionSource
     {
-        //Biomes 显式列出的群系 标签形式时为空
-        //每个方块都要比一遍 存数组才能走索引路径而不是装箱的接口枚举器
+        //Biomes lists explicit biomes, empty in tag form
+        //Every block compares against it, storing an array allows index access instead of a boxing interface enumerator
         public Biome[] Biomes { get; }
-        //Tag 标签引用 对应原版 biome_is 写成 "#minecraft:is_forest"
+        //Tag is the tag reference, written as "#minecraft:is_forest" in vanilla biome_is
         public TagKey<Biome>? Tag { get; }
-        //TagRegistry 解析标签用的群系注册表 标签形式时非空
+        //TagRegistry is the biome registry used to resolve tags, non-null in tag form
         public Registry<Biome>? TagRegistry { get; }
 
         public BiomeCondition(IReadOnlyList<Biome> biomes)
@@ -371,7 +371,7 @@ public static class SurfaceRules
             var biome = context.GetBiome();
             if (Tag is not null)
             {
-                //标签没绑定内容时判不匹配 等价原版空标签语义
+                //An unbound tag counts as no match, equivalent to vanilla's empty-tag semantics
                 var set = TagRegistry?.Get(Tag);
                 return set is { IsBound: true } && set.Contains(TagRegistry!.WrapAsHolder(biome));
             }
@@ -381,7 +381,7 @@ public static class SurfaceRules
         }
     }
 
-    //NoiseThreshold 噪声阈值条件对应原版 SurfaceRules.noiseThreshold
+    //NoiseThreshold is the noise threshold condition, maps to vanilla SurfaceRules.noiseThreshold
     public sealed class NoiseThreshold : ConditionSource
     {
         public NoiseHolder Noise { get; }
@@ -404,8 +404,8 @@ public static class SurfaceRules
         }
     }
 
-    //Water 水面条件对应原版 SurfaceRules.water
-    //该列没有流体时恒真 有流体时只有在指定偏移以上才真
+    //Water is the water surface condition, maps to vanilla SurfaceRules.water
+    //Always true when the column has no fluid; with fluid only true at or above the given offset
     public sealed class Water : ConditionSource
     {
         public int Offset { get; }
@@ -427,7 +427,7 @@ public static class SurfaceRules
         }
     }
 
-    //YAbove y 高于锚点条件对应原版 SurfaceRules.yAbove
+    //YAbove is the y-above-anchor condition, maps to vanilla SurfaceRules.yAbove
     public sealed class YAbove : ConditionSource
     {
         public VerticalAnchor Anchor { get; }
@@ -449,7 +449,7 @@ public static class SurfaceRules
         }
     }
 
-    //Temperature 低温条件对应原版 SurfaceRules.temperature 成立表示该处冷到下雪
+    //Temperature is the cold condition, maps to vanilla SurfaceRules.temperature; true means cold enough to snow there
     public sealed class Temperature : ConditionSource
     {
         public bool Test(Context context)
@@ -457,7 +457,7 @@ public static class SurfaceRules
                 context.BlockZ, context.GetSeaLevel());
     }
 
-    //Steep 陡坡条件对应原版 SurfaceRules.steep 南北或东西邻列高度差达 4 即算陡
+    //Steep is the steep-slope condition, maps to vanilla SurfaceRules.steep; a height difference of 4 between north/south or east/west neighbor columns counts as steep
     public sealed class Steep : ConditionSource
     {
         public bool Test(Context context)
@@ -477,14 +477,14 @@ public static class SurfaceRules
         }
     }
 
-    //Hole 地表侵蚀空洞条件对应原版 SurfaceRules.hole surfaceDepth 非正即为空洞
+    //Hole is the surface erosion hole condition, maps to vanilla SurfaceRules.hole; a non-positive surfaceDepth is a hole
     public sealed class Hole : ConditionSource
     {
         public bool Test(Context context) => context.SurfaceDepth <= 0;
     }
 
-    //Bandlands 恶地条带材质对应原版 SurfaceRules.bandlands
-    //按 y 与噪声偏移查预生成的 192 长条带表
+    //Bandlands is the badlands band material, maps to vanilla SurfaceRules.bandlands
+    //Looks up a pre-generated 192-long band table by y and noise offset
     public sealed class Bandlands : RuleSource
     {
         public BlockState? Apply(Context context, BlockState current) => context.GetBand();

@@ -1,115 +1,115 @@
 namespace NetCraft.ModLoader;
 
-//ModStatus 模组在加载流程中的状态
+//ModStatus: a mod's status within the loading flow
 public enum ModStatus
 {
-    //NotFound 未找到
+    //NotFound: not found
     NotFound,
-    //Scanned 扫描通过待初始化
+    //Scanned: passed scanning, waiting to initialize
     Scanned,
-    //Initializing 初始化中
+    //Initializing: initializing
     Initializing,
-    //Running 加载完成
+    //Running: loaded
     Running,
-    //Error 扫描依赖或初始化失败
+    //Error: failed scanning, dependency check, or initialization
     Error,
-    //Skipped 被加载控制判定跳过
+    //Skipped: skipped by the load control
     Skipped,
-    //Interrupted 被加载控制拦截且未接管
+    //Interrupted: intercepted by the load control and not taken over
     Interrupted,
 }
 
-//ModLoadAction 加载控制回调的返回值 决定当前模组的去向
+//ModLoadAction: the return value of the load control callback, deciding the current mod's fate
 public enum ModLoadAction
 {
-    //Continue 按默认流程加载
+    //Continue: load by the default flow
     Continue,
-    //Interrupt 交给宿主接管加载
+    //Interrupt: hand loading over to the host
     Interrupt,
-    //Skip 跳过该模组
+    //Skip: skip this mod
     Skip,
 }
 
-//ModInfo 对外暴露的模组信息
-//既给加载流程用 也给界面用 展示相关的字段全部取自内嵌清单
+//ModInfo: mod information exposed to the outside
+//Used by both the loading flow and the UI; all display-related fields come from the embedded manifest
 public sealed class ModInfo
 {
-    //Name 模组标识取清单 id
+    //Name: the mod identifier taken from the manifest id
     public string Name { get; init; } = string.Empty;
-    //Id 与 Name 同值 读起来更直白
+    //Id: same value as Name, reads more directly
     public string Id => Name;
-    //DisplayName 展示名 清单没写 name 时退回 id
+    //DisplayName: the display name, falls back to the id when the manifest has no name
     public string DisplayName { get; init; } = string.Empty;
-    //Version 版本
+    //Version
     public string Version { get; init; } = string.Empty;
-    //Description 描述
+    //Description
     public string Description { get; init; } = string.Empty;
-    //Authors 作者
+    //Authors
     public IReadOnlyList<string> Authors { get; init; } = Array.Empty<string>();
-    //Contributors 贡献者
+    //Contributors
     public IReadOnlyList<string> Contributors { get; init; } = Array.Empty<string>();
-    //License 许可证
+    //License
     public string License { get; init; } = string.Empty;
-    //Contact 联系方式
+    //Contact
     public ModContact Contact { get; init; } = new();
-    //Icon 图标的内嵌资源名 留空表示按约定找
+    //Icon: the icon's embedded resource name, empty means look it up by convention
     public string Icon { get; init; } = string.Empty;
-    //Environment 声明的运行端
+    //Environment: the declared environment side
     public ModEnvironment Environment { get; init; }
-    //Hooks 注入规则清单
+    //Hooks: the injection rule list
     public IReadOnlyList<ModHookRule> Hooks { get; init; } = Array.Empty<ModHookRule>();
-    //LoadMilliseconds 初始化耗时 毫秒 不足一毫秒也有值
-    //未走到初始化时为 null 取负值表示这一栏不适用 彩蛋条目用
+    //LoadMilliseconds: initialization time in milliseconds, present even under a millisecond
+    //null if initialization was not reached, a negative value means this column does not apply, used by the easter-egg entry
     public double? LoadMilliseconds { get; init; }
-    //EntryType 入口类类型
+    //EntryType: the entry class type
     public Type? EntryType { get; init; }
-    //Instance 入口类实例
+    //Instance: the entry class instance
     public object? Instance { get; init; }
-    //AssemblyPath 模组 dll 路径
+    //AssemblyPath: the mod dll path
     public string AssemblyPath { get; init; } = string.Empty;
-    //Status 当前状态
+    //Status: the current status
     public ModStatus Status { get; set; }
-    //Dependencies 依赖的模组名
+    //Dependencies: names of the mods it depends on
     public IReadOnlyList<string> Dependencies { get; init; } = Array.Empty<string>();
 
     public override string ToString() => $"{Name} [{Status}]";
 }
 
-//ModLoadContext 加载控制回调的上下文 宿主据此决定放行跳过还是接管
+//ModLoadContext: the context of the load control callback, from which the host decides to allow, skip, or take over
 public sealed class ModLoadContext
 {
-    //Name 模组名
+    //Name: the mod name
     public string Name { get; init; } = string.Empty;
-    //EntryType 入口类类型
+    //EntryType: the entry class type
     public Type? EntryType { get; init; }
-    //Instance 入口类实例
+    //Instance: the entry class instance
     public object? Instance { get; init; }
-    //AssemblyPath 模组 dll 路径
+    //AssemblyPath: the mod dll path
     public string AssemblyPath { get; init; } = string.Empty;
-    //Dependencies 依赖的模组名
+    //Dependencies: names of the mods it depends on
     public IReadOnlyList<string> Dependencies { get; init; } = Array.Empty<string>();
-    //Completed 已处理数
+    //Completed: number processed
     public int Completed { get; init; }
-    //Total 待处理总数
+    //Total: total to process
     public int Total { get; init; }
-    //CustomData 宿主自用的附加数据
+    //CustomData: extra data for the host's own use
     public Dictionary<string, object> CustomData { get; init; } = new();
 }
 
-//InterruptResult 拦截回调的结果
+//InterruptResult: the result of the intercept callback
 public sealed class InterruptResult
 {
-    //ContinueOriginalLogic 接管后仍按默认流程初始化
+    //ContinueOriginalLogic: still initialize by the default flow after taking over
     public bool ContinueOriginalLogic { get; init; }
-    //MarkAsLoaded 直接标记为已加载不执行初始化
+    //MarkAsLoaded: mark as loaded directly without running initialization
     public bool MarkAsLoaded { get; init; }
-    //Error 非空表示加载失败
+    //Error: non-empty means loading failed
     public string Error { get; init; } = string.Empty;
-    //CustomData 宿主自用的附加数据
+    //CustomData: extra data for the host's own use
     public Dictionary<string, object> CustomData { get; init; } = new();
 }
 
-//LoadResult 一次加载流程的汇总
+//LoadResult: a summary of one loading flow
 public sealed class LoadResult
 {
     public bool Success { get; set; }
@@ -119,7 +119,7 @@ public sealed class LoadResult
     public List<string> Loaded { get; } = new();
 }
 
-//ProgressInfo 加载进度快照
+//ProgressInfo: a load progress snapshot
 public sealed class ProgressInfo
 {
     public string Status { get; set; } = string.Empty;

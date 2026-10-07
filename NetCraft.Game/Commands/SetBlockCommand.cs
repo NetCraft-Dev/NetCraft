@@ -10,12 +10,12 @@ using NetCraft.Storage;
 
 namespace NetCraft.Game.Commands;
 
-//SetBlockCommand /setblock 命令对应原版 net.minecraft.server.commands.SetBlockCommand
-//setblock <坐标> <方块> 直接覆盖 另有 destroy 先破坏原方块 keep 只填空位 replace 覆盖
-//strict 跳过光照发包与邻居通知 只在区块重载后可见 对应原版 UPDATE_SKIP_ALL_SIDEEFFECTS
+//SetBlockCommand /setblock command, maps to vanilla net.minecraft.server.commands.SetBlockCommand
+//setblock <pos> <block> overwrites directly; also destroy breaks the original block first, keep only fills empty slots, replace overwrites
+//strict skips light updates, packets and neighbor notifications; visible only after a chunk reload, maps to vanilla UPDATE_SKIP_ALL_SIDEEFFECTS
 public static class SetBlockCommand
 {
-    //Mode 放置模式对应原版 SetBlockCommand.Mode
+    //Mode placement mode, maps to vanilla SetBlockCommand.Mode
     private enum Mode
     {
         Replace,
@@ -41,8 +41,8 @@ public static class SetBlockCommand
                         .Executes(context => SetBlock(context, Mode.Replace, false, true))))));
     }
 
-    //SetBlock 执行放置 对应原版 setBlock
-    //keep 只在该位置为空时替换 destroy 先按掉落破坏原方块
+    //SetBlock performs the placement, maps to vanilla setBlock
+    //keep replaces only when the position is empty; destroy breaks the original block with drops first
     private static int SetBlock(CommandContext<CommandSourceStack> context, Mode mode, bool keepOnly, bool strict)
     {
         var source = context.GetSource() as ServerCommandSource;
@@ -55,31 +55,31 @@ public static class SetBlockCommand
         var state = level.GetBlockState(pos);
         if (state is null)
         {
-            source.SendFailure($"位置 {FormatPos(pos)} 所在区块未加载或超出世界范围");
+            source.SendFailure($"the chunk containing {FormatPos(pos)} is not loaded or out of the world bounds");
             return 0;
         }
         if (keepOnly && state.Value != Blocks.AIR.DefaultBlockState)
         {
-            source.SendFailure($"位置 {FormatPos(pos)} 已有方块");
+            source.SendFailure($"{FormatPos(pos)} already has a block");
             return 0;
         }
 
         var placeNeeded = true;
         if (mode == Mode.Destroy)
         {
-            //destroy 先把原方块按掉落破坏 破坏表现与掉落都走通用链路
+            //destroy first breaks the original block with drops; both the break effect and the drops go through the common chain
             ServerBlockUpdates.BreakBlock(level, players, null, pos);
-            //目标是空气且原地已被破坏成空气时无事可做 对应原版 placeNeeded 的判定
+            //When the target is air and it was already broken to air there is nothing to do, maps to vanilla placeNeeded
             placeNeeded = !(input.State == Blocks.AIR.DefaultBlockState
                 && level.GetBlockState(pos) == Blocks.AIR.DefaultBlockState);
         }
 
         if (placeNeeded && !ServerBlockUpdates.SetBlock(level, players, pos, input.State, strict: strict))
         {
-            source.SendFailure($"位置 {FormatPos(pos)} 放置失败 状态未变化");
+            source.SendFailure($"failed to place at {FormatPos(pos)}: the state did not change");
             return 0;
         }
-        source.SendSuccess($"已将方块设置为 {BuiltInRegistries.BLOCK.GetKey(input.State.Owner)} {FormatPos(pos)}");
+        source.SendSuccess($"set block to {BuiltInRegistries.BLOCK.GetKey(input.State.Owner)} {FormatPos(pos)}");
         return 1;
     }
 

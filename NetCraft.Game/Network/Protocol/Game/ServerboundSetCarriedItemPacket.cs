@@ -1,7 +1,7 @@
 namespace NetCraft.Game.Network.Protocol.Game;
 
-//ServerboundSetCarriedItemPacket 切换手持栏槽位包对应原版 ServerboundSetCarriedItemPacket
-//滚轮或数字键切换手持物品时发送 字段 Slot(short)
+//ServerboundSetCarriedItemPacket hotbar slot switch packet, maps to vanilla ServerboundSetCarriedItemPacket
+//Sent when switching the held item with the scroll wheel or number keys; field: Slot(short)
 public sealed record ServerboundSetCarriedItemPacket(int Slot) : Packet<ServerGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ServerboundSetCarriedItemPacket> StreamCodec { get; } = new SetCarriedItemCodec();

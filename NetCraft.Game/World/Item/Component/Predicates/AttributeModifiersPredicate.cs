@@ -9,13 +9,13 @@ using NetCraft.Registry.EntityAttribute;
 
 namespace NetCraft.Game.World.Items.Component.Predicates;
 
-//AttributeModifiersPredicate 属性修饰谓词 判定修饰条目集合是否满足集合谓词
-//对应原版 net.minecraft.core.component.predicates.AttributeModifiersPredicate
+//AttributeModifiersPredicate attribute modifier predicate, checks whether the modifier entries satisfy the collection predicate
+//Maps to vanilla net.minecraft.core.component.predicates.AttributeModifiersPredicate
 public sealed record AttributeModifiersPredicate(
     Optional<CollectionPredicate<ItemAttributeModifiers.Entry, AttributeModifiersPredicate.EntryPredicate>> Modifiers)
     : SingleComponentItemPredicate<ItemAttributeModifiers>
 {
-    //Codec 持久化编解码 只有 modifiers 一个字段 对应原版 CODEC
+    //Codec persistence codec, only a modifiers field, maps to vanilla CODEC
     public static readonly Codec<AttributeModifiersPredicate> Codec = RecordCodecBuilder.Of1(
         CollectionPredicate<ItemAttributeModifiers.Entry, EntryPredicate>.Codec(EntryPredicate.Codec)
             .OptionalFieldOf("modifiers")
@@ -27,8 +27,8 @@ public sealed record AttributeModifiersPredicate(
     public bool MatchesValue(ItemAttributeModifiers value)
         => !Modifiers.IsPresent || Modifiers.Get().Test(value.Modifiers);
 
-    //EntryPredicate 单条修饰匹配 属性集合加 id 加数值区间加运算加槽位
-    //对应原版 EntryPredicate
+    //EntryPredicate single modifier match: attribute set plus id plus amount range plus operation plus slots
+    //Maps to vanilla EntryPredicate
     public sealed record EntryPredicate(
         Optional<HolderSet<NetCraft.Registry.EntityAttribute.Attribute>> Attributes,
         Optional<Identifier> Id,
@@ -36,7 +36,7 @@ public sealed record AttributeModifiersPredicate(
         Optional<AttributeOperation> Operation,
         Optional<EquipmentSlotGroup> Slot) : IValuePredicate<ItemAttributeModifiers.Entry>
     {
-        //Codec 持久化编解码 字段名 attribute 与 id 与 amount 与 operation 与 slot 对应原版 CODEC
+        //Codec persistence codec, field names attribute, id, amount, operation and slot, maps to vanilla CODEC
         public static readonly Codec<EntryPredicate> Codec = RecordCodecBuilder.Of5(
             HolderSetCodecs.AttributeSet.OptionalFieldOf("attribute")
                 .ForGetter((EntryPredicate predicate) => predicate.Attributes),

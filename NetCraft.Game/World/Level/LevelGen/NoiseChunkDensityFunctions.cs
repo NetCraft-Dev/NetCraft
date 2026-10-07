@@ -2,21 +2,21 @@ using NetCraft.Util;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//INoiseChunkDensity 区块级密度函数接口对应原版 NoiseChunk.NoiseChunkDensityFunction
-//表示由 NoiseChunk.wrap 按 Marker 类型生成的包装节点内部保留原始子函数
+//INoiseChunkDensity chunk-level density function interface, maps to vanilla NoiseChunk.NoiseChunkDensityFunction
+//Represents the wrapper node produced by NoiseChunk.wrap per Marker type, keeping the original inner function
 public interface INoiseChunkDensity
 {
     DensityFunction Wrapped { get; }
 }
 
-//NoiseInterpolator 插值密度函数对应原版 NoiseChunk.NoiseInterpolator
-//只有被 interpolated 包裹的子树才走 cell 角点采样 + 三线性插值其余节点逐方块求值
+//NoiseInterpolator interpolating density function, maps to vanilla NoiseChunk.NoiseInterpolator
+//Only subtrees wrapped in interpolated use cell corner sampling + trilinear interpolation; other nodes evaluate per block
 public sealed class NoiseInterpolator : DensityFunction, INoiseChunkDensity
 {
     private readonly NoiseChunk _chunk;
     private readonly DensityFunction _noiseFiller;
 
-    //slice0/slice1 相邻两个 X 切片的角点值 selectCellYZ 一次性取 8 个角点
+    //slice0/slice1 corner values of two adjacent X slices; selectCellYZ grabs all 8 corners at once
     public double[][] Slice0 { get; private set; }
     public double[][] Slice1 { get; private set; }
 
@@ -105,8 +105,8 @@ public sealed class NoiseInterpolator : DensityFunction, INoiseChunkDensity
     public double MaxValue => _noiseFiller.MaxValue;
 }
 
-//NoiseFlatCache 平面缓存对应原版 NoiseChunk.FlatCache
-//按 quart 列预填整块噪声表取坐标时命中表内直接查表
+//NoiseFlatCache flat cache, maps to vanilla NoiseChunk.FlatCache
+//Pre-fills the whole noise table per quart column; sampling a coordinate hits the table directly
 public sealed class NoiseFlatCache : DensityFunction, INoiseChunkDensity
 {
     private readonly NoiseChunk _chunk;
@@ -151,8 +151,8 @@ public sealed class NoiseFlatCache : DensityFunction, INoiseChunkDensity
     public double MaxValue => _noiseFiller.MaxValue;
 }
 
-//NoiseCache2D 二维缓存对应原版 NoiseChunk.Cache2D
-//只记上一次查询的列坐标与值同列连续查询直接复用
+//NoiseCache2D two-dimensional cache, maps to vanilla NoiseChunk.Cache2D
+//Only remembers the last queried column coordinate and value; consecutive queries in the same column reuse it
 public sealed class NoiseCache2D : DensityFunction, INoiseChunkDensity
 {
     private const long InvalidPos = long.MinValue;
@@ -183,8 +183,8 @@ public sealed class NoiseCache2D : DensityFunction, INoiseChunkDensity
     public double MaxValue => _function.MaxValue;
 }
 
-//NoiseCacheOnce 单次缓存对应原版 NoiseChunk.CacheOnce
-//按插值计数器缓存同一坐标的单点值按数组计数器缓存整块数组
+//NoiseCacheOnce single-shot cache, maps to vanilla NoiseChunk.CacheOnce
+//Caches the single-point value for a coordinate by interpolation counter and the whole array by array counter
 public sealed class NoiseCacheOnce : DensityFunction, INoiseChunkDensity
 {
     private readonly NoiseChunk _chunk;
@@ -232,8 +232,8 @@ public sealed class NoiseCacheOnce : DensityFunction, INoiseChunkDensity
     public double MaxValue => _function.MaxValue;
 }
 
-//NoiseCacheAllInCell 整格缓存对应原版 NoiseChunk.CacheAllInCell
-//每个 cell 开始前把格内所有方块的值算一次之后按格内偏移直接查表
+//NoiseCacheAllInCell whole-cell cache, maps to vanilla NoiseChunk.CacheAllInCell
+//Computes the value of every block in the cell once when the cell starts, then looks them up by in-cell offset
 public sealed class NoiseCacheAllInCell : DensityFunction, INoiseChunkDensity
 {
     private readonly NoiseChunk _chunk;
@@ -248,7 +248,7 @@ public sealed class NoiseCacheAllInCell : DensityFunction, INoiseChunkDensity
         chunk.RegisterCellCache(this);
     }
 
-    //Fill 在当前 cell 选中后预填整格对应原版 selectCellYZ 里的 fillArray
+    //Fill pre-fills the whole cell once the current cell is selected, maps to the fillArray inside vanilla selectCellYZ
     public void Fill() => _chunk.FillAllDirectly(_values, _noiseFiller);
 
     public double Compute(FunctionContext context)

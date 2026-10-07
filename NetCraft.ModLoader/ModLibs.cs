@@ -4,21 +4,21 @@ using NetCraft.Logging;
 
 namespace NetCraft.ModLoader;
 
-//ModLibs 模组内嵌依赖的解析 对应原版 Fabric 的 Jar-in-Jar
-//模组把依赖库当内嵌资源打进自己的 dll 解析不到程序集时从这里取
-//条目就是程序集里所有 .dll 资源 构建期把 dotnet add package 加来的库直接嵌进来
-//内核子库的解析归 EmbeddedAssemblyLoader 管 这里只管模组自带的那部分
-//注册必须早于 ModHooks.Build —— 装配要解析替换类 那一刻依赖就得取得到
+//ModLibs: resolution of embedded mod dependencies, maps to vanilla Fabric's Jar-in-Jar
+//Mods bundle dependency libraries as embedded resources in their own dll; when an assembly cannot be resolved it is taken from here
+//Entries are all .dll resources in the assembly; at build time libraries added with dotnet add package are embedded directly
+//Kernel sub-library resolution is handled by EmbeddedAssemblyLoader; this only handles the mod's own part
+//Registration must happen before ModHooks.Build; assembly needs to resolve replacement classes, so dependencies must be available at that moment
 public static class ModLibs
 {
-    //_entries 各模组内嵌的依赖 一条一个资源名
+    //_entries: embedded dependencies of each mod, one resource name per entry
     private static readonly List<(string ModPath, string ResourceName)> _entries = new();
     private static int _registered;
 
-    //Register 收集内嵌依赖并挂上解析回调
-    //条目来源是程序集里嵌着的全部 .dll 资源 模板项目的构建会把依赖直接嵌进来
-    //只收环境匹配的模组 端不匹配的模组后面也不会被加载
-    //先收条目再判要不要挂回调 顺序反过来的话第一次进来没有条目就再也挂不上了
+    //Register: collects embedded dependencies and hooks up the resolution callback
+    //Entries come from all .dll resources embedded in the assembly; the template project's build embeds dependencies directly
+    //Only mods with a matching environment are collected; mods with a mismatched side are not loaded later either
+    //Collect entries before deciding whether to hook the callback; reversing the order would leave it never hooked if the first call has no entries
     public static void Register(IEnumerable<ScannedMod> mods)
     {
         foreach (var mod in mods)
@@ -33,7 +33,7 @@ public static class ModLibs
         if (_entries.Count == 0)
             return;
 
-        //回调只挂一次 条目可以续着补
+        //The callback is hooked only once, entries can keep being added
         if (Interlocked.Exchange(ref _registered, 1) == 1)
             return;
 
@@ -41,7 +41,7 @@ public static class ModLibs
         Log.Info($"Embedded mod dependencies registered: {_entries.Count}");
     }
 
-    //OnResolving 内核那边没取到时从模组内嵌资源里取
+    //OnResolving: takes from the mod's embedded resources when the kernel side fails to resolve
     private static Assembly? OnResolving(AssemblyLoadContext context, AssemblyName name)
     {
         var bytes = TryRead(name.Name);
@@ -52,11 +52,11 @@ public static class ModLibs
         return context.LoadFromStream(new MemoryStream(bytes));
     }
 
-    //TryRead 按程序集名在已登记的条目里找
+    //TryRead: looks up by assembly name among the registered entries
     public static byte[]? TryRead(string? assemblyName) => TryReadFrom(_entries, assemblyName);
 
-    //TryReadFrom 按程序集名在一组条目里找 找不到返回 null
-    //抽出来是为了能直接喂一组条目做验证 不必走注册
+    //TryReadFrom: looks up by assembly name in a set of entries, returns null if not found
+    //Extracted so a set of entries can be fed in directly for verification without going through registration
     public static byte[]? TryReadFrom(IEnumerable<(string ModPath, string ResourceName)> entries, string? assemblyName)
     {
         if (string.IsNullOrEmpty(assemblyName))
@@ -74,9 +74,9 @@ public static class ModLibs
         return null;
     }
 
-    //MatchesLibName 资源名与程序集名是否指同一个库
-    //资源名一般是 MyLib.dll
-    //内嵌资源用默认名时会带上项目命名空间前缀 所以后缀命中也要认
+    //MatchesLibName: whether a resource name and an assembly name refer to the same library
+    //The resource name is usually MyLib.dll
+    //Embedded resources with the default name carry a project namespace prefix, so a suffix match must be accepted too
     public static bool MatchesLibName(string assemblyName, string resourceName)
     {
         var trimmed = resourceName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)

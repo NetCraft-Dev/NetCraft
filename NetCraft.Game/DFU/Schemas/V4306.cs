@@ -9,8 +9,8 @@ using System.Collections.Generic;
 using NetCraft.DataFixer.Fixes;
 using NetCraft.DataFixer.Types.Templates;
 
-//V4306对应原版net.minecraft.util.datafix.schemas.V4306
-//1.21.3移除通用potion实体拆为splash_potion/lingering_potion都带Item字段
+//V4306 maps to vanilla net.minecraft.util.datafix.schemas.V4306
+//1.21.3 removes the generic potion entity, split into splash_potion/lingering_potion, both with an Item field
 public class V4306 : NamespacedSchema
 {
     public V4306(int versionKey, Schema? parent) : base(versionKey, parent) { }

@@ -2,9 +2,9 @@ using System.Collections.ObjectModel;
 
 namespace NetCraft.Gpu.Pipeline;
 
-//PipelineBuilder pipeline 构造器对标原版 RenderPipeline.Builder
-//支持 fluent WithXxx 链式声明 + From(snippets) 片段组合
-//BuildSnippet 生成可复用的 Snippet Build 生成完整 RenderPipeline 含 sortKey
+//PipelineBuilder pipeline builder, maps to vanilla RenderPipeline.Builder
+//Supports fluent WithXxx chained declarations + From(snippets) snippet composition
+//BuildSnippet produces a reusable Snippet; Build produces a full RenderPipeline including sortKey
 public sealed class PipelineBuilder
 {
     private const int MaxColorTargets = ColorTargetState.MaxColorTargets;
@@ -110,7 +110,7 @@ public sealed class PipelineBuilder
         return this;
     }
 
-    //WithSnippet 合并 snippet 后者非空字段覆盖前者 shaderDefines 合并 bindGroupLayouts 追加
+    //WithSnippet merges a snippet; later non-null fields override earlier ones, shaderDefines merge and bindGroupLayouts append
     public PipelineBuilder WithSnippet(Snippet snippet)
     {
         if (snippet.VertexShader != null) _vertexShader = snippet.VertexShader;

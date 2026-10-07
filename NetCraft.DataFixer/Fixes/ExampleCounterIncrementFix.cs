@@ -6,19 +6,19 @@ using NetCraft.DataFixer.Schemas;
 using T = NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Templates;
 
-//ExampleCounterIncrementFix端到端示例修复器
-//把example_counter的int值+1对应原版简单DataFix结构
+//ExampleCounterIncrementFix end-to-end example fixer
+//increments example_counter's int value by 1, maps to the vanilla simple DataFix structure
 public class ExampleCounterIncrementFix : DataFix
 {
     public ExampleCounterIncrementFix(Schema outputSchema) : base(outputSchema, changesType: false) { }
 
     protected override TypeRewriteRule MakeRule()
     {
-        //用ExampleType作为IfSame目标因ExampleSchema注册example_counter为ConstType(ExampleType)
-        //sourceType链为CheckType->NamedType->ExampleType If匹配ExampleType成功
+        //uses ExampleType as the IfSame target because ExampleSchema registers example_counter as ConstType(ExampleType)
+        //sourceType chain is CheckType->NamedType->ExampleType, and the If match on ExampleType succeeds
         var type = ExampleSchema.ExampleType;
-        //FixTypeEverywhere<object>对应A=object的函数类型
-        //input是object实际是int装箱+1后重新装箱
+        //FixTypeEverywhere<object> maps to the function type with A=object
+        //input is object but actually a boxed int; add 1 then re-box
         return FixTypeEverywhere("example_counter_increment", type, ops => input =>
         {
             if (input is int i)

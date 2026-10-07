@@ -9,13 +9,13 @@ using System.Collections.Generic;
 using NetCraft.DataFixer.Fixes;
 using NetCraft.DataFixer.Types.Templates;
 
-//V3685对应原版net.minecraft.util.datafix.schemas.V3685
-//1.20.5注册trident/spectral_arrow/arrow实体带inBlockState与item字段
+//V3685 maps to vanilla net.minecraft.util.datafix.schemas.V3685
+//1.20.5 registers the trident/spectral_arrow/arrow entities with inBlockState and item fields
 public class V3685 : NamespacedSchema
 {
     public V3685(int versionKey, Schema? parent) : base(versionKey, parent) { }
 
-    //abstractArrow箭类实体模板inBlockState+item字段对齐原版abstractArrow
+    //abstractArrow arrow entity template with inBlockState+item fields, aligned with vanilla abstractArrow
     private static TypeTemplate AbstractArrow(Schema schema)
         => DSL.OptionalFields("inBlockState", References.BlockState.In(schema),
             FixConstants.DecoratedPotBlockEntityItem, References.ItemStack.In(schema));

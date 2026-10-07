@@ -9,22 +9,22 @@ using RegBlock = NetCraft.Registry.Block;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Trees;
 
-//TrunkPlacerType 树干放置器类型基类 对应原版 TrunkPlacerType<P>
-//原版类型带泛型 NetCraft 泛型不能协变 拆成非泛型基类加泛型中间层
+//TrunkPlacerType trunk placer type base, maps to vanilla TrunkPlacerType<P>
+//Vanilla parameterizes the type; NetCraft generics are not covariant, so it is split into a non-generic base plus a generic middle layer
 public abstract class TrunkPlacerType : NetCraft.Registry.TrunkPlacerType<object>
 {
     public Identifier Id { get; }
 
     protected TrunkPlacerType(Identifier id) => Id = id;
 
-    //Decode 从 map 解出一个放置器实例 type 字段已由外层消费
+    //Decode decode a placer instance from the map; the type field is already consumed by the caller
     public abstract DataResult<TrunkPlacer> Decode<U>(DynamicOps<U> ops, MapLike<U> input);
 
-    //EncodeFields 把实例参数累积进 builder type 字段由外层补
+    //EncodeFields accumulate the instance fields into the builder; the type field is added by the caller
     public abstract void EncodeFields<U>(DynamicOps<U> ops, TrunkPlacer value, RecordBuilder<U> builder);
 }
 
-//TrunkPlacerType<P> 具体放置器类型的泛型中间层 子类只需给出一个 MapCodec<P>
+//TrunkPlacerType<P> generic middle layer for a concrete placer type; subclasses only supply one MapCodec<P>
 public abstract class TrunkPlacerType<P> : TrunkPlacerType where P : TrunkPlacer
 {
     private readonly MapCodec<P> _codec;
@@ -40,14 +40,14 @@ public abstract class TrunkPlacerType<P> : TrunkPlacerType where P : TrunkPlacer
     }
 }
 
-//SimpleTrunkPlacerType 只带 id 与 codec 的类型实例 覆盖全部内置放置器
+//SimpleTrunkPlacerType type instance carrying only an id and a codec, covering all built-in placers
 internal sealed class SimpleTrunkPlacerType<P> : TrunkPlacerType<P> where P : TrunkPlacer
 {
     public SimpleTrunkPlacerType(string id, MapCodec<P> codec)
         : base(Identifier.WithDefaultNamespace(id), codec) { }
 }
 
-//TrunkPlacerTypes 内置树干放置器类型登记 对应原版 TrunkPlacerType 的静态字段
+//TrunkPlacerTypes built-in trunk placer type registration, maps to the static fields of vanilla TrunkPlacerType
 public static class TrunkPlacerTypes
 {
     public static readonly TrunkPlacerType<StraightTrunkPlacer> Straight =
@@ -86,7 +86,7 @@ public static class TrunkPlacerTypes
     }
 }
 
-//TrunkPlacerParts 三种放置器共用的高度字段 对应原版 trunkPlacerParts
+//TrunkPlacerParts height fields shared by the three placers, maps to vanilla trunkPlacerParts
 internal static class TrunkPlacerParts
 {
     public static readonly MapCodec<int> BaseHeight = Codecs.Int.FieldOf("base_height");
@@ -94,10 +94,10 @@ internal static class TrunkPlacerParts
     public static readonly MapCodec<int> HeightRandB = Codecs.Int.FieldOf("height_rand_b");
 }
 
-//TrunkPlacer 树干放置器基类 对应原版 TrunkPlacer
+//TrunkPlacer trunk placer base, maps to vanilla TrunkPlacer
 public abstract class TrunkPlacer
 {
-    //Codec 多态入口 按 type 字段派发到 TRUNK_PLACER_TYPE 注册表
+    //Codec polymorphic entry dispatching on the type field into the TRUNK_PLACER_TYPE registry
     public static readonly Codec<TrunkPlacer> Codec = new TrunkPlacerDispatchCodec();
 
     public int BaseHeight { get; }
@@ -111,19 +111,19 @@ public abstract class TrunkPlacer
         HeightRandB = heightRandB;
     }
 
-    //Type 所属类型单例 编码与注册表解析靠它拿 id
+    //Type owning type singleton; encoding and registry resolution use it to get the id
     public abstract TrunkPlacerType Type { get; }
 
-    //GetTreeHeight 随机出树总高 对应原版 getTreeHeight
+    //GetTreeHeight roll the total tree height, maps to vanilla getTreeHeight
     public int GetTreeHeight(RandomSource random)
         => BaseHeight + random.NextInt(HeightRandA + 1) + random.NextInt(HeightRandB + 1);
 
-    //PlaceTrunk 长树干并回报树叶挂点 对应原版 placeTrunk
+    //PlaceTrunk grow the trunk and report foliage attachment points, maps to vanilla placeTrunk
     public abstract List<FoliagePlacer.FoliageAttachment> PlaceTrunk(WorldGenRegion level,
         Action<BlockPos, BlockState> trunkSetter, RandomSource random, int treeHeight, BlockPos origin,
         TreeConfiguration config);
 
-    //PlaceBelowTrunkBlock 树干正下方那格按提供者填 对应原版 placeBelowTrunkBlock
+    //PlaceBelowTrunkBlock fill the cell directly below the trunk from a provider, maps to vanilla placeBelowTrunkBlock
     protected static void PlaceBelowTrunkBlock(WorldGenRegion level, Action<BlockPos, BlockState> trunkSetter,
         RandomSource random, BlockPos pos, TreeConfiguration config)
     {
@@ -131,7 +131,7 @@ public abstract class TrunkPlacer
         if (state is { } below) trunkSetter(pos, below);
     }
 
-    //PlaceLog 放一格原木 位置不可占用时返回假 对应原版 placeLog
+    //PlaceLog place one log, returning false when the position cannot be occupied, maps to vanilla placeLog
     protected bool PlaceLog(WorldGenRegion level, Action<BlockPos, BlockState> trunkSetter, RandomSource random,
         BlockPos pos, TreeConfiguration config, Func<BlockState, BlockState>? stateModifier = null)
     {
@@ -142,22 +142,22 @@ public abstract class TrunkPlacer
         return true;
     }
 
-    //PlaceLogIfFree 位置空闲才放原木 对应原版 placeLogIfFree
+    //PlaceLogIfFree place a log only when the position is free, maps to vanilla placeLogIfFree
     protected void PlaceLogIfFree(WorldGenRegion level, Action<BlockPos, BlockState> trunkSetter,
         RandomSource random, BlockPos pos, TreeConfiguration config)
     {
         if (IsFree(level, pos)) PlaceLog(level, trunkSetter, random, pos, config);
     }
 
-    //ValidTreePos 该位置可被树占用 对应原版 validTreePos
+    //ValidTreePos whether the position can be taken by a tree, maps to vanilla validTreePos
     protected virtual bool ValidTreePos(WorldGenRegion level, BlockPos pos) => TreeUtil.ValidTreePos(level, pos);
 
-    //IsFree 该位置空闲或已是原木 对应原版 isFree
+    //IsFree whether the position is free or already a log, maps to vanilla isFree
     public virtual bool IsFree(WorldGenRegion level, BlockPos pos)
         => ValidTreePos(level, pos) || TreeUtil.IsLogs(level, pos);
 }
 
-//TrunkPlacerDispatchCodec 按 type 字段查 TRUNK_PLACER_TYPE 再委派给该类型
+//TrunkPlacerDispatchCodec look up TRUNK_PLACER_TYPE by the type field then delegate to that type
 internal sealed class TrunkPlacerDispatchCodec : ScalarCodec<TrunkPlacer>
 {
     public override DataResult<TrunkPlacer> Parse<U>(DynamicOps<U> ops, U input)
@@ -166,15 +166,15 @@ internal sealed class TrunkPlacerDispatchCodec : ScalarCodec<TrunkPlacer>
     private static DataResult<TrunkPlacer> DecodePlacer<U>(DynamicOps<U> ops, MapLike<U> input)
     {
         var typeTag = input.Get("type");
-        if (!typeTag.IsPresent) return DataResult<TrunkPlacer>.Error(() => "树干放置器缺 type 字段");
+        if (!typeTag.IsPresent) return DataResult<TrunkPlacer>.Error(() => "trunk placer is missing the type field");
         var typeText = ops.GetStringValue(typeTag.Get());
         if (!typeText.Result().IsPresent)
-            return DataResult<TrunkPlacer>.Error(() => "树干放置器的 type 必须是字符串");
+            return DataResult<TrunkPlacer>.Error(() => "trunk placer type must be a string");
         var typeId = Identifier.TryParse(typeText.GetOrThrow());
         if (typeId is null)
-            return DataResult<TrunkPlacer>.Error(() => $"非法的放置器类型: {typeText.GetOrThrow()}");
+            return DataResult<TrunkPlacer>.Error(() => $"invalid placer type: {typeText.GetOrThrow()}");
         if (BuiltInRegistries.TRUNK_PLACER_TYPE.GetValue(typeId.Value) is not TrunkPlacerType type)
-            return DataResult<TrunkPlacer>.Error(() => $"未知的树干放置器类型: {typeId}");
+            return DataResult<TrunkPlacer>.Error(() => $"unknown trunk placer type: {typeId}");
         return type.Decode(ops, input);
     }
 
@@ -187,7 +187,7 @@ internal sealed class TrunkPlacerDispatchCodec : ScalarCodec<TrunkPlacer>
     }
 }
 
-//StraightTrunkPlacer 直树干 对应原版 StraightTrunkPlacer
+//StraightTrunkPlacer straight trunk, maps to vanilla StraightTrunkPlacer
 public sealed class StraightTrunkPlacer : TrunkPlacer
 {
     public static readonly MapCodec<StraightTrunkPlacer> Codec =
@@ -216,7 +216,7 @@ public sealed class StraightTrunkPlacer : TrunkPlacer
     }
 }
 
-//ForkingTrunkPlacer 分叉树干 对应原版 ForkingTrunkPlacer
+//ForkingTrunkPlacer forking trunk, maps to vanilla ForkingTrunkPlacer
 public sealed class ForkingTrunkPlacer : TrunkPlacer
 {
     public static readonly MapCodec<ForkingTrunkPlacer> Codec =
@@ -285,7 +285,7 @@ public sealed class ForkingTrunkPlacer : TrunkPlacer
     }
 }
 
-//GiantTrunkPlacer 巨型 2x2 树干 对应原版 GiantTrunkPlacer
+//GiantTrunkPlacer giant 2x2 trunk, maps to vanilla GiantTrunkPlacer
 public class GiantTrunkPlacer : TrunkPlacer
 {
     public static readonly MapCodec<GiantTrunkPlacer> Codec =
@@ -330,7 +330,7 @@ public class GiantTrunkPlacer : TrunkPlacer
         => PlaceLogIfFree(level, trunkSetter, random, treePos.Offset(x, y, z), config);
 }
 
-//MegaJungleTrunkPlacer 巨丛林树干 在巨型树干上再挂侧枝 对应原版 MegaJungleTrunkPlacer
+//MegaJungleTrunkPlacer mega jungle trunk adding side branches on a giant trunk, maps to vanilla MegaJungleTrunkPlacer
 public sealed class MegaJungleTrunkPlacer : GiantTrunkPlacer
 {
     public static readonly MapCodec<MegaJungleTrunkPlacer> Codec =
@@ -374,7 +374,7 @@ public sealed class MegaJungleTrunkPlacer : GiantTrunkPlacer
     }
 }
 
-//DarkOakTrunkPlacer 深色橡木 2x2 树干带倾斜与侧枝 对应原版 DarkOakTrunkPlacer
+//DarkOakTrunkPlacer dark oak 2x2 trunk with lean and side branches, maps to vanilla DarkOakTrunkPlacer
 public sealed class DarkOakTrunkPlacer : TrunkPlacer
 {
     public static readonly MapCodec<DarkOakTrunkPlacer> Codec =
@@ -443,7 +443,7 @@ public sealed class DarkOakTrunkPlacer : TrunkPlacer
     }
 }
 
-//FancyTrunkPlacer 大橡木 细高主干带球状枝簇 对应原版 FancyTrunkPlacer
+//FancyTrunkPlacer fancy oak: a tall thin trunk with spherical branch clusters, maps to vanilla FancyTrunkPlacer
 public sealed class FancyTrunkPlacer : TrunkPlacer
 {
     public static readonly MapCodec<FancyTrunkPlacer> Codec =
@@ -513,7 +513,7 @@ public sealed class FancyTrunkPlacer : TrunkPlacer
         return attachments;
     }
 
-    //MakeLimb 沿两点连线放一串原木或只做可放性检查 对应原版 makeLimb
+    //MakeLimb place a line of logs between two points or only check placement, maps to vanilla makeLimb
     private bool MakeLimb(WorldGenRegion level, Action<BlockPos, BlockState> trunkSetter, RandomSource random,
         BlockPos startPos, BlockPos endPos, bool doPlace, TreeConfiguration config)
     {
@@ -568,7 +568,7 @@ public sealed class FancyTrunkPlacer : TrunkPlacer
         }
     }
 
-    //TreeShape 这一高度上的树冠半径 对应原版 treeShape
+    //TreeShape canopy radius at this height, maps to vanilla treeShape
     private static float TreeShape(int height, int y)
     {
         if (y < height * 0.3f) return -1.0f;
@@ -593,7 +593,7 @@ public sealed class FancyTrunkPlacer : TrunkPlacer
     }
 }
 
-//BendingTrunkPlacer 弯曲树干 紫丁香与杜鹃靠它 对应原版 BendingTrunkPlacer
+//BendingTrunkPlacer bending trunk used by lilac and azalea, maps to vanilla BendingTrunkPlacer
 public sealed class BendingTrunkPlacer : TrunkPlacer
 {
     public static readonly MapCodec<BendingTrunkPlacer> Codec =
@@ -648,7 +648,7 @@ public sealed class BendingTrunkPlacer : TrunkPlacer
     }
 }
 
-//UpwardsBranchingTrunkPlacer 红树向上分枝树干 对应原版 UpwardsBranchingTrunkPlacer
+//UpwardsBranchingTrunkPlacer upward-branching trunk for mangrove, maps to vanilla UpwardsBranchingTrunkPlacer
 public sealed class UpwardsBranchingTrunkPlacer : TrunkPlacer
 {
     public static readonly MapCodec<UpwardsBranchingTrunkPlacer> Codec =
@@ -746,14 +746,14 @@ public sealed class UpwardsBranchingTrunkPlacer : TrunkPlacer
         }
     }
 
-    //ValidTreePos 允许穿过指定方块集合 对应原版 validTreePos 重写
+    //ValidTreePos allows passing through a given block set, maps to the vanilla validTreePos override
     protected override bool ValidTreePos(WorldGenRegion level, BlockPos pos)
         => base.ValidTreePos(level, pos)
            || CanGrowThrough.Contains(BuiltInRegistries.BLOCK.WrapAsHolder(level.GetBlockState(pos.X, pos.Y, pos.Z).Owner));
 }
 
-//UniformIntObjectCodec 不带 type 字段的均匀分布整数 codec
-//对应原版 UniformInt.MAP_CODEC.codec() CherryTrunkPlacer 的 branch_start_offset_from_top 用它
+//UniformIntObjectCodec uniform int codec without a type field
+//Maps to vanilla UniformInt.MAP_CODEC.codec(); CherryTrunkPlacer's branch_start_offset_from_top uses it
 internal sealed class UniformIntObjectCodec : ScalarCodec<UniformInt>
 {
     public static readonly UniformIntObjectCodec Instance = new();
@@ -764,15 +764,15 @@ internal sealed class UniformIntObjectCodec : ScalarCodec<UniformInt>
             var minTag = map.Get("min_inclusive");
             var maxTag = map.Get("max_inclusive");
             if (!minTag.IsPresent || !maxTag.IsPresent)
-                return DataResult<UniformInt>.Error(() => "均匀分布需要 min_inclusive 与 max_inclusive");
+                return DataResult<UniformInt>.Error(() => "uniform distribution requires min_inclusive and max_inclusive");
             var min = ops.GetNumberValue(minTag.Get());
             var max = ops.GetNumberValue(maxTag.Get());
             if (!min.Result().IsPresent || !max.Result().IsPresent)
-                return DataResult<UniformInt>.Error(() => "均匀分布的上下界必须是数字");
+                return DataResult<UniformInt>.Error(() => "uniform bounds must be numbers");
             var minValue = (int)min.GetOrThrow();
             var maxValue = (int)max.GetOrThrow();
             if (maxValue < minValue)
-                return DataResult<UniformInt>.Error(() => $"上界必须不小于下界 [{minValue}-{maxValue}]");
+                return DataResult<UniformInt>.Error(() => $"upper bound must not be less than the lower bound [{minValue}-{maxValue}]");
             return DataResult<UniformInt>.Success(new UniformInt(minValue, maxValue));
         });
 
@@ -785,7 +785,7 @@ internal sealed class UniformIntObjectCodec : ScalarCodec<UniformInt>
     }
 }
 
-//CherryTrunkPlacer 樱花树干 主干加一两条侧枝 对应原版 CherryTrunkPlacer
+//CherryTrunkPlacer cherry trunk: a main trunk with one or two side branches, maps to vanilla CherryTrunkPlacer
 public sealed class CherryTrunkPlacer : TrunkPlacer
 {
     public static readonly MapCodec<CherryTrunkPlacer> Codec =
@@ -863,7 +863,7 @@ public sealed class CherryTrunkPlacer : TrunkPlacer
         return attachments;
     }
 
-    //GenerateBranch 从树干往一侧长一条枝 对应原版 generateBranch
+    //GenerateBranch grow one branch from the trunk to one side, maps to vanilla generateBranch
     private FoliagePlacer.FoliageAttachment GenerateBranch(WorldGenRegion level,
         Action<BlockPos, BlockState> trunkSetter, RandomSource random, int treeHeight, BlockPos origin,
         TreeConfiguration config, Func<BlockState, BlockState> sidewaysStateModifier,

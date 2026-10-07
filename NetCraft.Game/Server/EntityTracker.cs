@@ -4,52 +4,52 @@ using NetCraft.Primitives;
 using NetCraft.Registry;
 using NetCraft.Storage;
 using NetCraft.Util;
-//属性实例类型自带命名空间 这里只取这两个名字
+//The attribute instance type carries its own namespace; only these two names are taken here
 using AttributeInstance = NetCraft.Registry.EntityAttribute.AttributeInstance;
 using AttributeModifier = NetCraft.Registry.EntityAttribute.AttributeModifier;
 
 namespace NetCraft.Game.Server;
 
-//EntityTracker 实体追踪器对应原版 ChunkMap.TrackedEntity 集合
-//按玩家视距维护可见实体集合 进入视距下发 AddEntity 离开视距下发 RemoveEntities
-//位置朝向变化每 tick 下发移动包 位移超阈值改走位置同步包
-//玩家额外同步头部朝向与姿态数据 否则别人看到的模型头不转也看不到疾跑潜行
+//EntityTracker entity tracker, maps to the vanilla ChunkMap.TrackedEntity set
+//Maintains the visible entity set by player view distance: AddEntity on entering view, RemoveEntities on leaving
+//Position/facing changes send a move packet every tick; a displacement over the threshold switches to a position sync packet
+//Players additionally sync head facing and pose data, or other players see a model whose head does not turn and cannot see sprinting/sneaking
 public sealed class EntityTracker
 {
-    //TeleportThreshold 单个轴位移超过该值改用传送包 对应原版 8 格
+    //TeleportThreshold a displacement over this on a single axis switches to the teleport packet, maps to vanilla 8 blocks
     public const double TeleportThreshold = 8.0;
 
-    //RotationTolerance 角度变化小于该值不下发旋转包 对应原版 1 度
+    //RotationTolerance an angle change below this sends no rotation packet, maps to vanilla 1 degree
     public const float RotationTolerance = 1f;
 
-    //SharedFlagsIndex 实体数据共享标志位索引 与 Registry.Entity 的常量同源
+    //SharedFlagsIndex entity data shared flags index, from the same source as the Registry.Entity constant
     public const byte SharedFlagsIndex = NetCraft.Registry.Entity.SharedFlagsIndex;
 
-    //PoseIndex 实体数据姿态索引 与 Registry.Entity 的常量同源
+    //PoseIndex entity data pose index, from the same source as the Registry.Entity constant
     public const byte PoseIndex = NetCraft.Registry.Entity.PoseIndex;
 
-    //DeltaScale 相对位移包的定点精度 对应原版 VecDeltaCodec 的 4096 步
+    //DeltaScale fixed-point precision of the relative displacement packet, maps to vanilla VecDeltaCodec's 4096 steps
     private const double DeltaScale = 4096.0;
 
-    //_tracked 实体 id 到追踪状态
+    //_tracked entity id to tracking state
     private readonly Dictionary<int, TrackedEntity> _tracked = new();
 
-    //_seenByPlayer 玩家实体 id 到它已配上对的实体 id 集合
-    //PruneStale 原先每玩家遍历整个 _tracked 是 O(玩家数×实体数) 有反查后只比对自己见过的
+    //_seenByPlayer player entity id to the set of entity ids it has paired with
+    //PruneStale originally iterated the whole _tracked per player (O(players x entities)); with the reverse lookup it only compares what it has seen
     private readonly Dictionary<int, HashSet<int>> _seenByPlayer = new();
 
-    //BucketShift 空间分桶的区块对数 一格 16x16 区块可覆盖最大视距 32
+    //BucketShift spatial bucket chunk shift; a 16x16 chunk cell covers a max view distance of 32
     private const int BucketShift = 4;
 
-    //TrackedEntity 单个实体的追踪状态
+    //TrackedEntity the tracking state of a single entity
     private sealed class TrackedEntity
     {
-        //Observers 每个观察者各自一份发送记账
-        //同一 tick 内多个玩家都能看到同一实体 记账放全局一份会让先处理的玩家把变化吃掉
+        //Observers each observer has its own send bookkeeping
+        //Multiple players can see the same entity in one tick; a single global bookkeeping would let the first player handled eat the change
         public Dictionary<int, ObserverState> Observers { get; } = new();
     }
 
-    //ObserverState 某个观察者对某个实体的上次发送状态
+    //ObserverState an observer's last send state for an entity
     private sealed class ObserverState
     {
         public required Vec3 LastPos { get; set; }
@@ -58,13 +58,13 @@ public sealed class EntityTracker
         public required bool LastOnGround { get; set; }
         public required float LastHeadYRot { get; set; }
 
-        //LastSyncedVersion 上次给该观察者下发元数据时的版本号 版本没变就不重发
+        //LastSyncedVersion the version number when metadata was last sent to this observer; not resent when unchanged
         public int LastSyncedVersion { get; set; } = -1;
     }
 
-    //Tick 推进所有玩家的实体追踪并逐包发送
-    //candidates 以外的已追踪实体视为移出世界 向仍跟踪它的玩家补发移除包
-    //候选按空间分桶 每个玩家只遍历自己周围 3x3 格的实体 不再逐个玩家扫全场
+    //Tick advances all players' entity tracking and sends packet by packet
+    //Tracked entities outside candidates are treated as removed from the world; a removal packet is sent to players still tracking it
+    //Candidates are spatially bucketed; each player only iterates entities in its own surrounding 3x3 cells instead of scanning the whole field per player
     public void Tick(PersistentServerLevel level, IReadOnlyList<ServerPlayer> players)
     {
         if (players.Count == 0) return;
@@ -88,12 +88,12 @@ public sealed class EntityTracker
                 }
             }
         }
-        //本 tick 所有观察者都发过之后再清脏属性 对应原版 ServerEntity 广播后的 clear
-        //在 Sync 里清会让先处理的玩家把变化吃掉 后面的观察者一个属性包都收不到
+        //Clear dirty attributes only after all observers have sent this tick, maps to vanilla ServerEntity's clear after broadcasting
+        //Clearing inside Sync would let the first player handled eat the change and later observers receive no attribute packet
         foreach (var entity in candidates) entity.Attributes?.ClearAttributesToSync();
     }
 
-    //BucketByArea 按 16x16 区块的空间格子给候选分桶 键是格子坐标
+    //BucketByArea buckets candidates into 16x16-chunk spatial cells; the key is the cell coordinate
     private static Dictionary<long, List<ITrackedEntity>> BucketByArea(List<ITrackedEntity> candidates)
     {
         var buckets = new Dictionary<long, List<ITrackedEntity>>();
@@ -107,8 +107,8 @@ public sealed class EntityTracker
         return buckets;
     }
 
-    //CollectNearby 取玩家周围覆盖其视距的格子里的实体
-    //格子边长 16 区块 视距 R 区块需取 R/16+1 格半径 默认视距 12 时就是 3x3 格
+    //CollectNearby takes entities in the cells around a player covering its view distance
+    //The cell side is 16 chunks; a view distance of R chunks needs cells within R/16+1, i.e. 3x3 cells at the default view distance 12
     private static void CollectNearby(ServerPlayer player, Dictionary<long, List<ITrackedEntity>> buckets,
         List<ITrackedEntity> result)
     {
@@ -121,23 +121,23 @@ public sealed class EntityTracker
                 result.AddRange(list);
     }
 
-    //BucketKey 世界坐标落在哪个 16x16 区块的空间格
+    //BucketKey which 16x16-chunk spatial cell a world coordinate falls in
     private static long BucketKey(double x, double z)
         => (((long)Math.Floor(x) >> (BucketShift + 4)) << 32) ^ (((long)Math.Floor(z) >> (BucketShift + 4)) & 0xFFFFFFFFL);
 
-    //Sync 计算该玩家本帧需要收到的实体包 供测试直接断言
-    //位置变化每 tick 结算 对齐原版 ServerEntity.sendChanges 每 tick 调用的语义
-    //candidates 是本帧该玩家视野候选 不在其中的已配对实体按原版 TrackedEntity.updatePlayer 的不可见分支摘掉
+    //Sync computes the entity packets the player should receive this frame, for tests to assert directly
+    //Position changes settle every tick, aligned with the semantics of vanilla ServerEntity.sendChanges called every tick
+    //candidates are the player's view candidates this frame; paired entities not among them are dropped like the invisible branch of vanilla TrackedEntity.updatePlayer
     public List<Packet<ClientGamePacketListener>> Sync(ServerPlayer player, IReadOnlyList<ITrackedEntity> candidates)
     {
         var packets = new List<Packet<ClientGamePacketListener>>();
-        //processed 本帧实际遍历到的实体 id 集合 PruneStale 据此判断玩家是否还看得见
+        //processed the entity ids actually iterated this frame; PruneStale uses it to decide whether the player can still see them
         var processed = new HashSet<int>(candidates.Count);
         foreach (var entity in candidates)
         {
             if (entity.Type is null) continue;
             processed.Add(entity.EntityId);
-            //玩家自身不发自己的实体包 对应原版 TrackedEntity.updatePlayer 的 self 跳过
+            //A player does not send its own entity packet, maps to the self skip of vanilla TrackedEntity.updatePlayer
             if (ReferenceEquals(entity, player)) continue;
             if (!_tracked.TryGetValue(entity.EntityId, out var state))
             {
@@ -168,14 +168,14 @@ public sealed class EntityTracker
                 state.Observers[player.EntityId] = observer;
                 SeenOf(player.EntityId).Add(entity.EntityId);
                 packets.Add(BuildAddEntity(entity));
-                //配对时把元数据全量下发 玩家要有姿态 掉落物要有物品栈 客户端建好模型就是对的
+                //When pairing, metadata is fully sent; players need a pose and drops need an item stack, so the client builds the right model
                 if (entity is ISyncedEntity synced)
                 {
                     var values = synced.SyncedData.CollectAll();
                     observer.LastSyncedVersion = synced.SyncedData.Version;
                     if (values.Count > 0) packets.Add(BuildSyncedData(entity.EntityId, values));
                 }
-                //配对时把可同步属性全量下发 对应原版 ServerEntity.sendPairingData 的属性分支
+                //When pairing, all syncable attributes are sent, maps to the attribute branch of vanilla ServerEntity.sendPairingData
                 if (entity.Attributes is { } attributes && attributes.SyncableAttributes.Count > 0)
                     packets.Add(BuildAttributes(entity.EntityId, attributes.SyncableAttributes));
                 continue;
@@ -190,7 +190,7 @@ public sealed class EntityTracker
         return packets;
     }
 
-    //CollectCandidates 收集可追踪对象 世界实体加在线玩家
+    //CollectCandidates collects traceable objects: world entities plus online players
     private static List<ITrackedEntity> CollectCandidates(PersistentServerLevel level, IReadOnlyList<ServerPlayer> players)
     {
         var list = new List<ITrackedEntity>();
@@ -199,15 +199,15 @@ public sealed class EntityTracker
         return list;
     }
 
-    //BuildAddEntity 组装添加实体包 朝向按原版压缩成单字节角度
-    //第三个角度是头部朝向 本作头随身体与第二个角度相同
+    //BuildAddEntity assembles the add entity packet; the facing is compressed to a single-byte angle like vanilla
+    //The third angle is the head facing; this project's head follows the body so it equals the second angle
     private static ClientboundAddEntityPacket BuildAddEntity(ITrackedEntity entity)
         => new(entity.EntityId, entity.Uuid, entity.Type!, entity.Pos.X, entity.Pos.Y, entity.Pos.Z,
             entity.Velocity, Mth.PackDegrees(entity.XRot), Mth.PackDegrees(entity.YRot),
             Mth.PackDegrees(entity.YRot), 0);
 
-    //AddMovementPackets 按位移与朝向变化组装移动包
-    //位移超阈值走传送包 阈值内走相对位移包 仅朝向变化走旋转包
+    //AddMovementPackets assembles the move packet from displacement and facing changes
+    //A displacement over the threshold uses the teleport packet, within it the relative displacement packet, and a facing-only change the rotation packet
     private static void AddMovementPackets(ObserverState state, ITrackedEntity entity,
         List<Packet<ClientGamePacketListener>> packets)
     {
@@ -224,9 +224,9 @@ public sealed class EntityTracker
         var xRot = Mth.PackDegrees(entity.XRot);
         if (moved && (Math.Abs(dx) > TeleportThreshold || Math.Abs(dy) > TeleportThreshold || Math.Abs(dz) > TeleportThreshold))
         {
-            //大位移走位置同步包 客户端处理时同步重置位置基准 VecDeltaCodec
-            //用传送包的话客户端只做插值不重置基准 之后每个增量包都基于旧基准累加
-            //观察者端模型的偏移量会固定等于这次位移 也就是传送后一动就飞出去且距离不变
+            //A large displacement uses the position sync packet; the client resets the position baseline VecDeltaCodec when handling it
+            //With the teleport packet the client only interpolates without resetting the baseline; every later delta packet accumulates from the old baseline
+            //The observer-side model offset then stays equal to that displacement, i.e. it flies off on the next move after the teleport with a constant distance
             packets.Add(new ClientboundEntityPositionSyncPacket(entity.EntityId, entity.Pos, entity.Velocity,
                 entity.YRot, entity.XRot, entity.OnGround));
         }
@@ -250,9 +250,9 @@ public sealed class EntityTracker
         state.LastOnGround = entity.OnGround;
     }
 
-    //AddHeadRotationPacket 头部朝向变化下发头部旋转包 对应原版 ServerEntity 的 rotateHead 分支
-    //客户端模型的头只认这个包 只发移动旋转包的话别人看你转头时头不动
-    //本作没有独立的头部转向控制 头部朝向跟随身体朝向
+    //AddHeadRotationPacket sends the head rotation packet on head facing change, maps to the rotateHead branch of vanilla ServerEntity
+    //The client model's head only honors this packet; sending only move/rotate packets leaves the head still when others see you turn
+    //This project has no separate head turning control; the head facing follows the body facing
     private static void AddHeadRotationPacket(ObserverState state, ITrackedEntity entity,
         List<Packet<ClientGamePacketListener>> packets)
     {
@@ -261,8 +261,8 @@ public sealed class EntityTracker
         packets.Add(new ClientboundRotateHeadPacket(entity.EntityId, Mth.PackDegrees(entity.YRot)));
     }
 
-    //AddSyncedDataPacket 元数据版本变化后下发 对应原版 ServerEntity 的同步数据分支
-    //版本号按观察者各记一份 多观察者下先处理的玩家不会把变化吃掉
+    //AddSyncedDataPacket sent after a metadata version change, maps to the synced data branch of vanilla ServerEntity
+    //The version number is recorded separately per observer, so with multiple observers the first player handled does not eat the change
     private static void AddSyncedDataPacket(ObserverState state, ITrackedEntity entity,
         List<Packet<ClientGamePacketListener>> packets)
     {
@@ -275,7 +275,7 @@ public sealed class EntityTracker
         packets.Add(BuildSyncedData(entity.EntityId, values));
     }
 
-    //BuildSyncedData 把内核的元数据条目转成实体数据包
+    //BuildSyncedData converts the core metadata entries into an entity data packet
     private static ClientboundSetEntityDataPacket BuildSyncedData(int entityId, List<SynchedValue> values)
     {
         var items = new EntityDataItem[values.Count];
@@ -284,8 +284,8 @@ public sealed class EntityTracker
         return new ClientboundSetEntityDataPacket(entityId, items);
     }
 
-    //AddAttributesPacket 属性被改脏后补发 对应原版 ServerEntity.sendDirtyEntityData 的属性分支
-    //脏集合不在这里清 本 tick 内其它观察者还要读它 统一由 Tick 收尾清理
+    //AddAttributesPacket re-sent after attributes are marked dirty, maps to the attribute branch of vanilla ServerEntity.sendDirtyEntityData
+    //The dirty set is not cleared here; other observers in this tick still read it and Tick cleans it up at the end
     private static void AddAttributesPacket(ITrackedEntity entity, List<Packet<ClientGamePacketListener>> packets)
     {
         if (entity.Attributes is not { } attributes) return;
@@ -294,7 +294,7 @@ public sealed class EntityTracker
         packets.Add(BuildAttributes(entity.EntityId, dirty));
     }
 
-    //BuildAttributes 把属性实例转成网络快照 基值与全部修饰符一起带上
+    //BuildAttributes converts an attribute instance into a network snapshot, carrying the base value and all modifiers
     private static ClientboundUpdateAttributesPacket BuildAttributes(int entityId,
         IReadOnlyCollection<AttributeInstance> instances)
     {
@@ -308,11 +308,11 @@ public sealed class EntityTracker
         return new ClientboundUpdateAttributesPacket(entityId, snapshots);
     }
 
-    //PruneStale 处理本帧已不在此玩家视野候选内的已配对实体 补发移除包后摘掉配对
-    //判据必须是本帧遍历到的实体而不是全局存活集合:
-    //玩家被传送或走远后不再落进对方的候选分桶 用全局存活判断会认为它还在 移除包永远发不出去
-    //对方客户端上的模型就会冻在最后一次同步的位置 只有重生/重进/再靠近才恢复
-    //只遍历该玩家自己见过的实体 不再每个玩家都扫一遍全表
+    //PruneStale handles paired entities no longer in this player's view candidates this frame, sending a removal packet then dropping the pair
+    //The criterion must be the entities iterated this frame, not the global alive set:
+    //After a player is teleported or walks away it no longer falls into the other's candidate buckets; using the global alive set would think it is still there and the removal packet would never be sent
+    //The model on the other client would then freeze at the last synced position, recovering only on respawn/rejoin/getting close again
+    //Only the entities this player has seen are iterated, no longer scanning the whole table per player
     private void PruneStale(ServerPlayer player, HashSet<int> processed, List<Packet<ClientGamePacketListener>> packets)
     {
         if (!_seenByPlayer.TryGetValue(player.EntityId, out var seen) || seen.Count == 0) return;
@@ -329,12 +329,12 @@ public sealed class EntityTracker
             packets.Add(new ClientboundRemoveEntitiesPacket(new[] { id }));
             if (!_tracked.TryGetValue(id, out var state)) continue;
             state.Observers.Remove(player.EntityId);
-            //没人再跟踪该实体就丢弃它的追踪状态
+            //When nobody tracks the entity anymore, drop its tracking state
             if (state.Observers.Count == 0) _tracked.Remove(id);
         }
     }
 
-    //SeenOf 取玩家已配上对的实体 id 集合 没有就建一个
+    //SeenOf gets the set of entity ids the player has paired with, creating one if absent
     private HashSet<int> SeenOf(int playerEntityId)
     {
         if (!_seenByPlayer.TryGetValue(playerEntityId, out var seen))
@@ -342,8 +342,8 @@ public sealed class EntityTracker
         return seen;
     }
 
-    //ForgetPlayer 玩家离开时清理它的可见记录与别人对它实体的跟踪
-    //玩家走了以后没人再推进它的 PruneStale 不主动清会一直留在表里
+    //ForgetPlayer cleans up a player's visibility records and others' tracking of its entity when it leaves
+    //After the player leaves nobody advances its PruneStale; without active cleanup it would stay in the table
     public void ForgetPlayer(ServerPlayer player)
     {
         _seenByPlayer.Remove(player.EntityId);
@@ -356,7 +356,7 @@ public sealed class EntityTracker
         self.Observers.Clear();
     }
 
-    //IsVisible 按玩家视距与实体追踪距离的较小者做水平距离判定
+    //IsVisible does a horizontal distance test with the smaller of the player view distance and the entity tracking distance
     private static bool IsVisible(ServerPlayer player, ITrackedEntity entity)
     {
         var rangeChunks = Math.Min(entity.Type?.TrackingRangeChunks ?? 0, player.ViewDistanceChunks);
@@ -367,6 +367,6 @@ public sealed class EntityTracker
         return dx * dx + dz * dz <= range * range;
     }
 
-    //EncodeDelta 位置按 1/4096 格量化 对应原版 VecDeltaCodec.encode
+    //EncodeDelta quantizes the position to 1/4096 of a block, maps to vanilla VecDeltaCodec.encode
     private static long EncodeDelta(double value) => (long)Math.Round(value * DeltaScale);
 }

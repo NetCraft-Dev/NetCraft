@@ -3,20 +3,20 @@ using NetCraft.Network;
 
 namespace NetCraft.Game.World.Items.Component;
 
-//Fireworks 烟花火箭数据 飞行时长加爆炸效果列表 对应原版 net.minecraft.world.item.component.Fireworks
+//Fireworks firework rocket data, flight duration plus explosion list, maps to vanilla net.minecraft.world.item.component.Fireworks
 public sealed class Fireworks : IEquatable<Fireworks>
 {
-    //Codec 持久化编解码 两个字段都是必填 对应原版 CODEC
+    //Codec persistence codec, both fields are required, maps to vanilla CODEC
     public static readonly Codec<Fireworks> Codec = RecordCodecBuilder.Of2(
         Codecs.Int.FieldOf("flight_duration").ForGetter((Fireworks fireworks) => fireworks.FlightDuration),
         FireworkExplosion.Codec.ListOf().FieldOf("explosions")
             .ForGetter((Fireworks fireworks) => fireworks.Explosions),
         (flightDuration, explosions) => new Fireworks(flightDuration, explosions));
 
-    //StreamCodec 网络编解码 对应原版 STREAM_CODEC
+    //StreamCodec network codec, maps to vanilla STREAM_CODEC
     public static readonly StreamCodec<RegistryFriendlyByteBuf, Fireworks> StreamCodec = new FireworksStreamCodec();
 
-    //Default 默认烟花 飞行时长 1 无爆炸 对应原版 DEFAULT
+    //Default default firework, flight duration 1 with no explosions, maps to vanilla DEFAULT
     public static readonly Fireworks Default = new(1, Array.Empty<FireworkExplosion>());
 
     public Fireworks(int flightDuration, IReadOnlyList<FireworkExplosion> explosions)
@@ -28,7 +28,7 @@ public sealed class Fireworks : IEquatable<Fireworks>
     public int FlightDuration { get; }
     public IReadOnlyList<FireworkExplosion> Explosions { get; }
 
-    //判等按内容 爆炸列表逐项比较
+    //Equality compares by content, the explosion list is compared entry by entry
     public bool Equals(Fireworks? other)
         => other is not null
            && FlightDuration == other.FlightDuration
@@ -47,7 +47,7 @@ public sealed class Fireworks : IEquatable<Fireworks>
     public override string ToString() => $"Fireworks[{FlightDuration}, explosions={Explosions.Count}]";
 }
 
-//FireworksStreamCodec 飞行时长加爆炸列表 对应原版 STREAM_CODEC
+//FireworksStreamCodec flight duration plus explosion list, maps to vanilla STREAM_CODEC
 internal sealed class FireworksStreamCodec : StreamCodec<RegistryFriendlyByteBuf, Fireworks>
 {
     public Fireworks Decode(RegistryFriendlyByteBuf buf)

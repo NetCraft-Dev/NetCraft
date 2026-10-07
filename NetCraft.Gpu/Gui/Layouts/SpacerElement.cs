@@ -1,8 +1,8 @@
 namespace NetCraft.Gpu;
 
-//SpacerElement 占位空白元素对标原版 SpacerElement implements LayoutElement
-//仅占 width/height 不渲染不响应输入布局引擎用它撑开空间
-//Width/Height 构造后只读 X/Y 可由布局引擎移动
+//SpacerElement placeholder spacer element, maps to vanilla SpacerElement implements LayoutElement
+//Occupies only width/height, renders nothing and ignores input; the layout engine uses it to open up space
+//Width/Height are read-only after construction; X/Y can be moved by the layout engine
 public sealed class SpacerElement : ILayoutElement
 {
     public int X { get; set; }
@@ -20,8 +20,8 @@ public sealed class SpacerElement : ILayoutElement
         Height = height;
     }
 
-    //OfWidth/OfHeight 静态工厂创建单方向占位元素另一方向为 0
-    //C# 不允许静态方法和实例属性同名改用 Of 前缀对标原版 width(int)/height(int)
+    //OfWidth/OfHeight static factories creating a one-direction spacer with the other direction 0
+    //C# disallows a static method and an instance property sharing a name, so an Of prefix is used, maps to vanilla width(int)/height(int)
     public static SpacerElement OfWidth(int width) => new(width, 0);
     public static SpacerElement OfHeight(int height) => new(0, height);
 }

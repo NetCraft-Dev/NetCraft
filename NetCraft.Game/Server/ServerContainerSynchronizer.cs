@@ -4,16 +4,16 @@ using NetCraft.Game.World.Items;
 
 namespace NetCraft.Game.Server;
 
-//ServerContainerSynchronizer 服务端容器同步器对应原版 ServerPlayer 的 containerSynchronizer
-//把菜单的脏槽/全量内容/数据槽变更落成 Clientbound 容器包发给该玩家
-//光标物品走 ClientboundSetCursorItemPacket 槽位物品走 ClientboundContainerSetSlotPacket
+//ServerContainerSynchronizer server-side container synchronizer, maps to the containerSynchronizer of vanilla ServerPlayer
+//Turns the menu's dirty slots/full content/data slot changes into Clientbound container packets sent to the player
+//The cursor item goes through ClientboundSetCursorItemPacket, slot items through ClientboundContainerSetSlotPacket
 public sealed class ServerContainerSynchronizer : ContainerSynchronizer
 {
     private readonly ServerPlayer _player;
 
     public ServerContainerSynchronizer(ServerPlayer player) => _player = player;
 
-    //SendSlotChange 单槽变更 槽号 -1 表示光标物品
+    //SendSlotChange single slot change; slot number -1 means the cursor item
     public void SendSlotChange(AbstractContainerMenu menu, int slotIndex, ItemStack stack)
     {
         if (slotIndex == AbstractContainerMenu.CarriedSlotIndex)
@@ -22,12 +22,12 @@ public sealed class ServerContainerSynchronizer : ContainerSynchronizer
             _player.Connection.Send(new ClientboundContainerSetSlotPacket(menu.ContainerId, menu.StateId, slotIndex, stack));
     }
 
-    //SendContentUpdate 全量内容 玩家进世界时下发一次
+    //SendContentUpdate full content, sent once when the player enters the world
     public void SendContentUpdate(AbstractContainerMenu menu, IReadOnlyList<ItemStack> items, ItemStack carried)
         => _player.Connection.Send(new ClientboundContainerSetContentPacket(
             menu.ContainerId, menu.StateId, new List<ItemStack>(items), carried));
 
-    //SendDataChange 数值型数据槽变更 如熔炉进度
+    //SendDataChange numeric data slot change, such as furnace progress
     public void SendDataChange(AbstractContainerMenu menu, int id, int value)
         => _player.Connection.Send(new ClientboundContainerSetDataPacket(menu.ContainerId, id, value));
 }

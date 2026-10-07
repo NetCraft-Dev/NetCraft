@@ -12,31 +12,31 @@ using T = NetCraft.DataFixer.Types;
 using NetCraft.DataFixer.Types.Families;
 using NetCraft.DataFixer.Util;
 
-//Sum和类型模板对应原版com.mojang.datafixers.types.templates.Sum
-//表示两个模板的和Either<F,G>
+//Sum sum type template maps to vanilla com.mojang.datafixers.types.templates.Sum
+//represents the sum of two templates, Either<F,G>
 public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
 {
     public int Size() => Math.Max(F.Size(), G.Size());
 
-    //apply每个index返回DSL.or(f, g)包装
+    //apply returns DSL.or(f, g)-wrapped types at each index
     public TypeFamily Apply(TypeFamily family)
         => new SumFamily(this, family);
 
-    //applyO合并两侧元素applyO的结果
+    //applyO merges the results of both elements' applyO
     public FamilyOptic<object, object> ApplyO<A, B>(FamilyOptic<A, B> input, T.Type<A> aType, T.Type<B> bType)
         => TypeFamily.FamilyOptic<object, object>(i => (TypedOptic<object, object, object, object>)(object)CapOptic<A, B>(
             (FamilyOptic<A, B>)(object)F.ApplyO(input, aType, bType),
             (FamilyOptic<A, B>)(object)G.ApplyO(input, aType, bType),
             i));
 
-    //CapOptic合并两侧TypedOptic为Either上的合并optic
-    //原版Java用类型擦除让LS/RS/LT/RT为通配C#用object强转消除类型参数
+    //CapOptic merges both TypedOptics into a merged optic on Either
+    //vanilla Java uses type erasure to make LS/RS/LT/RT wildcards; C# uses object casts to erase the type parameters
     private static TypedOptic<object, object, A, B> CapOptic<A, B>(
         FamilyOptic<A, B> lo, FamilyOptic<A, B> ro, int index)
         => (TypedOptic<object, object, A, B>)(object)SumType<object, object>.MergeOptics<A, B>(
             lo.Apply(index), ro.Apply(index));
 
-    //findFieldOrType先在f中查找失败再在g中查找后用Sum包装
+    //findFieldOrType searches f first, then g on failure, then wraps with Sum
     public Either<TypeTemplate, T.Type<object>.FieldNotFoundException> FindFieldOrType<A, B>(
         int index, string? name, T.Type<A> type, T.Type<B> resultType)
     {
@@ -55,7 +55,7 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
         return Either<TypeTemplate, T.Type<object>.FieldNotFoundException>.Right(either2.GetRight().Get());
     }
 
-    //hmap对两侧元素应用hmap后用cap合并
+    //hmap applies hmap to both elements, then merges with cap
     public Func<int, RewriteResult<object, object>> Hmap(TypeFamily family, Func<int, RewriteResult<object, object>> function)
         => i =>
         {
@@ -64,13 +64,13 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return CapView(Apply(family).Apply(i), f1, f2);
         };
 
-    //CapView两侧元素重写结果用SumType.mergeViews合并
+    //CapView merges the rewrite results of both elements via SumType.mergeViews
     private static RewriteResult<object, object> CapView<L, R>(T.Type<object> type, RewriteResult<L, object> f1, RewriteResult<R, object> f2)
         => (RewriteResult<object, object>)(object)((SumType<L, R>)(object)type).MergeViews(f1, f2);
 
     public override string ToString() => "(" + F + " | " + G + ")";
 
-    //SumFamily按index返回DSL.or包装的子类型
+    //SumFamily returns the child type wrapped with DSL.or at each index
     private sealed class SumFamily : TypeFamily
     {
         private readonly Sum _template;
@@ -82,8 +82,8 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
         }
         public T.Type<object> Apply(int index)
         {
-            //F/G.Apply返回T.Type<A>包装为Either<F,G>后强转T.Type<object>会失败
-            //三处都用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+            //F/G.Apply returns T.Type<A>; casting to T.Type<object> after wrapping as Either<F,G> fails
+            //all three places use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
             var fObj = (object)_template.F.Apply(_family).Apply(index)!;
             var fType = System.Runtime.CompilerServices.Unsafe.As<object, T.Type<object>>(ref fObj);
             var gObj = (object)_template.G.Apply(_family).Apply(index)!;
@@ -94,7 +94,7 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
         }
     }
 
-    //SumType和类型持有两个子类型对应Either<F,G>
+    //SumType sum type holding two child types, maps to Either<F,G>
     public sealed class SumType<F, G> : T.Type<Either<F, G>>
     {
         private readonly T.Type<F> _first;
@@ -110,14 +110,14 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
         public T.Type<F> First() => _first;
         public T.Type<G> Second() => _second;
 
-        //all对两侧元素应用规则后mergeViews合并
+        //all applies the rule to both elements, then merges via mergeViews
         public override RewriteResult<Either<F, G>, object> All(object rule, bool recurse, bool checkIndex)
             => MergeViews(_first.RewriteOrNop(rule), _second.RewriteOrNop(rule));
 
-        //mergeViews分两步先fixLeft再fixRight后compose
-        //类型擦除后Compose类型不匹配用object强转对齐原版Java语义
-        //v2.Compose返回RewriteResult<Either<F,G>,object>但v1的cast为RewriteResult<object,Either<F,G>>严格不变量下失败
-        //两处cast都用Unsafe.As绕过运行时类型检查
+        //mergeViews works in two steps: fixLeft then fixRight, then compose
+        //after type erasure Compose types do not match; cast via object to align with vanilla Java semantics
+        //v2.Compose returns RewriteResult<Either<F,G>,object> but v1's cast is RewriteResult<object,Either<F,G>>, failing under strict invariance
+        //both casts use Unsafe.As to bypass the runtime type check
         public RewriteResult<Either<F, G>, object> MergeViews(
             RewriteResult<F, object> leftView, RewriteResult<G, object> rightView)
         {
@@ -130,7 +130,7 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<Either<F, G>, object>>(ref composedObj);
         }
 
-        //one先尝试first再尝试second任意命中即返回
+        //one tries first then second; returns on either match
         public override Optional<RewriteResult<Either<F, G>, object>> One(object rule)
         {
             var firstOpt = ((TypeRewriteRule)rule).Rewrite(_first);
@@ -148,7 +148,7 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return Optional<RewriteResult<Either<F, G>, object>>.Empty();
         }
 
-        //findFieldTypeOpt先在first中查失败再在second中查
+        //findFieldTypeOpt searches first then second on failure
         public override Optional<T.Type<object>> FindFieldTypeOpt(string name)
         {
             var firstOpt = _first.FindFieldTypeOpt(name);
@@ -156,7 +156,7 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return _second.FindFieldTypeOpt(name);
         }
 
-        //findChoiceType委托first失败再委托second对应原版SumType.findChoiceType
+        //findChoiceType delegates to first then second on failure, maps to vanilla SumType.findChoiceType
         public override Optional<object> FindChoiceType(string name, int index)
         {
             var firstOpt = _first.FindChoiceType(name, index);
@@ -164,7 +164,7 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return _second.FindChoiceType(name, index);
         }
 
-        //findCheckedType委托first失败再委托second对应原版SumType.findCheckedType
+        //findCheckedType delegates to first then second on failure, maps to vanilla SumType.findCheckedType
         public override Optional<T.Type<object>> FindCheckedType(int index)
         {
             var firstOpt = _first.FindCheckedType(index);
@@ -172,17 +172,17 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return _second.FindCheckedType(index);
         }
 
-        //fixLeft把first侧重写结果用inj1投射到Either层
-        //view实际是RewriteResult<F,object>不变量下不能cast为RewriteResult<object,object>
-        //Inj1返回TypedOptic<...F,object>也不能直接cast到<...object,object>
-        //两处都用Unsafe.As绕过运行时类型检查对齐Java类型擦除语义
+        //fixLeft projects the first-side rewrite result into the Either layer via inj1
+        //view is actually RewriteResult<F,object> and cannot be cast to RewriteResult<object,object> under invariance
+        //Inj1 returns TypedOptic<...F,object>, which also cannot be cast directly to <...object,object>
+        //both places use Unsafe.As to bypass the runtime type check, aligning with Java type erasure semantics
         private static RewriteResult<Either<F, G>, object> FixLeft(
             T.Type<Either<F, G>> type, T.Type<F> first, T.Type<G> second, RewriteResult<F, object> view)
         {
             var viewObj = (object)view;
             var viewAsObject = System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<object, object>>(ref viewObj);
-            //NewType编译时Type<object>运行时可能是ListType<object>继承Type<List<object>>不继承Type<object>
-            //用Unsafe.As绕过运行时类型检查对齐Java类型擦除
+            //NewType is Type<object> at compile time but may be ListType<object> at runtime, inheriting Type<List<object>> not Type<object>
+            //use Unsafe.As to bypass the runtime type check and align with Java type erasure
             var newTypeObj = (object)view.View().NewType()!;
             var newType = System.Runtime.CompilerServices.Unsafe.As<object, T.Type<object>>(ref newTypeObj);
             var optic = TypedOptics.Inj1<F, G, object>(first, second, newType)!;
@@ -192,8 +192,8 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return System.Runtime.CompilerServices.Unsafe.As<object, RewriteResult<Either<F, G>, object>>(ref opticViewObj);
         }
 
-        //fixRight把second侧重写结果用inj2投射到Either层
-        //同FixLeft用Unsafe.As绕过view和optic两处cast
+        //fixRight projects the second-side rewrite result into the Either layer via inj2
+        //same as FixLeft: use Unsafe.As to bypass both the view and optic casts
         private static RewriteResult<Either<F, G>, object> FixRight(
             T.Type<Either<F, G>> type, T.Type<F> first, T.Type<G> second, RewriteResult<G, object> view)
         {
@@ -217,7 +217,7 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
         protected override Codec<Either<F, G>> BuildCodec()
             => new SumCodec(this);
 
-        //SumCodec和类型codec按Either分支委托first或second codec
+        //SumCodec sum type codec; delegates to first or second codec by Either branch
         private sealed class SumCodec : ScalarCodec<Either<F, G>>
         {
             private readonly SumType<F, G> _type;
@@ -228,9 +228,9 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
                     l => TypeObjectConverterFactory.AsObjectType(_type.First()).Codec().EncodeStart(ops, l),
                     r => TypeObjectConverterFactory.AsObjectType(_type.Second()).Codec().EncodeStart(ops, r));
 
-            //parse两侧尝试委托first失败用second对应原版SumType.parse
-            //_first/_second可能是Unsafe.As包装的非Type<F>实例直接Codec返回的codec方法表不匹配
-            //用AsObjectType包装后Codec返回CodecAdapter真正Codec<object>避免EntryPointNotFoundException
+            //parse tries both sides; delegates to first, then second on failure, maps to vanilla SumType.parse
+            //_first/_second may be non-Type<F> instances wrapped by Unsafe.As, so the codec returned by calling Codec directly has a mismatched method table
+            //wrap with AsObjectType so Codec returns a CodecAdapter that is truly Codec<object>, avoiding EntryPointNotFoundException
             public override DataResult<Either<F, G>> Parse<U>(DynamicOps<U> ops, U input)
             {
                 var firstWrapped = TypeObjectConverterFactory.AsObjectType(_type._first);
@@ -251,7 +251,7 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
 
         public override Optional<Either<F, G>> Point<T>(DynamicOps<T> ops)
         {
-            //反序尝试优先取最少嵌套项
+            //tries in reverse order, preferring the least nested item
             var secondPoint = _second.Point(ops);
             if (secondPoint.IsPresent)
             {
@@ -265,8 +265,8 @@ public sealed record Sum(TypeTemplate F, TypeTemplate G) : TypeTemplate
             return Optional<Either<F, G>>.Empty();
         }
 
-        //mergeOptics合并两侧TypedOptic为Either上的TraversalP optic
-        //两侧optic统一为TypedOptic<object,object,A,B>简化原版泛型签名
+        //mergeOptics merges both TypedOptics into a TraversalP optic on Either
+        //both optics are unified as TypedOptic<object,object,A,B>, simplifying the vanilla generic signature
         public static TypedOptic<Either<object, object>, Either<object, object>, A, B> MergeOptics<A, B>(
             TypedOptic<object, object, A, B> lo, TypedOptic<object, object, A, B> ro)
             => new TypedOptic<Either<object, object>, Either<object, object>, A, B>(

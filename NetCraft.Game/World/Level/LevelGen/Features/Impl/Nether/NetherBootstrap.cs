@@ -1,7 +1,7 @@
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Nether;
 
-//NetherBootstrap 下界与末地特征注册入口
-//触碰各静态 Instance 使静态注册生效 由 FeatureBootstrap 调用
+//NetherBootstrap nether and end feature registration entry
+//Touching each static Instance triggers static registration; called by FeatureBootstrap
 public static class NetherBootstrap
 {
     public static void RegisterAll()

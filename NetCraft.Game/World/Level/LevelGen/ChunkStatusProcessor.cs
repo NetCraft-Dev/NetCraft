@@ -7,19 +7,19 @@ using LevelHeightmap = NetCraft.Storage.LevelGen.Heightmap;
 
 namespace NetCraft.Game.World.Level.LevelGen;
 
-//ChunkStatusProcessor 区块状态机处理器对应原版 ChunkStatus 状态机流水线
-//阶段 E 简化实现按 ChunkStatus 名称调用 ChunkGenerator 对应方法
-//阶段 11.54-B 接入 STRUCTURE_START/STRUCTURE_REFERENCES 真实结构生成
+//ChunkStatusProcessor chunk status machine processor, maps to the vanilla ChunkStatus state machine pipeline
+//Phase E simplified implementation calls the matching ChunkGenerator method by ChunkStatus name
+//Phase 11.54-B wired up real structure generation for STRUCTURE_START/STRUCTURE_REFERENCES
 public sealed class ChunkStatusProcessor
 {
     private readonly ChunkGenerator _generator;
     private readonly RandomSource _random;
     private readonly long _seed;
-    //_chunkProvider 邻块提供者 装饰阶段要收集 3x3 内的群系 拿不到邻块时只按中心区块装饰
+    //_chunkProvider neighbour chunk provider; decoration collects biomes within a 3x3 and, without neighbours, decorates the centre chunk only
     private readonly Func<int, int, ChunkAccess?>? _chunkProvider;
 
-    //FinalHeightmaps 最终高度图集合对应原版 ChunkStatus.FINAL_HEIGHTMAPS
-    //OCEAN_FLOOR 只算阻挡移动的实心方块 其余三种含流体与透光方块
+    //FinalHeightmaps final heightmap set, maps to vanilla ChunkStatus.FINAL_HEIGHTMAPS
+    //OCEAN_FLOOR counts only solid blocks that block movement; the other three include fluids and non-opaque blocks
     private static readonly HeightmapRegistry.Types[] FinalHeightmaps =
     {
         HeightmapRegistry.Types.OceanFloor,
@@ -27,19 +27,19 @@ public sealed class ChunkStatusProcessor
         HeightmapRegistry.Types.MotionBlocking,
         HeightmapRegistry.Types.MotionBlockingNoLeaves,
     };
-    //StructureFeatures 结构管理器 持本流水线装配出的结构与引用供后续阶段查询
+    //StructureFeatures structure manager holding the structures and references assembled by this pipeline for later stages
     public StructureFeatureManager StructureFeatures { get; }
 
-    //DecorationWriteRadius 装饰阶段的可写区块半径 1 即中心区块连同八邻
-    //对应原版 WorldGenRegion 在 FEATURES 阶段的写半径
+    //DecorationWriteRadius writable chunk radius during decoration; 1 means the centre chunk plus its eight neighbours
+    //Matches the WorldGenRegion write radius vanilla uses in the FEATURES stage
     private const int DecorationWriteRadius = 1;
 
     public ChunkStatusProcessor(ChunkGenerator generator, RandomSource random)
         : this(generator, random, null, 0L) { }
 
-    //带结构集合的构造函数供结构装配场景使用
-    //structureRegistry 为 null 时结构阶段空跑 seed 决定雕刻器与结构放置的种子派生
-    //sharedStructures 由生成链整个维度共享 邻块装配出的结构本区块装饰时才能被看到
+    //Constructor with a structure registry, used by structure assembly scenarios
+    //structureRegistry null makes the structure stages no-ops; seed drives carver and structure placement seed derivation
+    //sharedStructures is shared across the dimension by the generation chain, so structures assembled in neighbour chunks are visible during this chunk's decoration
     public ChunkStatusProcessor(ChunkGenerator generator, RandomSource random,
         StructurePlacementRegistry? structureRegistry, long seed, Func<int, int, ChunkAccess?>? chunkProvider = null,
         StructureFeatureManager? sharedStructures = null)
@@ -54,27 +54,27 @@ public sealed class ChunkStatusProcessor
                 : new StructureFeatureManager(generator, structureRegistry));
     }
 
-    //ProcessChunk 按 ChunkStatus 调用对应生成阶段
-    //返回 true 表示该状态已处理false 表示无对应处理
+    //ProcessChunk runs the matching generation stage for a ChunkStatus
+    //Returns true when the status was handled and false when there is no handler
     public bool ProcessChunk(ChunkAccess chunk, ChunkStatus status)
     {
         var structures = StructureManager.Default;
         if (status == ChunkStatus.STRUCTURE_START)
         {
-            //STRUCTURE_START 按结构集合装配本区块命中的结构
+            //STRUCTURE_START assembles the structures this chunk hits from the structure sets
             StructureFeatures.CreateStarts(chunk);
             return true;
         }
         if (status == ChunkStatus.STRUCTURE_REFERENCES)
         {
-            //STRUCTURE_REFERENCES 扫 17x17 邻居收集包围盒覆盖当前 chunk 的结构引用
-            //供后续 FEATURES 阶段避让装饰
+            //STRUCTURE_REFERENCES scans a 17x17 of neighbours and collects structure references whose bounding boxes cover this chunk
+            //Used by the later FEATURES stage to avoid decorating there
             StructureFeatures.CollectReferences(chunk.Pos);
             return true;
         }
         if (status == ChunkStatus.BIOMES)
         {
-            //按 quart 遍历每个 section 写入 BiomeSource 查询的 biome 对应原版点采样
+            //Walks every section by quart and writes the biome queried from BiomeSource, matching vanilla point sampling
             var biomeSource = _generator.BiomeSource;
             var posX = chunk.Pos.X;
             var posZ = chunk.Pos.Z;
@@ -100,34 +100,34 @@ public sealed class ChunkStatusProcessor
         }
         if (status == ChunkStatus.NOISE)
         {
-            //噪声阶段调用 FillFromNoise 填方块
+            //The noise stage calls FillFromNoise to fill blocks
             _generator.FillFromNoise(new object(), structures, chunk, _random);
             return true;
         }
         if (status == ChunkStatus.SURFACE)
         {
-            //表面阶段调用 BuildSurface 应用表面规则
+            //The surface stage calls BuildSurface to apply surface rules
             _generator.BuildSurface(new object(), structures, chunk, _random);
             return true;
         }
         if (status == ChunkStatus.CARVERS)
         {
-            //雕刻阶段按生物群系配置的 carvers 挖洞穴 液体雕刻已合并进本阶段
+            //The carver stage digs caves with the biomes' configured carvers; liquid carving is merged into this stage
             _generator.ApplyCarvers(_seed, chunk, _random);
             return true;
         }
         if (status == ChunkStatus.LIQUID_CARVERS)
         {
-            //液体雕刻已被合并到 CARVERS 原版此阶段为空
+            //Liquid carving is merged into CARVERS; this stage is empty in vanilla
             return true;
         }
         if (status == ChunkStatus.FEATURES)
         {
-            //装饰前先把最终高度图整体算出来 对应原版 ChunkStatusTasks.generateFeatures 开头
-            //特色放置与出生点列查找都依赖它
+            //Compute the final heightmaps up front before decorating, matching the start of vanilla ChunkStatusTasks.generateFeatures
+            //Feature placement and spawn column lookups both depend on them
             LevelHeightmap.PrimeHeightmaps(chunk, FinalHeightmaps);
-            //装饰只能写中心区块及其邻居 越界静默丢弃 对应原版 WorldGenRegion 的写半径
-            //结构落地与特征放置都在这个区域内进行 结构先于特征
+            //Decoration may only write the centre chunk and its neighbours, out-of-range writes are dropped silently, matching the vanilla WorldGenRegion write radius
+            //Structure placement and feature placement both happen inside this region, structures before features
             var region = new WorldGenRegion(chunk.MinSectionY, chunk.SectionsCount)
             {
                 Seed = _seed,
@@ -150,27 +150,27 @@ public sealed class ChunkStatusProcessor
         }
         if (status == ChunkStatus.LIGHT)
         {
-            //LIGHT 阶段的光照计算由 ServerChunkCache.ProcessLight 在区块就绪后统一执行
-            //此处不重复计算避免同一区块跑两遍光照
+            //Lighting for the LIGHT stage is run uniformly by ServerChunkCache.ProcessLight once the chunk is ready
+            //Not repeated here to avoid lighting the same chunk twice
             return true;
         }
         if (status == ChunkStatus.SPAWN || status == ChunkStatus.HEIGHTMAPS)
         {
-            //生物生成占位 真实接入需对应子系统就绪
-            //高度图不在此处理: 原版 26.2 已无独立 HEIGHTMAPS 阶段 高度图由 FEATURES 阶段前
-            //按 FINAL_HEIGHTMAPS 整体补算 加上 GetHeight 的惰性补算与方块变更的增量维护覆盖
+            //Mob spawning placeholder; real wiring needs the matching subsystem ready
+            //Heightmaps are not handled here: vanilla 26.2 has no separate HEIGHTMAPS stage; heightmaps are computed up front
+            //from FINAL_HEIGHTMAPS before FEATURES, covered by GetHeight's lazy fill and incremental maintenance on block changes
             return true;
         }
         if (status == ChunkStatus.EMPTY || status == ChunkStatus.FULL)
         {
-            //EMPTY 与 FULL 无生成任务
+            //EMPTY and FULL have no generation work
             return true;
         }
         return false;
     }
 
-    //ProcessToStatus 把区块从当前状态推进到目标状态
-    //按 ChunkStatus 注册顺序依次调用 ProcessChunk 直到达到 target
+    //ProcessToStatus advances a chunk from its current status to the target status
+    //Calls ProcessChunk in ChunkStatus registration order until target is reached
     public void ProcessToStatus(ChunkAccess chunk, ChunkStatus target)
     {
         var current = chunk.ChunkStatus;
@@ -183,7 +183,7 @@ public sealed class ChunkStatusProcessor
         }
     }
 
-    //StatusOrder 阶段推进顺序 静态化避免每次 NextStatus 都新建数组
+    //StatusOrder stage advance order, made static to avoid allocating an array on every NextStatus
     private static readonly ChunkStatus[] StatusOrder =
     {
         ChunkStatus.EMPTY,
@@ -201,7 +201,7 @@ public sealed class ChunkStatusProcessor
         ChunkStatus.FULL
     };
 
-    //NextStatus 查询下一个状态按 ChunkStatus 静态注册顺序
+    //NextStatus looks up the next status by the ChunkStatus static registration order
     private static ChunkStatus? NextStatus(ChunkStatus status)
     {
         var index = System.Array.IndexOf(StatusOrder, status);

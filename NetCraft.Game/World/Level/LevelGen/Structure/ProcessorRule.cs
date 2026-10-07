@@ -6,14 +6,14 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//ProcessorRule 处理器的一条规则 对应原版 ProcessorRule
-//输入测试 + 位置测试 + 输出方块状态 + 方块实体修改器 四项判定通过即整条替换
+//ProcessorRule one rule of a processor, maps to vanilla ProcessorRule
+//Input test + location test + output block state + block entity modifier; all four passing means a full replacement
 public sealed class ProcessorRule
 {
-    //DefaultBlockEntityModifier 缺省修改器 对应原版 DEFAULT_BLOCK_ENTITY_MODIFIER
+    //DefaultBlockEntityModifier default modifier, maps to vanilla DEFAULT_BLOCK_ENTITY_MODIFIER
     public static readonly RuleBlockEntityModifier DefaultBlockEntityModifier = PassthroughModifier.Instance;
 
-    //Codec 规则编解码 字段名与顺序逐条对齐原版
+    //Codec rule codec; field names and order match vanilla one by one
     public static readonly Codec<ProcessorRule> Codec =
         RecordCodecBuilder.Of5<ProcessorRule, RuleTest, RuleTest, PosRuleTest, BlockState, RuleBlockEntityModifier>(
             RuleTest.Codec.FieldOf("input_predicate").ForGetter<ProcessorRule, RuleTest>(r => r.InputPredicate),
@@ -54,14 +54,14 @@ public sealed class ProcessorRule
         BlockEntityModifier = blockEntityModifier;
     }
 
-    //Test 三项判定依次通过才命中 对应原版 test
+    //Test hits only when the three checks pass in order, maps to vanilla test
     public bool Test(WorldGenRegion? level, BlockState inputState, BlockPos inTemplatePos, BlockPos worldPos,
         BlockPos reference, RandomSource random)
         => InputPredicate.Test(inputState, random)
             && LocationPredicate.TestAgainstWorldState(level, worldPos, random)
             && PosPredicate.Test(inTemplatePos, worldPos, reference, random);
 
-    //GetOutputTag 按修改器产出方块实体数据 对应原版 getOutputTag
+    //GetOutputTag produces block entity data through the modifier, maps to vanilla getOutputTag
     public CompoundTag? GetOutputTag(RandomSource random, CompoundTag? existingTag)
         => BlockEntityModifier.Apply(random, existingTag);
 }

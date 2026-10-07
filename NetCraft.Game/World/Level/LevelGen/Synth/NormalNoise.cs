@@ -2,9 +2,9 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Synth;
 
-//NormalNoise 正态分布噪声对应原版 net.minecraft.world.level.levelgen.synth.NormalNoise
-//两个 PerlinNoise 实例叠加形成正态分布噪声
-//INPUT_FACTOR 防止两噪声相关性valueFactor 缩放到目标标准差
+//NormalNoise normal-distribution noise, maps to vanilla net.minecraft.world.level.levelgen.synth.NormalNoise
+//Two PerlinNoise instances combine into normal-distribution noise
+//INPUT_FACTOR decorrelates the two noises; valueFactor scales to the target standard deviation
 public sealed class NormalNoise
 {
     private const double InputFactor = 1.0181268882175227;
@@ -15,21 +15,21 @@ public sealed class NormalNoise
     private readonly double _maxValue;
     private readonly NoiseParameters _parameters;
 
-    //Create 新版工厂对应原版 create走 forkPositional 派生
+    //Create new-style factory, maps to vanilla create; derives through forkPositional
     public static NormalNoise Create(RandomSource random, int firstOctave, params double[] amplitudes)
         => Create(random, new NoiseParameters(firstOctave, amplitudes));
 
-    //Create 新版工厂接收 NoiseParameters 对应原版 create(random, parameters)
+    //Create new-style factory taking NoiseParameters, maps to vanilla create(random, parameters)
     public static NormalNoise Create(RandomSource random, NoiseParameters parameters)
         => new(random, parameters, true);
 
-    //CreateLegacyNetherBiome 旧版下界生物群系工厂对应原版 createLegacyNetherBiome
-    //走 PerlinNoise.CreateLegacyForLegacyNetherBiome 路径保持旧版确定性
+    //CreateLegacyNetherBiome legacy nether biome factory, maps to vanilla createLegacyNetherBiome
+    //Uses the PerlinNoise.CreateLegacyForLegacyNetherBiome path to keep the legacy determinism
     public static NormalNoise CreateLegacyNetherBiome(RandomSource random, NoiseParameters parameters)
         => new(random, parameters, false);
 
-    //私有构造接收 useNewInitialization 对应原版私有构造
-    //true 时 PerlinNoise 走新版 forkPositional 派生false 时走 legacy Fork 派生
+    //Private constructor taking useNewInitialization, maps to the vanilla private constructor
+    //true derives PerlinNoise through the new forkPositional path, false through the legacy Fork path
     private NormalNoise(RandomSource random, NoiseParameters parameters, bool useNewInitialization)
     {
         _parameters = parameters;
@@ -61,7 +61,7 @@ public sealed class NormalNoise
         _maxValue = (_first.MaxValue + _second.MaxValue) * _valueFactor;
     }
 
-    //兼容旧测试与简单调用走新版路径
+    //Kept for old tests and simple callers; uses the new path
     public NormalNoise(RandomSource random, int firstOctave, params double[] amplitudes)
         : this(random, new NoiseParameters(firstOctave, amplitudes), true) { }
 

@@ -7,9 +7,9 @@ using NetCraft.DataFixer.Fixes;
 
 using NetCraft.DataFixer;
 
-//属性ID旧版重命名对应原版AttributesRenameLegacy
-//1.20.5前同时处理ItemStack.AttributeModifiers与Entity.Attributes的AttributeName/Name字段
-//renames函数对每个属性ID做映射失败保留原值
+//Attribute ID legacy rename, maps to vanilla AttributesRenameLegacy
+//Before 1.20.5 it handles the AttributeName/Name fields of both ItemStack.AttributeModifiers and Entity.Attributes
+//The renames function maps each attribute ID and keeps the original value on failure
 public class AttributesRenameLegacy : DataFix
 {
     private readonly string _name;
@@ -33,25 +33,25 @@ public class AttributesRenameLegacy : DataFix
                 FixTypeEverywhereTyped(_name + " (Player)", GetInputSchema().GetType(References.Player), FixEntity)));
     }
 
-    //fixName按renames函数映射字符串ID失败保留原值
+    //fixName maps a string ID through the renames function and keeps the original value on failure
     private Dynamic<object> FixName(Dynamic<object> name)
     {
         var mapped = name.AsString().Result().Map(_renames);
         return DataFixUtils.OrElse(mapped.Map(name.CreateString), name);
     }
 
-    //fixItemStackTag处理ItemStack.tag.AttributeModifiers每项的AttributeName字段
+    //fixItemStackTag handles the AttributeName field of each ItemStack.tag.AttributeModifiers entry
     private Typed<object> FixItemStackTag(Typed<object> itemStack)
         => itemStack.Update(DSL.RemainderFinder(), tag =>
             tag.Update("AttributeModifiers", modifiers => FixListField(modifiers, "AttributeName")));
 
-    //fixEntity处理Entity.Attributes每项的Name字段
-    //旧存档键是大写 Attributes 新键才是小写 attributes 这里不能跟着常量改
+    //fixEntity handles the Name field of each Entity.Attributes entry
+    //The old save key is the capitalized Attributes; only the new key is lowercase attributes, so this must not follow the constant
     private Typed<object> FixEntity(Typed<object> entity)
         => entity.Update(DSL.RemainderFinder(), tag =>
             tag.Update("Attributes", attributeList => FixListField(attributeList, FixConstants.StateHolderName)));
 
-    //fixListField按元素流应用fn映射到新列表失败保留原值
+    //fixListField applies the fn mapping per element into a new list, keeping the original value on failure
     private Dynamic<object> FixListField(Dynamic<object> listDynamic, string fieldName)
     {
         var streamOpt = listDynamic.AsStream().Result();

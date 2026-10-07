@@ -4,8 +4,8 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Structure;
 
-//Rotation 绕 Y 轴的旋转 对应原版 net.minecraft.world.level.block.Rotation
-//四个值分别对应 0/90/180/270 度 结构模板整体旋转按它走
+//Rotation rotation around the Y axis, maps to vanilla net.minecraft.world.level.block.Rotation
+//The four values correspond to 0/90/180/270 degrees; the whole structure template rotates by it
 public enum Rotation
 {
     None,
@@ -14,8 +14,8 @@ public enum Rotation
     Counterclockwise90,
 }
 
-//Mirror 沿水平轴的镜像 对应原版 net.minecraft.world.level.block.Mirror
-//LeftRight 沿 X 轴左右翻转 东西互换 FrontBack 沿 Z 轴前后翻转 南北互换
+//Mirror mirroring along a horizontal axis, maps to vanilla net.minecraft.world.level.block.Mirror
+//LeftRight flips left/right along the X axis swapping east/west; FrontBack flips front/back along the Z axis swapping north/south
 public enum Mirror
 {
     None,
@@ -23,11 +23,11 @@ public enum Mirror
     FrontBack,
 }
 
-//StructureTransforms 旋转与镜像的名字映射与朝向换算
-//变换恒为「先镜像后旋转」 顺序颠倒会让结构朝向与原版对不上
+//StructureTransforms name mapping and direction conversion for rotation and mirror
+//The transform is always "mirror then rotate"; reversing the order would make structure orientations diverge from vanilla
 public static class StructureTransforms
 {
-    //Name 取 JSON 名 180 度的序列化名就是 "180" 不是 clockwise_180
+    //Name returns the JSON name; 180 degrees serializes as "180", not clockwise_180
     public static string Name(this Rotation rotation) => rotation switch
     {
         Rotation.Clockwise90 => "clockwise_90",
@@ -36,7 +36,7 @@ public static class StructureTransforms
         _ => "none",
     };
 
-    //Name 取 JSON 名
+    //Name returns the JSON name
     public static string Name(this Mirror mirror) => mirror switch
     {
         Mirror.LeftRight => "left_right",
@@ -44,8 +44,8 @@ public static class StructureTransforms
         _ => "none",
     };
 
-    //TryParse 按 JSON 名解析旋转 非法返回 null
-    //另外接受枚举名形态供旧数据与结构方块 NBT 使用
+    //TryParse parses rotation by JSON name, returns null when invalid
+    //Also accepts the enum-name form for legacy data and structure block NBT
     public static Rotation? TryParseRotation(string name) => name switch
     {
         "none" => Rotation.None,
@@ -55,7 +55,7 @@ public static class StructureTransforms
         _ => null,
     };
 
-    //TryParse 按 JSON 名解析镜像 非法返回 null
+    //TryParse parses mirror by JSON name, returns null when invalid
     public static Mirror? TryParseMirror(string name) => name switch
     {
         "none" => Mirror.None,
@@ -64,11 +64,11 @@ public static class StructureTransforms
         _ => null,
     };
 
-    //GetRandomRotation 四个旋转里随机取一个 对应原版 Rotation.getRandom
+    //GetRandomRotation picks one of the four rotations at random, maps to vanilla Rotation.getRandom
     public static Rotation GetRandomRotation(RandomSource random) => (Rotation)random.NextInt(4);
 
-    //GetShuffledRotations 四个旋转的洗牌副本 对应原版 Rotation.getShuffled
-    //拼图装配对每个候选元素逐个试旋转 试的顺序也由随机源决定
+    //GetShuffledRotations shuffled copy of the four rotations, maps to vanilla Rotation.getShuffled
+    //Jigsaw assembly tries rotations on each candidate element in order, and the order is also decided by the random source
     public static Rotation[] GetShuffledRotations(RandomSource random)
     {
         var rotations = new[]
@@ -82,8 +82,8 @@ public static class StructureTransforms
         return rotations;
     }
 
-    //Rotate 旋转一个世界朝向 对应原版 Rotation.rotate
-    //竖直方向不参与旋转
+    //Rotate rotates a world direction, maps to vanilla Rotation.rotate
+    //Vertical directions do not rotate
     public static Direction Rotate(this Rotation rotation, Direction direction)
     {
         if (direction.GetAxis() == Direction.Axis.Y) return direction;
@@ -96,8 +96,8 @@ public static class StructureTransforms
         };
     }
 
-    //MirrorDirection 镜像一个世界朝向 对应原版 Mirror.mirror
-    //FrontBack 是 INVERT_X 只翻转东西 LeftRight 是 INVERT_Z 只翻转南北
+    //MirrorDirection mirrors a world direction, maps to vanilla Mirror.mirror
+    //FrontBack is INVERT_X flipping only east/west; LeftRight is INVERT_Z flipping only north/south
     public static Direction MirrorDirection(this Mirror mirror, Direction direction)
     {
         if (mirror == Mirror.FrontBack && direction.GetAxis() == Direction.Axis.X) return direction.Opposite;
@@ -105,8 +105,8 @@ public static class StructureTransforms
         return direction;
     }
 
-    //GetRotation 镜像等效于哪个旋转 对应原版 Mirror.getRotation
-    //沿 Z 镜像遇到南北朝向 与直接转 180 度等效 沿 X 镜像遇到东西朝向同理
+    //GetRotation which rotation a mirror is equivalent to, maps to vanilla Mirror.getRotation
+    //Mirroring along Z with a north/south direction equals a 180-degree turn; likewise mirroring along X with an east/west direction
     public static Rotation GetRotation(this Mirror mirror, Direction direction)
     {
         var axis = direction.GetAxis();
@@ -116,8 +116,8 @@ public static class StructureTransforms
             : Rotation.None;
     }
 
-    //RotateSteps 把 0..steps 的步进按旋转折算 对应原版 Rotation.rotate(int,int)
-    //steps 是整圈步数 朝向属性是 4 十六分之一圆属性是 16
+    //RotateSteps converts a 0..steps step by rotation, maps to vanilla Rotation.rotate(int,int)
+    //steps is the full-circle step count: 4 for facing properties, 16 for sixteenth-circle properties
     public static int RotateSteps(this Rotation rotation, int current, int steps)
     {
         var total = rotation switch
@@ -130,8 +130,8 @@ public static class StructureTransforms
         return Mod(total, steps);
     }
 
-    //MirrorSteps 把 0..steps 的步进按镜像折算 对应原版 Mirror.mirror(int,int)
-    //先把超过半圈的步进折回 再按镜像方向取补
+    //MirrorSteps converts a 0..steps step by mirror, maps to vanilla Mirror.mirror(int,int)
+    //First folds back steps past half circle, then complements by the mirror direction
     public static int MirrorSteps(this Mirror mirror, int current, int steps)
     {
         var halfSteps = steps / 2;
@@ -145,7 +145,7 @@ public static class StructureTransforms
         return Mod(result, steps);
     }
 
-    //Mod 取非负余数 Java 的 % 会返回负数 这里必须归一到 0..m-1
+    //Mod returns a non-negative remainder; Java's % can go negative, so this normalizes into 0..m-1
     public static int Mod(int value, int m)
     {
         var r = value % m;

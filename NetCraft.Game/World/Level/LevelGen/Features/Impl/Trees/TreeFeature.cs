@@ -7,33 +7,33 @@ using NetCraft.Registry.State;
 using NetCraft.Util.Random;
 using PrimDirection = NetCraft.Primitives.Direction;
 using RegBlock = NetCraft.Registry.Block;
-//配置里的同名字段会遮蔽类型名 codec 里改用别名引用类型
+//A same-named field in the config would shadow the type name, so the codec references the type through an alias
 using TrunkPlacerRef = NetCraft.Game.World.Level.LevelGen.Features.Impl.Trees.TrunkPlacer;
 using FoliagePlacerRef = NetCraft.Game.World.Level.LevelGen.Features.Impl.Trees.FoliagePlacer;
 using RootPlacerRef = NetCraft.Game.World.Level.LevelGen.Features.Impl.Trees.RootPlacer;
 
 namespace NetCraft.Game.World.Level.LevelGen.Features.Impl.Trees;
 
-//TreeUtil 树木体系公共工具 把原版散落在 TreeFeature/Util/Direction 里的辅助集中一处
-//标签常量与方块引用按需懒查 数据未装载时标签匹配按不匹配处理
+//TreeUtil shared tree utilities, gathering helpers scattered across vanilla TreeFeature/Util/Direction into one place
+//Tag constants and block references are resolved lazily; treat tag matching as no match while data is not loaded
 internal static class TreeUtil
 {
-    //Horizontal 水平四向 顺序照原版 Direction.Plane.HORIZONTAL 的 NORTH EAST SOUTH WEST
-    //随机取向与装饰器遍历都依赖这个顺序 换序会让同种子长出不同的树
+    //Horizontal the four horizontal directions, in the NORTH EAST SOUTH WEST order of vanilla Direction.Plane.HORIZONTAL
+    //Random facing and decorator traversal both depend on this order; changing it yields different trees for the same seed
     public static readonly PrimDirection[] Horizontal =
     {
         PrimDirection.North, PrimDirection.East, PrimDirection.South, PrimDirection.West,
     };
 
-    //随机取一个水平方向 对应原版 Direction.Plane.HORIZONTAL.getRandomDirection
+    //Pick one horizontal direction at random, maps to vanilla Direction.Plane.HORIZONTAL.getRandomDirection
     public static PrimDirection RandomHorizontalDirection(RandomSource random)
         => Horizontal[random.NextInt(Horizontal.Length)];
 
-    //DistManhattan 三轴绝对差之和 对应原版 BlockPos.distManhattan
+    //DistManhattan sum of absolute differences on the three axes, maps to vanilla BlockPos.distManhattan
     public static int DistManhattan(BlockPos a, BlockPos b)
         => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) + Math.Abs(a.Z - b.Z);
 
-    //Shuffle 原地洗牌 对应原版 Util.shuffle 从尾部往前的 Fisher-Yates
+    //Shuffle in-place shuffle, maps to vanilla Util.shuffle, Fisher-Yates from the end
     public static void Shuffle<T>(IList<T> list, RandomSource random)
     {
         for (var i = list.Count; i > 1; i--)
@@ -43,7 +43,7 @@ internal static class TreeUtil
         }
     }
 
-    //ShuffledCopy 复制后洗牌 对应原版 Util.shuffledCopy
+    //ShuffledCopy copy then shuffle, maps to vanilla Util.shuffledCopy
     public static List<T> ShuffledCopy<T>(IEnumerable<T> source, RandomSource random)
     {
         var copy = source.ToList();
@@ -51,11 +51,11 @@ internal static class TreeUtil
         return copy;
     }
 
-    //GetRandom 列表里等概率取一个 对应原版 Util.getRandom
+    //GetRandom pick one element uniformly at random, maps to vanilla Util.getRandom
     public static T GetRandom<T>(IReadOnlyList<T> list, RandomSource random)
         => list[random.NextInt(list.Count)];
 
-    //AsEnumAxis 游戏轴向转属性枚举轴 FancyTrunkPlacer 与 CherryTrunkPlacer 靠它写 axis 属性
+    //AsEnumAxis convert a game axis to the property enum axis; FancyTrunkPlacer and CherryTrunkPlacer use it to write the axis property
     public static Axis ToEnumAxis(PrimDirection.Axis axis) => axis switch
     {
         PrimDirection.Axis.X => Axis.x,
@@ -63,41 +63,41 @@ internal static class TreeUtil
         _ => Axis.y,
     };
 
-    //空气标签 复用方块谓词里已定义的同一份
+    //Air tag, reusing the same one already defined in the block predicates
     public static readonly TagKey<RegBlock> AirTag = BlockPredicate.AirTag;
 
-    //树叶标签 供 LeavesBlock 距离判定与其它树相关判定复用
+    //Leaves tag, reused by the LeavesBlock distance check and other tree-related checks
     public static readonly TagKey<RegBlock> LeavesTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("leaves"));
 
-    //可被树替换标签 对应原版 BlockTags.REPLACEABLE_BY_TREES
+    //Replaceable by trees tag, maps to vanilla BlockTags.REPLACEABLE_BY_TREES
     public static readonly TagKey<RegBlock> ReplaceableByTreesTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("replaceable_by_trees"));
 
-    //原木标签 对应原版 BlockTags.LOGS
+    //Logs tag, maps to vanilla BlockTags.LOGS
     public static readonly TagKey<RegBlock> LogsTag =
         TagKey<RegBlock>.Create(Registries.BLOCK, Identifier.WithDefaultNamespace("logs"));
 
-    //树干下方不可替换标签 对应原版 BlockTags.CANNOT_REPLACE_BELOW_TREE_TRUNK
+    //Cannot replace below tree trunk tag, maps to vanilla BlockTags.CANNOT_REPLACE_BELOW_TREE_TRUNK
     public static readonly TagKey<RegBlock> CannotReplaceBelowTreeTrunkTag =
         TagKey<RegBlock>.Create(Registries.BLOCK,
             Identifier.WithDefaultNamespace("cannot_replace_below_tree_trunk"));
 
-    //邻近树叶不衰减标签 对应原版 BlockTags.PREVENTS_NEARBY_LEAF_DECAY
+    //Prevents nearby leaf decay tag, maps to vanilla BlockTags.PREVENTS_NEARBY_LEAF_DECAY
     public static readonly TagKey<RegBlock> PreventsNearbyLeafDecayTag =
         TagKey<RegBlock>.Create(Registries.BLOCK,
             Identifier.WithDefaultNamespace("prevents_nearby_leaf_decay"));
 
-    //树叶距树干距离属性 值域 1-7 对应原版 BlockStateProperties.DISTANCE
+    //Leaf distance-to-trunk property, range 1-7, maps to vanilla BlockStateProperties.DISTANCE
     public static readonly IntegerProperty Distance = new("distance", 1, 7);
 
-    //树叶是否持久属性 对应原版 BlockStateProperties.PERSISTENT
+    //Leaf persistent property, maps to vanilla BlockStateProperties.PERSISTENT
     public static readonly BooleanProperty Persistent = new("persistent");
 
-    //含水属性 对应原版 BlockStateProperties.WATERLOGGED
+    //Waterlogged property, maps to vanilla BlockStateProperties.WATERLOGGED
     public static readonly BooleanProperty Waterlogged = new("waterlogged");
 
-    //藤蔓方块延迟取一次 用于树干藤与树叶藤的落位
+    //Vine block resolved lazily once, used when placing trunk and leaf vines
     private static RegBlock? _vine;
     private static RegBlock? _cocoa;
     private static RegBlock? _beeNest;
@@ -114,37 +114,37 @@ internal static class TreeUtil
 
     public static RegBlock CreakingHeart => _creakingHeart ??= Lookup("creaking_heart");
 
-    //IsBlockTagged 方块状态是否属于标签 标签未绑定时按不匹配处理 对应原版 state.is(TagKey)
+    //IsBlockTagged whether the block state is in the tag; treat an unbound tag as no match, maps to vanilla state.is(TagKey)
     public static bool IsBlockTagged(BlockState state, TagKey<RegBlock> tag)
     {
         var set = BuiltInRegistries.BLOCK.Get(tag);
         return set is { IsBound: true } && set.Contains(BuiltInRegistries.BLOCK.WrapAsHolder(state.Owner));
     }
 
-    //IsVine 该位置是否藤蔓 对应原版 TreeFeature.isVine
+    //IsVine whether the position is a vine, maps to vanilla TreeFeature.isVine
     public static bool IsVine(WorldGenRegion level, BlockPos pos)
         => ReferenceEquals(level.GetBlockState(pos.X, pos.Y, pos.Z).Owner, Vine);
 
-    //IsAirOrLeaves 该位置是空气或树叶 对应原版 TreeFeature.isAirOrLeaves
+    //IsAirOrLeaves whether the position is air or leaves, maps to vanilla TreeFeature.isAirOrLeaves
     public static bool IsAirOrLeaves(WorldGenRegion level, BlockPos pos)
     {
         var state = level.GetBlockState(pos.X, pos.Y, pos.Z);
         return state.Owner.IsAir || IsBlockTagged(state, LeavesTag);
     }
 
-    //ValidTreePos 该位置可被树占用 对应原版 TreeFeature.validTreePos
+    //ValidTreePos whether the position can be taken by a tree, maps to vanilla TreeFeature.validTreePos
     public static bool ValidTreePos(WorldGenRegion level, BlockPos pos)
     {
         var state = level.GetBlockState(pos.X, pos.Y, pos.Z);
         return state.Owner.IsAir || IsBlockTagged(state, ReplaceableByTreesTag);
     }
 
-    //IsLogs 该位置是原木 对应原版 state.is(BlockTags.LOGS)
+    //IsLogs whether the position is a log, maps to vanilla state.is(BlockTags.LOGS)
     public static bool IsLogs(WorldGenRegion level, BlockPos pos)
         => IsBlockTagged(level.GetBlockState(pos.X, pos.Y, pos.Z), LogsTag);
 
-    //IsWaterAt 该位置有水源 对应原版 level.isFluidAtPosition(pos, s -> s.is(FluidTags.WATER))
-    //本作流体状态只保留「是不是流体」与退回方块 这里按退回方块的注册名判水
+    //IsWaterAt whether the position holds a water source, maps to vanilla level.isFluidAtPosition(pos, s -> s.is(FluidTags.WATER))
+    //NetCraft fluid states only track "is fluid" and the fallback block; here water is decided by the fallback block's registry name
     public static bool IsWaterAt(WorldGenRegion level, BlockPos pos)
     {
         var fluid = level.GetBlockState(pos.X, pos.Y, pos.Z).FluidState;
@@ -152,14 +152,14 @@ internal static class TreeUtil
         return fluid.CreateLegacyBlock().Owner.Id.Path == "water";
     }
 
-    //OptionalDistanceAt 该方块状态携带的树叶距离 对应原版 LeavesBlock.getOptionalDistanceAt
+    //OptionalDistanceAt leaf distance carried by the block state, maps to vanilla LeavesBlock.getOptionalDistanceAt
     public static int? OptionalDistanceAt(BlockState state)
     {
         if (IsBlockTagged(state, PreventsNearbyLeafDecayTag)) return 0;
         return state.HasProperty(Distance) ? state.GetValue(Distance) : null;
     }
 
-    //MinByY 取 Y 最小的一项 并列取先遇到的 对应原版 Collections.min(comparingInt(getY))
+    //MinByY take the item with the smallest Y, first one wins on ties, maps to vanilla Collections.min(comparingInt(getY))
     public static BlockPos MinByY(IReadOnlyList<BlockPos> positions)
     {
         var best = positions[0];
@@ -168,13 +168,13 @@ internal static class TreeUtil
         return best;
     }
 
-    //Lookup 按注册名取已注册方块 未注册退回空气
+    //Lookup fetch a registered block by registry name; falls back to air when unregistered
     private static RegBlock Lookup(string path)
         => BuiltInRegistries.BLOCK.GetValue(Identifier.WithDefaultNamespace(path))
            ?? BuiltInRegistries.BLOCK.GetValue(Identifier.WithDefaultNamespace("air"))!;
 }
 
-//TreeConfiguration 树木配置对应原版 TreeConfiguration
+//TreeConfiguration tree configuration, maps to vanilla TreeConfiguration
 public sealed class TreeConfiguration : FeatureConfiguration
 {
     public static readonly Codec<TreeConfiguration> Codec =
@@ -231,7 +231,7 @@ public sealed class TreeConfiguration : FeatureConfiguration
     }
 }
 
-//TreeFeature 树木特征对应原版 TreeFeature 注册名 tree
+//TreeFeature tree feature, maps to vanilla TreeFeature, registered as tree
 public sealed class TreeFeature : Feature<TreeConfiguration>
 {
     private const string FeatureId = "tree";
@@ -242,7 +242,7 @@ public sealed class TreeFeature : Feature<TreeConfiguration>
     private TreeFeature()
         : base(Identifier.WithDefaultNamespace(FeatureId), TreeConfiguration.Codec) { }
 
-    //Place 放置整棵树 对应原版 place
+    //Place place the whole tree, maps to vanilla place
     protected override bool Place(TreeConfiguration config, FeaturePlaceContext context)
     {
         var level = context.Level;
@@ -300,7 +300,7 @@ public sealed class TreeFeature : Feature<TreeConfiguration>
         return true;
     }
 
-    //DoPlace 按配置长出一条树 对应原版 doPlace
+    //DoPlace grow one tree from the config, maps to vanilla doPlace
     private static bool DoPlace(WorldGenRegion level, RandomSource random, BlockPos origin,
         Action<BlockPos, BlockState> rootSetter, Action<BlockPos, BlockState> trunkSetter,
         FoliagePlacer.FoliageSetter foliageSetter, TreeConfiguration config)
@@ -336,7 +336,7 @@ public sealed class TreeFeature : Feature<TreeConfiguration>
         return true;
     }
 
-    //GetMaxFreeTreeHeight 树干可长到的最大高度 撞到障碍就砍掉两格 对应原版 getMaxFreeTreeHeight
+    //GetMaxFreeTreeHeight max height the trunk can reach; hitting an obstacle cuts two blocks, maps to vanilla getMaxFreeTreeHeight
     private static int GetMaxFreeTreeHeight(WorldGenRegion level, int maxTreeHeight, BlockPos treePos,
         TreeConfiguration config)
     {
@@ -357,8 +357,8 @@ public sealed class TreeFeature : Feature<TreeConfiguration>
         return maxTreeHeight;
     }
 
-    //UpdateLeaves 从树干向外扩散重算树叶 distance 属性 对应原版 updateLeaves
-    //原版还顺带调 StructureTemplate.updateShapeAtEdge 刷边缘光照与形状 本作无光照引擎 略去
+    //UpdateLeaves spread outward from the trunk and recompute the leaf distance property, maps to vanilla updateLeaves
+    //Vanilla also calls StructureTemplate.updateShapeAtEdge to refresh edge lighting and shape; there is no lighting engine here, so it is skipped
     private static void UpdateLeaves(WorldGenRegion level, IReadOnlyList<BlockPos> all, HashSet<BlockPos> logs,
         HashSet<BlockPos> decorations, HashSet<BlockPos> rootPositions)
     {
@@ -443,7 +443,7 @@ public sealed class TreeFeature : Feature<TreeConfiguration>
     private static bool Inside(BlockPos pos, int minX, int minY, int minZ, int maxX, int maxY, int maxZ)
         => pos.X >= minX && pos.X <= maxX && pos.Y >= minY && pos.Y <= maxY && pos.Z >= minZ && pos.Z <= maxZ;
 
-    //GetLowestTrunkOrRootOfTree 取树最低一层的树干或根位置 对应原版 getLowestTrunkOrRootOfTree
+    //GetLowestTrunkOrRootOfTree get the trunk or root positions at the tree's lowest layer, maps to vanilla getLowestTrunkOrRootOfTree
     public static List<BlockPos> GetLowestTrunkOrRootOfTree(TreeDecorator.Context context)
     {
         var result = new List<BlockPos>();

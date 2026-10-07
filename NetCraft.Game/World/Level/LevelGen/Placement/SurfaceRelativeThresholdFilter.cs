@@ -5,15 +5,15 @@ using NetCraft.Util.Random;
 
 namespace NetCraft.Game.World.Level.LevelGen.Placement;
 
-//SurfaceRelativeThresholdFilter 相对地表高度阈值过滤对应原版 SurfaceRelativeThresholdFilter
-//位置 y 落在高度图相对区间内才保留
+//SurfaceRelativeThresholdFilter surface-relative height threshold filter, maps to vanilla SurfaceRelativeThresholdFilter
+//Keep the position only when its y falls within the heightmap-relative range
 public sealed class SurfaceRelativeThresholdFilter : PlacementFilter
 {
     public static readonly Codec<SurfaceRelativeThresholdFilter> Codec =
         RecordCodecBuilder.Of3<SurfaceRelativeThresholdFilter, Heightmap.Types, int, int>(
             HeightmapTypesCodec.Instance.FieldOf("heightmap")
                 .ForGetter<SurfaceRelativeThresholdFilter, Heightmap.Types>(filter => filter.Heightmap),
-            //原版默认下界是 ChunkSkyLightSources.NEGATIVE_INFINITY 即 int 最小值
+            //The vanilla default lower bound is ChunkSkyLightSources.NEGATIVE_INFINITY, i.e. int.MinValue
             Codecs.Int.OptionalFieldOf("min_inclusive", int.MinValue)
                 .ForGetter<SurfaceRelativeThresholdFilter, int>(filter => filter.MinInclusive),
             Codecs.Int.OptionalFieldOf("max_inclusive", int.MaxValue)
@@ -32,7 +32,7 @@ public sealed class SurfaceRelativeThresholdFilter : PlacementFilter
         MaxInclusive = maxInclusive;
     }
 
-    //Of 构造入口对应原版 of
+    //Of construction entry, maps to vanilla of
     public static SurfaceRelativeThresholdFilter Of(Heightmap.Types heightmap, int minInclusive, int maxInclusive)
         => new(heightmap, minInclusive, maxInclusive);
 
@@ -45,7 +45,7 @@ public sealed class SurfaceRelativeThresholdFilter : PlacementFilter
     public override PlacementModifierType Type => SurfaceRelativeThresholdFilterType.Instance;
 }
 
-//SurfaceRelativeThresholdFilterType 对应原版 PlacementModifierType.SURFACE_RELATIVE_THRESHOLD_FILTER
+//SurfaceRelativeThresholdFilterType, maps to vanilla PlacementModifierType.SURFACE_RELATIVE_THRESHOLD_FILTER
 public sealed class SurfaceRelativeThresholdFilterType : PlacementModifierType<SurfaceRelativeThresholdFilter>
 {
     public static readonly SurfaceRelativeThresholdFilterType Instance = Register(

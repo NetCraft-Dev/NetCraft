@@ -4,14 +4,14 @@ using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Entity;
 
-//EntityPersister 实体存档编解码 注入给 Storage 层 EntityStorage 使用
-//对应原版 Entity.save 与 EntityType.loadEntityRecursive
-//类型从存档 id 字段按 ENTITY_TYPE 注册表解析 未知或不可实例化的类型整条丢弃
+//EntityPersister entity save codec, injected into the Storage layer EntityStorage
+//Maps to vanilla Entity.save and EntityType.loadEntityRecursive
+//The type is resolved from the save id field via the ENTITY_TYPE registry; unknown or non-instantiable types are dropped entirely
 public static class EntityPersister
 {
     private const string IdTag = "id";
 
-    //Save 把实体写成 nbt 对应原版 Entity.save
+    //Save writes the entity as nbt, maps to vanilla Entity.save
     public static CompoundTag Save(NetCraft.Registry.Entity entity)
     {
         var tag = new CompoundTag();
@@ -19,8 +19,8 @@ public static class EntityPersister
         return tag;
     }
 
-    //Load 从 nbt 还原实体 缺 id/表里没有/类型无工厂时返回 null 由调用方跳过该条
-    //返回类型用全限定名 当前命名空间含 Entity 段会遮蔽同名类型
+    //Load restores an entity from nbt; returns null when the id is missing, not in the table or the type has no factory, and the caller skips that entry
+    //The return type uses a fully qualified name since the current namespace contains an Entity segment that would shadow the same-named type
     public static NetCraft.Registry.Entity? Load(CompoundTag tag, RegistryAccess access)
     {
         var idText = tag.GetStringValue(IdTag);
@@ -41,7 +41,7 @@ public static class EntityPersister
             return null;
         }
 
-        //ENTITY_TYPE 是 DefaultedRegistry 未知 id 取值会兜底成注册表默认项 必须先判存在
+        //ENTITY_TYPE is a DefaultedRegistry, unknown ids fall back to the registry default, so existence must be checked first
         if (!BuiltInRegistries.ENTITY_TYPE.ContainsKey(identifier))
         {
             Log.Warning($"Entity type not registered {idText}, skipped");
