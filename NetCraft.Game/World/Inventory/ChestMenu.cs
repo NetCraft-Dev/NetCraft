@@ -1,7 +1,7 @@
 using NetCraft.Game.Server;
 using NetCraft.Game.World.Items;
 using NetCraft.Game.World.Level.Block;
-using NetCraft.Network.Inventory;
+using NetCraft.Game.World.Inventory;
 
 namespace NetCraft.Game.World.Inventory;
 

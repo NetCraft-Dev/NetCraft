@@ -2,7 +2,7 @@ using NetCraft.Codec;
 using NetCraft.Game.Advancements.Predicates;
 using NetCraft.Game.Commands.Arguments;
 using NetCraft.Game.World.Entity;
-using NetCraft.Network.Component;
+using NetCraft.Game.World.Items.Component;
 using NetCraft.Registry;
 using NetCraft.Registry.Codec;
 using NetCraft.Registry.EntityAttribute;

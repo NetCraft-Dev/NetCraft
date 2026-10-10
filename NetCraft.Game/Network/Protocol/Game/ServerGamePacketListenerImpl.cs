@@ -11,7 +11,7 @@ using NetCraft.Game.World.Level.Block;
 using NetCraft.Logging;
 using NetCraft.Network;
 using NetCraft.Network.Chat;
-using NetCraft.Network.Component;
+using NetCraft.Game.World.Items.Component;
 using NetCraft.Network.Protocol;
 using NetCraft.Primitives;
 using NetCraft.Storage;

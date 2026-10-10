@@ -1,6 +1,6 @@
 using NetCraft.Registry;
 
-namespace NetCraft.Network.Inventory;
+namespace NetCraft.Game.World.Inventory;
 
 //MenuType menu type, maps to vanilla net.minecraft.world.inventory.MenuType
 //Vanilla holds a MenuSupplier delegate and a FeatureFlagSet; the FeatureFlag subsystem is not implemented so it is simplified here

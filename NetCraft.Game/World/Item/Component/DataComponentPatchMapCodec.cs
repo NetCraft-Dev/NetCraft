@@ -1,7 +1,7 @@
 using NetCraft.Codec;
 using NetCraft.Registry;
 
-namespace NetCraft.Network.Component;
+namespace NetCraft.Game.World.Items.Component;
 
 //DataComponentPatchMapCodec persistence codec for component patches, maps to vanilla DataComponentPatch.CODEC
 //The key is the component registry name, a ! prefix means removal, and the value is the coding result of the component's own Codec

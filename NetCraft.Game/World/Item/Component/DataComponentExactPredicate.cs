@@ -1,7 +1,7 @@
 using NetCraft.Codec;
 using NetCraft.Registry;
 
-namespace NetCraft.Network.Component;
+namespace NetCraft.Game.World.Items.Component;
 
 //DataComponentExactPredicate exact component predicate, every expected entry must equal the target value, maps to vanilla DataComponentExactPredicate
 //Lives in the Network layer because both AsPatch and stream coding use the component patch facilities here

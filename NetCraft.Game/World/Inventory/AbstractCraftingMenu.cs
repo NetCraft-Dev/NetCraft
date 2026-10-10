@@ -1,6 +1,6 @@
 using NetCraft.Game.World.Crafting;
 using NetCraft.Game.World.Items;
-using NetCraft.Network.Inventory;
+using NetCraft.Game.World.Inventory;
 
 namespace NetCraft.Game.World.Inventory;
 

@@ -4,7 +4,7 @@ using NetCraft.Commands.Context;
 using NetCraft.Commands.Exceptions;
 using NetCraft.Commands.Suggestion;
 using NetCraft.Game.World.Inventory;
-using NetCraft.Network.Component;
+using NetCraft.Game.World.Items.Component;
 using StringReader = NetCraft.Commands.StringReader;
 
 namespace NetCraft.Game.Commands.Arguments;

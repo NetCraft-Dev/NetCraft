@@ -1,5 +1,5 @@
 using NetCraft.Network;
-using NetCraft.Network.Component;
+using NetCraft.Game.World.Items.Component;
 using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Inventory;

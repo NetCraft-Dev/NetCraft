@@ -1,7 +1,7 @@
 using NetCraft.Codec;
 using NetCraft.Registry;
 
-namespace NetCraft.Network.Component;
+namespace NetCraft.Game.World.Items.Component;
 
 //DataComponentPredicate data component predicate, maps to vanilla net.minecraft.core.component.predicates.DataComponentPredicate
 //A predicate checks whether a given component set satisfies a condition; each predicate has a Type dispatched by the DATA_COMPONENT_PREDICATE_TYPE registry

@@ -1,5 +1,5 @@
 using NetCraft.Network.Chat;
-using NetCraft.Network.Component;
+using NetCraft.Game.World.Items.Component;
 
 namespace NetCraft.Game.Network.Protocol.Game;
 

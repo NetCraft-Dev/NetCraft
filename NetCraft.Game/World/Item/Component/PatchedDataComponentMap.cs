@@ -2,7 +2,7 @@ using NetCraft.Codec;
 using NetCraft.Registry;
 using System.Text;
 
-namespace NetCraft.Network.Component;
+namespace NetCraft.Game.World.Items.Component;
 
 //PatchedDataComponentMap readable component map that applies a patch, maps to vanilla net.minecraft.core.component.PatchedDataComponentMap
 //prototype provides the base values, the patch overrides or removes them, and get checks the patch first before falling back to prototype

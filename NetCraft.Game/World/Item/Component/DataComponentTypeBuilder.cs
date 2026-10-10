@@ -1,7 +1,7 @@
 using NetCraft.Codec;
 using NetCraft.Registry;
 
-namespace NetCraft.Network.Component;
+namespace NetCraft.Game.World.Items.Component;
 
 //DataComponentTypeBuilder DataComponentType builder, maps to vanilla DataComponentType.Builder
 //persistent sets the Codec persistence codec, networkSynchronized sets the StreamCodec network sync codec

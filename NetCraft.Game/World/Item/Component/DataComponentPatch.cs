@@ -2,7 +2,7 @@ using NetCraft.Codec;
 using NetCraft.Registry;
 using System.Text;
 
-namespace NetCraft.Network.Component;
+namespace NetCraft.Game.World.Items.Component;
 
 //DataComponentPatch data component patch, maps to vanilla net.minecraft.core.component.DataComponentPatch
 //Stores a map from DataComponentType to Optional; present means an added value, empty means removal

@@ -66,6 +66,8 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
     private readonly Extent2D _extent;
     private readonly ShaderModule _vertModule;
     private readonly ShaderModule _fragModule;
+    //BindingMap resolves a declared binding name to its descriptor set and binding index, used by RenderPass name-based binding
+    private readonly Dictionary<string, (uint Set, uint Binding)> _bindingMap = new();
     private bool _disposed;
 
     public Silk.NET.Vulkan.Pipeline Pipeline => _pipeline;
@@ -74,6 +76,20 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
     //ColorFormat color attachment format for VulkanRenderPass to build RenderingAttachmentInfoKHR
     public Format ColorFormat => _colorFormat;
     public ClearColorValueRGBA ClearColor { get; set; }
+
+    //TryGetBinding resolves a declared binding name to its descriptor set and binding index
+    public bool TryGetBinding(string name, out uint set, out uint binding)
+    {
+        if (_bindingMap.TryGetValue(name, out var location))
+        {
+            set = location.Set;
+            binding = location.Binding;
+            return true;
+        }
+        set = 0;
+        binding = 0;
+        return false;
+    }
 
     internal VulkanRenderPipeline(
         Vk vk,
@@ -93,6 +109,12 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
         _fragModule = CreateShaderModule(fragCode);
         _pipelineLayout = CreatePipelineLayout(description);
         _pipeline = CreateGraphicsPipeline(description);
+        for (int set = 0; set < description.DescriptorBindingNames.Count; set++)
+        {
+            var names = description.DescriptorBindingNames[set];
+            for (int binding = 0; binding < names.Count; binding++)
+                _bindingMap[names[binding]] = ((uint)set, (uint)binding);
+        }
     }
 
     //FromDescription creates the pipeline from the description; the target format and extent default to B8G8R8A8Unorm/800x600

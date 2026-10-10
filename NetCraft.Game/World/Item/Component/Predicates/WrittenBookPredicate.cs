@@ -3,7 +3,7 @@ using NetCraft.Game.Advancements.Predicates;
 using NetCraft.Game.Commands.Arguments;
 using NetCraft.Network;
 using NetCraft.Network.Chat;
-using NetCraft.Network.Component;
+using NetCraft.Game.World.Items.Component;
 using NetCraft.Registry;
 //Alias avoids clashing with Component, a namespace segment above; namespace members take precedence over using aliases so the names cannot match
 using ChatComponent = NetCraft.Network.Chat.Component;

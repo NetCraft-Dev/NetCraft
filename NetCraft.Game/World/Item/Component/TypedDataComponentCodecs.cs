@@ -1,6 +1,6 @@
 using NetCraft.Registry;
 
-namespace NetCraft.Network.Component;
+namespace NetCraft.Game.World.Items.Component;
 
 //TypedDataComponentCodecs stream codec for typed component entries, maps to vanilla TypedDataComponent.STREAM_CODEC
 //Writes the registry id first, then the value via that type's stream codec

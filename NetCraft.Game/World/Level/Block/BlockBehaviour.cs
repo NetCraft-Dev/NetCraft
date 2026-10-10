@@ -1,7 +1,7 @@
 using NetCraft.Game.Server;
 using NetCraft.Game.World.Items;
 using NetCraft.Game.World.Phys.Collision;
-using NetCraft.Network.Component;
+using NetCraft.Game.World.Items.Component;
 using NetCraft.Primitives;
 using NetCraft.Primitives.Phys;
 using NetCraft.Registry;

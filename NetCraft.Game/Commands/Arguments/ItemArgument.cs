@@ -6,7 +6,7 @@ using NetCraft.Commands.Exceptions;
 using NetCraft.Commands.Suggestion;
 using NetCraft.Game.Commands;
 using NetCraft.Nbt;
-using NetCraft.Network.Component;
+using NetCraft.Game.World.Items.Component;
 using NetCraft.Registry;
 using NetCraft.Util;
 using StringReader = NetCraft.Commands.StringReader;

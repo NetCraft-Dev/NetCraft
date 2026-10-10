@@ -1,6 +1,6 @@
 using NetCraft.Registry;
 
-namespace NetCraft.Network.Component;
+namespace NetCraft.Game.World.Items.Component;
 
 //SingleComponentItemPredicate predicate dealing with a single component type
 //Maps to vanilla net.minecraft.advancements.predicates.SingleComponentItemPredicate

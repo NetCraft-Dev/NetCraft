@@ -7,54 +7,13 @@ using NetCraft.Client.Blaze3d.Textures;
 using NetCraft.Client.Blaze3d.Shaders;
 using NetCraft.Client.Blaze3d.Vertex;
 using NetCraft.Client.Blaze3d.Vulkan;
-
-using CompiledRenderPipeline = NetCraft.Client.Blaze3d.Pipeline.CompiledRenderPipeline;
-using RenderPipelineDescription = NetCraft.Client.Blaze3d.Pipeline.RenderPipelineDescription;
-using RenderPipeline = NetCraft.Client.Blaze3d.Pipeline.RenderPipeline;
-using PipelineCache = NetCraft.Client.Blaze3d.Pipeline.PipelineCache;
-using BindGroupLayout = NetCraft.Client.Blaze3d.Pipeline.BindGroupLayout;
-using ColorTargetState = NetCraft.Client.Blaze3d.Pipeline.ColorTargetState;
-using DepthStencilState = NetCraft.Client.Blaze3d.Pipeline.DepthStencilState;
 using NetCraft.Client.Blaze3d.Pipeline;
-using CompareOp = Silk.NET.Vulkan.CompareOp;
-using BlendFactor = Silk.NET.Vulkan.BlendFactor;
-using BlendOp = Silk.NET.Vulkan.BlendOp;
-using PolygonMode = Silk.NET.Vulkan.PolygonMode;
-using PrimitiveTopology = Silk.NET.Vulkan.PrimitiveTopology;
-using NetCraft.Client.Blaze3d.Platform;
-using NetCraft.Client.Blaze3d.Font;
-using NetCraft.Client.Blaze3d.Resource;
-using NetCraft.Client.Blaze3d.Audio;
-using NetCraft.Client.Blaze3d.Framegraph;
-using NetCraft.Client.Blaze3d.Preprocessor;
-using NetCraft.Client.Blaze3d.Util;
-using NetCraft.Client.Render;
-using NetCraft.Client.Render.Model;
-using NetCraft.Client.Render.Texture;
-using NetCraft.Client.Render.Texture.Atlas;
-using NetCraft.Client.Render.Item;
-using NetCraft.Client.Render.Entity;
-using NetCraft.Client.Render.Entity.State;
-using NetCraft.Client.Render.State.Gui;
-using NetCraft.Client.Gui;
-using NetCraft.Client.Gui.Render;
-using NetCraft.Client.Gui.Render.State;
-using NetCraft.Client.Gui.Render.Pip;
-using NetCraft.Client.Gui.Navigation;
-using NetCraft.Client.Gui.Layouts;
-using NetCraft.Client.Gui.Font;
-using NetCraft.Client.Gui.Font.Providers;
-using NetCraft.Client.Gui.Font.Glyphs;
-using NetCraft.Client.Model;
-using NetCraft.Client.Model.Geom;
-using NetCraft.Client.Resources.Metadata.Gui;
 namespace NetCraft.Client.Blaze3d.Vulkan;
 
-//VulkanCommandEncoder Vulkan backend command encoder implementing ICommandEncoder
-//Wraps VkCommandBuffer to record copy/render pass commands; Submit submits to the GPU queue
-//Replaces the mixed recording of the legacy VulkanCommandBuffer, separating command encoding from render passes
-//4.3 rework makes CreateRenderPass use dynamic rendering, passing the ImageViews of colorImage/depthImage to VulkanRenderPass
-public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
+//VulkanCommandEncoder Vulkan backend command encoder implementing CommandEncoderBackend
+//Wraps VkCommandBuffer to record copy/clear/render pass commands; Submit submits to the GPU queue
+//Render passes are created from a RenderPassDescriptor and bind resources by declared names
+public sealed unsafe class VulkanCommandEncoder : CommandEncoderBackend
 {
     private readonly Vk _vk;
     private readonly Device _device;
@@ -66,12 +25,13 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
     private readonly CommandBuffer _handle;
     private readonly Fence _submitFence;
     //Staging buffers created by WriteToTexture live until after Submit and are released together
-    //Submit calls WaitForFences and waits for the GPU to finish before safely releasing the staging buffer
     private readonly List<VulkanBuffer> _stagingBuffers = new();
     //_pendingStagingBuffers during SubmitAsync the staging buffers move to the pending-release list until WaitForCompletion
-    //An async Submit cannot release staging immediately since the GPU is still reading; wait for the fence
     private readonly List<VulkanBuffer> _pendingStagingBuffers = new();
-    //_pendingSubmit marks that WaitForCompletion has not run after SubmitAsync; WaitForCompletion must precede BeginRecording
+    //Callbacks queued by CopyTextureToBuffer, fired after the GPU has finished the submit
+    private readonly List<System.Action> _pendingCallbacks = new();
+    //The render pass currently open, closed by SubmitRenderPass
+    private VulkanRenderPass? _currentRenderPass;
     private bool _pendingSubmit;
     private bool _disposed;
     private bool _recording;
@@ -84,7 +44,6 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
         _commandPool = commandPool;
         _graphicsQueue = graphicsQueue;
         _dynRenderingExt = dynRenderingExt;
-        //Allocate a command buffer
         var allocInfo = new CommandBufferAllocateInfo
         {
             SType = StructureType.CommandBufferAllocateInfo,
@@ -94,72 +53,124 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
         };
         if (_vk.AllocateCommandBuffers(_device, &allocInfo, out _handle) != Result.Success)
             throw new InvalidOperationException("Command buffer allocation failed");
-        //Create the submit fence
         var fenceInfo = new FenceCreateInfo { SType = StructureType.FenceCreateInfo };
         if (_vk.CreateFence(_device, &fenceInfo, null, out _submitFence) != Result.Success)
             throw new InvalidOperationException("Submit fence creation failed");
-        //Begin recording
         var beginInfo = new CommandBufferBeginInfo { SType = StructureType.CommandBufferBeginInfo };
         if (_vk.BeginCommandBuffer(_handle, &beginInfo) != Result.Success)
             throw new InvalidOperationException("Failed to begin command buffer recording");
         _recording = true;
     }
 
-    public IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuTexture colorImage, Vector4 clearColor)
+    public RenderPassBackend CreateRenderPass(RenderPassDescriptor descriptor)
     {
         EnsureRecording();
-        if (colorImage is not VulkanImage vkColor)
-            throw new ArgumentException("colorImage must be a VulkanImage", nameof(colorImage));
-        return new VulkanRenderPass(_vk, _dynRenderingExt, _handle, pipeline, vkColor.View, clearColor, null, 0f);
+        _currentRenderPass = new VulkanRenderPass(_vk, _dynRenderingExt, _handle, _gpuDevice, descriptor);
+        return _currentRenderPass;
     }
 
-    public IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuTexture colorImage, Vector4 clearColor, GpuTexture depthImage, float clearDepth)
+    public void SubmitRenderPass()
     {
-        EnsureRecording();
-        if (colorImage is not VulkanImage vkColor)
-            throw new ArgumentException("colorImage must be a VulkanImage", nameof(colorImage));
-        return new VulkanRenderPass(_vk, _dynRenderingExt, _handle, pipeline, vkColor.View, clearColor, depthImage, clearDepth);
+        _currentRenderPass?.End();
+        _currentRenderPass = null;
     }
 
-    public IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuTexture colorImage, Vector4 clearColor, GpuTexture depthImage, float clearDepth, GpuLoadOp colorLoadOp)
+    public void ClearColorTexture(GpuTexture texture, Vector4 color)
     {
         EnsureRecording();
-        if (colorImage is not VulkanImage vkColor)
-            throw new ArgumentException("colorImage must be a VulkanImage", nameof(colorImage));
-        var vkLoadOp = colorLoadOp switch
+        if (texture is not VulkanImage vkImage)
+            throw new ArgumentException("texture must be a VulkanImage", nameof(texture));
+        vkImage.TransitionLayout(_handle, ImageLayout.TransferDstOptimal);
+        var clearValue = new ClearColorValue
         {
-            GpuLoadOp.Clear => AttachmentLoadOp.Clear,
-            GpuLoadOp.Load => AttachmentLoadOp.Load,
-            _ => AttachmentLoadOp.Clear
+            Float32_0 = color.X,
+            Float32_1 = color.Y,
+            Float32_2 = color.Z,
+            Float32_3 = color.W
         };
-        return new VulkanRenderPass(_vk, _dynRenderingExt, _handle, pipeline, vkColor.View, clearColor, vkLoadOp, depthImage, clearDepth);
+        var range = new ImageSubresourceRange
+        {
+            AspectMask = ImageAspectFlags.ColorBit,
+            BaseMipLevel = 0,
+            LevelCount = 1,
+            BaseArrayLayer = 0,
+            LayerCount = 1
+        };
+        _vk.CmdClearColorImage(_handle, vkImage.Handle, ImageLayout.TransferDstOptimal, &clearValue, 1, &range);
+        vkImage.TransitionLayout(_handle, ImageLayout.ShaderReadOnlyOptimal);
     }
 
-    public void CopyBuffer(GpuBuffer src, GpuBuffer dst, ulong srcOffset, ulong dstOffset, ulong size)
+    public void ClearColorAndDepthTextures(GpuTexture colorTexture, Vector4 color, GpuTexture depthTexture, double depth)
+        => ClearColorAndDepthTextures(colorTexture, color, depthTexture, depth, 0, 0, colorTexture.Width, colorTexture.Height);
+
+    public void ClearColorAndDepthTextures(GpuTexture colorTexture, Vector4 color, GpuTexture depthTexture, double depth, int regionX, int regionY, int regionWidth, int regionHeight)
+    {
+        //Region clears need an explicit render pass; the full-texture path is the one NetCraft uses
+        if (regionX != 0 || regionY != 0 || regionWidth != colorTexture.Width || regionHeight != colorTexture.Height)
+            throw new NotSupportedException("Region clear of color and depth attachments is not implemented");
+        ClearColorTexture(colorTexture, color);
+        ClearDepthTexture(depthTexture, depth);
+    }
+
+    public void ClearDepthTexture(GpuTexture depthTexture, double depth)
     {
         EnsureRecording();
-        if (src is not VulkanBuffer vkSrc) throw new ArgumentException("src must be a VulkanBuffer", nameof(src));
-        if (dst is not VulkanBuffer vkDst) throw new ArgumentException("dst must be a VulkanBuffer", nameof(dst));
+        if (depthTexture is not VulkanImage vkImage)
+            throw new ArgumentException("depthTexture must be a VulkanImage", nameof(depthTexture));
+        vkImage.TransitionLayout(_handle, ImageLayout.TransferDstOptimal);
+        var clearValue = new ClearDepthStencilValue { Depth = (float)depth, Stencil = 0 };
+        var range = new ImageSubresourceRange
+        {
+            AspectMask = ImageAspectFlags.DepthBit,
+            BaseMipLevel = 0,
+            LevelCount = 1,
+            BaseArrayLayer = 0,
+            LayerCount = 1
+        };
+        _vk.CmdClearDepthStencilImage(_handle, vkImage.Handle, ImageLayout.TransferDstOptimal, &clearValue, 1, &range);
+        vkImage.TransitionLayout(_handle, ImageLayout.DepthStencilAttachmentOptimal);
+    }
+
+    public void WriteToBuffer(GpuBufferSlice destination, ReadOnlySpan<byte> data)
+    {
+        EnsureRecording();
+        if (destination.Buffer is not VulkanBuffer vkDst)
+            throw new ArgumentException("destination must be a VulkanBuffer", nameof(destination));
+        var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(null, GpuBuffer.UsageCopySrc | GpuBuffer.UsageCopyDst | GpuBuffer.UsageMapWrite, data.Length);
+        staging.Upload(data.ToArray());
+        _stagingBuffers.Add(staging);
         var region = new BufferCopy
         {
-            SrcOffset = srcOffset,
-            DstOffset = dstOffset,
-            Size = size
+            SrcOffset = 0,
+            DstOffset = (ulong)destination.Offset,
+            Size = (ulong)data.Length
+        };
+        _vk.CmdCopyBuffer(_handle, staging.Handle, vkDst.Handle, 1, &region);
+    }
+
+    public void CopyToBuffer(GpuBufferSlice source, GpuBufferSlice target)
+    {
+        EnsureRecording();
+        if (source.Buffer is not VulkanBuffer vkSrc) throw new ArgumentException("source must be a VulkanBuffer", nameof(source));
+        if (target.Buffer is not VulkanBuffer vkDst) throw new ArgumentException("target must be a VulkanBuffer", nameof(target));
+        var region = new BufferCopy
+        {
+            SrcOffset = (ulong)source.Offset,
+            DstOffset = (ulong)target.Offset,
+            Size = (ulong)source.Length
         };
         _vk.CmdCopyBuffer(_handle, vkSrc.Handle, vkDst.Handle, 1, &region);
     }
 
     //WriteToTexture records a pixel upload into the current command buffer via a staging buffer
-    //Unlike VulkanImage.UploadRegion it does not Submit immediately but records into the current cmd, batchable with other commands
-    //The staging buffer lives until after Submit and is released then; Submit calls WaitForFences to ensure the GPU has read it
-    //Layout transitions currentLayout→TransferDstOptimal→copy→ShaderReadOnlyOptimal
-    public void WriteToTexture(GpuTexture dst, ReadOnlySpan<byte> data, int dstX, int dstY, int width, int height)
+    //The staging buffer lives until after Submit and is released then; Submit waits on the fence so the GPU has read it
+    public void WriteToTexture(GpuTexture destination, ReadOnlySpan<byte> data, int mipLevel, int depthOrLayer, int destX, int destY, int width, int height)
     {
         EnsureRecording();
-        if (dst is not VulkanImage vkDst)
-            throw new ArgumentException("dst must be a VulkanImage", nameof(dst));
+        if (destination is not VulkanImage vkDst)
+            throw new ArgumentException("destination must be a VulkanImage", nameof(destination));
         if (vkDst.Format.HasDepthAspect())
-            throw new InvalidOperationException("DepthAttachment does not support WriteToTexture");
+            throw new InvalidOperationException("Depth textures do not support WriteToTexture");
         var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(null, GpuBuffer.UsageCopySrc | GpuBuffer.UsageCopyDst | GpuBuffer.UsageMapWrite, data.Length);
         staging.Upload(data.ToArray());
         _stagingBuffers.Add(staging);
@@ -172,20 +183,115 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
             ImageSubresource =
             {
                 AspectMask = ImageAspectFlags.ColorBit,
-                MipLevel = 0,
-                BaseArrayLayer = 0,
+                MipLevel = (uint)mipLevel,
+                BaseArrayLayer = (uint)depthOrLayer,
                 LayerCount = 1
             },
-            ImageOffset = new Offset3D { X = dstX, Y = dstY, Z = 0 },
+            ImageOffset = new Offset3D { X = destX, Y = destY, Z = 0 },
             ImageExtent = new Extent3D { Width = (uint)width, Height = (uint)height, Depth = 1 }
         };
         _vk.CmdCopyBufferToImage(_handle, staging.Handle, vkDst.Handle, ImageLayout.TransferDstOptimal, 1, &region);
         vkDst.TransitionLayout(_handle, ImageLayout.ShaderReadOnlyOptimal);
     }
 
+    public void CopyBufferToTexture(GpuBufferSlice source, int sourceX, int sourceY, int sourceWidth, int sourceHeight, GpuTexture destination, int destinationX, int destinationY, int copyWidth, int copyHeight, int mipLevel, int arrayLayer)
+    {
+        EnsureRecording();
+        if (source.Buffer is not VulkanBuffer vkSrc) throw new ArgumentException("source must be a VulkanBuffer", nameof(source));
+        if (destination is not VulkanImage vkDst) throw new ArgumentException("destination must be a VulkanImage", nameof(destination));
+        vkDst.TransitionLayout(_handle, ImageLayout.TransferDstOptimal);
+        var region = new BufferImageCopy
+        {
+            BufferOffset = (ulong)source.Offset,
+            BufferRowLength = (uint)sourceWidth,
+            BufferImageHeight = (uint)sourceHeight,
+            ImageSubresource =
+            {
+                AspectMask = ImageAspectFlags.ColorBit,
+                MipLevel = (uint)mipLevel,
+                BaseArrayLayer = (uint)arrayLayer,
+                LayerCount = 1
+            },
+            ImageOffset = new Offset3D { X = destinationX, Y = destinationY, Z = 0 },
+            ImageExtent = new Extent3D { Width = (uint)copyWidth, Height = (uint)copyHeight, Depth = 1 }
+        };
+        _vk.CmdCopyBufferToImage(_handle, vkSrc.Handle, vkDst.Handle, ImageLayout.TransferDstOptimal, 1, &region);
+        vkDst.TransitionLayout(_handle, ImageLayout.ShaderReadOnlyOptimal);
+    }
+
+    public void CopyTextureToBuffer(GpuTexture source, GpuBuffer destination, long offset, System.Action? callback, int mipLevel)
+        => CopyTextureToBuffer(source, destination, offset, callback, mipLevel, 0, 0, source.GetWidth(mipLevel), source.GetHeight(mipLevel));
+
+    public void CopyTextureToBuffer(GpuTexture source, GpuBuffer destination, long offset, System.Action? callback, int mipLevel, int x, int y, int width, int height)
+    {
+        EnsureRecording();
+        if (source is not VulkanImage vkSrc) throw new ArgumentException("source must be a VulkanImage", nameof(source));
+        if (destination is not VulkanBuffer vkDst) throw new ArgumentException("destination must be a VulkanBuffer", nameof(destination));
+        vkSrc.TransitionLayout(_handle, ImageLayout.TransferSrcOptimal);
+        var region = new BufferImageCopy
+        {
+            BufferOffset = (ulong)offset,
+            BufferRowLength = 0,
+            BufferImageHeight = 0,
+            ImageSubresource =
+            {
+                AspectMask = ImageAspectFlags.ColorBit,
+                MipLevel = (uint)mipLevel,
+                BaseArrayLayer = 0,
+                LayerCount = 1
+            },
+            ImageOffset = new Offset3D { X = x, Y = y, Z = 0 },
+            ImageExtent = new Extent3D { Width = (uint)width, Height = (uint)height, Depth = 1 }
+        };
+        _vk.CmdCopyImageToBuffer(_handle, vkSrc.Handle, ImageLayout.TransferSrcOptimal, vkDst.Handle, 1, &region);
+        vkSrc.TransitionLayout(_handle, ImageLayout.ShaderReadOnlyOptimal);
+        //The callback fires once the copy is scheduled; the synchronous Submit waits for the GPU right after
+        if (callback != null)
+            _pendingCallbacks.Add(callback);
+    }
+
+    public void CopyTextureToTexture(GpuTexture source, GpuTexture destination, int mipLevel, int destX, int destY, int sourceX, int sourceY, int width, int height)
+    {
+        EnsureRecording();
+        if (source is not VulkanImage vkSrc) throw new ArgumentException("source must be a VulkanImage", nameof(source));
+        if (destination is not VulkanImage vkDst) throw new ArgumentException("destination must be a VulkanImage", nameof(destination));
+        vkSrc.TransitionLayout(_handle, ImageLayout.TransferSrcOptimal);
+        vkDst.TransitionLayout(_handle, ImageLayout.TransferDstOptimal);
+        var region = new ImageCopy
+        {
+            SrcSubresource =
+            {
+                AspectMask = ImageAspectFlags.ColorBit,
+                MipLevel = (uint)mipLevel,
+                BaseArrayLayer = 0,
+                LayerCount = 1
+            },
+            SrcOffset = new Offset3D { X = sourceX, Y = sourceY, Z = 0 },
+            DstSubresource =
+            {
+                AspectMask = ImageAspectFlags.ColorBit,
+                MipLevel = (uint)mipLevel,
+                BaseArrayLayer = 0,
+                LayerCount = 1
+            },
+            DstOffset = new Offset3D { X = destX, Y = destY, Z = 0 },
+            Extent = new Extent3D { Width = (uint)width, Height = (uint)height, Depth = 1 }
+        };
+        _vk.CmdCopyImage(_handle, vkSrc.Handle, ImageLayout.TransferSrcOptimal, vkDst.Handle, ImageLayout.TransferDstOptimal, 1, &region);
+        vkSrc.TransitionLayout(_handle, ImageLayout.ShaderReadOnlyOptimal);
+        vkDst.TransitionLayout(_handle, ImageLayout.ShaderReadOnlyOptimal);
+    }
+
+    public GpuFence CreateFence() => new VulkanFence(_vk, _device);
+
+    public TransientMemory TransientMemory()
+        => throw new NotSupportedException("TransientMemory is not implemented in the Vulkan backend");
+
+    public void WriteTimestamp(GpuQueryPool pool, int index)
+        => throw new NotSupportedException("Timestamp queries are not implemented yet");
+
     //TransitionImageLayout records an image layout transition into the current command buffer
-    //After PIP offscreen rendering ColorAttachmentOptimal→ShaderReadOnlyOptimal for blit sampling
-    //With cross-frame reuse it goes ShaderReadOnlyOptimal→ColorAttachmentOptimal before the next frame's render; VulkanImage.TransitionLayout already handles skipping
+    //A NetCraft extension used by the offscreen PIP path; vanilla has no explicit layout management
     public void TransitionImageLayout(GpuTexture image, GpuImageLayout newLayout)
     {
         EnsureRecording();
@@ -221,14 +327,13 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
             throw new InvalidOperationException("QueueSubmit failed");
         _vk.WaitForFences(_device, 1, &fence, Vk.True, ulong.MaxValue);
         _vk.ResetFences(_device, 1, &fence);
-        //Submit already waited for the fence so the GPU has read the staging buffer and it can be released safely
         foreach (var sb in _stagingBuffers) sb.Dispose();
         _stagingBuffers.Clear();
+        foreach (var cb in _pendingCallbacks) cb();
+        _pendingCallbacks.Clear();
     }
 
-    //SubmitAsync submits commands to the GPU queue without waiting, for PIP double-buffered async rendering
-    //The staging buffer moves into _pendingStagingBuffers and is released lazily at WaitForCompletion
-    //The caller must WaitForCompletion before reusing this encoder so the GPU is done before the command buffer is Reset
+    //SubmitAsync submits commands to the GPU queue without waiting, for the PIP double-buffered async path
     public void SubmitAsync()
     {
         if (!_recording) return;
@@ -251,8 +356,6 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
     }
 
     //WaitForCompletion waits for the GPU commands submitted by SubmitAsync to finish
-    //Returns immediately if SubmitAsync was never called (_pendingSubmit=false), safe to skip when reusing the encoder the first time
-    //After completion ResetFences makes the fence reusable for the next QueueSubmit and releases the pending staging buffers
     public void WaitForCompletion()
     {
         if (!_pendingSubmit) return;
@@ -261,12 +364,12 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
         _vk.ResetFences(_device, 1, &fence);
         foreach (var sb in _pendingStagingBuffers) sb.Dispose();
         _pendingStagingBuffers.Clear();
+        foreach (var cb in _pendingCallbacks) cb();
+        _pendingCallbacks.Clear();
         _pendingSubmit = false;
     }
 
     //BeginRecording restarts command recording so the encoder can be reused across frames
-    //The first call is idempotent (already BeginCommandBuffer in the constructor) and returns immediately with _recording=true
-    //Later calls require WaitForCompletion first so the GPU no longer uses the command buffer, then Reset+Begin
     public void BeginRecording()
     {
         if (_recording) return;
@@ -287,7 +390,6 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
     public void Dispose()
     {
         if (_disposed) return;
-        //When an async Submit has not completed, first wait for the fence so the GPU no longer uses the command buffer, then Free
         if (_pendingSubmit)
         {
             var waitFence = _submitFence;

@@ -1,4 +1,4 @@
-using NetCraft.Network.Inventory;
+using NetCraft.Game.World.Inventory;
 using NetCraft.Registry;
 
 namespace NetCraft.Game.World.Inventory;

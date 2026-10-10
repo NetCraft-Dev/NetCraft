@@ -13,7 +13,7 @@ using NetCraft.Client.Blaze3d.Vulkan;
 using NetCraft.Client.Blaze3d.Platform;
 using NetCraft.Client.Blaze3d.Font;
 using NetCraft.Network.Chat;
-using NetCraft.Network.Inventory;
+using NetCraft.Game.World.Inventory;
 using NetCraft.Client.Blaze3d.Resource;
 using NetCraft.Client.Blaze3d.Audio;
 using NetCraft.Client.Blaze3d.Framegraph;

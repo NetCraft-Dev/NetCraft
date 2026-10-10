@@ -3,7 +3,7 @@ global using NetCraft.Config;
 global using NetCraft.Network;
 global using NetCraft.Network.Protocol;
 global using NetCraft.Network.Chat;
-global using NetCraft.Network.Inventory;
+global using NetCraft.Game.World.Inventory;
 global using NetCraft.Network.Protocol.Common;
 global using NetCraft.Network.Protocol.Configuration;
 global using NetCraft.Network.Protocol.Cookie;

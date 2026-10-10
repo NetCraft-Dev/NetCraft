@@ -4,7 +4,7 @@ using NetCraft.Game.World.Inventory;
 using NetCraft.Game.World.Items;
 using NetCraft.Nbt;
 using NetCraft.Network.Chat;
-using NetCraft.Network.Component;
+using NetCraft.Game.World.Items.Component;
 using NetCraft.Primitives;
 using NetCraft.Registry.State;
 using NetCraft.Storage;

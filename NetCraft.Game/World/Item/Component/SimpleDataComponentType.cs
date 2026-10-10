@@ -1,7 +1,7 @@
 using NetCraft.Codec;
 using NetCraft.Registry;
 
-namespace NetCraft.Network.Component;
+namespace NetCraft.Game.World.Items.Component;
 
 //SimpleDataComponentType DataComponentType implementation, maps to vanilla DataComponentType.Builder.SimpleType
 //Holds a Codec persistence codec and a StreamCodec network sync codec

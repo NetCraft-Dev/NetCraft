@@ -1,4 +1,4 @@
-namespace NetCraft.Network.Component;
+namespace NetCraft.Game.World.Items.Component;
 
 //IDataComponentTypeCodec non-generic codec interface
 //SimpleDataComponentType<T> implements this interface so DataComponentPatch.STREAM_CODEC can code component values across generics

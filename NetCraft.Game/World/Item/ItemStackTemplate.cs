@@ -1,6 +1,6 @@
 using NetCraft.Codec;
 using NetCraft.Network;
-using NetCraft.Network.Component;
+using NetCraft.Game.World.Items.Component;
 using NetCraft.Registry;
 using NetCraft.Util;
 

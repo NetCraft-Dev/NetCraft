@@ -2,7 +2,7 @@ using NetCraft.Codec;
 using NetCraft.Game.World.Items;
 using NetCraft.Game.World.Items.Component;
 using NetCraft.Nbt;
-using NetCraft.Network.Component;
+using NetCraft.Game.World.Items.Component;
 using NetCraft.Registry;
 
 namespace NetCraft.Game.Advancements.Predicates;

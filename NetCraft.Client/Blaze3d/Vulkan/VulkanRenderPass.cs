@@ -2,6 +2,7 @@ using System.Numerics;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Buffer = Silk.NET.Vulkan.Buffer;
+using NetCraft.Client.Blaze3d;
 using NetCraft.Client.Blaze3d.Systems;
 using NetCraft.Client.Blaze3d.Buffers;
 using NetCraft.Client.Blaze3d.Textures;
@@ -9,217 +10,284 @@ using NetCraft.Client.Blaze3d.Shaders;
 using NetCraft.Client.Blaze3d.Vertex;
 using NetCraft.Client.Blaze3d.Vulkan;
 
-using CompiledRenderPipeline = NetCraft.Client.Blaze3d.Pipeline.CompiledRenderPipeline;
-using RenderPipelineDescription = NetCraft.Client.Blaze3d.Pipeline.RenderPipelineDescription;
 using RenderPipeline = NetCraft.Client.Blaze3d.Pipeline.RenderPipeline;
-using PipelineCache = NetCraft.Client.Blaze3d.Pipeline.PipelineCache;
-using BindGroupLayout = NetCraft.Client.Blaze3d.Pipeline.BindGroupLayout;
-using ColorTargetState = NetCraft.Client.Blaze3d.Pipeline.ColorTargetState;
-using DepthStencilState = NetCraft.Client.Blaze3d.Pipeline.DepthStencilState;
 using NetCraft.Client.Blaze3d.Pipeline;
-using CompareOp = Silk.NET.Vulkan.CompareOp;
-using BlendFactor = Silk.NET.Vulkan.BlendFactor;
-using BlendOp = Silk.NET.Vulkan.BlendOp;
-using PolygonMode = Silk.NET.Vulkan.PolygonMode;
-using PrimitiveTopology = Silk.NET.Vulkan.PrimitiveTopology;
-using NetCraft.Client.Blaze3d.Platform;
-using NetCraft.Client.Blaze3d.Font;
-using NetCraft.Client.Blaze3d.Resource;
-using NetCraft.Client.Blaze3d.Audio;
-using NetCraft.Client.Blaze3d.Framegraph;
-using NetCraft.Client.Blaze3d.Preprocessor;
-using NetCraft.Client.Blaze3d.Util;
-using NetCraft.Client.Render;
-using NetCraft.Client.Render.Model;
-using NetCraft.Client.Render.Texture;
-using NetCraft.Client.Render.Texture.Atlas;
-using NetCraft.Client.Render.Item;
-using NetCraft.Client.Render.Entity;
-using NetCraft.Client.Render.Entity.State;
-using NetCraft.Client.Render.State.Gui;
-using NetCraft.Client.Gui;
-using NetCraft.Client.Gui.Render;
-using NetCraft.Client.Gui.Render.State;
-using NetCraft.Client.Gui.Render.Pip;
-using NetCraft.Client.Gui.Navigation;
-using NetCraft.Client.Gui.Layouts;
-using NetCraft.Client.Gui.Font;
-using NetCraft.Client.Gui.Font.Providers;
-using NetCraft.Client.Gui.Font.Glyphs;
-using NetCraft.Client.Model;
-using NetCraft.Client.Model.Geom;
-using NetCraft.Client.Resources.Metadata.Gui;
 namespace NetCraft.Client.Blaze3d.Vulkan;
 
-//VulkanRenderPass Vulkan backend render pass implementing IRenderPass
-//4.3 rework to VK_KHR_dynamic_rendering using CmdBeginRenderingKHR/CmdEndRenderingKHR instead of the traditional CmdBeginRenderPass
-//The attachment ImageView is passed by VulkanCommandEncoder.CreateRenderPass and no longer depends on a framebuffer
-public sealed unsafe class VulkanRenderPass : IRenderPass
+//VulkanRenderPass Vulkan backend render pass implementing RenderPassBackend
+//Uses VK_KHR_dynamic_rendering via CmdBeginRenderingKHR/CmdEndRenderingKHR instead of the traditional CmdBeginRenderPass
+//Resources are bound by the names declared in the pipeline's BindGroupLayouts, resolved through VulkanRenderPipeline.TryGetBinding
+public sealed unsafe class VulkanRenderPass : RenderPassBackend
 {
     private readonly Vk _vk;
-    //DynRenderingExt the KHR_dynamic_rendering extension instance calling CmdBeginRendering/CmdEndRendering
     private readonly KhrDynamicRendering _dynRenderingExt;
     private readonly CommandBuffer _cmd;
-    //_pipeline updates as SetPipeline switches; BindDescriptorSet uses the current pipeline's PipelineLayout
-    private VulkanRenderPipeline _pipeline;
-    private bool _closed;
-    private bool _disposed;
+    private readonly VulkanDevice _device;
+    private readonly RenderPassDescriptor _descriptor;
+    private VulkanRenderPipeline? _pipeline;
+    private GpuDescriptorSet[]? _descriptorSets;
+    private bool _begun;
+    private bool _ended;
 
-    internal VulkanRenderPass(Vk vk, KhrDynamicRendering dynRenderingExt, CommandBuffer cmd,
-        CompiledRenderPipeline pipeline, ImageView colorImageView, Vector4 clearColor,
-        GpuTexture? depthImage, float clearDepth)
-        : this(vk, dynRenderingExt, cmd, pipeline, colorImageView, clearColor, AttachmentLoadOp.Clear, depthImage, clearDepth)
-    {
-    }
-
-    //colorLoadOp controls the color attachment load strategy; BeforeBlur/blur use Clear and AfterBlur uses Load to preserve the blurred background
-    internal VulkanRenderPass(Vk vk, KhrDynamicRendering dynRenderingExt, CommandBuffer cmd,
-        CompiledRenderPipeline pipeline, ImageView colorImageView, Vector4 clearColor,
-        AttachmentLoadOp colorLoadOp, GpuTexture? depthImage, float clearDepth)
+    internal VulkanRenderPass(Vk vk, KhrDynamicRendering dynRenderingExt, CommandBuffer cmd, VulkanDevice device, RenderPassDescriptor descriptor)
     {
         _vk = vk;
         _dynRenderingExt = dynRenderingExt;
         _cmd = cmd;
-        if (pipeline is not VulkanRenderPipeline vkPipeline)
-            throw new ArgumentException("pipeline must be a VulkanRenderPipeline", nameof(pipeline));
+        _device = device;
+        _descriptor = descriptor;
+    }
+
+    public void SetPipeline(RenderPipeline pipeline)
+    {
+        if (_pipeline != null)
+            throw new InvalidOperationException("SetPipeline may only be called once per render pass");
+        if (_device.PrecompilePipeline(pipeline) is not VulkanRenderPipeline vkPipeline)
+            throw new ArgumentException("pipeline must compile to a VulkanRenderPipeline", nameof(pipeline));
         _pipeline = vkPipeline;
-
-        //The color attachment LoadOp is specified by the caller; StoreOp=Store writes back Layout=ColorAttachmentOptimal
-        var colorClear = new ClearValue
-        {
-            Color = new ClearColorValue
-            {
-                Float32_0 = clearColor.X,
-                Float32_1 = clearColor.Y,
-                Float32_2 = clearColor.Z,
-                Float32_3 = clearColor.W
-            }
-        };
-        var colorAttachment = new RenderingAttachmentInfo
-        {
-            SType = StructureType.RenderingAttachmentInfo,
-            ImageView = colorImageView,
-            ImageLayout = ImageLayout.ColorAttachmentOptimal,
-            LoadOp = colorLoadOp,
-            StoreOp = AttachmentStoreOp.Store,
-            ClearValue = colorClear
-        };
-
-        //Depth attachment attached with Layout=DepthStencilAttachmentOptimal when depthImage is non-null
-        var hasDepth = depthImage is VulkanImage;
-        var depthAttachment = hasDepth
-            ? new RenderingAttachmentInfo
-            {
-                SType = StructureType.RenderingAttachmentInfo,
-                ImageView = ((VulkanImage)depthImage!).View,
-                ImageLayout = ImageLayout.DepthStencilAttachmentOptimal,
-                LoadOp = AttachmentLoadOp.Clear,
-                StoreOp = AttachmentStoreOp.Store,
-                ClearValue = new ClearValue
-                {
-                    DepthStencil = new ClearDepthStencilValue { Depth = clearDepth > 0 ? clearDepth : 1.0f, Stencil = 0 }
-                }
-            }
-            : default;
-
-        //RenderingInfo dynamic rendering main struct RenderArea=extent ColorAttachmentCount=1
-        var renderArea = new Rect2D { Offset = new Offset2D { X = 0, Y = 0 }, Extent = vkPipeline.Extent };
-        RenderingAttachmentInfo* pColor = &colorAttachment;
-        RenderingAttachmentInfo* pDepth = hasDepth ? &depthAttachment : null;
-        var renderingInfo = new RenderingInfo
-        {
-            SType = StructureType.RenderingInfo,
-            RenderArea = renderArea,
-            LayerCount = 1,
-            ColorAttachmentCount = 1,
-            PColorAttachments = pColor,
-            PDepthAttachment = pDepth
-        };
-        _dynRenderingExt.CmdBeginRendering(_cmd, &renderingInfo);
+        BeginRendering();
         _vk.CmdBindPipeline(_cmd, PipelineBindPoint.Graphics, vkPipeline.Pipeline);
+        AllocateDescriptorSets(vkPipeline);
     }
 
-    public void SetPipeline(CompiledRenderPipeline pipeline)
+    public void BindTexture(string name, GpuTextureView? textureView, GpuSampler? sampler)
     {
-        if (pipeline is not VulkanRenderPipeline vkPipeline)
-            throw new ArgumentException("pipeline must be a VulkanRenderPipeline", nameof(pipeline));
-        _pipeline = vkPipeline;
-        _vk.CmdBindPipeline(_cmd, PipelineBindPoint.Graphics, vkPipeline.Pipeline);
+        var (set, binding) = Resolve(name);
+        if (textureView == null || sampler == null)
+            throw new ArgumentException($"Binding {name} requires both a texture view and a sampler");
+        _descriptorSets![set].WriteImage(binding, textureView.Texture, sampler);
+        BindSet(set);
     }
 
-    public void SetVertexBuffer(int slot, GpuBuffer buffer, ulong offset = 0)
+    public void SetUniform(string name, GpuBuffer buffer) => SetUniform(name, buffer.Slice());
+
+    public void SetUniform(string name, GpuBufferSlice slice)
     {
-        if (buffer is not VulkanBuffer vkBuffer)
-            throw new ArgumentException("buffer must be a VulkanBuffer", nameof(buffer));
-        var handles = stackalloc Buffer[1];
-        handles[0] = vkBuffer.Handle;
-        var offsets = stackalloc ulong[1];
-        offsets[0] = offset;
-        _vk.CmdBindVertexBuffers(_cmd, (uint)slot, 1, handles, offsets);
+        var (set, binding) = Resolve(name);
+        _descriptorSets![set].WriteBuffer(binding, slice.Buffer, (int)slice.Offset, (int)slice.Length);
+        BindSet(set);
     }
 
-    public void SetIndexBuffer(GpuBuffer buffer, GpuIndexType indexType, ulong offset = 0)
-    {
-        if (buffer is not VulkanBuffer vkBuffer)
-            throw new ArgumentException("buffer must be a VulkanBuffer", nameof(buffer));
-        _vk.CmdBindIndexBuffer(_cmd, vkBuffer.Handle, offset, ToVkIndexType(indexType));
-    }
+    public void PushDebugGroup(Func<string> label) { }
 
-    public void BindDescriptorSet(GpuDescriptorSet set, uint setIndex = 0)
-    {
-        if (set is not VulkanDescriptorSet vkSet)
-            throw new ArgumentException("set must be a VulkanDescriptorSet", nameof(set));
-        var handles = stackalloc DescriptorSet[1];
-        handles[0] = vkSet.Handle;
-        _vk.CmdBindDescriptorSets(_cmd, PipelineBindPoint.Graphics, _pipeline.PipelineLayout, setIndex, 1, handles, 0, null);
-    }
+    public void PopDebugGroup() { }
 
     public void EnableScissor(int x, int y, int width, int height)
     {
         //Clamped to non-negative width/height to avoid undefined driver behavior with a 0x0 extent
-        var rx = Math.Max(0, x);
-        var ry = Math.Max(0, y);
-        var rw = Math.Max(0, width);
-        var rh = Math.Max(0, height);
         var rect = new Rect2D
         {
-            Offset = { X = rx, Y = ry },
-            Extent = { Width = (uint)rw, Height = (uint)rh }
+            Offset = { X = Math.Max(0, x), Y = Math.Max(0, y) },
+            Extent = { Width = (uint)Math.Max(0, width), Height = (uint)Math.Max(0, height) }
         };
         _vk.CmdSetScissor(_cmd, 0, 1, &rect);
     }
 
     public void DisableScissor()
     {
-        //Uses the pipeline extent as the full-screen scissor
-        var rect = new Rect2D { Offset = { X = 0, Y = 0 }, Extent = _pipeline.Extent };
+        var area = _descriptor.RenderArea!;
+        var rect = new Rect2D
+        {
+            Offset = { X = area.X, Y = area.Y },
+            Extent = { Width = (uint)area.Width, Height = (uint)area.Height }
+        };
         _vk.CmdSetScissor(_cmd, 0, 1, &rect);
     }
 
-    public void Draw(int vertexCount, int instanceCount = 1, int firstVertex = 0, int firstInstance = 0)
+    public void SetVertexBuffer(int slot, GpuBufferSlice? vertexBuffer)
+    {
+        if (vertexBuffer == null)
+        {
+            var nullHandles = stackalloc Buffer[1];
+            nullHandles[0] = default;
+            var nullOffsets = stackalloc ulong[1];
+            nullOffsets[0] = 0;
+            _vk.CmdBindVertexBuffers(_cmd, (uint)slot, 1, nullHandles, nullOffsets);
+            return;
+        }
+        if (vertexBuffer.Buffer is not VulkanBuffer vkBuffer)
+            throw new ArgumentException("buffer must be a VulkanBuffer", nameof(vertexBuffer));
+        var handles = stackalloc Buffer[1];
+        handles[0] = vkBuffer.Handle;
+        var offsets = stackalloc ulong[1];
+        offsets[0] = (ulong)vertexBuffer.Offset;
+        _vk.CmdBindVertexBuffers(_cmd, (uint)slot, 1, handles, offsets);
+    }
+
+    public void SetIndexBuffer(GpuBuffer buffer, IndexType indexType)
+    {
+        if (buffer is not VulkanBuffer vkBuffer)
+            throw new ArgumentException("buffer must be a VulkanBuffer", nameof(buffer));
+        _vk.CmdBindIndexBuffer(_cmd, vkBuffer.Handle, 0, ToVkIndexType(indexType));
+    }
+
+    public void Draw(int vertexCount, int instanceCount, int firstVertex, int firstInstance)
         => _vk.CmdDraw(_cmd, (uint)vertexCount, (uint)instanceCount, (uint)firstVertex, (uint)firstInstance);
 
-    public void DrawIndexed(int indexCount, int instanceCount = 1, int firstIndex = 0, int vertexOffset = 0, int firstInstance = 0)
-        => _vk.CmdDrawIndexed(_cmd, (uint)indexCount, (uint)instanceCount, (uint)firstIndex, (int)vertexOffset, (uint)firstInstance);
+    public void DrawIndexed(int indexCount, int instanceCount, int firstIndex, int vertexOffset, int firstInstance)
+        => _vk.CmdDrawIndexed(_cmd, (uint)indexCount, (uint)instanceCount, (uint)firstIndex, vertexOffset, (uint)firstInstance);
 
-    public void Close()
+    public void DrawIndirect(GpuBufferSlice commands, int drawCount)
     {
-        if (_closed) return;
-        _dynRenderingExt.CmdEndRendering(_cmd);
-        _closed = true;
+        if (commands.Buffer is not VulkanBuffer vkBuffer)
+            throw new ArgumentException("commands must be a VulkanBuffer", nameof(commands));
+        _vk.CmdDrawIndirect(_cmd, vkBuffer.Handle, (ulong)commands.Offset, (uint)drawCount, 16);
     }
 
-    public void Dispose()
+    public void DrawIndexedIndirect(GpuBufferSlice commands, int drawCount)
     {
-        if (_disposed) return;
-        if (!_closed) Close();
-        _disposed = true;
+        if (commands.Buffer is not VulkanBuffer vkBuffer)
+            throw new ArgumentException("commands must be a VulkanBuffer", nameof(commands));
+        _vk.CmdDrawIndexedIndirect(_cmd, vkBuffer.Handle, (ulong)commands.Offset, (uint)drawCount, 20);
     }
 
-    private static Silk.NET.Vulkan.IndexType ToVkIndexType(GpuIndexType type) => type switch
+    public void MultiDrawIndexed(ReadOnlySpan<int> drawParameters, int instanceCount, int firstInstance, int drawCount)
+        => throw new NotSupportedException("multiDrawIndexed requires VK_KHR_multi_draw_indirect");
+
+    public void MultiDrawIndexed(ReadOnlySpan<int> firstIndexOffsets, ReadOnlySpan<int> indexCounts, ReadOnlySpan<int> vertexOffsets, int drawCount)
+        => throw new NotSupportedException("multiDrawIndexed requires VK_KHR_multi_draw_indirect");
+
+    public void DrawMultipleIndexed<T>(IReadOnlyCollection<NetCraft.Client.Blaze3d.Systems.RenderPass.DrawCommand<T>> draws, GpuBuffer? defaultIndexBuffer, IndexType? defaultIndexType, IReadOnlyCollection<string> dynamicUniforms, T uniformArgument)
+        => throw new NotSupportedException("drawMultipleIndexed is not implemented in the Vulkan backend");
+
+    public void MultiDraw(ReadOnlySpan<int> drawParameters, int instanceCount, int firstInstance, int drawCount)
+        => throw new NotSupportedException("multiDraw requires VK_KHR_multi_draw_indirect");
+
+    public void MultiDraw(ReadOnlySpan<int> firstVertices, ReadOnlySpan<int> vertexCounts, int drawCount)
+        => throw new NotSupportedException("multiDraw requires VK_KHR_multi_draw_indirect");
+
+    public void WriteTimestamp(GpuQueryPool pool, int index)
+        => throw new NotSupportedException("Timestamp queries are not implemented yet");
+
+    //End closes dynamic rendering; called by VulkanCommandEncoder.SubmitRenderPass
+    internal void End()
     {
-        GpuIndexType.UInt16 => Silk.NET.Vulkan.IndexType.Uint16,
-        GpuIndexType.UInt32 => Silk.NET.Vulkan.IndexType.Uint32,
+        if (_ended) return;
+        if (_begun)
+            _dynRenderingExt.CmdEndRendering(_cmd);
+        _ended = true;
+    }
+
+    private void BeginRendering()
+    {
+        var attachments = _descriptor.ColorAttachments;
+        var colorInfos = new RenderingAttachmentInfo[attachments.Count];
+        for (int i = 0; i < attachments.Count; i++)
+        {
+            var attachment = attachments[i];
+            if (attachment == null)
+            {
+                colorInfos[i] = default;
+                continue;
+            }
+            if (attachment.TextureView.Texture is not VulkanImage colorImage)
+                throw new ArgumentException("color attachment must be a VulkanImage");
+            var info = new RenderingAttachmentInfo
+            {
+                SType = StructureType.RenderingAttachmentInfo,
+                ImageView = colorImage.View,
+                ImageLayout = ImageLayout.ColorAttachmentOptimal,
+                StoreOp = AttachmentStoreOp.Store
+            };
+            if (attachment.ClearValue is { } clearColor)
+            {
+                info.LoadOp = AttachmentLoadOp.Clear;
+                info.ClearValue = new ClearValue
+                {
+                    Color = new ClearColorValue
+                    {
+                        Float32_0 = clearColor.X,
+                        Float32_1 = clearColor.Y,
+                        Float32_2 = clearColor.Z,
+                        Float32_3 = clearColor.W
+                    }
+                };
+            }
+            else
+            {
+                info.LoadOp = AttachmentLoadOp.Load;
+            }
+            colorInfos[i] = info;
+        }
+
+        var hasDepth = _descriptor.DepthAttachment != null;
+        var depthInfo = default(RenderingAttachmentInfo);
+        if (hasDepth)
+        {
+            var depthAttachment = _descriptor.DepthAttachment!;
+            if (depthAttachment.TextureView.Texture is not VulkanImage depthImage)
+                throw new ArgumentException("depth attachment must be a VulkanImage");
+            depthInfo = new RenderingAttachmentInfo
+            {
+                SType = StructureType.RenderingAttachmentInfo,
+                ImageView = depthImage.View,
+                ImageLayout = ImageLayout.DepthStencilAttachmentOptimal,
+                StoreOp = AttachmentStoreOp.Store
+            };
+            if (depthAttachment.ClearValue is { } clearDepth)
+            {
+                depthInfo.LoadOp = AttachmentLoadOp.Clear;
+                depthInfo.ClearValue = new ClearValue
+                {
+                    DepthStencil = new ClearDepthStencilValue { Depth = (float)clearDepth, Stencil = 0 }
+                };
+            }
+            else
+            {
+                depthInfo.LoadOp = AttachmentLoadOp.Load;
+            }
+        }
+
+        var area = _descriptor.RenderArea!;
+        var renderArea = new Rect2D
+        {
+            Offset = { X = area.X, Y = area.Y },
+            Extent = { Width = (uint)area.Width, Height = (uint)area.Height }
+        };
+        fixed (RenderingAttachmentInfo* pColor = colorInfos)
+        {
+            var renderingInfo = new RenderingInfo
+            {
+                SType = StructureType.RenderingInfo,
+                RenderArea = renderArea,
+                LayerCount = 1,
+                ColorAttachmentCount = (uint)colorInfos.Length,
+                PColorAttachments = pColor,
+                PDepthAttachment = hasDepth ? &depthInfo : null
+            };
+            _dynRenderingExt.CmdBeginRendering(_cmd, &renderingInfo);
+        }
+        _begun = true;
+    }
+
+    private void AllocateDescriptorSets(VulkanRenderPipeline pipeline)
+    {
+        var layouts = pipeline.Description.DescriptorLayouts;
+        _descriptorSets = new GpuDescriptorSet[layouts.Count];
+        for (int i = 0; i < layouts.Count; i++)
+            _descriptorSets[i] = _device.AllocateDescriptorSet(layouts[i]);
+    }
+
+    private (int Set, int Binding) Resolve(string name)
+    {
+        if (_pipeline == null)
+            throw new InvalidOperationException("SetPipeline must be called before binding resources");
+        if (!_pipeline.TryGetBinding(name, out var set, out var binding))
+            throw new ArgumentException($"Unknown binding name '{name}'", nameof(name));
+        return ((int)set, (int)binding);
+    }
+
+    private void BindSet(int setIndex)
+    {
+        var handles = stackalloc DescriptorSet[1];
+        handles[0] = ((VulkanDescriptorSet)_descriptorSets![setIndex]).Handle;
+        _vk.CmdBindDescriptorSets(_cmd, PipelineBindPoint.Graphics, _pipeline!.PipelineLayout, (uint)setIndex, 1, handles, 0, null);
+    }
+
+    private static Silk.NET.Vulkan.IndexType ToVkIndexType(IndexType type) => type switch
+    {
+        IndexType.Short => Silk.NET.Vulkan.IndexType.Uint16,
+        IndexType.Int => Silk.NET.Vulkan.IndexType.Uint32,
         _ => throw new ArgumentOutOfRangeException(nameof(type))
     };
 }

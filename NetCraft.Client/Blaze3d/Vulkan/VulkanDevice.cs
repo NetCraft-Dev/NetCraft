@@ -161,6 +161,25 @@ public sealed unsafe class VulkanDevice : GpuDeviceBackend
     internal GpuDescriptorLayout CreateDescriptorLayout(GpuDescriptorLayoutDescription description)
         => new VulkanDescriptorLayout(_vk, _device, description);
 
+    //AllocateDescriptorSet allocates a VkDescriptorSet from the internal pool, used by render passes for name-based binding
+    internal GpuDescriptorSet AllocateDescriptorSet(GpuDescriptorLayout layout)
+    {
+        var vkLayout = (VulkanDescriptorLayout)layout;
+        var layouts = stackalloc DescriptorSetLayout[1];
+        layouts[0] = vkLayout.Handle;
+        var allocInfo = new DescriptorSetAllocateInfo
+        {
+            SType = StructureType.DescriptorSetAllocateInfo,
+            DescriptorPool = _descriptorPool,
+            DescriptorSetCount = 1,
+            PSetLayouts = layouts
+        };
+        DescriptorSet set;
+        if (_vk.AllocateDescriptorSets(_device, &allocInfo, &set) != Result.Success)
+            throw new InvalidOperationException("DescriptorSet allocation failed");
+        return new VulkanDescriptorSet(_vk, _device, vkLayout, set);
+    }
+
     public GpuQueryPool CreateTimestampQueryPool(int size)
         => throw new NotSupportedException("Timestamp queries are not implemented yet");
 

@@ -103,6 +103,8 @@ public sealed class RenderPipelineDescription
     //DescriptorLayoutDescriptions descriptor set layout description list, used after converting a declarative RenderPipeline to a description for the device to compile
     //When non-empty, the PrecompilePipeline implementation compiles them into GpuDescriptorLayouts and fills in DescriptorLayouts
     public List<GpuDescriptorLayoutDescription> DescriptorLayoutDescriptions { get; set; } = new();
+    //DescriptorBindingNames binding names per descriptor set, parallel to DescriptorLayouts; RenderPass binds resources by these names
+    public List<List<string>> DescriptorBindingNames { get; set; } = new();
     //Topology primitive topology
     public GpuPrimitiveTopology Topology { get; set; } = GpuPrimitiveTopology.TriangleList;
     //DepthTestEnabled depth test
@@ -141,21 +143,29 @@ public sealed class RenderPipelineDescription
         foreach (var b in declaration.BindGroupLayouts)
         {
             var layoutDesc = new GpuDescriptorLayoutDescription();
+            var names = new List<string>();
             foreach (var s in b.Samplers)
+            {
                 layoutDesc.Bindings.Add(new GpuDescriptorBinding
                 {
                     Binding = layoutDesc.Bindings.Count,
                     DescriptorType = GpuDescriptorType.CombinedImageSampler,
                     StageFlags = GpuShaderStageFlags.AllGraphics
                 });
+                names.Add(s);
+            }
             foreach (var u in b.Uniforms)
+            {
                 layoutDesc.Bindings.Add(new GpuDescriptorBinding
                 {
                     Binding = layoutDesc.Bindings.Count,
                     DescriptorType = GpuDescriptorType.UniformBuffer,
                     StageFlags = GpuShaderStageFlags.AllGraphics
                 });
+                names.Add(u.Name);
+            }
             desc.DescriptorLayoutDescriptions.Add(layoutDesc);
+            desc.DescriptorBindingNames.Add(names);
         }
 
         for (int i = 0; i < declaration.VertexFormatPerBuffer.Count; i++)
