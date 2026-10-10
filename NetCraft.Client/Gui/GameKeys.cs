@@ -1,4 +1,4 @@
-namespace NetCraft.Game.Gui;
+namespace NetCraft.Client.Gui;
 
 //GameKeys business key code constants, matching Silk.NET.Input.Key values
 //Avoids the Game layer depending on the Silk.NET.Input namespace

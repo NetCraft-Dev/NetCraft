@@ -1,9 +1,9 @@
-using NetCraft.Game.Client.Level;
-using NetCraft.Game.Client.Render.Culling;
+using NetCraft.Client.Level;
+using NetCraft.Client.Render.Culling;
 using NetCraft.Primitives;
 using NetCraft.Storage.Chunk;
 
-namespace NetCraft.Game.Client.Render.World;
+namespace NetCraft.Client.Render.World;
 
 //ViewArea manages the list of sections inside the frustum, maps to vanilla ViewArea
 //Update walks loaded chunks, tests the frustum, diffs out newly visible sections, and calls onNewSection to trigger compilation

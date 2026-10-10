@@ -227,9 +227,11 @@ public static class AttributeCommand
     private static AttributeDef? Resolve(CommandContext<CommandSourceStack> context)
         => BuiltInRegistries.ATTRIBUTE.GetValue(ResourceArgument.GetResource(context, "attribute"));
 
-    //MapOf gets the target entity's attribute map; players and level entities each hold one
+    //MapOf gets the target entity's attribute map; players and living entities each hold one, others fall back to an empty map
     private static AttributeMap MapOf(CommandTarget target)
-        => target.Player?.Attributes ?? target.WorldEntity!.Attributes;
+        => target.Player?.Attributes
+            ?? (target.WorldEntity as NetCraft.Game.World.Entity.LivingEntity)?.Attributes
+            ?? new AttributeMap(NetCraft.Registry.EntityAttribute.AttributeSupplier.Empty);
 
     //TryInstance gets the attribute instance; returns false when the entity lacks this attribute
     private static bool TryInstance(CommandTarget target, AttributeDef attribute, out AttributeInstance instance)

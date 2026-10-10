@@ -1,7 +1,7 @@
 using NetCraft.Commands;
 using NetCraft.Commands.Tree;
-using NetCraft.Game.Client.Inventory;
-using NetCraft.Game.Client.Level;
+using NetCraft.Client.Player.Inventory;
+using NetCraft.Client.Level;
 using NetCraft.Network.Protocol.Common;
 using NetCraft.Network.Protocol.Cookie;
 using NetCraft.Network.Protocol.Ping;
@@ -17,7 +17,7 @@ using NetCraft.Storage;
 using NetCraft.Storage.Chunk;
 using NetCraft.Util;
 
-namespace NetCraft.Game.Network.Protocol.Game;
+namespace NetCraft.Client.Network.Protocol.Game;
 
 //ClientGamePacketListenerImpl client play listener implementation
 //Maps to vanilla ClientPacketListener; this round implements the minimal subset for entering the world
@@ -29,12 +29,12 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
 {
     private readonly Connection _connection;
     private readonly ClientLevel? _level;
-    private readonly Player _player;
+    private readonly World.Entity.Player _player;
     //OnJoinWorld fired once on the Login packet; MinecraftClient switches to GameScreen
     private readonly System.Action? _onJoinWorld;
     private bool _joinNotified;
 
-    public ClientGamePacketListenerImpl(Connection connection, ClientLevel? level, Player player, System.Action? onJoinWorld = null)
+    public ClientGamePacketListenerImpl(Connection connection, ClientLevel? level, World.Entity.Player player, System.Action? onJoinWorld = null)
     {
         _connection = connection;
         _level = level;
@@ -161,7 +161,7 @@ public sealed class ClientGamePacketListenerImpl : ClientGamePacketListener
     //HandleSetHealth updates health and hunger
     public void HandleSetHealth(ClientboundSetHealthPacket packet)
     {
-        _player.Health = packet.Health;
+        _player.SetHealth(packet.Health);
         _player.FoodLevel = packet.Food;
     }
 

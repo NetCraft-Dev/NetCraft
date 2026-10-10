@@ -241,6 +241,7 @@ public sealed class PersistentServerLevel : SimpleServerLevel, BlockGetter
     public override void UpdateLight(BlockPos pos) => _chunkSource.UpdateLight(pos);
 
     //GetLightValue reads the given light layer's value at the position, maps to vanilla Level.getBrightness
+    //Reads the published snapshot, so it takes no lock and never waits on a chunk generation thread
     public override int GetLightValue(NetCraft.Registry.LightLayer layer, BlockPos pos)
         => _chunkSource.LightEngine.GetLayerListener(layer).GetLightValue(pos);
 

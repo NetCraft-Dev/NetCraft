@@ -545,7 +545,7 @@ public sealed class ServerGamePacketListenerImpl : ServerGamePacketListener, Tic
                 entity.Pos.X, entity.Pos.Y, entity.Pos.Z, 1f, 1f);
         }
         PlayAttackSound(attacker, hurt);
-        Log.Debug($"Attack entity target={entity.Id} damage={damage} hit={hurt} health={entity.Health} profile={_profile.Name}");
+        Log.Debug($"Attack entity target={entity.Id} damage={damage} hit={hurt} health={(entity is NetCraft.Game.World.Entity.LivingEntity living ? living.Health : 0f)} profile={_profile.Name}");
     }
 
     //PlayAttackSound swing sound: strong hit on hit, weak on miss, maps to the playback branch at the end of vanilla Player.attack

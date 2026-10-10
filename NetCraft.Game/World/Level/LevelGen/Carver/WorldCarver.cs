@@ -120,12 +120,15 @@ public abstract class WorldCarver : NetCraft.Registry.WorldCarver
         return true;
     }
 
+    //Reusable context for the aquifer query below; one carve visits many cells and the aquifer never retains it
+    [ThreadStatic] private static SinglePointContext? _carveProbe;
+
     //GetCarveState what goes into this cell; lava below the lava level, otherwise ask the aquifer. maps to vanilla getCarveState
     private BlockState? GetCarveState(CarvingContext context, CarverConfiguration config, int x, int y, int z,
         Aquifer aquifer)
     {
         if (y <= config.LavaLevel.ResolveY(context)) return Blocks.LavaFluidState.CreateLegacyBlock();
-        var state = aquifer.ComputeSubstance(SinglePointContext.At(x, y, z), 0.0);
+        var state = aquifer.ComputeSubstance((_carveProbe ??= new SinglePointContext(0, 0, 0)).Set(x, y, z), 0.0);
         if (state is not null) return IsDebugEnabled(config) ? GetDebugState(config, state.Value) : state;
         return IsDebugEnabled(config) ? config.DebugSettings.BarrierState : null;
     }

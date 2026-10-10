@@ -1,4 +1,5 @@
 using NetCraft.Codec;
+using NetCraft.Game.World.Entity;
 using NetCraft.Primitives;
 using NetCraft.Registry;
 
@@ -50,9 +51,10 @@ public sealed record EntityFlagsPredicate(
         if (IsSprinting.IsPresent && entity.IsSprinting != IsSprinting.Get()) return false;
         if (IsSwimming.IsPresent && entity.IsSwimming != IsSwimming.Get()) return false;
         if (IsFlying.IsPresent && entity.IsFlying != IsFlying.Get()) return false;
-        if (IsBaby.IsPresent && entity.IsBaby != IsBaby.Get()) return false;
+        //IsBaby/IsFallFlying only exist on living entities; a non-living entity counts as false, mapping to the vanilla instanceof LivingEntity check
+        if (IsBaby.IsPresent && (entity is LivingEntity baby && baby.IsBaby) != IsBaby.Get()) return false;
         if (IsInWater.IsPresent && entity.IsInWater != IsInWater.Get()) return false;
-        if (IsFallFlying.IsPresent && entity.IsFallFlying != IsFallFlying.Get()) return false;
+        if (IsFallFlying.IsPresent && (entity is LivingEntity glider && glider.IsFallFlying) != IsFallFlying.Get()) return false;
         return true;
     }
 

@@ -19,16 +19,17 @@ internal static class LogArchive
     private const int Level = 3;
 
     //Archive packs every .log currently in the directory and deletes the originals
+    //Returns how many files were packed; zero means there was nothing to pack or packing failed
     //A missing compression library or a full disk is treated as "not archived"
-    //archiving must never block the log sink itself
-    public static void Archive(string directory)
+    //archiving must never block the log sink itself, but the reason for a failure has to be visible
+    public static int Archive(string directory)
     {
         if (!Directory.Exists(directory))
-            return;
+            return 0;
 
         var logs = Directory.GetFiles(directory, "*.log");
         if (logs.Length == 0)
-            return;
+            return 0;
 
         var archive = Path.Combine(directory, $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}{Extension}");
         //Packs into a staging file first so a half-written archive can never pass for a complete one
@@ -38,14 +39,18 @@ internal static class LogArchive
             Pack(logs, staging);
             File.Move(staging, archive, overwrite: true);
         }
-        catch
+        catch (Exception e)
         {
+            //Swallowing this would look exactly like "there was nothing to archive", which is what made the failure
+            //invisible before
+            Console.Error.WriteLine($"[log] archiving {logs.Length} log file(s) failed: {e.Message}");
             TryDelete(staging);
-            return;
+            return 0;
         }
 
         foreach (var log in logs)
             TryDelete(log);
+        return logs.Length;
     }
 
     //Pack writes a batch of logs into one zstd-compressed tar

@@ -253,17 +253,6 @@ pub extern "C" fn ncn_stack_guard_ready() -> i32 {
     }
 }
 
-/// ncn_stack_guard answers whether the caller should raise the stack exception
-/// The decision is made on the native side, where the thread's stack limits are readable
-#[no_mangle]
-pub extern "C" fn ncn_stack_guard() -> bool {
-    unsafe { ncn_stack_guard_impl() != 0 }
-}
-
-extern "C" {
-    fn ncn_stack_guard_impl() -> i32;
-}
-
 /// is_framework reports whether a simple name belongs to a framework assembly
 fn is_framework(name: &str) -> bool {
     FRAMEWORK_PREFIXES

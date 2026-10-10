@@ -10,25 +10,16 @@ namespace NetCraft.Game.World.Entity;
 //Mob mob entity, maps to vanilla net.minecraft.world.entity.Mob
 //Extends Entity and holds an entity type reference and AI flags
 //Concrete mob classes (zombie/pig etc.) are added as needed once AI/pathfinding lands; for now the type factory builds Mob directly
-public class Mob : NetCraft.Registry.Entity, IEquipmentHolder, IEffectHolder
+public class Mob : LivingEntity
 {
     private readonly EntityType<object> _type;
-
-    //Equipment mob equipment slots, used by entity predicates and later equipment sync
-    public EntityEquipment Equipment { get; } = new();
-
-    //Effects active potion effects, used by entity predicates and later effect sync
-    public EntityEffects Effects { get; } = new();
-
-    //GetItemBySlot returns the item in the given slot, maps to vanilla LivingEntity.getItemBySlot
-    public ItemStack GetItemBySlot(EquipmentSlot slot) => Equipment.Get(slot);
 
     //Mob constructor, the entity type is passed at registry registration and determines the registry name and network index
     //The attribute map is looked up by type from DefaultAttributes, all species differences live there, an unregistered type falls back to an empty map
     public Mob(EntityType<object> type)
     {
         _type = type;
-        Attributes = new AttributeMap(DefaultAttributes.GetSupplier(type) ?? AttributeSupplier.Empty);
+        SetAttributes(new AttributeMap(DefaultAttributes.GetSupplier(type) ?? AttributeSupplier.Empty));
     }
 
     //A living entity's gravity/knockback resistance/safe fall distance/fall damage multiplier/step height all go through attributes
@@ -62,12 +53,14 @@ public class Mob : NetCraft.Registry.Entity, IEquipmentHolder, IEffectHolder
 
     protected override void AddAdditionalSaveData(CompoundTag tag)
     {
+        base.AddAdditionalSaveData(tag);
         tag.PutBoolean("NoAI", NoAi);
         tag.PutBoolean("PersistenceRequired", PersistenceRequired);
     }
 
     protected override void ReadAdditionalSaveData(CompoundTag tag)
     {
+        base.ReadAdditionalSaveData(tag);
         NoAi = tag.GetBooleanOr("NoAI", false);
         PersistenceRequired = tag.GetBooleanOr("PersistenceRequired", false);
     }

@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace NetCraft.Game.Client.Render;
+namespace NetCraft.Client.Render;
 
 //Camera world render camera, maps to vanilla net.minecraft.client.Camera
 //Holds Position/XRot/YRot and produces the view matrix + projection matrix (with Vulkan Y/Z correction)

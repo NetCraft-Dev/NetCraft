@@ -121,13 +121,15 @@ public sealed class NoiseFlatCache : DensityFunction, INoiseChunkDensity
         _sizeXZ = chunk.NoiseSizeXZ + 1;
         _values = new double[_sizeXZ * _sizeXZ];
         if (!fill) return;
+        //One instance for the whole grid; each value is read straight back into the array
+        var context = SinglePointContext.At(0, 0, 0);
         for (var x = 0; x <= chunk.NoiseSizeXZ; x++)
         {
             var blockX = (chunk.FirstNoiseX + x) << 2;
             for (var z = 0; z <= chunk.NoiseSizeXZ; z++)
             {
                 var blockZ = (chunk.FirstNoiseZ + z) << 2;
-                _values[x + z * _sizeXZ] = noiseFiller.Compute(SinglePointContext.At(blockX, 0, blockZ));
+                _values[x + z * _sizeXZ] = noiseFiller.Compute(context.Set(blockX, 0, blockZ));
             }
         }
     }

@@ -60,34 +60,17 @@ public static class Climate
 
     //ParameterPoint multi-dimensional parameter point, maps to vanilla Climate.ParameterPoint
     //Holds six Climate.Parameters plus offset, used by MultiNoiseBiomeSource distance lookups
-    public sealed class ParameterPoint
+    //A value type on purpose: GetBiome builds one per lookup and a chunk performs thousands, so a heap object per call
+    //was a visible entry in the allocation table
+    public readonly record struct ParameterPoint(
+        Parameter Temperature,
+        Parameter Humidity,
+        Parameter Continentalness,
+        Parameter Erosion,
+        Parameter Depth,
+        Parameter Weirdness,
+        long Offset)
     {
-        public Parameter Temperature { get; }
-        public Parameter Humidity { get; }
-        public Parameter Continentalness { get; }
-        public Parameter Erosion { get; }
-        public Parameter Depth { get; }
-        public Parameter Weirdness { get; }
-        public long Offset { get; }
-
-        public ParameterPoint(
-            Parameter temperature,
-            Parameter humidity,
-            Parameter continentalness,
-            Parameter erosion,
-            Parameter depth,
-            Parameter weirdness,
-            long offset)
-        {
-            Temperature = temperature;
-            Humidity = humidity;
-            Continentalness = continentalness;
-            Erosion = erosion;
-            Depth = depth;
-            Weirdness = weirdness;
-            Offset = offset;
-        }
-
         //Fitness fitness of the parameter point against the target climate, maps to vanilla Climate.ParameterPoint.fitness
         //Sum of squared range distances over 6 dimensions; the offset term is squared against itself, matching vanilla; lower is a better fit
         public long Fitness(TargetPoint target)

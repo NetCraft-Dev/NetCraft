@@ -69,11 +69,22 @@ public static class JigsawBlock
         _ => GameDirection.West,
     };
 
+    //ByFrontTop the orientation lookup, built once, maps to the static map behind vanilla FrontAndTop.fromFrontAndTop
+    //The old form enumerated Enum.GetValues<FrontAndTop> on every call, allocating a fresh twelve element array each
+    //time, and this runs once per block of every structure that gets rotated
+    private static readonly Dictionary<(GameDirection Front, GameDirection Top), FrontAndTop> ByFrontTop = BuildByFrontTop();
+
+    private static Dictionary<(GameDirection Front, GameDirection Top), FrontAndTop> BuildByFrontTop()
+    {
+        var map = new Dictionary<(GameDirection Front, GameDirection Top), FrontAndTop>();
+        foreach (var candidate in Enum.GetValues<FrontAndTop>())
+            map[(FrontOf(candidate), TopOf(candidate))] = candidate;
+        return map;
+    }
+
     //FromFrontAndTop looks up the orientation pair from front and top, maps to vanilla FrontAndTop.fromFrontAndTop
     public static FrontAndTop FromFrontAndTop(GameDirection front, GameDirection top)
-    {
-        foreach (var candidate in Enum.GetValues<FrontAndTop>())
-            if (FrontOf(candidate) == front && TopOf(candidate) == top) return candidate;
-        throw new ArgumentException($"no orientation pair with front {front} and top {top}");
-    }
+        => ByFrontTop.TryGetValue((front, top), out var orientation)
+            ? orientation
+            : throw new ArgumentException($"no orientation pair with front {front} and top {top}");
 }

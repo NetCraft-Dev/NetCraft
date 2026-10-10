@@ -142,7 +142,11 @@ public class MappedRegistry<T> : WritableRegistry<T>, HolderOwner<T> where T : c
         => TryGetByLocation(key, out var holder) ? holder!.Value : null;
 
     public Holder<T> WrapAsHolder(T value)
-        => TryGetByValue(value, out var holder) ? holder! : Holder<T>.Direct(value);
+    {
+        if (TryGetByValue(value, out var holder)) return holder!;
+        NetCraft.Util.SiteCounters.CountMappedRegistryMiss();
+        return Holder<T>.Direct(value);
+    }
 
     public RegistrationInfo? GetRegistrationInfo(ResourceKey<T> element)
         => _registrationInfos.TryGetValue(element, out var info) ? info : null;
@@ -184,15 +188,12 @@ public class MappedRegistry<T> : WritableRegistry<T>, HolderOwner<T> where T : c
             .ToList();
         if (unbound.Count > 0)
             throw new InvalidOperationException($"Unbound values in registry {Key}: [{string.Join(", ", unbound)}]");
-        if (OptimizationFlags.RegistryFrozenDictionary)
-        {
-            //Log.Debug($"Step 1 build FrozenDictionary indexes");
-            _byLocationFrozen = _byLocation.ToFrozenDictionary();
-            _byKeyFrozen = _byKey.ToFrozenDictionary();
-            _toIdFrozen = _toId.ToFrozenDictionary();
-            _byValueFrozen = _byValue.ToFrozenDictionary();
-            _allTagsFrozen = _allTags.ToFrozenDictionary();
-        }
+        //Log.Debug($"Step 1 build FrozenDictionary indexes");
+        _byLocationFrozen = _byLocation.ToFrozenDictionary();
+        _byKeyFrozen = _byKey.ToFrozenDictionary();
+        _toIdFrozen = _toId.ToFrozenDictionary();
+        _byValueFrozen = _byValue.ToFrozenDictionary();
+        _allTagsFrozen = _allTags.ToFrozenDictionary();
         //TODO component: build componentLookup
         Log.Debug($"Freeze exit result={this}");
         return this;
@@ -285,11 +286,8 @@ public class MappedRegistry<T> : WritableRegistry<T>, HolderOwner<T> where T : c
             reference.BindTags(tags);
 
         //_allTags changes after BindTags, so the Frozen index is rebuilt
-        if (OptimizationFlags.RegistryFrozenDictionary)
-        {
-            //Log.Debug($"Step 1 rebuild _allTagsFrozen index");
-            _allTagsFrozen = _allTags.ToFrozenDictionary();
-        }
+        //Log.Debug($"Step 1 rebuild _allTagsFrozen index");
+        _allTagsFrozen = _allTags.ToFrozenDictionary();
         //Log.Debug($"BindTags exit");
     }
 

@@ -1,12 +1,14 @@
 using System.Net.Sockets;
-using NetCraft.Game.Client.Level;
+using NetCraft.Client.Level;
+using NetCraft.Game;
+using NetCraft.Game.Network;
 using NetCraft.Network.Protocol.Configuration;
 using NetCraft.Game.Network.Protocol.Game;
 using NetCraft.Network.Protocol.Login;
 using NetCraft.Logging;
 using NetCraft.Network;
 
-namespace NetCraft.Game.Network;
+namespace NetCraft.Client.Network;
 
 //ClientConnector client TCP connector, maps to vanilla Connection.connectToServer
 //A background thread establishes the TcpClient; on success it builds a Connection with PacketFlow.Clientbound and starts the read loop

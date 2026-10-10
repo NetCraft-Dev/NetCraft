@@ -3,7 +3,7 @@ using NetCraft.Game.World.Items;
 namespace NetCraft.Game.World.Entity;
 
 //IEquipmentHolder entity holding equipment slots, maps to the capability of vanilla LivingEntity.getItemBySlot
-//There is no LivingEntity here, Mob and Player implement it separately
+//Implemented by LivingEntity; Mob and Player inherit it
 public interface IEquipmentHolder
 {
     //GetItemBySlot returns the item in the given slot, empty slots give an empty stack

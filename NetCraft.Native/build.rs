@@ -4,6 +4,8 @@ fn main() {
     println!("cargo:rerun-if-changed=shell/com_base.cpp");
     println!("cargo:rerun-if-changed=shell/com_base.h");
     println!("cargo:rerun-if-changed=shell/entry.cpp");
+    //Included by entry.cpp, and cargo does not track headers pulled in that way on its own
+    println!("cargo:rerun-if-changed=third_party/coreclr/opcode.def");
 
     let windows = std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows");
 

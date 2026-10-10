@@ -127,12 +127,12 @@ public static class BlockStateRegistry
         return list[0];
     }
 
-    public static IEnumerable<PropertyValue> GetValues(int id)
-    {
-        var data = _all[id];
-        for (var i = 0; i < data.PropertyKeys.Length; i++)
-            yield return new PropertyValue(data.PropertyKeys[i], data.PropertyValues[i]!);
-    }
+    //GetValues hands out the bindings built at registration; the previous form was a yield iterator that allocated a
+    //fresh iterator plus a fresh PropertyValue per property on every call, and structure placement walks it once per
+    //block it rotates or mirrors
+    //Declared as the array rather than IEnumerable so a foreach compiles to an index loop; typed as IEnumerable the
+    //compiler allocates an SZGenericArrayEnumerator for every walk instead
+    public static PropertyValue[] GetValues(int id) => _all[id].Values;
 
     public static string ToString(int id)
     {
@@ -160,6 +160,9 @@ public static class BlockStateRegistry
         public Block Owner { get; }
         public PropertyBase[] PropertyKeys { get; }
         public object?[] PropertyValues { get; }
+        //Values the property bindings, built once so GetValues can hand out one immutable array per state
+        //PropertyValue is a record holding only Property and Value, so sharing the same instances is safe
+        public PropertyValue[] Values { get; }
         public int[][]? Neighbors { get; set; }
 
         public BlockStateData(Block owner, PropertyBase[] keys, object?[] values)
@@ -167,6 +170,9 @@ public static class BlockStateRegistry
             Owner = owner;
             PropertyKeys = keys;
             PropertyValues = values;
+            Values = new PropertyValue[keys.Length];
+            for (var i = 0; i < keys.Length; i++)
+                Values[i] = new PropertyValue(keys[i], values[i]!);
         }
     }
 }

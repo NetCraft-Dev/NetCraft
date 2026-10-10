@@ -86,7 +86,22 @@ public class SinglePoolElement : StructurePoolElement
         var jigsaws = template.GetJigsaws(position, rotation);
         RandomCollections.Shuffle(jigsaws, random);
         //Vanilla List.sort is stable; a stable chained ordering matches it here, putting higher selection priority first
-        return jigsaws.OrderByDescending(jigsaw => jigsaw.SelectionPriority).ToList();
+        //Sorted in place by insertion sort instead of OrderByDescending plus ToList, which built an ordered iterator, a
+        //comparison delegate and a second list on every call, and this runs once per placement attempt
+        //Insertion sort is stable just like the vanilla sort, so entries with equal priority keep the shuffled order they
+        //came out in and the result is bit for bit the same; a jigsaw list is only a handful of entries anyway
+        for (var i = 1; i < jigsaws.Count; i++)
+        {
+            var pending = jigsaws[i];
+            var j = i - 1;
+            while (j >= 0 && jigsaws[j].SelectionPriority < pending.SelectionPriority)
+            {
+                jigsaws[j + 1] = jigsaws[j];
+                j--;
+            }
+            jigsaws[j + 1] = pending;
+        }
+        return jigsaws;
     }
 
     public override BoundingBoxInt GetBoundingBox(StructureTemplateManager manager, BlockPos position, Rotation rotation)

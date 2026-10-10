@@ -56,7 +56,18 @@ public sealed class ChunkStatusProcessor
 
     //ProcessChunk runs the matching generation stage for a ChunkStatus
     //Returns true when the status was handled and false when there is no handler
+    //Temporary instrumentation: it reads the allocated byte counter around the stage so a type on the allocation
+    //profile can be attributed to a stage. The profile says what grows, never where, and allocation ticks carry no stack
     public bool ProcessChunk(ChunkAccess chunk, ChunkStatus status)
+    {
+        var before = GC.GetTotalAllocatedBytes();
+        var handled = RunStatus(chunk, status);
+        NetCraft.Util.SiteCounters.Stage(status.Name, GC.GetTotalAllocatedBytes() - before);
+        return handled;
+    }
+
+    //RunStatus the stage dispatch itself
+    private bool RunStatus(ChunkAccess chunk, ChunkStatus status)
     {
         var structures = StructureManager.Default;
         if (status == ChunkStatus.STRUCTURE_START)
@@ -91,6 +102,7 @@ public sealed class ChunkStatusProcessor
                             var wy = sectionY * 16 + qY * 4;
                             var wz = posZ * 16 + qZ * 4;
                             var biome = biomeSource.GetBiome(wx, wy, wz);
+                            NetCraft.Util.SiteCounters.CountBiomeChunkStatus();
                             chunk.SetBiome(wx, wy, wz, Holder<Biome>.Direct(biome));
                         }
                     }

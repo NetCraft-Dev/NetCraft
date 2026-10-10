@@ -36,7 +36,11 @@ public interface Holder<T> where T : class
     string RegisteredName => UnwrapKey()?.Identifier.ToString() ?? "[unregistered]";
 
     //Directly wrap a value
-    static Holder<T> Direct(T value) => new Direct<T>(value, DataComponentMap.Empty);
+    static Holder<T> Direct(T value)
+    {
+        NetCraft.Util.SiteCounters.CountHolderDirect(typeof(T).Name);
+        return new Direct<T>(value, DataComponentMap.Empty);
+    }
 
     //Directly wrap a value with components
     static Holder<T> Direct(T value, DataComponentMap components) => new Direct<T>(value, components);

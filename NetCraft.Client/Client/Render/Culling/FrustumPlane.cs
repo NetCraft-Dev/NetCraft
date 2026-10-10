@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace NetCraft.Game.Client.Render.Culling;
+namespace NetCraft.Client.Render.Culling;
 
 //FrustumPlane a single frustum-culling plane, maps to vanilla com.mojang.math.FrustumPlane
 //Normal n, D distance from origin to plane; the plane equation Normal·P + D >= 0 means the point is on the inner (visible) side

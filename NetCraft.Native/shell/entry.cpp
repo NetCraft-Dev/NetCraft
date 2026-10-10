@@ -98,36 +98,9 @@ static bool SetJitNotifications()
 
 //---- early stack check injection ----
 
-//How much stack has to be left over for the throw, the unwind and whatever handles it to run
-static const uintptr_t StackGuardReserveBytes = 128 * 1024;
-
-//Once a thread has been told its stack is short it stays quiet until the stack has grown back
-//Without this the check fires on every frame the unwind and the handler pass through, and the report never gets made
-static thread_local bool g_stack_guard_quiet = false;
-
-//NcnStackGuard answers whether the caller should raise the stack exception
-//The remaining space is measured from the address of this frame down to the bottom of the thread's stack
-extern "C" int32_t ncn_stack_guard_impl()
-{
-    ULONG_PTR low = 0;
-    ULONG_PTR high = 0;
-    GetCurrentThreadStackLimits(&low, &high);
-    if (low == 0)
-        return 0;
-
-    const uintptr_t here = reinterpret_cast<uintptr_t>(_AddressOfReturnAddress());
-    const uintptr_t remaining = here > low ? here - low : 0;
-
-    //Well clear of the reserve, so the guard is armed again for the next descent
-    if (remaining > StackGuardReserveBytes * 4)
-        g_stack_guard_quiet = false;
-
-    if (remaining > StackGuardReserveBytes || g_stack_guard_quiet)
-        return 0;
-
-    g_stack_guard_quiet = true;
-    return 1;
-}
+//The check itself lives on the managed side: reading the thread's stack limit and the quiet period around a trip both
+//belong next to the entry the injected call points at, and a call that never leaves managed code costs a fraction of
+//the transition into this layer did. What is left here is deciding which bodies are worth the check at all
 
 //Method headers belong to the file format rather than the metadata, so their layout is spelled out here
 //ECMA-335 II.25.4.2: the low bits of the first byte pick between the two layouts and the tiny one carries the size
@@ -159,9 +132,9 @@ static const unsigned int IlCallSize = 5;
 //The check takes no arguments and returns nothing, so it leaves the stack balanced and MaxStack stays as it was
 //A method signature is the calling convention, then the parameter count, then the return type
 //
-//The call points at the kernel rather than at the framework helper. The framework check fires on every call, so once
-//the stack is short it keeps firing while the exception is unwound and handled, and the process ends up dying while
-//it is trying to report the problem. The kernel entry goes quiet instead until the stack has grown back
+//The call points at the kernel entry rather than straight at the framework probe. The probe on its own fires on every
+//call, so once the stack is short it keeps firing while the exception is unwound and handled, and the process ends up
+//dying on its way to reporting the problem; the kernel entry wraps it with a quiet period instead
 static const unsigned char StackCheckSignature[] = {0x00, 0x00, 0x01};
 static const wchar_t StackCheckTypeName[] = L"NetCraft.Util.NativeStackGuard";
 static const wchar_t StackCheckMethodName[] = L"EnsureStack";
@@ -352,6 +325,210 @@ static bool IsRewritableModule(AssemblyID assemblyId)
     return accepted;
 }
 
+//---- runaway body scan ----
+
+//Operand widths and branch flags, taken from CoreCLR's own opcode table
+//
+//Stepping over IL means advancing by each instruction's exact width: read an operand as an opcode and the rest of the
+//walk is nonsense. The tokens below stand in for the ones that table uses so it expands into the tables underneath
+//instead of being transcribed by hand, and a token it uses that is missing here fails the build rather than passing
+//silently. The internal entries are left out, they carry no encoding
+#define OPDEF_REAL_OPCODES_ONLY
+#define InlineNone 0
+#define InlineI 4
+#define InlineI8 8
+#define InlineR 8
+#define ShortInlineR 4
+#define InlineBrTarget 4
+#define ShortInlineBrTarget 1
+#define InlineVar 2
+#define ShortInlineVar 1
+#define ShortInlineI 1
+#define InlineType 4
+#define InlineMethod 4
+#define InlineField 4
+#define InlineString 4
+#define InlineSig 4
+#define InlineTok 4
+//switch is the one operand whose width is not fixed; the walk reads it apart itself
+#define InlineSwitch 0
+
+//The two kinds worth noticing are folded into one value as bits: an instruction that branches back can drive a loop,
+//and one that calls can push the frame that begins the next descent. The rest say how an instruction leaves, which this
+//walk does not trace
+#define NEXT 0
+#define BREAK 0
+#define RETURN 0
+#define THROW 0
+#define META 0
+#define BRANCH 1
+#define COND_BRANCH 1
+#define CALL 2
+
+//The bits of that value, named here because the tokens above only exist while the table is being expanded
+static const unsigned char IlFlowBranch = 1;
+static const unsigned char IlFlowCall = 2;
+
+struct IlOpcodeInfo
+{
+    unsigned char OperandBytes;
+    unsigned char Flow;
+};
+
+//One row per entry of the vendored table, before it is spread over the two lookups
+struct IlOpcodeRow
+{
+    unsigned char EncodingBytes;
+    unsigned char SecondByte;
+    unsigned char OperandBytes;
+    unsigned char Flow;
+};
+
+static const IlOpcodeRow IlOpcodeRows[] =
+{
+#define OPDEF(canonical, display, pop, push, operand, kind, encoding, first, second, flow) \
+    { encoding, second, operand, flow },
+#define OPALIAS(canonical, display, real)
+#include "opcode.def"
+#undef OPALIAS
+#undef OPDEF
+};
+
+#undef OPDEF_REAL_OPCODES_ONLY
+#undef InlineNone
+#undef InlineI
+#undef InlineI8
+#undef InlineR
+#undef ShortInlineR
+#undef InlineBrTarget
+#undef ShortInlineBrTarget
+#undef InlineVar
+#undef ShortInlineVar
+#undef ShortInlineI
+#undef InlineType
+#undef InlineMethod
+#undef InlineField
+#undef InlineString
+#undef InlineSig
+#undef InlineTok
+#undef InlineSwitch
+#undef NEXT
+#undef BREAK
+#undef CALL
+#undef RETURN
+#undef THROW
+#undef META
+#undef BRANCH
+#undef COND_BRANCH
+
+//The plain map is indexed by the first byte, the prefixed one by the byte after 0xFE
+static IlOpcodeInfo g_ilPlain[256];
+static IlOpcodeInfo g_ilPrefixed[256];
+static std::once_flag g_ilTablesOnce;
+
+//ReadUInt32 reads a little endian four byte operand
+static unsigned int ReadUInt32(const unsigned char* at)
+{
+    return static_cast<unsigned int>(at[0])
+        | (static_cast<unsigned int>(at[1]) << 8)
+        | (static_cast<unsigned int>(at[2]) << 16)
+        | (static_cast<unsigned int>(at[3]) << 24);
+}
+
+//BuildIlOpcodeTables spreads the rows over the two lookups
+static void BuildIlOpcodeTables()
+{
+    for (const IlOpcodeRow& row : IlOpcodeRows)
+    {
+        if (row.EncodingBytes == 1)
+            g_ilPlain[row.SecondByte] = { row.OperandBytes, row.Flow };
+        else
+            g_ilPrefixed[row.SecondByte] = { row.OperandBytes, row.Flow };
+    }
+}
+
+//MayExhaustStack reports whether a body can take part in a descent that never ends
+//
+//Every frame such a descent pushes comes from a call, so a body with no call in it always returns and no chain of such
+//bodies can run the stack out. It also has to come back to a body it has already been in, which is either a branch back
+//or a call sitting on a cycle; asking only whether a call is there at all covers straight and mutual recursion alike,
+//and it needs no idea where the call goes. That last part is what makes it usable here: the interesting cycles go
+//through an interface, where the token names the interface method rather than whichever implementation is reached
+//
+//The branch rule is kept alongside it. A loop that only takes space from its own frame, and so never calls anything,
+//can still walk the stack pointer down to the guard page
+//
+//A body the walk cannot make sense of is taken to be able to. That leaves it exactly as it was before this scan existed,
+//so an unreadable body keeps the check rather than quietly losing it
+static bool MayExhaustStack(const unsigned char* code, unsigned int codeSize)
+{
+    std::call_once(g_ilTablesOnce, BuildIlOpcodeTables);
+
+    unsigned int at = 0;
+    while (at < codeSize)
+    {
+        const unsigned char opcode = code[at];
+        const IlOpcodeInfo* info = &g_ilPlain[opcode];
+        unsigned int operandAt = at + 1;
+
+        if (opcode == 0xFE)
+        {
+            if (operandAt >= codeSize)
+                return true;
+            info = &g_ilPrefixed[code[operandAt]];
+            operandAt++;
+        }
+
+        //switch carries a count and that many offsets, so its width is only known once the count has been read
+        if (opcode == 0x45)
+        {
+            if (operandAt + 4 > codeSize)
+                return true;
+
+            const unsigned int targets = ReadUInt32(code + operandAt);
+            const unsigned int tableAt = operandAt + 4;
+            if (targets > (codeSize - tableAt) / 4)
+                return true;
+
+            const unsigned int after = tableAt + targets * 4;
+            for (unsigned int i = 0; i < targets; i++)
+            {
+                const long long target = static_cast<long long>(after)
+                    + static_cast<int>(ReadUInt32(code + tableAt + i * 4));
+                if (target <= static_cast<long long>(at))
+                    return true;
+            }
+
+            at = after;
+            continue;
+        }
+
+        if ((info->Flow & IlFlowBranch) != 0)
+        {
+            if (operandAt + info->OperandBytes > codeSize)
+                return true;
+
+            //Targets are relative to the instruction after the branch; a back edge always clears the instruction by a
+            //wide margin, so the exact convention does not matter to a loop test
+            const long long after = static_cast<long long>(operandAt) + info->OperandBytes;
+            const long long target = after + (info->OperandBytes == 1
+                ? static_cast<signed char>(code[operandAt])
+                : static_cast<int>(ReadUInt32(code + operandAt)));
+            if (target <= static_cast<long long>(at))
+                return true;
+        }
+        else if ((info->Flow & IlFlowCall) != 0)
+        {
+            //The target is not looked at: whatever it names, this is the instruction that pushes the next frame
+            return true;
+        }
+
+        at = operandAt + info->OperandBytes;
+    }
+
+    return false;
+}
+
 //InjectIntoBody rewrites one method body, keeping the original code and placing the call in front of it
 //
 //Bodies carrying a section table are passed over. That table is where exception handlers are described, and every
@@ -394,6 +571,11 @@ static void InjectIntoBody(
         codeSize = (bytes[0] >> 2) & 0x3F;
         code = bytes + 1;
     }
+
+    //Only a body that can take part in an endless descent is worth the check, which keeps it off the many leaf methods
+    //that can never be part of one
+    if (!MayExhaustStack(code, codeSize))
+        return;
 
     const unsigned int newCodeSize = codeSize + IlCallSize;
 

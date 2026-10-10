@@ -107,11 +107,13 @@ public sealed class ModHooks
         }
 
         var engine = builder.Build();
-        //Replacement sources load on demand, pulled in only when a rewrite hits, so the rule table can be built before any mod assembly
+        //Replacement sources resolve from their path, read as metadata only, so the rule table can be built before any mod assembly
+        //A loader here would load the replacement, and with a replacement that references its own target that walks straight back into
+        //the assembly currently being rewritten, which the CLR has not registered yet and answers by rewriting it all over again
         foreach (var name in paths.Keys)
         {
             var path = paths[name];
-            engine.RegisterReplacementSource(name, () => ModAssemblies.Load(name, path));
+            engine.RegisterReplacementPath(name, path);
             //Mixing needs to read the source class definition without loading it, so bytes are handed to the engine to parse itself
             engine.RegisterMixinSource(name, () => File.ReadAllBytes(path));
         }

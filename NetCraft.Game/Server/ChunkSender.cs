@@ -55,13 +55,24 @@ public sealed class ChunkSender
     //FailedCount number of load-failed chunks dropped, for diagnostics
     public int FailedCount => _failedCount;
 
+    //Temporary instrumentation: distinguishes "the sender is never handed a new view center" from "it is, but nothing enters view"
+    public static long DiagnosticUpdateCenterCalls;
+    public static long DiagnosticCenterMoves;
+    public static long DiagnosticChunksQueued;
+    //Which early exit the sender takes: a queue with entries but no work at all means one of the first two
+    public static long DiagnosticTickClosed;
+    public static long DiagnosticTickDisconnected;
+    public static long DiagnosticTickEmpty;
+
     //UpdateCenter updates the view center; chunks entering view are queued and leaving ones forgotten, and SetChunkCacheCenter is synced
     //Returns early when neither the center nor the view distance changed, to avoid resending packets
     public void UpdateCenter(int centerChunkX, int centerChunkZ, int viewDistance)
     {
         var radius = Math.Clamp(viewDistance, 1, 32);
+        DiagnosticUpdateCenterCalls++;
         if (_centerX != int.MinValue && _centerX == centerChunkX && _centerZ == centerChunkZ && _viewDistance == radius)
             return;
+        DiagnosticCenterMoves++;
         _centerX = centerChunkX;
         _centerZ = centerChunkZ;
         _viewDistance = radius;
@@ -83,6 +94,7 @@ public sealed class ChunkSender
             {
                 _pending.Add(key);
                 _pendingSet.Add(key);
+                DiagnosticChunksQueued++;
             }
         }
         //Forgetting on leaving view: unsent ones are only dequeued, sent ones send a Forget packet, maps to vanilla dropChunk
@@ -115,10 +127,11 @@ public sealed class ChunkSender
     //The queue is roughly distance-ordered on enqueue; the per-tick scan is capped by the budget and not-ready ones stay in place for the cursor to revisit
     public void Tick()
     {
-        if (_closed) return;
+        if (_closed) { DiagnosticTickClosed++; return; }
         //If the connection is closed, sending terminates and state is cleared, avoiding an ObjectDisposedException every tick flooding the log
         if (!_connection.IsConnected)
         {
+            DiagnosticTickDisconnected++;
             Log.Debug($"Chunk sending aborted, connection closed remaining={_pending.Count}");
             ClearQueue();
             _closed = true;
@@ -126,6 +139,7 @@ public sealed class ChunkSender
         }
         if (_pending.Count == 0)
         {
+            DiagnosticTickEmpty++;
             _cursor = 0;
             return;
         }
@@ -133,6 +147,7 @@ public sealed class ChunkSender
         var budget = Math.Max(ChunksPerTick * 4, 16);
         var batch = new List<(ChunkPos Pos, ChunkAccess Chunk)>(ChunksPerTick);
         var index = _cursor;
+        var scanStart = TickStageProfiler.Now();
         while (index < _pending.Count && budget-- > 0 && batch.Count < ChunksPerTick)
         {
             var key = _pending[index];
@@ -151,10 +166,18 @@ public sealed class ChunkSender
                 index++;
                 continue;
             }
+            //A chunk whose light has not been built yet stays queued for a later tick
+            //Sending it now would leave the client with a black chunk until an incremental light update arrived for every section
+            if (_lightSource is not null && !_lightSource.IsLightReady(pos))
+            {
+                index++;
+                continue;
+            }
             batch.Add((pos, chunk));
             _pending.RemoveAt(index);
             _pendingSet.Remove(key);
         }
+        TickStageProfiler.Record(TickStage.ChunkScan, scanStart);
         _cursor = index >= _pending.Count ? 0 : index;
         if (batch.Count == 0) return;
         try
@@ -162,8 +185,9 @@ public sealed class ChunkSender
             _connection.Send(new ClientboundChunkBatchStartPacket());
             foreach (var (pos, chunk) in batch)
             {
-                //Chunk serialization is heavy and does not touch the light engine, so it runs outside the light lock; only light data is read inside the lock
-                //Holding the lock for the whole section would lengthen the main thread's lock hold by serialization and make generation threads wait too
+                var prepStart = TickStageProfiler.Now();
+                //Chunk serialization is heavy and does not touch the light engine, so it runs outside the light lock
+                //The light data itself is read straight off the published snapshot, so building the packet needs no lock at all
                 var lightSource = _lightSource;
                 //Block entities are sent with the chunk so the client sees existing block entities on join
                 var blockEntities = _blockEntityBridge?.Collect(pos);
@@ -172,9 +196,13 @@ public sealed class ChunkSender
                         pos.X, pos.Z, chunk, () => ClientboundLightUpdatePacketData.Empty, blockEntities)
                     : ClientboundLevelChunkWithLightPacket.CreatePrepared(
                         pos.X, pos.Z, chunk,
-                        () => lightSource.WithLightLock(engine => new ClientboundLightUpdatePacketData(pos, engine)),
+                        () => new ClientboundLightUpdatePacketData(pos, lightSource.LightEngine),
                         blockEntities);
+                TickStageProfiler.Record(TickStage.ChunkPrep, prepStart);
+
+                var sendStart = TickStageProfiler.Now();
                 _connection.Send(packet);
+                TickStageProfiler.Record(TickStage.ChunkSend, sendStart);
                 _sentCount++;
             }
             _connection.Send(new ClientboundChunkBatchFinishedPacket(batch.Count));

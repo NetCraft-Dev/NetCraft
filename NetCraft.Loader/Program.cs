@@ -1,6 +1,7 @@
 using NetCraft.Config;
 using NetCraft;
 using NetCraft.Game;
+using NetCraft.Client;
 using NetCraft.Logging;
 using NetCraft.ModLoader;
 

@@ -15,6 +15,7 @@ using NetCraft.Network.Component;
 using NetCraft.Primitives;
 using NetCraft.Registry;
 using NetCraft.Storage;
+using NetCraft.Util;
 
 namespace NetCraft.Game.Commands;
 
@@ -834,7 +835,7 @@ public static class DebugCommand
     //--- debug trace runtime capture ---
 
     //TraceNode debug trace on|off records this process's runtime events to a file
-    //on starts a capture and prints the file being written; off ends it and prints where the file landed
+    //on begins a capture and prints the file being written; off ends it and prints where the file landed
     //The capture carries CPU samples and the runtime events, a nettrace readable by PerfView/dotnet-trace/Visual Studio
     private static LiteralArgumentBuilder<CommandSourceStack> TraceNode()
         => LiteralArgumentBuilder<CommandSourceStack>.Literal("trace")
@@ -844,17 +845,17 @@ public static class DebugCommand
                 .Executes(StopTrace));
 
     //StartTrace debug trace on begins a capture
+    //A capture started by the --trace startup flag reaches here too, and this reports it as already running
     private static int StartTrace(CommandContext<CommandSourceStack> context)
     {
         var source = RequireSource(context);
         if (source is null) return 0;
-        var path = source.Server.Trace.Start();
+        var path = RuntimeTraceRecorder.Start(AppPaths.TracesDir);
         if (path is null)
         {
             source.SendFailure("a trace is already running or the capture could not be started; see the server log");
             return 0;
         }
-        Log.Info($"[debug] trace recording to {path}");
         source.SendSuccess($"trace recording to {path}; run debug trace off to finish it");
         return 1;
     }
@@ -864,13 +865,12 @@ public static class DebugCommand
     {
         var source = RequireSource(context);
         if (source is null) return 0;
-        var path = source.Server.Trace.Stop();
+        var path = RuntimeTraceRecorder.Stop();
         if (path is null)
         {
             source.SendFailure("no trace is running");
             return 0;
         }
-        Log.Info($"[debug] trace written to {path}");
         source.SendSuccess($"trace written to {path}");
         return 1;
     }

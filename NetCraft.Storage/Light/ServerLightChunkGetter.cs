@@ -30,7 +30,7 @@ public sealed class ServerLightChunkGetter : LightChunkGetter, BlockGetter
     //onLightUpdate forwards the light change notification, no longer letting the default no-op drop it
     public void OnLightUpdate(LightLayer layer, SectionPos pos) => LightUpdateCallback?.Invoke(layer, pos);
 
-    //getChunkForLighting caches views per chunk; building the sky light source heightmap is expensive and must not be redone each time
+    //GetChunkForLighting caches views per chunk; building the sky light source heightmap is expensive and must not be redone each time
     public LightChunk? GetChunkForLighting(int chunkX, int chunkZ)
     {
         var key = ChunkPos.Pack(chunkX, chunkZ);
@@ -41,10 +41,6 @@ public sealed class ServerLightChunkGetter : LightChunkGetter, BlockGetter
         _views[key] = view;
         return view;
     }
-
-    //Track registers a chunk currently computing light; the chunk is not yet in the loaded cache, so the light chunk getter cannot find it
-    public void Track(ChunkAccess chunk)
-        => _views[ChunkPos.Pack(chunk.Pos.X, chunk.Pos.Z)] = new ServerLightChunk(chunk);
 
     public BlockGetter GetLevel() => this;
 

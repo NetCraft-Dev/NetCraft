@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="ZstdSharp.Port" Version="0.8.8" />
+    <!--RuntimeTraceRecorder drives an EventPipe capture through this client-->
+    <PackageReference Include="Microsoft.Diagnostics.NETCore.Client" Version="0.2.745401" />
   </ItemGroup>
 
   <PropertyGroup>

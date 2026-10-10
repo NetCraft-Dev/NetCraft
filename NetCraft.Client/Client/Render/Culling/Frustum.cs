@@ -1,7 +1,7 @@
 using System.Numerics;
 using NetCraft.Primitives;
 
-namespace NetCraft.Game.Client.Render.Culling;
+namespace NetCraft.Client.Render.Culling;
 
 //Frustum 6-plane frustum culler, maps to vanilla com.mojang.blaze3d.frustum.Frustum
 //Gribb-Hartmann extracts 6 planes from the viewProj matrix, adapted to v*M row-vector multiply semantics (System.Numerics convention)

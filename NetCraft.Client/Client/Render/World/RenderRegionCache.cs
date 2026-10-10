@@ -1,18 +1,50 @@
-using NetCraft.Game.Client.Level;
-using NetCraft.Game.Client.Render.Model;
-using NetCraft.Gpu;
+using NetCraft.Client.Level;
+using NetCraft.Client.Render.Model;
+using NetCraft.Client.Blaze3d.Systems;
+using NetCraft.Client.Blaze3d.Buffers;
+using NetCraft.Client.Blaze3d.Textures;
+using NetCraft.Client.Blaze3d.Shaders;
+using NetCraft.Client.Blaze3d.Pipeline;
+using NetCraft.Client.Blaze3d.Vertex;
+using NetCraft.Client.Blaze3d.Vulkan;
+using NetCraft.Client.Blaze3d.Platform;
+using NetCraft.Client.Blaze3d.Font;
 using NetCraft.Primitives;
 using NetCraft.Registry.State;
 using NetCraft.Storage.Chunk;
-using Direction = NetCraft.Gpu.Direction;
+using Direction = NetCraft.Client.Render.Model.Direction;
+using NetCraft.Client.Blaze3d.Resource;
+using NetCraft.Client.Blaze3d.Audio;
+using NetCraft.Client.Blaze3d.Framegraph;
+using NetCraft.Client.Blaze3d.Preprocessor;
+using NetCraft.Client.Blaze3d.Util;
+using NetCraft.Client.Render;
+using NetCraft.Client.Render.Texture;
+using NetCraft.Client.Render.Texture.Atlas;
+using NetCraft.Client.Render.Item;
+using NetCraft.Client.Render.Entity;
+using NetCraft.Client.Render.Entity.State;
+using NetCraft.Client.Render.State.Gui;
+using NetCraft.Client.Gui;
+using NetCraft.Client.Gui.Render;
+using NetCraft.Client.Gui.Render.State;
+using NetCraft.Client.Gui.Render.Pip;
+using NetCraft.Client.Gui.Navigation;
+using NetCraft.Client.Gui.Layouts;
+using NetCraft.Client.Gui.Font;
+using NetCraft.Client.Gui.Font.Providers;
+using NetCraft.Client.Gui.Font.Glyphs;
+using NetCraft.Client.Model;
+using NetCraft.Client.Model.Geom;
+using NetCraft.Client.Resources.Metadata.Gui;
 
-namespace NetCraft.Game.Client.Render.World;
+namespace NetCraft.Client.Render.World;
 
 //RenderRegionCache compile-time cross-section neighbor block query, fixing the over-rendering of boundary faces that W7 treats as air out of bounds
 //Snapshot takes a shallow snapshot of the 27 LevelChunkSection references around center in a 3x3x3, no deep copy
 //GetBlockState looks up the local block neighbor in the matching section by world coordinates; returns air when not loaded
 //ShouldCullFace for ChunkMeshBuilder's cross-section face culling: checks whether the face's outer neighbor is FullBlock
-//Direction uses NetCraft.Gpu.Direction (enum) for consistency with ChunkMeshBuilder/BakedQuad; UnitVector gives the direction vector
+//Direction uses NetCraft.Client.Render.Model.Direction (enum) for consistency with ChunkMeshBuilder/BakedQuad; UnitVector gives the direction vector
 public sealed class RenderRegionCache
 {
     private readonly SectionPos _center;

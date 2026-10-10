@@ -22,7 +22,9 @@ public interface HolderLookup<T> where T : class
     {
         var holder = Get(key);
         if (holder is not null) return holder;
-        return defaultValue is not null ? Holder<T>.Direct(defaultValue) : null;
+        if (defaultValue is null) return null;
+        NetCraft.Util.SiteCounters.CountHolderLookupMiss();
+        return Holder<T>.Direct(defaultValue);
     }
 }
 

@@ -63,19 +63,15 @@ public sealed class RegionFileStorage : IDisposable
     //Falls back to the FileStream path when MMF fails, keeping semantics identical
     private static BinaryReader? OpenChunkInputStream(RegionFile region, ChunkPos pos)
     {
-        if (OptimizationFlags.RegionFileMemoryMapped)
+        try
         {
-            try
-            {
-                return region.GetChunkDataInputStreamWithMemoryMapped(pos);
-            }
-            catch (InvalidOperationException)
-            {
-                //File too small, use the FileStream path
-                return region.GetChunkDataInputStream(pos);
-            }
+            return region.GetChunkDataInputStreamWithMemoryMapped(pos);
         }
-        return region.GetChunkDataInputStream(pos);
+        catch (InvalidOperationException)
+        {
+            //File too small, use the FileStream path
+            return region.GetChunkDataInputStream(pos);
+        }
     }
 
     public CompoundTag? Read(ChunkPos pos)

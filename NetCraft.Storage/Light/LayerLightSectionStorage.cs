@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using NetCraft.Primitives;
 using NetCraft.Registry;
 using NetCraft.Storage.Chunk;
@@ -12,9 +17,17 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
     private readonly LightLayer _layer;
     protected readonly LightChunkGetter ChunkSource;
 
-    //visibleSectionData is the snapshot for external reads; updatingSectionData is the copy the light engine writes incrementally
-    //Vanilla declares visible volatile because lighting is threaded; this is a synchronous implementation with no concurrency
-    protected TSelf VisibleSectionData;
+    //visibleSectionData is the snapshot external readers see; updatingSectionData is the side the light engine writes
+    //Published through Volatile because readers now run outside the light gate: a reader gets one whole snapshot or the other,
+    //never a map being mutated. Writers keep the snapshot clean by copying on first touch of a section, so a reader holding a
+    //DataLayer never watches it change under its feet
+    private TSelf _visibleSectionData;
+    protected TSelf VisibleSectionData
+    {
+        get => Volatile.Read(ref _visibleSectionData);
+        private set => Volatile.Write(ref _visibleSectionData, value);
+    }
+
     protected readonly TSelf UpdatingSectionData;
 
     private bool _hasInconsistencies;
@@ -26,8 +39,9 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
     protected readonly HashSet<long> ChangedSections = new();
     protected readonly HashSet<long> SectionsAffectedByLightUpdates = new();
 
-    //queuedSections, layer data pending write; vanilla uses a synchronized map for multithreaded access, this synchronous implementation uses a plain dictionary
-    protected readonly Dictionary<long, DataLayer> QueuedSections = new();
+    //queuedSections, layer data pending write; the packet builder reads it outside the light gate, so it is a concurrent map
+    //Vanilla synchronizes this map for the same reason
+    protected readonly ConcurrentDictionary<long, DataLayer> QueuedSections = new();
 
     private readonly HashSet<long> _columnsToRetainQueuedDataFor = new();
     private readonly HashSet<long> _toRemove = new();
@@ -117,7 +131,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
 
         foreach (var node in _toRemove)
         {
-            QueuedSections.Remove(node, out var queued);
+            QueuedSections.TryRemove(node, out var queued);
             var stored = UpdatingSectionData.RemoveLayer(node);
             if (!_columnsToRetainQueuedDataFor.Contains(SectionPos.GetZeroNode(node))) continue;
             if (queued is not null) QueuedSections[node] = queued;
@@ -135,13 +149,13 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
         foreach (var sectionNode in QueuedSections.Keys.ToList())
         {
             if (!StoringLightForSection(sectionNode)) continue;
-            var data = QueuedSections[sectionNode];
+            if (!QueuedSections.TryGetValue(sectionNode, out var data)) continue;
             if (!ReferenceEquals(UpdatingSectionData.GetLayer(sectionNode), data))
             {
                 UpdatingSectionData.SetLayer(sectionNode, data);
                 ChangedSections.Add(sectionNode);
             }
-            QueuedSections.Remove(sectionNode);
+            QueuedSections.TryRemove(sectionNode, out _);
         }
     }
 
@@ -178,7 +192,7 @@ public abstract class LayerLightSectionStorage<TSelf> where TSelf : DataLayerSto
         }
         else
         {
-            QueuedSections.Remove(sectionNode);
+            QueuedSections.TryRemove(sectionNode, out _);
         }
     }
 

@@ -139,7 +139,6 @@ public sealed class RegionFile : IDisposable
     //External .mcc blobs still use FileStream since MMF yields little for temporary small files
     public BinaryReader? GetChunkDataInputStreamWithMemoryMapped(ChunkPos pos)
     {
-        if (!OptimizationFlags.RegionFileMemoryMapped) return GetChunkDataInputStream(pos);
         lock (_gate)
         {
             int offset = GetOffset(GetOffsetIndex(pos));

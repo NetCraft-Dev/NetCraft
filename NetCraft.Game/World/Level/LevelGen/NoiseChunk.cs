@@ -43,13 +43,20 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
     private bool _interpolating;
     private bool _fillingCell;
 
-    private readonly Dictionary<DensityFunction, DensityFunction> _wrapped = new();
+    //Wrapped nodes, one entry per node of the density tree. Measured at 4096 to 8191 entries per chunk, so a capacity of
+    //256 was an order of magnitude short and only removed the first few doublings: the chain still resized through
+    //2048 and 4096, and that entry array is what the allocation profile shows as Entry[DensityFunction, DensityFunction][]
+    //8192 clears the measured range, so the array is built once
+    private readonly Dictionary<DensityFunction, DensityFunction> _wrapped = new(8192);
     private readonly List<NoiseInterpolator> _interpolators = new();
     private readonly List<NoiseCacheAllInCell> _cellCaches = new();
     private readonly DensityFunction _preliminarySurfaceLevel;
     private readonly ContextProvider _sliceFillingContextProvider;
     //Preliminary surface cached per quart column; surface rules and the aquifer both query the same column repeatedly
     private readonly Dictionary<long, int> _preliminarySurfaceCache = new();
+
+    //Reusable context for the preliminary surface sample below; the sampled function never retains it
+    [ThreadStatic] private static SinglePointContext? _surfaceProbe;
 
     //beardifier structure terrain adjustment; when omitted a constant-zero marker is used so structures and terrain do not affect each other
     public NoiseChunk(ChunkAccess chunk, RandomState randomState, NoiseGeneratorSettings settings,
@@ -107,6 +114,7 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
         if (_wrapped.TryGetValue(function, out var cached)) return cached;
         var result = WrapNew(function);
         _wrapped[function] = result;
+        NetCraft.Util.SiteCounters.Wrapped("noiseChunk", _wrapped.Count);
         return result;
     }
 
@@ -272,7 +280,8 @@ public sealed class NoiseChunk : FunctionContext, ContextProvider
         var key = ((long)quantizedX << 32) ^ (uint)quantizedZ;
         if (_preliminarySurfaceCache.TryGetValue(key, out var cached)) return cached;
         var value = Mth.Floor(
-            _preliminarySurfaceLevel.Compute(SinglePointContext.At(quantizedX, 0, quantizedZ)));
+            _preliminarySurfaceLevel.Compute((_surfaceProbe ??= new SinglePointContext(0, 0, 0))
+                .Set(quantizedX, 0, quantizedZ)));
         _preliminarySurfaceCache[key] = value;
         return value;
     }

@@ -1,10 +1,12 @@
 using NetCraft.Network.Protocol.Common;
 using NetCraft.Network.Protocol.Cookie;
+//The configuration packet KnownPack and the registry KnownPack share a name; this file means the packet one
+using KnownPack = NetCraft.Network.Protocol.Configuration.KnownPack;
 using NetCraft.Game.Network.Protocol.Game;
 using NetCraft.Logging;
 using NetCraft.Network;
 
-namespace NetCraft.Network.Protocol.Configuration;
+namespace NetCraft.Client.Network.Protocol.Configuration;
 
 //ClientConfigurationPacketListenerImpl client configuration listener implementation
 //Simplified version of vanilla ClientConfigurationPacketListenerImpl

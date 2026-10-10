@@ -7,6 +7,13 @@ global using NetCraft.Network.Chat;
 global using NetCraft.Network.Inventory;
 global using NetCraft.Network.Protocol.Common;
 global using NetCraft.Network.Protocol.Configuration;
+global using NetCraft.Network.Protocol.Login;
 global using NetCraft.Network.Protocol.Cookie;
 global using NetCraft.Game.Network.Protocol.Game;
+global using NetCraft.Client.Network;
+global using NetCraft.Client.Network.Protocol.Game;
+global using NetCraft.Client.Network.Protocol.Login;
+global using NetCraft.Client.Network.Protocol.Configuration;
 global using NetCraft.Registry;
+//The world namespace is referenced as the World prefix by client network and level code
+global using World = NetCraft.Game.World;

@@ -16,6 +16,10 @@ public class FriendlyByteBuf : IDisposable
 
     public FriendlyByteBuf() : this(new MemoryStream(), true) { }
 
+    //Capacity-specified construction: a buffer built from zero doubles its way up to tens of kilobytes, and every doubling copies
+    //what was written so far. Chunk packets know their approximate size up front, so they start close to it instead
+    public FriendlyByteBuf(int capacity) : this(new MemoryStream(capacity), true) { }
+
     public FriendlyByteBuf(byte[] data) : this(new MemoryStream(data), true) { }
 
     public FriendlyByteBuf(MemoryStream stream, bool ownsStream)
@@ -51,6 +55,22 @@ public class FriendlyByteBuf : IDisposable
             return;
         }
         destination.Write(segment.Array!, segment.Offset, (int)_stream.Length);
+    }
+
+    //WriteTo appends this buffer's content into another buffer as-is, without an intermediate array
+    public void WriteTo(FriendlyByteBuf target) => WriteTo(target._stream);
+
+    //TryTakeWritten hands out the underlying array and the written length without copying, for a packet that can own the buffer outright
+    //The caller must not write to this buffer afterwards, the array it now holds would change under it
+    //Fails when the buffer is not backed by a visible array from offset zero, as with a buffer built from a byte[]
+    public bool TryTakeWritten(out byte[] buffer, out int length)
+    {
+        buffer = Array.Empty<byte>();
+        length = 0;
+        if (!_stream.TryGetBuffer(out var segment) || segment.Offset != 0) return false;
+        buffer = segment.Array!;
+        length = (int)_stream.Length;
+        return true;
     }
 
     //IsReadable indicates whether the buffer is readable
@@ -274,6 +294,25 @@ public class FriendlyByteBuf : IDisposable
         return this;
     }
 
+    //WriteLongsBigEndian writes a whole long array big-endian, for the storage blocks that make up most of a chunk packet
+    //Per-element WriteLong meant one virtual BinaryWriter call and one MemoryStream bounds check per long, thousands of times per packet,
+    //and the profiler put that at the single largest cost in chunk serialization. Batching cuts the stream writes by a factor of 512
+    //and the stack buffer keeps it allocation free
+    public void WriteLongsBigEndian(long[] values)
+    {
+        const int BatchLongs = 512;
+        Span<byte> batch = stackalloc byte[BatchLongs * 8];
+        var offset = 0;
+        while (offset < values.Length)
+        {
+            var count = Math.Min(BatchLongs, values.Length - offset);
+            for (var i = 0; i < count; i++)
+                BinaryPrimitives.WriteInt64BigEndian(batch.Slice(i * 8, 8), values[offset + i]);
+            _writer.Write(batch[..(count * 8)]);
+            offset += count;
+        }
+    }
+
     //WriteVarLong writes a variable-length long
     //Optimization 2.7: batch writes with Span to avoid multiple _writer.Write calls
     public FriendlyByteBuf WriteVarLong(long value)
@@ -337,6 +376,9 @@ public class FriendlyByteBuf : IDisposable
 
     //WriteBytes writes a fixed-length byte array
     public FriendlyByteBuf WriteBytes(byte[] value) { _writer.Write(value); return this; }
+
+    //WriteBytes writes a slice of a byte array, for a payload whose array is larger than what was written
+    public FriendlyByteBuf WriteBytes(byte[] value, int offset, int count) { _writer.Write(value, offset, count); return this; }
 
     //ToArray returns all bytes of the underlying stream
     public byte[] ToArray() => _stream.ToArray();

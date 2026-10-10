@@ -1,4 +1,5 @@
 using NetCraft.Codec;
+using NetCraft.Game.Server;
 using NetCraft.Game.World.Level.LevelGen;
 using NetCraft.Nbt;
 using NetCraft.Network;
@@ -25,7 +26,9 @@ public static class LevelChunkSerializer
     public static void Write(FriendlyByteBuf buf, ChunkAccess chunk, Func<PalettedContainer<BlockState>> statesFactory, Func<PalettedContainer<Holder<Biome>>> biomesFactory, IReadOnlyList<CompoundTag>? blockEntities = null)
     {
         //Serialize sections into a temporary buffer first to compute the total length
-        var tmp = new FriendlyByteBuf();
+        //Started at roughly the size a section contributes, so filling it does not spend the round doubling from zero
+        var tmp = new FriendlyByteBuf(chunk.SectionsCount * 2048);
+        var sectStart = TickStageProfiler.Now();
         for (var i = 0; i < chunk.SectionsCount; i++)
         {
             var sectionY = chunk.MinSectionY + i;
@@ -35,19 +38,25 @@ public static class LevelChunkSerializer
             else
                 WriteSection(tmp, section);
         }
-        var buffer = tmp.ToArray();
+        TickStageProfiler.Record(TickStage.ChunkPrepSect, sectStart);
 
+        var hdrStart = TickStageProfiler.Now();
         //heightmaps map empty, 0 entries
         buf.WriteVarInt(0);
-        //buffer length + data
-        buf.WriteVarInt(buffer.Length);
-        buf.WriteBytes(buffer);
+        //buffer length + data, streamed straight across instead of via ToArray
+        //The temporary buffer already knows its own length, so copying it out just to write it back allocated the whole section block twice over
+        buf.WriteVarInt(tmp.Length);
+        tmp.WriteTo(buf);
+        TickStageProfiler.Record(TickStage.ChunkPrepHdr, hdrStart);
+
+        var beStart = TickStageProfiler.Now();
         //block entities count + one vanilla BlockEntityInfo each
         //An earlier implementation wrote only the compound; the client parsed it with the vanilla three-field prefix and misread the NBT header
         //Manifesting as Invalid tag id and an immediate disconnect, always reproducible when a chunk contains a block entity
         var count = blockEntities?.Count ?? 0;
         buf.WriteVarInt(count);
         for (var i = 0; i < count; i++) WriteBlockEntityInfo(buf, blockEntities![i]);
+        TickStageProfiler.Record(TickStage.ChunkPrepBe, beStart);
     }
 
     //WriteBlockEntityInfo writes a single block entity entry, maps to vanilla ClientboundLevelChunkPacketData$BlockEntityInfo
@@ -184,8 +193,8 @@ public static class LevelChunkSerializer
         //bits 9+ global palette writes no entries; the storage itself holds global ids
 
         //storage longs without length prefix; the client derives the length from bits and entryCount
-        foreach (var v in network.RawStorage)
-            buf.WriteLong(v);
+        //Written as one block rather than per long: this is the bulk of a chunk packet and the per-element path dominated serialization
+        buf.WriteLongsBigEndian(network.RawStorage);
     }
 
     //ReadPalettedContainer reads palette and storage then builds PackedData and deserializes through factory.Unpack

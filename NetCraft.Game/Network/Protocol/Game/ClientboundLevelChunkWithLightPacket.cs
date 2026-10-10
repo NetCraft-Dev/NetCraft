@@ -1,4 +1,5 @@
 using NetCraft.Game.Bootstrap;
+using NetCraft.Game.Server;
 using NetCraft.Game.World.Level.Chunk;
 using NetCraft.Nbt;
 using NetCraft.Network;
@@ -15,7 +16,7 @@ namespace NetCraft.Game.Network.Protocol.Game;
 //Packet encoding has moved to a background write thread; reading ChunkAccess during encoding would race with the main thread modifying chunks
 //Bulk sending goes through CreatePrepared, serializing on the calling thread first so encoding only writes PreEncoded
 public sealed record ClientboundLevelChunkWithLightPacket(int X, int Z, ChunkAccess? ChunkData,
-    ClientboundLightUpdatePacketData? LightData, byte[]? PreEncoded = null) : Packet<ClientGamePacketListener>
+    ClientboundLightUpdatePacketData? LightData, ArraySegment<byte>? PreEncoded = null) : Packet<ClientGamePacketListener>
 {
     public static StreamCodec<FriendlyByteBuf, ClientboundLevelChunkWithLightPacket> StreamCodec { get; } = new LevelChunkWithLightCodec();
 
@@ -31,11 +32,22 @@ public sealed record ClientboundLevelChunkWithLightPacket(int X, int Z, ChunkAcc
         Func<ClientboundLightUpdatePacketData> lightFactory, IReadOnlyList<CompoundTag>? blockEntities = null)
     {
         GameBootstrap.Bootstrap();
-        var body = new FriendlyByteBuf();
+        //Sized up front for both halves of the payload: the chunk body and the light data together fill tens of kilobytes, and a
+        //stream that grows from zero copies everything written so far on each doubling
+        var body = new FriendlyByteBuf(chunk.SectionsCount * 2048);
         var factory = PalettedContainerFactory.Default;
+        //Split the two halves of the payload, temporary instrumentation: they are not comparable in cost and only one of them can be attacked
+        var chunkStart = TickStageProfiler.Now();
         LevelChunkSerializer.Write(body, chunk, factory.CreateForBlockStates, factory.CreateForBiomes, blockEntities);
+        TickStageProfiler.Record(TickStage.ChunkPrepChunk, chunkStart);
+        var lightStart = TickStageProfiler.Now();
         lightFactory().Write(body);
-        return new ClientboundLevelChunkWithLightPacket(x, z, null, null, body.ToArray());
+        TickStageProfiler.Record(TickStage.ChunkPrepLight, lightStart);
+        //Hand the written buffer over instead of copying it out with ToArray, which was another full-size allocation per chunk
+        //The slice is what makes that safe: the stream's array is nearly always larger than what was written into it
+        return body.TryTakeWritten(out var encoded, out var length)
+            ? new ClientboundLevelChunkWithLightPacket(x, z, null, null, new ArraySegment<byte>(encoded, 0, length))
+            : new ClientboundLevelChunkWithLightPacket(x, z, null, null, body.ToArray());
     }
 
     private sealed class LevelChunkWithLightCodec : StreamCodec<FriendlyByteBuf, ClientboundLevelChunkWithLightPacket>
@@ -60,9 +72,9 @@ public sealed record ClientboundLevelChunkWithLightPacket(int X, int Z, ChunkAcc
             //S4 vanilla writeInt is 4 bytes, not VarInt
             buf.WriteInt(value.X);
             buf.WriteInt(value.Z);
-            if (value.PreEncoded is not null)
+            if (value.PreEncoded is { } preEncoded)
             {
-                buf.WriteBytes(value.PreEncoded);
+                buf.WriteBytes(preEncoded.Array!, preEncoded.Offset, preEncoded.Count);
                 return;
             }
             GameBootstrap.Bootstrap();

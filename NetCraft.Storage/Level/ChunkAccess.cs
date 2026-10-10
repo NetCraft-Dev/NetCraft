@@ -141,14 +141,19 @@ public abstract class ChunkAccess : LevelHeightAccessor
     //GetNoiseBiome queries the biome by quart world coords, maps to vanilla getNoiseBiome
     public virtual Holder<Biome> GetNoiseBiome(int quartX, int quartY, int quartZ)
     {
-        var section = GetSection((quartY >> 2) + MinSectionY);
+        //quartY >> 2 is already the absolute section index; adding MinSectionY on top shifted every lookup four
+        //sections down and pushed the bottom of the world out of range, where the fallback answered plains
+        var section = GetSection(quartY >> 2);
         return section is null
-            ? Holder<Biome>.Direct(EmptyBiome)
+            ? EmptyBiomeHolder
             : section.GetNoiseBiome(quartX & 3, quartY & 3, quartZ & 3);
     }
 
     //EmptyBiome, the default biome placeholder returned for out-of-range sections, avoiding null
     private static readonly Biome EmptyBiome = new EmptyBiomeImpl();
+
+    //The placeholder's holder is built once; the out-of-range branch used to allocate a fresh Direct<Biome> per query
+    private static readonly Holder<Biome> EmptyBiomeHolder = Holder<Biome>.Direct(EmptyBiome);
     private sealed class EmptyBiomeImpl : Biome
     {
         public override Identifier Id => Identifier.WithDefaultNamespace("plains");

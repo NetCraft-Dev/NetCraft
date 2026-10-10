@@ -1,7 +1,7 @@
 using NetCraft.Registry;
 using NetCraft.Registry.State;
 
-namespace NetCraft.Game.Client.Render.Model;
+namespace NetCraft.Client.Render.Model;
 
 //BlockRenderShape block render shape, used for face culling decisions
 //FullBlock full cube, can occlude neighbor block faces

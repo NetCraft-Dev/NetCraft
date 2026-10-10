@@ -69,6 +69,8 @@ internal sealed class NoiseWiringHelper : Visitor
     private readonly RandomState _owner;
     private readonly bool _useLegacyInit;
     private readonly long _seed;
+    //Never populated: instrumented and no counter ever reached one, so this visitor's memo stays empty
+    //Left without a capacity on purpose, that way it allocates its entry array only if something ever writes to it
     private readonly Dictionary<DensityFunction, DensityFunction> _wrapped = new();
 
     public NoiseWiringHelper(RandomState owner, bool useLegacyInit, long seed)
@@ -108,6 +110,7 @@ internal sealed class NoiseWiringHelper : Visitor
         if (_wrapped.TryGetValue(input, out var cached)) return cached;
         var result = WrapNew(input);
         _wrapped[input] = result;
+        NetCraft.Util.SiteCounters.Wrapped("wiring", _wrapped.Count);
         return result;
     }
 
@@ -133,6 +136,8 @@ internal sealed class NoiseWiringHelper : Visitor
 //Expands HolderHolder into the inner function and Marker into the inner wrapped, saving call depth in Climate.Sampler
 internal sealed class NoiseFlattener : Visitor
 {
+    //Never populated: instrumented and no counter ever reached one, so this visitor's memo stays empty
+    //Left without a capacity on purpose, that way it allocates its entry array only if something ever writes to it
     private readonly Dictionary<DensityFunction, DensityFunction> _wrapped = new();
 
     public NoiseHolder VisitNoise(NoiseHolder noise) => noise;
@@ -142,6 +147,7 @@ internal sealed class NoiseFlattener : Visitor
         if (_wrapped.TryGetValue(input, out var cached)) return cached;
         var result = WrapNew(input);
         _wrapped[input] = result;
+        NetCraft.Util.SiteCounters.Wrapped("flattener", _wrapped.Count);
         return result;
     }
 

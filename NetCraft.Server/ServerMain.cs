@@ -26,7 +26,6 @@ using GameConfiguredWorldCarver = NetCraft.Game.World.Level.LevelGen.Carver.Conf
 using GameDimensionType = NetCraft.Game.World.Level.LevelGen.Dimension.DimensionType;
 
 namespace NetCraft.Game;
-
 //ServerMain, the server main entry point
 //Maps to vanilla net.minecraft.server.Main
 //Chains kernel initialization + startup argument parsing + server business dispatch
@@ -60,8 +59,11 @@ public static class ServerMain
         LaunchOptions.DeclareKernelFlag("noconsole");
         //potato easter egg toggle, also swallowed by the kernel so GameOptions does not treat it as an unknown argument
         LaunchOptions.DeclareKernelFlag("potato");
+        //trace begins a runtime trace capture at startup, so a boot that misbehaves can be looked at afterwards
+        LaunchOptions.DeclareKernelFlag("trace");
         var useGui = Array.IndexOf(args, "--nogui") < 0 && Array.IndexOf(args, "nogui") < 0;
         var useConsole = Array.IndexOf(args, "--noconsole") < 0;
+        var useTrace = Array.IndexOf(args, "--trace") >= 0;
 
         //1. Create GameOptions and subscribe to the kernel's unrecognized-argument event
         var options = new GameOptions();
@@ -76,6 +78,11 @@ public static class ServerMain
         //4. Set the --output-dir override base, AppContext.BaseDirectory when not passed
         //   Downstream reads everything from AppPaths to avoid relative paths being interpreted against the runtime working directory
         AppPaths.SetOverride(options.GetOptionOrDefault("output-dir", string.Empty));
+
+        //4.0 --trace begins a capture here rather than any earlier: the line above is what decides where the trace directory
+        //    sits, and starting before it would write under the program directory even when --output-dir moved everything
+        //    else. It is still ahead of the resource extraction and the world work, so the capture covers the whole boot
+        if (useTrace) RuntimeTraceRecorder.Start(AppPaths.TracesDir);
 
         //4.1 Load server.properties, generate defaults when absent
         //    Port, max-players, difficulty, online mode, PVP, view distance and so on

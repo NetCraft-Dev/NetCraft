@@ -1,14 +1,22 @@
 using System.Threading;
 using NetCraft;
+using NetCraft.Game;
 using NetCraft.Game.Bootstrap;
-using NetCraft.Game.Client;
-using NetCraft.Game.Client.Language;
+using NetCraft.Client;
+using NetCraft.Client.Language;
 using NetCraft.Game.World.Items;
 using NetCraft.Game.World.Level.LevelGen;
 using NetCraft.Game.World.Level.LevelGen.Dimension;
 using NetCraft.Game.World.Level.LevelGen.Synth;
-using NetCraft.Gpu;
-using NetCraft.Gpu.Vulkan;
+using NetCraft.Client.Blaze3d.Systems;
+using NetCraft.Client.Blaze3d.Buffers;
+using NetCraft.Client.Blaze3d.Textures;
+using NetCraft.Client.Blaze3d.Shaders;
+using NetCraft.Client.Blaze3d.Pipeline;
+using NetCraft.Client.Blaze3d.Vertex;
+using NetCraft.Client.Blaze3d.Vulkan;
+using NetCraft.Client.Blaze3d.Platform;
+using NetCraft.Client.Blaze3d.Font;
 using NetCraft.Logging;
 using NetCraft.Registry;
 using NetCraft.Registry.Environment;
@@ -18,8 +26,33 @@ using BootstrapClass = NetCraft.Bootstrap.Bootstrap;
 using GameConfiguredWorldCarver = NetCraft.Game.World.Level.LevelGen.Carver.ConfiguredWorldCarver;
 //The registry and level definitions each have their own DimensionType; the former is a marker interface, so this always refers to the real Game-layer type
 using GameDimensionType = NetCraft.Game.World.Level.LevelGen.Dimension.DimensionType;
+using NetCraft.Client.Blaze3d.Resource;
+using NetCraft.Client.Blaze3d.Audio;
+using NetCraft.Client.Blaze3d.Framegraph;
+using NetCraft.Client.Blaze3d.Preprocessor;
+using NetCraft.Client.Blaze3d.Util;
+using NetCraft.Client.Render;
+using NetCraft.Client.Render.Model;
+using NetCraft.Client.Render.Texture;
+using NetCraft.Client.Render.Texture.Atlas;
+using NetCraft.Client.Render.Item;
+using NetCraft.Client.Render.Entity;
+using NetCraft.Client.Render.Entity.State;
+using NetCraft.Client.Render.State.Gui;
+using NetCraft.Client.Gui;
+using NetCraft.Client.Gui.Render;
+using NetCraft.Client.Gui.Render.State;
+using NetCraft.Client.Gui.Render.Pip;
+using NetCraft.Client.Gui.Navigation;
+using NetCraft.Client.Gui.Layouts;
+using NetCraft.Client.Gui.Font;
+using NetCraft.Client.Gui.Font.Providers;
+using NetCraft.Client.Gui.Font.Glyphs;
+using NetCraft.Client.Model;
+using NetCraft.Client.Model.Geom;
+using NetCraft.Client.Resources.Metadata.Gui;
 
-namespace NetCraft.Game; 
+namespace NetCraft.Client; 
 
 //ClientMain client main entry
 //Maps to vanilla net.minecraft.client.main.Main

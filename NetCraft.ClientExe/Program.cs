@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using NetCraft;
 using NetCraft.Game;
+using NetCraft.Client;
 using NetCraft.ModLoader;
 
 namespace NetCraft.ClientExe;

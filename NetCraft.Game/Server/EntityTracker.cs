@@ -41,6 +41,57 @@ public sealed class EntityTracker
     //BucketShift spatial bucket chunk shift; a 16x16 chunk cell covers a max view distance of 32
     private const int BucketShift = 4;
 
+    //Scaling diagnostics, temporary instrumentation removed with the rest of the perf counters
+    //Entities is the world entity count, NearbyTotal the sum of every player's candidate list, VisibleTotal how many of
+    //those candidate pairs passed IsVisible. NearbyTotal divided by PlayerCount is the average scan per player, and the
+    //gap between it and VisibleTotal is what the 16-chunk cell granularity throws away
+    public static int DiagnosticEntities;
+    public static long DiagnosticNearbyTotal;
+    public static long DiagnosticVisibleTotal;
+    public static long DiagnosticPlayerCount;
+    //Packets built across the window: divides TrackLoop's cost into a per-pair figure and a per-packet one
+    public static long DiagnosticPacketTotal;
+
+    //Packet kind counters, temporary instrumentation: shows which kinds produce the per-pair packet count
+    //Index order matches DiagnosticPacketNames
+    public static readonly long[] DiagnosticPacketKinds = new long[8];
+    public static readonly string[] DiagnosticPacketNames =
+    {
+        "add", "remove", "move", "rot", "sync", "head", "data", "attr",
+    };
+
+    //Sync round counter: the packet and visibility totals only divide out correctly if this matches the player count per tick
+    public static long DiagnosticSyncCalls;
+
+    //CountPacketKind buckets one built packet, called once per packet at the end of a Sync round
+    private static void CountPacketKind(Packet<ClientGamePacketListener> packet)
+    {
+        switch (packet)
+        {
+            case ClientboundAddEntityPacket: DiagnosticPacketKinds[0]++; break;
+            case ClientboundRemoveEntitiesPacket: DiagnosticPacketKinds[1]++; break;
+            case ClientboundMoveEntityPacket.Pos:
+            case ClientboundMoveEntityPacket.PosRot: DiagnosticPacketKinds[2]++; break;
+            case ClientboundMoveEntityPacket.Rot: DiagnosticPacketKinds[3]++; break;
+            case ClientboundEntityPositionSyncPacket: DiagnosticPacketKinds[4]++; break;
+            case ClientboundRotateHeadPacket: DiagnosticPacketKinds[5]++; break;
+            case ClientboundSetEntityDataPacket: DiagnosticPacketKinds[6]++; break;
+            case ClientboundUpdateAttributesPacket: DiagnosticPacketKinds[7]++; break;
+        }
+    }
+
+    //ResetDiagnostics clears the scaling counters so a perf window reports only its own numbers
+    public static void ResetDiagnostics()
+    {
+        DiagnosticEntities = 0;
+        DiagnosticNearbyTotal = 0;
+        DiagnosticVisibleTotal = 0;
+        DiagnosticPlayerCount = 0;
+        DiagnosticPacketTotal = 0;
+        DiagnosticSyncCalls = 0;
+        Array.Clear(DiagnosticPacketKinds);
+    }
+
     //TrackedEntity the tracking state of a single entity
     private sealed class TrackedEntity
     {
@@ -62,21 +113,59 @@ public sealed class EntityTracker
         public int LastSyncedVersion { get; set; } = -1;
     }
 
+    //EntitySnapshot the entity fields one Sync round needs, captured once per pair
+    //Every member is an interface property call, and the round used to read most of them three to five times each; measured at roughly a
+    //third of the loop body, so the values are copied out here and the loop and its helpers work off the local copy
+    private readonly struct EntitySnapshot
+    {
+        public readonly int EntityId;
+        public readonly EntityType<object> Type;
+        public readonly Guid Uuid;
+        public readonly Vec3 Pos;
+        public readonly Vec3 Velocity;
+        public readonly float YRot;
+        public readonly float XRot;
+        public readonly bool OnGround;
+
+        //EntityId and Type are passed in because the caller already read them to reject unusable candidates
+        public EntitySnapshot(ITrackedEntity entity, int entityId, EntityType<object> type)
+        {
+            EntityId = entityId;
+            Type = type;
+            Uuid = entity.Uuid;
+            Pos = entity.Pos;
+            Velocity = entity.Velocity;
+            YRot = entity.YRot;
+            XRot = entity.XRot;
+            OnGround = entity.OnGround;
+        }
+    }
+
     //Tick advances all players' entity tracking and sends packet by packet
     //Tracked entities outside candidates are treated as removed from the world; a removal packet is sent to players still tracking it
     //Candidates are spatially bucketed; each player only iterates entities in its own surrounding 3x3 cells instead of scanning the whole field per player
     public void Tick(PersistentServerLevel level, IReadOnlyList<ServerPlayer> players)
     {
         if (players.Count == 0) return;
+        var prepStart = TickStageProfiler.Now();
         var candidates = CollectCandidates(level, players);
+        DiagnosticEntities = candidates.Count;
         var buckets = BucketByArea(candidates);
+        TickStageProfiler.Record(TickStage.TrackPrep, prepStart);
+
         var nearby = new List<ITrackedEntity>();
         foreach (var player in players)
         {
             if (!player.Connection.IsConnected) continue;
             nearby.Clear();
+            var syncStart = TickStageProfiler.Now();
             CollectNearby(player, buckets, nearby);
-            foreach (var packet in Sync(player, nearby))
+            DiagnosticNearbyTotal += nearby.Count;
+            var packets = Sync(player, nearby);
+            TickStageProfiler.Record(TickStage.TrackSync, syncStart);
+
+            var sendStart = TickStageProfiler.Now();
+            foreach (var packet in packets)
             {
                 try
                 {
@@ -87,10 +176,12 @@ public sealed class EntityTracker
                     Log.Warning($"Entity sync packet failed player={player.Profile.Name} {e.Message}");
                 }
             }
+            TickStageProfiler.Record(TickStage.TrackSend, sendStart);
         }
         //Clear dirty attributes only after all observers have sent this tick, maps to vanilla ServerEntity's clear after broadcasting
         //Clearing inside Sync would let the first player handled eat the change and later observers receive no attribute packet
         foreach (var entity in candidates) entity.Attributes?.ClearAttributesToSync();
+        DiagnosticPlayerCount += players.Count;
     }
 
     //BucketByArea buckets candidates into 16x16-chunk spatial cells; the key is the cell coordinate
@@ -131,43 +222,59 @@ public sealed class EntityTracker
     public List<Packet<ClientGamePacketListener>> Sync(ServerPlayer player, IReadOnlyList<ITrackedEntity> candidates)
     {
         var packets = new List<Packet<ClientGamePacketListener>>();
+        DiagnosticSyncCalls++;
         //processed the entity ids actually iterated this frame; PruneStale uses it to decide whether the player can still see them
         var processed = new HashSet<int>(candidates.Count);
+        //Per-player constants hoisted out of the pair loop: Position returns a Vec3 by value and is an interface call, so reading
+        //it once here saves a copy and a call on every candidate
+        var playerEntityId = player.EntityId;
+        var viewDistance = player.ViewDistanceChunks;
+        var playerPos = player.Position;
+        var playerX = playerPos.X;
+        var playerZ = playerPos.Z;
+        var loopStart = TickStageProfiler.Now();
         foreach (var entity in candidates)
         {
-            if (entity.Type is null) continue;
-            processed.Add(entity.EntityId);
+            var type = entity.Type;
+            if (type is null) continue;
+            var entityId = entity.EntityId;
+            processed.Add(entityId);
             //A player does not send its own entity packet, maps to the self skip of vanilla TrackedEntity.updatePlayer
             if (ReferenceEquals(entity, player)) continue;
-            if (!_tracked.TryGetValue(entity.EntityId, out var state))
+            if (!_tracked.TryGetValue(entityId, out var state))
             {
                 state = new TrackedEntity();
-                _tracked[entity.EntityId] = state;
+                _tracked[entityId] = state;
             }
-            var seen = state.Observers.ContainsKey(player.EntityId);
-            if (!IsVisible(player, entity))
+            //One dictionary lookup instead of ContainsKey followed by an indexer read
+            var seen = state.Observers.TryGetValue(playerEntityId, out var observed);
+            if (!IsVisible(entity, type, playerX, playerZ, viewDistance))
             {
                 if (seen)
                 {
-                    state.Observers.Remove(player.EntityId);
-                    SeenOf(player.EntityId).Remove(entity.EntityId);
-                    packets.Add(new ClientboundRemoveEntitiesPacket(new[] { entity.EntityId }));
+                    state.Observers.Remove(playerEntityId);
+                    SeenOf(playerEntityId).Remove(entityId);
+                    packets.Add(new ClientboundRemoveEntitiesPacket(new[] { entityId }));
                 }
                 continue;
             }
+            //Temporary: counts the candidate pairs that survive the distance test; everything above is what the 16-chunk cell granularity makes it scan for nothing
+            DiagnosticVisibleTotal++;
+            //Built only for pairs that survive the distance test: the invisible branch above is a third of all candidates
+            var snapshot = new EntitySnapshot(entity, entityId, type);
             if (!seen)
             {
                 var observer = new ObserverState
                 {
-                    LastPos = entity.Pos,
-                    LastYRot = entity.YRot,
-                    LastXRot = entity.XRot,
-                    LastOnGround = entity.OnGround,
-                    LastHeadYRot = entity.YRot,
+                    LastPos = snapshot.Pos,
+                    LastYRot = snapshot.YRot,
+                    LastXRot = snapshot.XRot,
+                    LastOnGround = snapshot.OnGround,
+                    LastHeadYRot = snapshot.YRot,
                 };
-                state.Observers[player.EntityId] = observer;
-                SeenOf(player.EntityId).Add(entity.EntityId);
-                packets.Add(BuildAddEntity(entity));
+                state.Observers[playerEntityId] = observer;
+                SeenOf(playerEntityId).Add(entityId);
+                packets.Add(BuildAddEntity(snapshot));
                 //When pairing, metadata is fully sent; players need a pose and drops need an item stack, so the client builds the right model
                 if (entity is ISyncedEntity synced)
                 {
@@ -180,13 +287,19 @@ public sealed class EntityTracker
                     packets.Add(BuildAttributes(entity.EntityId, attributes.SyncableAttributes));
                 continue;
             }
-            var observed = state.Observers[player.EntityId];
-            AddMovementPackets(observed, entity, packets);
-            AddHeadRotationPacket(observed, entity, packets);
-            AddSyncedDataPacket(observed, entity, packets);
+            //seen guarantees observed was found; the compiler cannot see the link through TryGetValue's out parameter
+            var observerState = observed!;
+            AddMovementPackets(observerState, snapshot, packets);
+            AddHeadRotationPacket(observerState, snapshot, packets);
+            AddSyncedDataPacket(observerState, entity, packets);
             AddAttributesPacket(entity, packets);
         }
+        TickStageProfiler.Record(TickStage.TrackLoop, loopStart);
+        DiagnosticPacketTotal += packets.Count;
+        foreach (var packet in packets) CountPacketKind(packet);
+        var pruneStart = TickStageProfiler.Now();
         PruneStale(player, processed, packets);
+        TickStageProfiler.Record(TickStage.TrackPrune, pruneStart);
         return packets;
     }
 
@@ -201,64 +314,66 @@ public sealed class EntityTracker
 
     //BuildAddEntity assembles the add entity packet; the facing is compressed to a single-byte angle like vanilla
     //The third angle is the head facing; this project's head follows the body so it equals the second angle
-    private static ClientboundAddEntityPacket BuildAddEntity(ITrackedEntity entity)
-        => new(entity.EntityId, entity.Uuid, entity.Type!, entity.Pos.X, entity.Pos.Y, entity.Pos.Z,
-            entity.Velocity, Mth.PackDegrees(entity.XRot), Mth.PackDegrees(entity.YRot),
-            Mth.PackDegrees(entity.YRot), 0);
+    private static ClientboundAddEntityPacket BuildAddEntity(in EntitySnapshot snapshot)
+        => new(snapshot.EntityId, snapshot.Uuid, snapshot.Type, snapshot.Pos.X, snapshot.Pos.Y, snapshot.Pos.Z,
+            snapshot.Velocity, Mth.PackDegrees(snapshot.XRot), Mth.PackDegrees(snapshot.YRot),
+            Mth.PackDegrees(snapshot.YRot), 0);
 
     //AddMovementPackets assembles the move packet from displacement and facing changes
     //A displacement over the threshold uses the teleport packet, within it the relative displacement packet, and a facing-only change the rotation packet
-    private static void AddMovementPackets(ObserverState state, ITrackedEntity entity,
+    private static void AddMovementPackets(ObserverState state, in EntitySnapshot snapshot,
         List<Packet<ClientGamePacketListener>> packets)
     {
-        var dx = entity.Pos.X - state.LastPos.X;
-        var dy = entity.Pos.Y - state.LastPos.Y;
-        var dz = entity.Pos.Z - state.LastPos.Z;
+        var pos = snapshot.Pos;
+        var dx = pos.X - state.LastPos.X;
+        var dy = pos.Y - state.LastPos.Y;
+        var dz = pos.Z - state.LastPos.Z;
         var moved = dx != 0 || dy != 0 || dz != 0;
-        var yRotChanged = Mth.Abs(Mth.WrapDegrees(entity.YRot - state.LastYRot)) >= RotationTolerance;
-        var xRotChanged = Mth.Abs(Mth.WrapDegrees(entity.XRot - state.LastXRot)) >= RotationTolerance;
-        var onGroundChanged = entity.OnGround != state.LastOnGround;
+        var yRotChanged = Mth.Abs(Mth.WrapDegrees(snapshot.YRot - state.LastYRot)) >= RotationTolerance;
+        var xRotChanged = Mth.Abs(Mth.WrapDegrees(snapshot.XRot - state.LastXRot)) >= RotationTolerance;
+        var onGroundChanged = snapshot.OnGround != state.LastOnGround;
         if (!moved && !yRotChanged && !xRotChanged && !onGroundChanged) return;
 
-        var yRot = Mth.PackDegrees(entity.YRot);
-        var xRot = Mth.PackDegrees(entity.XRot);
+        var entityId = snapshot.EntityId;
+        var yRot = Mth.PackDegrees(snapshot.YRot);
+        var xRot = Mth.PackDegrees(snapshot.XRot);
         if (moved && (Math.Abs(dx) > TeleportThreshold || Math.Abs(dy) > TeleportThreshold || Math.Abs(dz) > TeleportThreshold))
         {
             //A large displacement uses the position sync packet; the client resets the position baseline VecDeltaCodec when handling it
             //With the teleport packet the client only interpolates without resetting the baseline; every later delta packet accumulates from the old baseline
             //The observer-side model offset then stays equal to that displacement, i.e. it flies off on the next move after the teleport with a constant distance
-            packets.Add(new ClientboundEntityPositionSyncPacket(entity.EntityId, entity.Pos, entity.Velocity,
-                entity.YRot, entity.XRot, entity.OnGround));
+            packets.Add(new ClientboundEntityPositionSyncPacket(entityId, pos, snapshot.Velocity,
+                snapshot.YRot, snapshot.XRot, snapshot.OnGround));
         }
         else if (moved)
         {
-            var xa = (short)(EncodeDelta(entity.Pos.X) - EncodeDelta(state.LastPos.X));
-            var ya = (short)(EncodeDelta(entity.Pos.Y) - EncodeDelta(state.LastPos.Y));
-            var za = (short)(EncodeDelta(entity.Pos.Z) - EncodeDelta(state.LastPos.Z));
+            var xa = (short)(EncodeDelta(pos.X) - EncodeDelta(state.LastPos.X));
+            var ya = (short)(EncodeDelta(pos.Y) - EncodeDelta(state.LastPos.Y));
+            var za = (short)(EncodeDelta(pos.Z) - EncodeDelta(state.LastPos.Z));
             if (yRotChanged || xRotChanged)
-                packets.Add(new ClientboundMoveEntityPacket.PosRot(entity.EntityId, xa, ya, za, yRot, xRot, entity.OnGround));
+                packets.Add(new ClientboundMoveEntityPacket.PosRot(entityId, xa, ya, za, yRot, xRot, snapshot.OnGround));
             else
-                packets.Add(new ClientboundMoveEntityPacket.Pos(entity.EntityId, xa, ya, za, entity.OnGround));
+                packets.Add(new ClientboundMoveEntityPacket.Pos(entityId, xa, ya, za, snapshot.OnGround));
         }
         else
         {
-            packets.Add(new ClientboundMoveEntityPacket.Rot(entity.EntityId, yRot, xRot, entity.OnGround));
+            packets.Add(new ClientboundMoveEntityPacket.Rot(entityId, yRot, xRot, snapshot.OnGround));
         }
-        state.LastPos = entity.Pos;
-        state.LastYRot = entity.YRot;
-        state.LastXRot = entity.XRot;
-        state.LastOnGround = entity.OnGround;
+        state.LastPos = pos;
+        state.LastYRot = snapshot.YRot;
+        state.LastXRot = snapshot.XRot;
+        state.LastOnGround = snapshot.OnGround;
     }
 
     //AddHeadRotationPacket sends the head rotation packet on head facing change, maps to the rotateHead branch of vanilla ServerEntity
     //The client model's head only honors this packet; sending only move/rotate packets leaves the head still when others see you turn
     //This project has no separate head turning control; the head facing follows the body facing
-    private static void AddHeadRotationPacket(ObserverState state, ITrackedEntity entity,
+    private static void AddHeadRotationPacket(ObserverState state, in EntitySnapshot snapshot,
         List<Packet<ClientGamePacketListener>> packets)
     {
-        if (Mth.Abs(Mth.WrapDegrees(entity.YRot - state.LastHeadYRot)) < RotationTolerance) return;
-        state.LastHeadYRot = entity.YRot;
-        packets.Add(new ClientboundRotateHeadPacket(entity.EntityId, Mth.PackDegrees(entity.YRot)));
+        if (Mth.Abs(Mth.WrapDegrees(snapshot.YRot - state.LastHeadYRot)) < RotationTolerance) return;
+        state.LastHeadYRot = snapshot.YRot;
+        packets.Add(new ClientboundRotateHeadPacket(snapshot.EntityId, Mth.PackDegrees(snapshot.YRot)));
     }
 
     //AddSyncedDataPacket sent after a metadata version change, maps to the synced data branch of vanilla ServerEntity
@@ -357,13 +472,16 @@ public sealed class EntityTracker
     }
 
     //IsVisible does a horizontal distance test with the smaller of the player view distance and the entity tracking distance
-    private static bool IsVisible(ServerPlayer player, ITrackedEntity entity)
+    //The player's own position and view distance are passed in rather than read off ServerPlayer: both are loop invariants and
+    //Position hands back a Vec3 by value, so reading them per pair copied the same numbers thousands of times a tick
+    private static bool IsVisible(ITrackedEntity entity, EntityType<object> type, double playerX, double playerZ,
+        int viewDistanceChunks)
     {
-        var rangeChunks = Math.Min(entity.Type?.TrackingRangeChunks ?? 0, player.ViewDistanceChunks);
+        var rangeChunks = Math.Min(type.TrackingRangeChunks, viewDistanceChunks);
         if (rangeChunks <= 0) return false;
         var range = rangeChunks * 16.0;
-        var dx = player.Position.X - entity.Pos.X;
-        var dz = player.Position.Z - entity.Pos.Z;
+        var dx = playerX - entity.Pos.X;
+        var dz = playerZ - entity.Pos.Z;
         return dx * dx + dz * dz <= range * range;
     }
 

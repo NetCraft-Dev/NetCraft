@@ -309,18 +309,24 @@ public sealed class FindTopSurface : DensityFunction
         CellHeight = cellHeight;
     }
 
+    //Reusable descent probe, one per thread; the descent below rewrites it every step so a nested caller cannot corrupt it
+    [ThreadStatic] private static SinglePointContext? _topSurfaceProbe;
+
     public double Compute(FunctionContext context)
     {
         var topY = Mth.Floor(UpperBound.Compute(context) / CellHeight) * CellHeight;
         if (topY <= LowerBound)
             return LowerBound;
         var i = topY;
+        //One instance for the whole descent; X and Z never change, only Y walks. The probe is rewritten before each use
+        //and the call on the next line does not retain it, so the reuse cannot be clobbered
+        var probe = _topSurfaceProbe ??= new SinglePointContext(0, 0, 0);
         while (true)
         {
             var blockY = i;
             if (blockY < LowerBound)
                 return LowerBound;
-            var probe = new SinglePointContext(context.BlockX, blockY, context.BlockZ);
+            probe.Set(context.BlockX, blockY, context.BlockZ);
             if (Density.Compute(probe) <= 0.0)
                 i = blockY - CellHeight;
             else

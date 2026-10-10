@@ -35,7 +35,8 @@ public readonly struct BlockState : IEquatable<BlockState>
     public BlockState Cycle<T>(Property<T> property) where T : IComparable
         => BlockStateRegistry.Cycle(Id, property);
 
-    public IEnumerable<PropertyValue> GetValues() => BlockStateRegistry.GetValues(Id);
+    //Declared as the array so a foreach over it is an index loop, see BlockStateRegistry.GetValues
+    public PropertyValue[] GetValues() => BlockStateRegistry.GetValues(Id);
 
     //GetLightEmission the block's own light emission for the lighting engine; it is per-state for blocks like redstone lamps that only emit light when lit
     public int GetLightEmission() => Owner.GetLightEmission(this);

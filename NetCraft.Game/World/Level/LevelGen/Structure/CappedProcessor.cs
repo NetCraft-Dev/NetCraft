@@ -1,3 +1,4 @@
+using System.Buffers;
 using NetCraft.Codec;
 using NetCraft.Logging;
 using NetCraft.Primitives;
@@ -43,28 +44,42 @@ public sealed class CappedProcessor : StructureProcessor
         var random = settings.GetRandom(position);
         var maxToReplace = Math.Min(Limit.Sample(random), processedBlockInfoList.Count);
         if (maxToReplace < 1) return processedBlockInfoList;
-        var indices = ShuffledIndices(processedBlockInfoList.Count, random);
-        var result = processedBlockInfoList.ToList();
-        var replaced = 0;
-        foreach (var index in indices)
+        var count = processedBlockInfoList.Count;
+        var indices = RentShuffledIndices(count, random);
+        try
         {
-            if (replaced >= maxToReplace) break;
-            var originalBlockInfo = originalBlockInfoList[index];
-            var processedBlockInfo = result[index];
-            var maybeAltered = Delegate.ProcessBlock(level, position, referencePos, originalBlockInfo.Pos,
-                processedBlockInfo, settings);
-            if (maybeAltered is null || processedBlockInfo.Equals(maybeAltered)) continue;
-            replaced++;
-            result[index] = maybeAltered;
+            var result = processedBlockInfoList.ToList();
+            var replaced = 0;
+            for (var k = 0; k < count; k++)
+            {
+                if (replaced >= maxToReplace) break;
+                var index = indices[k];
+                var originalBlockInfo = originalBlockInfoList[index];
+                var processedBlockInfo = result[index];
+                var maybeAltered = Delegate.ProcessBlock(level, position, referencePos, originalBlockInfo.Pos,
+                    processedBlockInfo, settings);
+                if (maybeAltered is null || processedBlockInfo.Equals(maybeAltered.Value)) continue;
+                replaced++;
+                result[index] = maybeAltered.Value;
+            }
+            return result;
         }
-        return result;
+        finally
+        {
+            ArrayPool<int>.Shared.Return(indices);
+        }
     }
 
-    //ShuffledIndices shuffles the index sequence, maps to the back-to-front swap in vanilla Util.toShuffledList
-    private static List<int> ShuffledIndices(int count, RandomSource random)
+    //RentShuffledIndices shuffles the index sequence, maps to the back-to-front swap in vanilla Util.toShuffledList
+    //The array is rented from the shared pool and owned by the caller, which returns it: a single piece can carry
+    //hundreds of blocks and this runs once per piece that carries a capped processor, so a fresh array every call
+    //turns into a System.Int32[] of tens of megabytes over a run. The pooled array may be longer than count, so the
+    //caller must iterate count entries rather than the array length
+    private static int[] RentShuffledIndices(int count, RandomSource random)
     {
-        var indices = new List<int>(count);
-        for (var i = 0; i < count; i++) indices.Add(i);
+        NetCraft.Util.SiteCounters.CountJigsawIndices(count);
+        var indices = ArrayPool<int>.Shared.Rent(count);
+        for (var i = 0; i < count; i++) indices[i] = i;
         for (var i = count - 1; i > 0; i--)
         {
             var j = random.NextInt(i + 1);

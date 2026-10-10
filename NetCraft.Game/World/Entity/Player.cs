@@ -37,17 +37,8 @@ public sealed class Inventory
 //Player player entity, maps to vanilla net.minecraft.world.entity.player.Player
 //Extends Entity and holds the core experience/health/hunger fields
 //Subsystems such as Inventory/Abilities come later, only basic fields are here
-public class Player : NetCraft.Registry.Entity, IEquipmentHolder, IEffectHolder
+public class Player : LivingEntity
 {
-    //Equipment player equipment slots, used by entity predicates and later equipment sync
-    public EntityEquipment Equipment { get; } = new();
-
-    //Effects active potion effects, used by entity predicates and later effect sync
-    public EntityEffects Effects { get; } = new();
-
-    //GetItemBySlot returns the item in the given slot, maps to vanilla LivingEntity.getItemBySlot
-    public ItemStack GetItemBySlot(EquipmentSlot slot) => Equipment.Get(slot);
-
     //Id the player entity type registry name is fixed to minecraft:player
     public override Identifier Id => Identifier.WithDefaultNamespace("player");
 
@@ -76,12 +67,6 @@ public class Player : NetCraft.Registry.Entity, IEquipmentHolder, IEffectHolder
     //XpTotal total accumulated experience points
     public int XpTotal { get; set; }
 
-    //Health current health, default 20
-    public float Health { get; set; } = 20f;
-
-    //MaxHealth maximum health, default 20
-    public float MaxHealth { get; set; } = 20f;
-
     //FoodLevel hunger value, default 20
     public int FoodLevel { get; set; } = 20;
 
@@ -107,7 +92,7 @@ public class Player : NetCraft.Registry.Entity, IEquipmentHolder, IEffectHolder
     public Player()
     {
         //The player attribute map is taken by type, maps to vanilla Player.createAttributes
-        Attributes = new AttributeMap(DefaultAttributes.GetSupplier(EntityTypes.PLAYER) ?? AttributeSupplier.Empty);
+        SetAttributes(new AttributeMap(DefaultAttributes.GetSupplier(EntityTypes.PLAYER) ?? AttributeSupplier.Empty));
         //The player stands slightly above the origin by default
         Pos = new Vec3(0, 0, 0);
         //The PoC pre-fills the 9 hotbar slots with cube items to demo hotbar item icon rendering

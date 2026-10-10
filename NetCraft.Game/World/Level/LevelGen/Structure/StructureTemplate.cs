@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using NetCraft.Game.World.Level.Block;
 using NetCraft.Nbt;
 using NetCraft.Primitives;
@@ -251,8 +252,11 @@ public sealed class StructureTemplate
     {
         if (_palettes.Count == 0) return new List<JigsawBlockInfo>();
         var settings = new StructurePlaceSettings().SetRotation(rotation);
-        var result = new List<JigsawBlockInfo>();
-        foreach (var jigsaw in JigsawsOf(settings.GetRandomPalette(_palettes, position)))
+        var source = JigsawsOf(settings.GetRandomPalette(_palettes, position));
+        //Sized up front since the result always holds one entry per cached jigsaw; growing instead cost a resize chain and
+        //the discarded arrays on every placement attempt
+        var result = new List<JigsawBlockInfo>(source.Count);
+        foreach (var jigsaw in source)
         {
             var info = jigsaw.Info;
             result.Add(jigsaw.WithInfo(new StructureBlockInfo(
@@ -263,7 +267,16 @@ public sealed class StructureTemplate
     }
 
     //JigsawsOf returns the jigsaw blocks in a palette, skipping entries without nbt; vanilla throws a null pointer right here
+    //Cached per palette: a palette is immutable once the template is loaded, so the scan and every JigsawBlockInfo.Of call
+    //were being redone for each placement. A chunk landing on a large jigsaw structure spent seconds in here
+    //ConditionalWeakTable so a dropped template takes its entries with it, and it is thread safe for the generation pool
+    private static readonly ConditionalWeakTable<StructureTemplatePalette, List<JigsawBlockInfo>> JigsawCache = new();
+
     private static List<JigsawBlockInfo> JigsawsOf(StructureTemplatePalette palette)
+        => JigsawCache.GetValue(palette, ScanJigsaws);
+
+    //ScanJigsaws builds the cached list once per palette; callers only read it, they never mutate it
+    private static List<JigsawBlockInfo> ScanJigsaws(StructureTemplatePalette palette)
     {
         var result = new List<JigsawBlockInfo>();
         foreach (var info in palette.Blocks)
@@ -323,13 +336,25 @@ public sealed class StructureTemplate
     public static List<StructureBlockInfo> ProcessBlockInfos(WorldGenRegion? level, BlockPos position,
         BlockPos referencePos, StructurePlaceSettings settings, IReadOnlyList<StructureBlockInfo> blockInfoList)
     {
-        var originalBlockInfoList = new List<StructureBlockInfo>();
-        var processedBlockInfoList = new List<StructureBlockInfo>();
+        //Sized to the block table up front: each list takes one entry per block at most, and growing them cost a resize
+        //chain plus the discarded arrays for every placement of every piece
+        var originalBlockInfoList = new List<StructureBlockInfo>(blockInfoList.Count);
+        var processedBlockInfoList = new List<StructureBlockInfo>(blockInfoList.Count);
         var processOnlyInCurrentChunk = true;
         foreach (var processor in settings.Processors)
         {
             if (!processor.EvaluatesEntirePieceState()) continue;
             processOnlyInCurrentChunk = false;
+            break;
+        }
+        //Only a processor that writes into the tag it is handed needs the template nbt isolated; the others either pass
+        //it through or return a fresh one, so copying here would be thrown away for every block of every placement
+        var copyNbt = false;
+        var processors = settings.Processors;
+        for (var i = 0; i < processors.Count; i++)
+        {
+            if (!processors[i].ModifiesBlockEntityData) continue;
+            copyNbt = true;
             break;
         }
         var chunkBox = settings.BoundingBox;
@@ -339,14 +364,14 @@ public sealed class StructureTemplate
             var blockPos = relative.Offset(position.X, position.Y, position.Z);
             if (processOnlyInCurrentChunk && chunkBox is not null && !Contains(chunkBox, blockPos)) continue;
             StructureBlockInfo? current = new StructureBlockInfo(blockPos, info.State,
-                info.Nbt is null ? null : (CompoundTag)info.Nbt.Copy());
+                info.Nbt is null || !copyNbt ? info.Nbt : (CompoundTag)info.Nbt.Copy());
             foreach (var processor in settings.Processors)
             {
                 if (current is null) break;
-                current = processor.ProcessBlock(level, position, referencePos, info.Pos, current, settings);
+                current = processor.ProcessBlock(level, position, referencePos, info.Pos, current.Value, settings);
             }
             if (current is null) continue;
-            processedBlockInfoList.Add(current);
+            processedBlockInfoList.Add(current.Value);
             originalBlockInfoList.Add(info);
         }
         foreach (var processor in settings.Processors)
@@ -366,7 +391,9 @@ public sealed class StructureTemplate
 
     //JigsawBlockInfo info of one jigsaw block in a template, maps to vanilla StructureTemplate.JigsawBlockInfo
     //name/target/pool decide what it can connect to; the two priorities decide connection order
-    public sealed record JigsawBlockInfo(StructureBlockInfo Info, JointType JointType, Identifier Name,
+    //Also a value type: GetJigsaws rebuilds one per jigsaw block on every placement and the structural pass allocates
+    //tens of thousands of them, so the list keeps them inline instead of one object per entry
+    public readonly record struct JigsawBlockInfo(StructureBlockInfo Info, JointType JointType, Identifier Name,
         Identifier Pool, Identifier Target, int PlacementPriority, int SelectionPriority)
     {
         //Of decodes jigsaw info from block info and its nbt, missing fields fall back to the vanilla defaults

@@ -1,4 +1,4 @@
-namespace NetCraft.Game.Client.Render.Model;
+namespace NetCraft.Client.Render.Model;
 
 //UnbakedModel unbaked model, maps to vanilla UnbakedModel/BlockModel
 //JSON deserialization result containing the parent reference, textures variable dictionary, and elements geometry list

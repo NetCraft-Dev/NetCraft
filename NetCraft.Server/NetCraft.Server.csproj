@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <RestoreEnablePackagePruning>false</RestoreEnablePackagePruning>
+    <TrimDepsJsonLibrariesWithoutAssets>false</TrimDepsJsonLibrariesWithoutAssets>
   </PropertyGroup>
 
   <ItemGroup>

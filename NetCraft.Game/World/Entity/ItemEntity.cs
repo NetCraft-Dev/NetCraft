@@ -81,9 +81,6 @@ public sealed class ItemEntity : NetCraft.Registry.Entity
     //DefaultGravity item entity gravity 0.04, less than the default 0.08, maps to vanilla getDefaultGravity
     public override double DefaultGravity => 0.04;
 
-    //SavesHealth the item entity's Health is a short with independent meaning, the base class does not write the float Health
-    protected override bool SavesHealth => false;
-
     //Item the held item stack, an empty stack makes the entity pointless so it removes itself
     //Assigning syncs to observers, maps to vanilla setItem writing DATA_ITEM
     public ItemStack Item

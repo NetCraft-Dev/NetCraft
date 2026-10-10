@@ -1,7 +1,7 @@
 using NetCraft.Game.World.Level.Block;
 using NetCraft.Primitives;
 
-namespace NetCraft.Game.Client.Level;
+namespace NetCraft.Client.Level;
 
 //BlockRaycast client look picking, maps to vanilla Entity.pick's voxel traversal
 //Steps from the eye position along the view direction determined by yaw/pitch at a fixed step, returning on the first non-air block hit

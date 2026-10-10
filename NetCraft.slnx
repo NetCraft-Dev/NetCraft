@@ -1,7 +1,6 @@
 <Solution>
   <Project Path="NetCraft.Commands/NetCraft.Commands.csproj" />
   <Project Path="NetCraft.Config/NetCraft.Config.csproj" />
-  <Project Path="NetCraft.Gpu/NetCraft.Gpu.csproj" />
   <Project Path="NetCraft.Interop/NetCraft.Interop.csproj" />
   <Project Path="NetCraft.Codec/NetCraft.Codec.csproj" />
   <Project Path="NetCraft.DataFixer/NetCraft.DataFixer.csproj" />
@@ -14,7 +13,6 @@
   <Project Path="NetCraft.Nbt/NetCraft.Nbt.csproj" />
   <Project Path="NetCraft.Network/NetCraft.Network.csproj" />
   <Project Path="NetCraft.ModLoader/NetCraft.ModLoader.csproj" />
-  <Project Path="NetCraft.Optimizations/NetCraft.Optimizations.csproj" />
   <Project Path="NetCraft.Primitives/NetCraft.Primitives.csproj" />
   <Project Path="NetCraft.Registry/NetCraft.Registry.csproj" />
   <Project Path="NetCraft.Resources/NetCraft.Resources.csproj" />

@@ -4,7 +4,7 @@ using NetCraft.Registry;
 namespace NetCraft.Game.World.Entity;
 
 //IEffectHolder entity holding active potion effects, maps to the capability of vanilla LivingEntity.getActiveEffectsMap
-//There is no LivingEntity here, Mob and Player implement it separately
+//Implemented by LivingEntity; Mob and Player inherit it
 public interface IEffectHolder
 {
     //Effects active potion effect container

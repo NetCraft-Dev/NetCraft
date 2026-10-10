@@ -14,7 +14,7 @@ using AttributeSupplier = NetCraft.Registry.EntityAttribute.AttributeSupplier;
 //The default entity attribute table is under the entity namespace; only this one type is used
 using DefaultAttributes = NetCraft.Game.World.Entity.DefaultAttributes;
 
-namespace NetCraft.Game.Client.Level;
+namespace NetCraft.Client.Level;
 
 //ClientLevel client world, maps to vanilla net.minecraft.client.multiplayer.ClientLevel
 //Holds chunk storage + light storage, providing BlockState/BlockLight/SkyLight queries

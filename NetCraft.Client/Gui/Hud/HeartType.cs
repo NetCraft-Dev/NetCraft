@@ -1,4 +1,4 @@
-namespace NetCraft.Game.Gui.Hud;
+namespace NetCraft.Client.Gui.Hud;
 
 //HeartType heart type enum, maps to vanilla Hud.HeartType (6 kinds)
 //Each has 8 sprite variants (full/half × blink × hardcore); container has no half variant, both full/half use container

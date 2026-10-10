@@ -33,21 +33,37 @@ public static class NativeStackGuard
     //Without it a run where the layer fails to load would restart endlessly
     private const string AttachedFlag = "NC_NATIVE_ATTACHED";
 
+    //Quiet, per thread, whether this thread has already reported and is waiting for room to come back
+    //Per thread rather than shared: one thread's descent must not silence another's report
+    [ThreadStatic]
+    private static bool _quiet;
+
     //EnsureStack is the entry the injected call points at
     //
-    //It is deliberately not the framework helper. That check fires on every call, so once the stack is short it keeps
-    //firing while the exception is unwound and handled, and the process ends up dying on the way to reporting the
-    //problem. This one goes quiet after it trips and only arms again once the stack has grown back, which leaves room
-    //for the unwind, the catch block and anything that logs along the way
+    //The test is the runtime's own stack probe, which it answers from a limit it has already cached rather than by
+    //asking the system. The common case is a field read and one call inside the runtime; going through the native layer
+    //meant a managed to native transition, a look at the thread's stack limits and a dynamic TLS access on every method
+    //call, and the level generation path calls methods often enough for that to become the work
+    //
+    //The quiet flag is what the probe alone cannot express. On its own it keeps answering that the stack is short while
+    //the exception is unwound and handled, and the process dies on its way to reporting the problem. A thread that has
+    //tripped stays quiet until the probe says there is room again, which leaves room for the unwind, the catch block
+    //and anything that logs along the way
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static void EnsureStack()
     {
-        if (Tripped()) throw new InsufficientExecutionStackException();
-    }
+        if (_quiet)
+        {
+            //Room again means the exception was handled and this thread may report the next one
+            if (RuntimeHelpers.TryEnsureSufficientExecutionStack()) _quiet = false;
+            return;
+        }
 
-    [DllImport(LibraryName, EntryPoint = "ncn_stack_guard", CallingConvention = CallingConvention.Cdecl)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    private static extern bool Tripped();
+        if (RuntimeHelpers.TryEnsureSufficientExecutionStack()) return;
+
+        _quiet = true;
+        throw new InsufficientExecutionStackException();
+    }
 
     //Console bits needed to hand an interrupt to the child and keep escape sequences working
     private const uint CtrlCEvent = 0;

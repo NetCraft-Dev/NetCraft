@@ -135,7 +135,10 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         var beardifier = structures is GameStructureFeatureManager manager
             ? GameBeardifier.ForStructuresInChunk(manager, chunk.Pos)
             : GameBeardifier.Empty;
+        //Temporary instrumentation, splits the noise stage so an allocation type can be placed on the chunk build or the fill loop
+        var marker = GC.GetTotalAllocatedBytes();
         var noiseChunk = GetOrCreateNoiseChunk(chunk, randomState, beardifier);
+        NetCraft.Util.SiteCounters.Stage("noise.create", GC.GetTotalAllocatedBytes() - marker);
         var defaultBlock = Settings.DefaultBlock;
 
         var cellWidth = noiseChunk.CellWidth;
@@ -147,6 +150,7 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         var chunkStartBlockZ = chunk.Pos.MinBlockZ;
 
         noiseChunk.InitializeForFirstCellX();
+        marker = GC.GetTotalAllocatedBytes();
         for (var cellXIndex = 0; cellXIndex < cellCountXZ; cellXIndex++)
         {
             noiseChunk.AdvanceCellX(cellXIndex);
@@ -177,6 +181,7 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
             }
             noiseChunk.SwapSlices();
         }
+        NetCraft.Util.SiteCounters.Stage("noise.fill", GC.GetTotalAllocatedBytes() - marker);
         noiseChunk.StopInterpolation();
     }
 
@@ -232,12 +237,18 @@ public class NoiseBasedChunkGenerator : ChunkGenerator
         }
         var randomState = GetOrCreateRandomState();
         //The noise stage already built a NoiseChunk from structures, so this usually hits the cache; a zero marker is used on the fallback path
+        var marker = GC.GetTotalAllocatedBytes();
         var noiseChunk = GetOrCreateNoiseChunk(chunk, randomState, BeardifierMarker.Instance);
+        NetCraft.Util.SiteCounters.Stage("surface.create", GC.GetTotalAllocatedBytes() - marker);
         //Surface-stage biome lookups go through BiomeManager: a palette hit in this chunk is a single table lookup, only out-of-bounds falls back to full sampling
         //Passing GetBiome directly would run a 6D climate sample per block and slow chunk generation to the point of connection timeouts
+        marker = GC.GetTotalAllocatedBytes();
         var biomeManager = new BiomeManager(chunk, GetBiome, randomState.Seed);
+        NetCraft.Util.SiteCounters.Stage("surface.biome", GC.GetTotalAllocatedBytes() - marker);
+        marker = GC.GetTotalAllocatedBytes();
         randomState.SurfaceSystem.BuildSurface(chunk, noiseChunk, ruleSource, biomeManager.GetBiome,
             chunk.MinSectionY * 16, GetGenDepth(), Settings.UseLegacyRandomSource);
+        NetCraft.Util.SiteCounters.Stage("surface.rules", GC.GetTotalAllocatedBytes() - marker);
         //Log.Debug("BuildSurface exit");
     }
 

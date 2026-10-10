@@ -1,7 +1,7 @@
 using NetCraft.Logging;
 using NetCraft.Network;
 
-namespace NetCraft.Network.Protocol.Login;
+namespace NetCraft.Client.Network.Protocol.Login;
 
 //ClientLoginPacketListenerImpl client login listener implementation
 //Simplified version of vanilla ClientLoginPacketListenerImpl, skipping encryption

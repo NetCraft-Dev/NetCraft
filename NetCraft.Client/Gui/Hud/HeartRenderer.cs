@@ -3,7 +3,7 @@ using NetCraft.Game.World.Entity;
 //MobEffect ambiguous: NetCraft.Game.World (enum) vs NetCraft.Registry (interface stub); alias pins it to the enum
 using MobEffect = NetCraft.Game.World.MobEffect;
 
-namespace NetCraft.Game.Gui.Hud;
+namespace NetCraft.Client.Gui.Hud;
 
 //HeartRenderer heart renderer, maps to vanilla Hud.extractPlayerHealth L782-830 + extractHearts L900-936 + forPlayer L885-897
 //forPlayer detects POISON/WITHER/FROZEN to pick the type
@@ -24,7 +24,7 @@ public sealed class HeartRenderer
     private int _displayHealthTickCounter;
 
     //Tick advances tickCount and blink/displayHealth state each frame, called by GameScreen.Tick
-    public void Tick(Player player)
+    public void Tick(World.Entity.Player player)
     {
         _tickCount++;
         int currentHealth = (int)Math.Ceiling(player.Health);
@@ -50,7 +50,7 @@ public sealed class HeartRenderer
     }
 
     //ForPlayer detects effects and picks HeartType, maps to vanilla forPlayer L885-897
-    public static HeartType ForPlayer(Player player)
+    public static HeartType ForPlayer(World.Entity.Player player)
     {
         if (player.ActiveEffects.Contains(MobEffect.Poison)) return HeartType.Poisoned;
         if (player.ActiveEffects.Contains(MobEffect.Wither)) return HeartType.Withered;
@@ -60,7 +60,7 @@ public sealed class HeartRenderer
 
     //ExtractHearts full heart render algorithm, maps to vanilla extractHearts L900-936
     //The renderHeart delegate is passed in by the caller and actually calls DrawSprite(identifier, xo, yo, 9, 9, tint)
-    public void ExtractHearts(Player player, int xLeft, int yLineBase, int healthRowHeight,
+    public void ExtractHearts(World.Entity.Player player, int xLeft, int yLineBase, int healthRowHeight,
         Action<string, int, int> renderHeart)
     {
         int currentHealth = (int)Math.Ceiling(player.Health);

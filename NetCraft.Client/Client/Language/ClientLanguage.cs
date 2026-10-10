@@ -1,7 +1,7 @@
 using NetCraft.Game;
 using NetCraft.Resources;
 
-namespace NetCraft.Game.Client.Language;
+namespace NetCraft.Client.Language;
 
 //ClientLanguage client language table, maps to vanilla net.minecraft.client.resources.language.ClientLanguage
 //Attached to the reload chain as a resource reload listener; each reload reassembles the language table for the current language code and replaces the global instance

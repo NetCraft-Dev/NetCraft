@@ -272,16 +272,20 @@ public static class Log
 
     //ArchiveOldLogs packs what earlier sessions left behind, before this session opens its own file
     //Failure is swallowed: a missing compression library or a full disk must not take the file sink down with it
+    //The count is reported either way, a silent zero is what made the earlier failure invisible
     private static void ArchiveOldLogs()
     {
         if (_archived) return;
         _archived = true;
         try
         {
-            LogArchive.Archive(_logDirectory);
+            var packed = LogArchive.Archive(_logDirectory);
+            if (packed > 0)
+                WriteCleanupLog($"[Log Archive] Packed {packed} old log file(s) into {LogArchive.Extension}");
         }
-        catch
+        catch (Exception e)
         {
+            Console.Error.WriteLine($"[log] archiving old logs failed: {e.Message}");
         }
     }
 

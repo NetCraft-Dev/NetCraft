@@ -168,8 +168,12 @@ public sealed class OreFeature : Feature<OreConfiguration>
                         tested[bit] = true;
                         if (!level.EnsureCanWrite(x >> 4, z >> 4)) continue;
                         var blockState = level.GetBlockState(x, y, z);
-                        foreach (var target in config.TargetStates)
+                        //Indexed rather than foreach: TargetStates is an IReadOnlyList, so foreach asks the interface for
+                        //an enumerator and boxes it, once for every candidate cell of this triple loop
+                        var targets = config.TargetStates;
+                        for (var ti = 0; ti < targets.Count; ti++)
                         {
+                            var target = targets[ti];
                             if (!CanPlaceOre(blockState, level, random, config, target, new BlockPos(x, y, z))) continue;
                             level.SetBlockState(x, y, z, target.State);
                             placed++;
@@ -236,8 +240,11 @@ public sealed class ScatteredOreFeature : Feature<OreConfiguration>
                 RandomOffset(random, maxDistance),
                 RandomOffset(random, maxDistance));
             var blockState = level.GetBlockState(target.X, target.Y, target.Z);
-            foreach (var targetState in config.TargetStates)
+            //Indexed for the same reason as the main ore loop
+            var targets = config.TargetStates;
+            for (var ti = 0; ti < targets.Count; ti++)
             {
+                var targetState = targets[ti];
                 if (!OreFeature.CanPlaceOre(blockState, level, random, config, targetState, target)) continue;
                 level.SetBlockState(target.X, target.Y, target.Z, targetState.State);
                 break;
@@ -667,8 +674,10 @@ public sealed class ReplaceSingleBlockFeature : Feature<ReplaceBlockConfiguratio
         var level = context.Level;
         var origin = context.Origin;
         var state = level.GetBlockState(origin.X, origin.Y, origin.Z);
-        foreach (var targetState in config.TargetStates)
+        var targets = config.TargetStates;
+        for (var ti = 0; ti < targets.Count; ti++)
         {
+            var targetState = targets[ti];
             if (!targetState.Target.Test(state, context.Random)) continue;
             level.SetBlockState(origin.X, origin.Y, origin.Z, targetState.State);
             return true;

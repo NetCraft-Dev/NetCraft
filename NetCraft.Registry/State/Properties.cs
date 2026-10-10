@@ -72,6 +72,7 @@ public sealed class IntegerProperty : Property<int>
 public sealed class EnumProperty<T> : Property<T> where T : struct, Enum
 {
     private readonly IReadOnlyList<T> _values;
+    private readonly IReadOnlyList<object> _valuesObj;
     private readonly Dictionary<string, T> _byName;
 
     public EnumProperty(string name) : this(name, Enum.GetValues<T>()) { }
@@ -79,12 +80,17 @@ public sealed class EnumProperty<T> : Property<T> where T : struct, Enum
     public EnumProperty(string name, IReadOnlyList<T> values) : base(name)
     {
         _values = values;
+        //Boxed form built once, the way BooleanProperty and IntegerProperty do it; the base implementation rebuilt the
+        //list and re-boxed every value on each read, and structure placement reads this for every block it transforms
+        _valuesObj = values.Select(v => (object)v).ToArray();
         _byName = new(values.Count, StringComparer.Ordinal);
         foreach (var v in values)
             _byName[GetName(v)] = v;
     }
 
     public override IReadOnlyList<T> PossibleValues => _values;
+
+    public override IReadOnlyList<object> PossibleValuesAsObjects => _valuesObj;
 
     public override string GetName(T value) => value.ToString();
 

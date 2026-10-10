@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace NetCraft.Game.Client.Render.Model;
+namespace NetCraft.Client.Render.Model;
 
 //ModelElement model element, maps to vanilla BlockElement
 //A cube defined by from-to, containing 6 faces (some may be missing)

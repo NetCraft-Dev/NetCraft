@@ -4,12 +4,9 @@ using NetCraft.Nbt;
 using NetCraft.Primitives;
 using NetCraft.Primitives.Phys;
 using NetCraft.Util;
-using NetCraft.Util.Random;
 //Entity attributes carry their own namespace, kept separate from same-named types in environment attributes (NetCraft.Registry.Environment)
-//Attribute clashes with System.Attribute, so only the three needed names are taken and aliased here
+//Attribute clashes with System.Attribute, so only the needed name is taken and aliased here
 using AttributeMap = NetCraft.Registry.EntityAttribute.AttributeMap;
-using AttributeSupplier = NetCraft.Registry.EntityAttribute.AttributeSupplier;
-using AttributeDef = NetCraft.Registry.EntityAttribute.Attribute;
 
 namespace NetCraft.Registry;
 
@@ -63,9 +60,6 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
     //SyncedData entity metadata container; subclasses Define the entries they own at construction
     public SynchedEntityData SyncedData { get; } = new();
 
-    //_deathHandled whether the death hook already fired, ensuring the death flow runs only once
-    private bool _deathHandled;
-
     //Gravity gravitational acceleration, maps to vanilla 0.08
     public const double Gravity = 0.08;
 
@@ -78,39 +72,15 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
     //DefaultGravity default gravitational acceleration, maps to vanilla getDefaultGravity; dropped items override it to 0.04
     public virtual double DefaultGravity => Gravity;
 
-    //SafeFallDistance the distance at which fall damage starts counting, maps to vanilla attribute SAFE_FALL_DISTANCE, default 3
-    public virtual double SafeFallDistance => 3.0;
-
-    //FallDamageMultiplier fall damage multiplier, maps to vanilla attribute FALL_DAMAGE_MULTIPLIER, default 1
-    public virtual double FallDamageMultiplier => 1.0;
-
-    //KnockbackResistance knockback resistance between 0 and 1, where 1 means full immunity, maps to vanilla attribute KNOCKBACK_RESISTANCE
-    public virtual double KnockbackResistance => 0.0;
-
-    //TakesFallDamage whether it takes fall damage; in vanilla the Entity base does not and LivingEntity does
-    //There is no LivingEntity layer here, so living subclasses turn it on
-    public virtual bool TakesFallDamage => false;
-
     //IsInWater whether it is submerged; there is no fluid check here so it is always false, maps to vanilla wasTouchingWater
     //Until the fluid check is wired up this lets all falls accumulate distance, matching vanilla on-land behavior
     public virtual bool IsInWater => false;
-
-    //KnockbackDirectionEpsilon minimum squared length of the knockback direction, maps to vanilla 9.999999747378752E-6
-    //When the direction component is shorter than this it is randomized, so a purely vertical knockback does not pin the entity in place
-    private const double KnockbackDirectionEpsilon = 9.999999747378752E-6;
-
-    //_random the entity's own random source, maps to vanilla Entity.random, used for knockback direction randomization and the like
-    private readonly RandomSource _random = RandomSource.Create();
 
     //FallDistance fall distance accumulated before this tick, maps to vanilla fallDistance; cleared on landing or touching a reset surface
     public double FallDistance { get; private set; }
 
     //AirDrag air drag, maps to vanilla getAirDrag, default 0.98
     public virtual double AirDrag => VerticalDrag;
-
-    //SavesHealth whether the base class writes the Health field
-    //A dropped item's Health is a separate short field with the same name as a mob's; it overrides this to false and writes it itself
-    protected virtual bool SavesHealth => true;
 
     //TagsTag key name for entity tags in saves, maps to vanilla "Tags"
     private const string TagsTag = "Tags";
@@ -182,15 +152,9 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
     //VerticalCollisionBelow whether downward movement was blocked this tick; standing is judged by this rather than vertical collision, maps to vanilla verticalCollisionBelow
     public bool VerticalCollisionBelow { get; private set; }
 
-    //Attributes entity attribute map; the base defaults to an empty table and living subclasses swap in their type's default table in the constructor
+    //Attributes entity attribute map; only living entities carry one, so the base returns null and LivingEntity overrides it
     //Maps to the AttributeMap held by vanilla LivingEntity
-    public AttributeMap Attributes { get; protected set; } = new(AttributeSupplier.Empty);
-
-    //GetAttributeValue gets the attribute's final value, maps to vanilla getAttributeValue
-    public double GetAttributeValue(AttributeDef attribute) => Attributes.GetValue(attribute);
-
-    //MaxUpStep the maximum step height that can be climbed automatically; the base is 0 and mobs override it from the step height attribute, maps to vanilla maxUpStep
-    public virtual double MaxUpStep => 0.0;
+    public virtual AttributeMap? Attributes => null;
 
     //Pos entity position in the world, defaulting to the origin
     public Vec3 Pos { get; set; } = Vec3.Zero;
@@ -221,12 +185,6 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
 
     //IsSwimming whether it is in the swimming pose, maps to vanilla isSwimming
     public bool IsSwimming { get; set; }
-
-    //IsBaby whether it is a baby, maps to vanilla LivingEntity.isBaby
-    public bool IsBaby { get; set; }
-
-    //IsFallFlying whether it is elytra gliding, maps to vanilla LivingEntity.isFallFlying
-    public bool IsFallFlying { get; set; }
 
     //IsFlying whether it is flying, maps to vanilla player ability flying and applies to all entities here
     public bool IsFlying { get; set; }
@@ -271,62 +229,15 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
     //Vanilla uses an offset of 0.500001
     public BlockPos GetBlockPosBelowThatAffectsMyMovement() => GetOnPos(0.500001f);
 
-    //Health current health, default 20 matching the vanilla MAX_HEALTH default
-    public float Health { get; private set; } = 20f;
-
-    //MaxHealth maximum health, overridden by subclasses as needed
-    public float MaxHealth { get; protected set; } = 20f;
-
-    //InvulnerableTime remaining invulnerability ticks after being hurt, maps to vanilla invulnerableTime
-    public int InvulnerableTime { get; private set; }
-
-    //IsDeadOrDying whether health dropped to zero, maps to vanilla isDeadOrDying
-    public bool IsDeadOrDying => Health <= 0f;
-
-    //Hurt applies damage, a minimal subset of vanilla hurtServer
-    //No repeated damage during invulnerability; damage reduction, damage source types and the death animation phase are not implemented
-    //When a knockback source position is given it also applies knockback, with the direction pointing from the source to itself
-    public virtual bool Hurt(float amount, Vec3? knockbackSource = null)
-    {
-        if (IsDeadOrDying || InvulnerableTime > 0) return false;
-        Health = Math.Max(0f, Health - amount);
-        //Invulnerability for 10 ticks; vanilla is 20 ticks with 10 for the hurt animation
-        InvulnerableTime = 10;
-        //Hurt knockback with strength 0.4, maps to vanilla LivingEntity.dealDefaultKnockback
-        //The direction is "source minus self" as in vanilla and knockback negates it internally; the net effect pushes the target away from the source
-        if (knockbackSource is { } source)
-            ApplyKnockback(0.4, source.X - Pos.X, source.Z - Pos.Z);
-        if (Health <= 0f) TriggerDeath();
-        return true;
-    }
-
-    //SetHealth directly sets health clamped to 0..MaxHealth, maps to vanilla setHealth
-    public void SetHealth(float value)
-    {
-        Health = Math.Clamp(value, 0f, MaxHealth);
-        //Health returning to a positive value counts as revival and re-allows the death flow
-        if (Health > 0f)
-        {
-            _deathHandled = false;
-            return;
-        }
-        TriggerDeath();
-    }
-
-    //Die hook when health reaches zero, maps to vanilla LivingEntity.die; subclasses do drops and death effects
-    protected virtual void Die() { }
+    //Hurt applies damage; the base entity is not alive and takes none, living subclasses override it
+    public virtual bool Hurt(float amount, Vec3? knockbackSource = null) => false;
 
     //Died death event, hooked up by the level when the entity joins, for the server to broadcast the death effect and remove the entity
+    //Raised by LivingEntity once its health reaches zero
     public event Action<Entity>? Died;
 
-    //TriggerDeath fires the death hook only once, avoiding Hurt and SetHealth running the death flow twice
-    private void TriggerDeath()
-    {
-        if (_deathHandled) return;
-        _deathHandled = true;
-        Die();
-        Died?.Invoke(this);
-    }
+    //RaiseDied fires the death event; only the declaring class may raise an event, so LivingEntity goes through it
+    protected void RaiseDied() => Died?.Invoke(this);
 
     //Save writes the full entity save including the type id, maps to vanilla Entity.save
     public void Save(CompoundTag tag)
@@ -344,11 +255,8 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         tag.Put("Rotation", FloatList(YRot, XRot));
         tag.PutIntArray("UUID", UuidToIntArray(Uuid));
         tag.PutBoolean("OnGround", OnGround);
-        if (SavesHealth) tag.PutFloat("Health", Health);
         //Tags are base behavior and are written only when non-empty, matching vanilla saveWithoutId's handling of Tags
         if (_tags.Count > 0) tag.Put(TagsTag, StringList(_tags));
-        //Attributes are saved only on living entities; TakesFallDamage stands in for the vanilla LivingEntity layer here
-        if (TakesFallDamage) Attributes.WriteTo(tag);
         AddAdditionalSaveData(tag);
     }
 
@@ -366,13 +274,11 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
         //UUID is an array of 4 ints; an incorrect length is treated as invalid and the original value is kept
         if (tag.GetIntArray("UUID") is { } uuid && IntArrayToUuid(uuid.Value) is { } parsed) Uuid = parsed;
         OnGround = tag.GetBooleanOr("OnGround", false);
-        if (SavesHealth && tag.GetFloat("Health") is { } health) SetHealth(health.Value);
         //Tags are cleared before reading, matching vanilla load's tags.clear followed by addAll
         _tags.Clear();
         if (tag.GetList(TagsTag) is { } tagList)
             for (var i = 0; i < tagList.Count; i++)
                 if (tagList.GetString(i) is { } entry) _tags.Add(entry.Value);
-        if (TakesFallDamage) Attributes.ReadFrom(tag);
         ReadAdditionalSaveData(tag);
     }
 
@@ -481,8 +387,6 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
     {
         TickCount++;
         PreviousPos = Pos;
-        //Invulnerability ticks decrement each tick, matching vanilla LivingEntity.tick's invulnerableTime--
-        if (InvulnerableTime > 0) InvulnerableTime--;
     }
 
     //ApplyDefaultPhysics default physics: gravity reduces vertical speed, horizontal speed decays by drag, then position advances by velocity
@@ -493,25 +397,6 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
             (Velocity.Y - DefaultGravity) * VerticalDrag,
             Velocity.Z * HorizontalDrag);
         Move(Velocity);
-    }
-
-    //ApplyKnockback applies knockback, maps to vanilla LivingEntity.knockback
-    //Horizontal velocity is halved then a reversed push is added; on the ground vertical velocity becomes min(0.4, half the original + power) and in the air it is unchanged
-    //Too-small direction components are randomized, matching vanilla's avoidance of purely vertical knockback
-    public void ApplyKnockback(double power, double xd, double zd)
-    {
-        var effective = power * (1.0 - KnockbackResistance);
-        if (effective <= 0.0) return;
-        while (xd * xd + zd * zd < KnockbackDirectionEpsilon)
-        {
-            xd = (_random.NextDouble() - _random.NextDouble()) * 0.01;
-            zd = (_random.NextDouble() - _random.NextDouble()) * 0.01;
-        }
-        var push = new Vec3(xd, 0.0, zd).Normalize().Multiply(effective);
-        Velocity = new Vec3(
-            Velocity.X / 2.0 - push.X,
-            OnGround ? Math.Min(0.4, Velocity.Y / 2.0 + effective) : Velocity.Y,
-            Velocity.Z / 2.0 - push.Z);
     }
 
     //CheckFallDamage accumulates fall distance and settles it on landing, maps to vanilla Entity.checkFallDamage
@@ -532,19 +417,24 @@ public abstract class Entity : ITrackedEntity, ISyncedEntity
     //ResetFallDistance resets the fall distance, maps to vanilla resetFallDistance
     public void ResetFallDistance() => FallDistance = 0.0;
 
-    //CauseFallDamage settles fall damage, maps to vanilla Entity.causeFallDamage and LivingEntity.causeFallDamage
-    //The base takes no damage; living subclasses enable TakesFallDamage and lose health by distance
-    public virtual bool CauseFallDamage(double fallDistance, float damageModifier)
-    {
-        if (!TakesFallDamage) return false;
-        var damage = CalculateFallDamage(fallDistance, damageModifier);
-        return damage > 0 && Hurt(damage);
-    }
+    //CauseFallDamage settles fall damage, maps to vanilla Entity.causeFallDamage
+    //The base entity takes no fall damage; LivingEntity overrides it to compute damage from the attributes
+    public virtual bool CauseFallDamage(double fallDistance, float damageModifier) => false;
 
-    //CalculateFallDamage computes damage from fall distance, maps to vanilla LivingEntity.calculateFallDamage
-    //The part beyond the safe distance is multiplied by the modifier and floored; within the safe distance it yields 0 or negative, meaning no damage
-    protected int CalculateFallDamage(double fallDistance, float damageModifier)
-        => Mth.Floor(((fallDistance + 1.0E-6) - SafeFallDistance) * damageModifier * FallDamageMultiplier);
+    //MoveRelative adds the movement input scaled by speed to the velocity, maps to vanilla Entity.moveRelative
+    public void MoveRelative(float speed, Vec3 input)
+        => Velocity = Velocity.Add(GetInputVector(input, speed, YRot));
+
+    //GetInputVector rotates the movement input by the yaw and scales it by speed, maps to vanilla Entity.getInputVector
+    protected static Vec3 GetInputVector(Vec3 input, float speed, float yRot)
+    {
+        var length = input.LengthSqr();
+        if (length < 1.0E-7) return Vec3.Zero;
+        var movement = (length > 1.0 ? input.Normalize() : input).Multiply(speed);
+        var sin = MathF.Sin(yRot * (MathF.PI / 180f));
+        var cos = MathF.Cos(yRot * (MathF.PI / 180f));
+        return new Vec3(movement.X * cos - movement.Z * sin, movement.Y, movement.Z * cos + movement.X * sin);
+    }
 
     //Move advances position by the delta, maps to vanilla Entity.move
     //Collision follows vanilla collideBoundingBox, taking collision shapes in the swept region of the whole movement then clipping axis by axis

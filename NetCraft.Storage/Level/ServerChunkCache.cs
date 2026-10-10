@@ -37,21 +37,37 @@ public sealed class ServerChunkCache : ChunkSource
     //Chunk generation and lighting run on background threads; the loaded cache is touched by both the main and generation threads and must be a concurrent dictionary
     private readonly ConcurrentDictionary<long, ChunkAccess> _loaded = new();
     //_generateGate, the generation concurrency gate; generation is a CPU-bound synchronous process
-    //Concurrency is decided by OptimizationFlags.ChunkGenerationParallel; when off it degrades to 1 for comparison with the serial baseline
-    //Leave one core for the main thread, aligning with vanilla using available cores minus one; otherwise generation threads starve the main thread of CPU
-    private readonly SemaphoreSlim _generateGate = new(
-        OptimizationFlags.ChunkGenerationParallel ? Math.Max(1, Environment.ProcessorCount - 1) : 1);
+    //Two cores are held back rather than vanilla's one: one for the main thread, one for the light thread, which has nowhere else to run
+    //Counting only the main thread left the machine over-subscribed once the light thread existed, and that slows down every thread at once
+    private readonly SemaphoreSlim _generateGate = new(Math.Max(1, Environment.ProcessorCount - 2));
     //_lightEngine builds light data from chunk content once a chunk is ready; created lazily
     private readonly object _lightLock = new();
-    //The light engine uses non-thread-safe dictionaries internally; vanilla runs it serially on a dedicated thread, here a semaphore serializes it
-    //A semaphore rather than lock: on the main-thread side, waiting can return the thread to the pool instead of holding it
-    //The generation side always tries with a zero timeout and yields immediately when it cannot get it, never queuing to contend with the main thread
+    //The light engine uses non-thread-safe dictionaries internally; vanilla runs it serially on a dedicated thread, and so does the light thread here
+    //A semaphore rather than lock: the main-thread side only flushes, and taking it with a zero timeout lets the thread return to the pool instead of holding it
+    //The light thread yields between rounds and never queues behind the main thread, which is what keeps the flush able to get in
     private readonly SemaphoreSlim _lightGate = new(1, 1);
     private ServerLightChunkGetter? _lightChunkGetter;
     private LevelLightEngine? _lightEngine;
     //Light changes pending dispatch; collects affected light section indices per chunk and dispatches them together after propagation, maps to vanilla ChunkMap.onLightUpdate
+    //Only ever touched by the main thread: tick flushing and the block-change paths both run there
     private readonly Dictionary<ChunkPos, HashSet<int>> _pendingSkySections = new();
     private readonly Dictionary<ChunkPos, HashSet<int>> _pendingBlockSections = new();
+    //Chunks that finished loading and are waiting for their light to be built; the light thread consumes them
+    //Nothing on the generating side touches the light engine any more, so this is the only way light work enters
+    private readonly ConcurrentQueue<ChunkAccess> _pendingLight = new();
+    //Positions a block change made light-dirty; the light thread applies them
+    //The main thread never touches the engine itself for a block change, which is what kept it fighting for the gate
+    private readonly ConcurrentQueue<BlockPos> _pendingLightDirty = new();
+    //Wakes the light thread; every producer releases once after queueing, and the thread re-signals itself while work remains
+    private readonly SemaphoreSlim _lightWork = new(0, int.MaxValue);
+    //The light thread, matching ScalableLux running lighting on its own executor rather than on the server or generating threads
+    private Thread? _lightThread;
+    //Chunks whose light is already built; the sender must not hand a chunk to a client before this, the client would render it pitch black
+    //Concurrent because the sender reads it on its own thread while TickLight writes it under the gate
+    private readonly ConcurrentDictionary<long, byte> _lightReady = new();
+    //Set while the light thread builds light for freshly loaded chunks; their section changes are covered by the full light
+    //block of the chunk packet, so they must not enter the pending set and be broadcast to every player
+    [ThreadStatic] private static bool _suppressLightDispatch;
     //UnloadBudgetPerTick, at most this many chunks unload per tick, maps to the hasMoreTime budget of vanilla processUnloads
     //An unload takes a full chunk snapshot; without a limit, a player running far would unload a whole column in one tick and stall the main thread
     private const int UnloadBudgetPerTick = 16;
@@ -59,10 +75,12 @@ public sealed class ServerChunkCache : ChunkSource
     //LightBatchBudget, queue entries per batch; too small means batches too dense and throughput lost, too large means longer main-thread waits
     private const int LightBatchBudget = 8192;
 
-    //LightDrainBatchLimit, at most this many light batches a generation thread pushes in a row
-    //Vanilla here ends after one runUpdate, with the scheduled flag in tryScheduleUpdate triggering the next round
-    //Writing "stop only when the global queue is empty" would spin every generation thread forever: repeatedly grabbing the lock starves the main thread and repeatedly re-queuing fills the thread pool
-    private const int LightDrainBatchLimit = 8;
+    //LightInitBudgetPerCycle, how many freshly loaded chunks the light thread lights before yielding the gate
+    //Kept small so a single hold stays short: the main thread takes the gate with a zero timeout when it wants to flush
+    private const int LightInitBudgetPerCycle = 1;
+
+    //LightDirtyBudgetPerCycle, how many block-change positions the light thread applies before yielding the gate
+    private const int LightDirtyBudgetPerCycle = 1024;
 
     //LightUpdateSink, the light change dispatch callback injected by the Game layer; args are the chunk pos and the affected section indices for sky/block light
     //The Storage layer cannot reach the player list and the packet is in the Game layer, corresponding to the layering difference of vanilla ChunkMap holding a ServerLevel
@@ -164,16 +182,6 @@ public sealed class ServerChunkCache : ChunkSource
         }
     }
 
-    //WithLightLock executes a read under the light lock, serializing callers that dispatch light data with generation threads
-    //The light engine's section table is a plain dictionary; a main-thread read colliding with a generation-thread write corrupts its state outright
-    //Callers should keep heavy work like chunk serialization outside the lock, doing only light data copies inside
-    public T WithLightLock<T>(Func<LevelLightEngine, T> action)
-    {
-        _lightGate.Wait();
-        try { return action(LightEngine); }
-        finally { _lightGate.Release(); }
-    }
-
     public ServerChunkCache(Func<ChunkPos, Task<ChunkAccess?>> loader, int viewDistance = 8,
         Func<ChunkPos, ChunkAccess?>? generator = null, int minSectionY = -4, int sectionsCount = 24)
     {
@@ -236,6 +244,10 @@ public sealed class ServerChunkCache : ChunkSource
         return null;
     }
 
+    //IsLightReady reports whether the chunk's light has been built, meaning it is safe to send to a client
+    //A chunk sent before that renders pitch black until an incremental light update arrives for every section
+    public bool IsLightReady(ChunkPos pos) => _lightReady.ContainsKey(pos.Pack());
+
     //HasChunk reports whether the chunk is loaded, maps to vanilla hasChunk
     public override bool HasChunk(int x, int z)
     {
@@ -290,7 +302,7 @@ public sealed class ServerChunkCache : ChunkSource
             }
             else
             {
-                ProcessLight(chunk);
+                //Light is not built here: the main thread does it on its own budget, see TickLight
                 holder.Complete(chunk);
             }
         }
@@ -302,85 +314,38 @@ public sealed class ServerChunkCache : ChunkSource
         }
     }
 
-    //ProcessLight builds light data from chunk content once a chunk is ready, matching the two stages initializeLight and lightChunk in vanilla
+    //InitializeChunkLight builds light data from chunk content, matching the two stages initializeLight and lightChunk in vanilla
     //The order is fixed: mark section empty state -> enable light -> propagate light sources, as in vanilla; reversed, sky light preprocessing takes the wrong branch
     //Empty sections are registered too; otherwise a top empty section has no layer data and the sky light query takes the "always 15 above the data" shortcut
     //Unloaded neighbors are treated as fully opaque by the engine; that later neighbor loads do not retroactively recompute is a known simplification
-    //It stops after a bounded number of batches and the rest is left to the main thread's TickLight by per-tick budget
-    private void ProcessLight(ChunkAccess chunk)
+    private void InitializeChunkLight(ChunkAccess chunk)
     {
-        try
+        //The chunk is already in the loaded cache, so the light chunk getter builds its view on demand from there
+        var engine = LightEngine;
+        for (var sectionY = chunk.MinSectionY; sectionY <= chunk.MaxSectionY; sectionY++)
         {
-            //This short registration and initialization does not contend for the lock: without it the chunk's sky light source heightmap would never reach the engine
-            _lightGate.Wait();
-            try
-            {
-                var engine = LightEngine;
-                //The chunk is not yet merged into the loaded cache; register it with the light chunk getter first or the engine cannot fetch its sky light source heightmap
-                _lightChunkGetter?.Track(chunk);
-                for (var sectionY = chunk.MinSectionY; sectionY <= chunk.MaxSectionY; sectionY++)
-                {
-                    var section = chunk.GetSection(sectionY);
-                    engine.UpdateSectionStatus(new SectionPos(chunk.Pos.X, sectionY, chunk.Pos.Z),
-                        section is null || section.HasOnlyAir());
-                }
-                engine.SetLightEnabled(chunk.Pos, true);
-                engine.PropagateLightSources(chunk.Pos);
-                ReprocessLoadedNeighbors(chunk.Pos);
-            }
-            finally
-            {
-                _lightGate.Release();
-            }
-
-            //Push down by a bounded number of batches; failing to get the lock means someone else is pushing and this round yields
-            //Waiting for the lock would starve the main thread: every block change and every light dispatch takes this lock, and generation threads have no reason to contend for it
-            for (var batch = 0; batch < LightDrainBatchLimit; batch++)
-            {
-                if (!_lightGate.Wait(0)) break;
-                var finished = false;
-                try
-                {
-                    var engine = LightEngine;
-                    engine.RunLightUpdates(LightBatchBudget);
-                    finished = !engine.HasLightWork();
-                }
-                finally
-                {
-                    _lightGate.Release();
-                }
-                if (finished) break;
-            }
+            var section = chunk.GetSection(sectionY);
+            engine.UpdateSectionStatus(new SectionPos(chunk.Pos.X, sectionY, chunk.Pos.Z),
+                section is null || section.HasOnlyAir());
         }
-        catch (Exception e)
-        {
-            Log.Warning($"Chunk light failed {chunk.Pos}: {e.Message}");
-        }
-        //The network chunk packet's own full-chunk light already covers this batch, so it is not dispatched separately; discard it so it does not accumulate to the next block change
-        //A half batch left by a mid-computation failure must also be discarded, hence this comes after catch rather than at the end of try
-        _lightGate.Wait();
-        try
-        {
-            _pendingSkySections.Clear();
-            _pendingBlockSections.Clear();
-        }
-        finally
-        {
-            _lightGate.Release();
-        }
+        engine.SetLightEnabled(chunk.Pos, true);
+        engine.PropagateLightSources(chunk.Pos);
+        ReprocessLoadedNeighbors(chunk.Pos);
     }
 
     //ReprocessLoadedNeighbors recomputes loaded neighboring chunks, matching the vanilla LIGHT stage requirement that neighbors are ready
     //Here chunks advance to FULL in one go with no stage dependency, so the earlier-loaded side cannot see the later-loaded neighbor
     //If the engine cannot get a neighbor column's sky light source height it treats the border as having no source, so the border is too dark and never corrected later
-    //Here only the neighbor's light sources are re-enqueued; actual propagation is left to the caller's batched loop, otherwise it would bypass the budget and run to completion
+    //Here only the neighbor's light sources are re-enqueued; actual propagation is left to the caller's propagation round
     private void ReprocessLoadedNeighbors(ChunkPos pos)
     {
         var engine = LightEngine;
         foreach (var neighbor in HorizontalNeighbors(pos))
         {
             //Unloaded neighbors need no recompute; they see this chunk when they load themselves
-            if (GetLoadedChunk(neighbor.X, neighbor.Z) is null) continue;
+            //A neighbor still waiting for its own light is skipped too: its column is not enabled yet, so a scan would only re-queue
+            //sources this very call already queued for it once it lights up
+            if (!_lightReady.ContainsKey(neighbor.Pack())) continue;
             engine.PropagateLightSources(neighbor);
         }
     }
@@ -398,6 +363,9 @@ public sealed class ServerChunkCache : ChunkSource
     //Forwarded by the light callback of ServerLightChunkGetter; the call site is inside light propagation and already holds the light lock
     private void OnLightSectionUpdated(LightLayer layer, SectionPos pos)
     {
+        //A suppressed light-thread round is dropped here instead of the shared set being cleared afterwards, which is what the
+        //old code did and how it used to swallow updates the main thread had computed but not yet sent
+        if (_suppressLightDispatch) return;
         var engine = LightEngine;
         var index = pos.Y - engine.GetMinLightSection();
         if (index < 0 || index >= engine.GetLightSectionCount()) return;
@@ -408,67 +376,39 @@ public sealed class ServerChunkCache : ChunkSource
         sections.Add(index);
     }
 
-    //FlushLightUpdates hands the accumulated light changes per chunk to the Game layer, maps to the light broadcast at the end of a vanilla chunk tick
-    //Must be called outside the light lock; sending the packet serializes a whole light section and holding the lock would keep generation threads waiting
-    private void FlushLightUpdates()
+    //TakeLightUpdates moves the accumulated light changes per chunk out of the pending set, maps to the light broadcast at the end of a vanilla chunk tick
+    //The caller must hold the light gate; sending is left to the caller so the packet is serialized outside the lock, which would otherwise hold the light thread back
+    private List<(ChunkPos Pos, int[] Sky, int[] Block)>? TakeLightUpdates()
     {
-        var sink = LightUpdateSink;
-        if (sink is null) return;
-        List<(ChunkPos Pos, int[] Sky, int[] Block)> batch;
-        _lightGate.Wait();
-        try
+        if (_pendingSkySections.Count == 0 && _pendingBlockSections.Count == 0) return null;
+        var batch = new List<(ChunkPos, int[], int[])>(_pendingSkySections.Count + _pendingBlockSections.Count);
+        var chunks = new HashSet<ChunkPos>(_pendingSkySections.Keys);
+        chunks.UnionWith(_pendingBlockSections.Keys);
+        foreach (var chunk in chunks)
         {
-            if (_pendingSkySections.Count == 0 && _pendingBlockSections.Count == 0) return;
-            batch = new List<(ChunkPos, int[], int[])>(_pendingSkySections.Count + _pendingBlockSections.Count);
-            var chunks = new HashSet<ChunkPos>(_pendingSkySections.Keys);
-            chunks.UnionWith(_pendingBlockSections.Keys);
-            foreach (var chunk in chunks)
-            {
-                _pendingSkySections.TryGetValue(chunk, out var sky);
-                _pendingBlockSections.TryGetValue(chunk, out var block);
-                batch.Add((chunk,
-                    sky is null ? Array.Empty<int>() : sky.ToArray(),
-                    block is null ? Array.Empty<int>() : block.ToArray()));
-            }
-            _pendingSkySections.Clear();
-            _pendingBlockSections.Clear();
+            _pendingSkySections.TryGetValue(chunk, out var sky);
+            _pendingBlockSections.TryGetValue(chunk, out var block);
+            batch.Add((chunk,
+                sky is null ? Array.Empty<int>() : sky.ToArray(),
+                block is null ? Array.Empty<int>() : block.ToArray()));
         }
-        finally
-        {
-            _lightGate.Release();
-        }
-        foreach (var (pos, sky, block) in batch)
-            sink(pos, sky, block);
+        _pendingSkySections.Clear();
+        _pendingBlockSections.Clear();
+        return batch;
     }
 
-    //UpdateLightBatch recomputes light after a batch of block changes, matching vanilla running one propagation round per batch write
-    //Per-cell UpdateLight calling RunLightUpdates each time repeatedly drains the queue; batch writes like fill are O(n) full propagation rounds underneath
-    //Here all positions are marked dirty first and only one propagation round runs at the end
+    //UpdateLightBatch queues a batch of block changes for the light thread, matching vanilla running one propagation round per batch write
+    //Per-cell marking that propagates each time repeatedly drains the queue; the thread applies the batch and runs one round at the end
+    //The main thread only appends here, since touching the engine is what used to put it in contention with the light thread for the gate
     public void UpdateLightBatch(IReadOnlyList<BlockPos> positions)
     {
         if (positions.Count == 0) return;
-        //Must go through the semaphore like other paths: it previously read lock(_lightGate), which locks the semaphore object itself
-        //Monitor and SemaphoreSlim are two different mutex mechanisms and do not exclude each other, so it was no lock at all
-        _lightGate.Wait();
-        try
-        {
-            var engine = LightEngine;
-            foreach (var pos in positions) MarkLightDirty(pos);
-            engine.RunLightUpdates();
-        }
-        catch (Exception e)
-        {
-            Log.Warning($"Batch light failed: {e.Message}");
-        }
-        finally
-        {
-            _lightGate.Release();
-        }
-        FlushLightUpdates();
+        foreach (var pos in positions) _pendingLightDirty.Enqueue(pos);
+        _lightWork.Release();
     }
 
     //MarkLightDirty marks a position's light dirty, maps to updateSectionStatus and checkBlock in vanilla LevelChunk.setBlockState
-    //Only enqueues the node without propagating; the caller must already hold the light lock
+    //Only enqueues the node without propagating; the caller must already hold the light lock, so this only ever runs on the light thread
     private void MarkLightDirty(BlockPos pos)
     {
         var engine = LightEngine;
@@ -482,37 +422,29 @@ public sealed class ServerChunkCache : ChunkSource
         engine.CheckBlock(pos);
     }
 
-    //UpdateLight marks the position's light dirty after a block state change
-    //Shares the same lock as ProcessLight; the engine's section table is not thread-safe and must be serialized
-    //This runs no propagation and no dispatch; both are done once at the end of each tick by TickLight, as in vanilla
-    //It previously drained the propagation queue on every single write, so piston moves with dozens of setBlocks in one tick became dozens of full propagation rounds
+    //UpdateLight queues a block state change for the light thread, which maps it onto updateSectionStatus and checkBlock
+    //Nothing is marked here: the engine's section table is not thread-safe, and doing this on the main thread is a large part of why
+    //the main thread and the light thread kept taking the gate from each other. Dispatch happens once per tick in TickLight
+    //It also used to drain the propagation queue on every single write, turning a piston move into dozens of full propagation rounds
     public void UpdateLight(BlockPos pos)
     {
-        _lightGate.Wait();
-        try
-        {
-            MarkLightDirty(pos);
-        }
-        catch (Exception e)
-        {
-            Log.Warning($"Light mark failed {pos}: {e.Message}");
-        }
-        finally
-        {
-            _lightGate.Release();
-        }
+        _pendingLightDirty.Enqueue(pos);
+        _lightWork.Release();
     }
 
-    //TickLight advances the light queue and dispatches changes to clients once at the end of each tick
-    //Maps to the single light advance in a vanilla chunk tick; many block changes in one tick run one propagation round here
+    //TickLight sends the light changes the light thread computed since the last tick, maps to the light broadcast at the end of a vanilla chunk tick
+    //The main thread no longer advances the engine at all: that belongs to the light thread, and the zero timeout means a busy light thread costs this
+    //tick nothing but the flush, which then lands on the next tick. Light arriving one tick late is not noticeable, waiting for the gate was
     public void TickLight()
     {
-        _lightGate.Wait();
+        EnsureLightThread();
+        var sink = LightUpdateSink;
+        if (sink is null || !_lightGate.Wait(0)) return;
+
+        List<(ChunkPos Pos, int[] Sky, int[] Block)>? batch = null;
         try
         {
-            //Skipped when there are no dirty points and no backlog, avoiding an empty finalize and section map swap
-            //Advances by budget: with tens of thousands backed up in one tick, running it all would freeze the main thread, so the rest waits for the next tick
-            if (LightEngine.HasLightWork()) LightEngine.RunLightUpdates(LightBatchBudget);
+            batch = TakeLightUpdates();
         }
         catch (Exception e)
         {
@@ -522,7 +454,109 @@ public sealed class ServerChunkCache : ChunkSource
         {
             _lightGate.Release();
         }
-        FlushLightUpdates();
+
+        //Serializing a whole light section is heavy and would keep the light thread waiting, so it happens outside the gate
+        if (batch is null) return;
+        foreach (var (pos, sky, block) in batch) sink(pos, sky, block);
+    }
+
+    //EnsureLightThread starts the light thread on first use; it lives until the process ends, mirroring the daemon executor ScalableLux uses
+    //Lighting used to run on the generating threads, which held the gate across five full sky column scans per chunk and left the main thread
+    //blocked on that gate every tick. The engine is serial either way, so one thread of its own is enough; what matters is that it is not the main thread
+    private void EnsureLightThread()
+    {
+        if (_lightThread is not null) return;
+        lock (_lightLock)
+        {
+            if (_lightThread is not null) return;
+            _lightThread = new Thread(LightWorkerLoop)
+            {
+                IsBackground = true,
+                Name = "netcraft-light",
+                //Below normal so the light thread only ever takes a core nobody else wants: it is the one workload here that can wait
+                //Generation and the main thread are both latency-bound, light arriving a tick later is not
+                Priority = ThreadPriority.BelowNormal,
+            };
+            _lightThread.Start();
+        }
+    }
+
+    //LightWorkerLoop drains light work until the process ends, in short rounds so the gate is never held for long
+    //It waits on a signal rather than polling, so while idle it holds nothing at all, which is what lets the main thread take the gate with a zero timeout
+    private void LightWorkerLoop()
+    {
+        while (true)
+        {
+            _lightWork.Wait();
+            ProcessLightWork();
+            //Hand the gate to whoever is waiting on it, the main thread's flush included
+            //Sleep(0) rather than Yield: it also yields to threads at a different priority
+            Thread.Sleep(0);
+        }
+    }
+
+    //ProcessLightWork applies one round of queued light work and gives the gate back
+    //The per-round budgets are deliberately small: a short hold is what keeps the main thread's zero-timeout flush able to get in at all
+    private void ProcessLightWork()
+    {
+        if (!_lightGate.Wait(0))
+        {
+            //Someone else holds the gate; keep the work rather than dropping the wake-up, and come back shortly
+            _lightWork.Release();
+            Thread.Sleep(1);
+            return;
+        }
+
+        var more = true;
+        try
+        {
+            //Block changes first: their section changes have to reach clients, and one round is capped by LightBatchBudget
+            var dirty = LightDirtyBudgetPerCycle;
+            while (dirty-- > 0 && _pendingLightDirty.TryDequeue(out var pos)) MarkLightDirty(pos);
+            if (LightEngine.HasLightWork()) LightEngine.RunLightUpdates(LightBatchBudget);
+
+            //Freshly loaded chunks only once that queue has drained
+            //Their propagation is covered by the full light block of the chunk packet, so dispatch is suppressed while it runs: without that,
+            //every chunk load would broadcast the light of its whole neighbourhood to every player. The drain check is what keeps a block
+            //change from being applied inside that suppressed window, where its update would never reach clients
+            var init = LightInitBudgetPerCycle;
+            while (!LightEngine.HasLightWork() && init-- > 0 && _pendingLight.TryDequeue(out var chunk))
+            {
+                //It may have been unloaded again while it waited in the queue
+                if (!_loaded.ContainsKey(chunk.Pos.Pack())) continue;
+                _suppressLightDispatch = true;
+                try
+                {
+                    InitializeChunkLight(chunk);
+                    LightEngine.RunLightUpdates(LightBatchBudget);
+                }
+                catch (Exception e)
+                {
+                    Log.Warning($"Chunk light failed {chunk.Pos}: {e.Message}");
+                }
+                finally
+                {
+                    _suppressLightDispatch = false;
+                }
+                _lightReady[chunk.Pos.Pack()] = 0;
+            }
+
+            //Decided under the gate, acted on after releasing it
+            //The propagation queue has to count as remaining work too: a round is capped by LightBatchBudget, so a large queue can outlive
+            //the two queues above and the thread would otherwise fall asleep with work still in the engine
+            more = LightEngine.HasLightWork() || !_pendingLight.IsEmpty || !_pendingLightDirty.IsEmpty;
+        }
+        catch (Exception e)
+        {
+            Log.Warning($"Light worker failed: {e.Message}");
+        }
+        finally
+        {
+            _lightGate.Release();
+        }
+
+        //Still backed up: go around again rather than sleeping until some producer pushes more work
+        if (more) _lightWork.Release();
     }
 
     //Tick advances chunk scheduling, maps to vanilla ServerChunkCache.tick
@@ -547,14 +581,21 @@ public sealed class ServerChunkCache : ChunkSource
                 if (result.IsSuccess && !_loaded.ContainsKey(key))
                 {
                     _loaded[key] = result.Chunk!;
+                    //Light is built by the light thread, not here and not on the generating thread
+                    //Building it on a generating thread meant holding the gate across five full sky column scans per chunk, with the main thread
+                    //blocked on that gate once per tick; the chunk is held back from the sender until the light is ready
+                    _pendingLight.Enqueue(result.Chunk!);
+                    _lightWork.Release();
                     ChunkLoaded?.Invoke(result.Chunk!.Pos);
                 }
             }
             //Holders whose tickets no longer require loading to FULL are reclaimed; loaded chunks stay in _loaded and remain usable
             //One currently loading is kept for now; dropping it means its future has nowhere to backfill the cache on completion
+            //One still waiting for its light is kept too, or the work spent generating it would be thrown away
             //Judged by the ticket level rather than the holder's own level: the level is a BFS decay and takes several ticks to rise above the threshold after a ticket is removed
             //Here chunks generate straight to FULL with no intermediate state, so these shell holders serve no purpose and are best reclaimed early
-            var loading = holder.WasScheduled && !holder.IsDone;
+            var loading = (holder.WasScheduled && !holder.IsDone)
+                          || (_loaded.ContainsKey(key) && !_lightReady.ContainsKey(key));
             if (!loading && !IsLoadWanted(key, holder))
             {
                 expired ??= new List<long>();
@@ -592,6 +633,8 @@ public sealed class ServerChunkCache : ChunkSource
     //First retract queued data then mark sections empty: marking empty drives the 26-neighbor counter to zero and only the finalize round actually drops the data layers
     private void ReleaseChunkLight(ChunkPos pos)
     {
+        //The chunk is leaving memory, so drop its ready mark: if it comes back it has to be lit again before it may be sent
+        _lightReady.TryRemove(pos.Pack(), out _);
         //A light engine never built means the chunk never computed light and there is nothing to return
         if (_lightEngine is null) return;
         _lightGate.Wait();
