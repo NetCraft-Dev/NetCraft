@@ -57,8 +57,6 @@ public interface IWorldRenderer
     int TotalVertexCount { get; }
     int DrawCallCount { get; }
 
-    //Draw renders in Solid→Cutout→Translucent order; pipelineResolver compiles the pipeline and descBinder binds the descriptor set
-    void Draw(IRenderPass pass,
-        Func<RenderPipeline, CompiledRenderPipeline> pipelineResolver,
-        Action<IRenderPass> descBinder);
+    //Draw renders in Solid→Cutout→Translucent order; bindGlobals writes the view-projection matrix and atlas samplers after each SetPipeline
+    void Draw(RenderPass pass, Action<RenderPass> bindGlobals);
 }

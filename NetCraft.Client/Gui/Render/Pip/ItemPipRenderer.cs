@@ -135,7 +135,7 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         for (var i = 0; i < 2; i++)
         {
             _offscreenTextures[i] = _device.CreateTexture((GpuTexture.UsageRenderAttachment | GpuTexture.UsageTextureBinding), "texture", GpuFormat.Rgba8Unorm, width, height, 1, 1);
-            _offscreenDepths[i] = _device.CreateTexture(GpuTexture.UsageRenderAttachment, "texture", GpuFormat.D32Float, width, height, 1, 1);
+            _offscreenDepths[i] = _device.CreateTexture(null, GpuTexture.UsageRenderAttachment, GpuFormat.D32Float, width, height, 1, 1);
         }
         //Perspective projection for offscreen 3D rendering; MockDevice also sets the projection for tests
         _projection.SetupPerspective(0.05f, 1000f, MathF.PI / 4f, width, height);

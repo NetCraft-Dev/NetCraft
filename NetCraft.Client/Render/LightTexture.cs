@@ -116,7 +116,7 @@ public sealed class LightTexture : IDisposable
     //CreateResources creates the GPU texture + sampler, called only when SupportsGpuRendering=true
     private void CreateResources()
     {
-        _texture = _device!.CreateTexture(GpuTexture.UsageTextureBinding, "texture", GpuFormat.Rgba8Unorm, Size, Size, 1, 1);
+        _texture = _device!.CreateTexture(null, GpuTexture.UsageTextureBinding, GpuFormat.Rgba8Unorm, Size, Size, 1, 1);
         //The initial full-brightness table: the GUI item FullBright position (15,15) should be pure white
         _texture.Upload(GeneratePixels(1.0f));
         //The small 16x16 texture uses nearest to avoid adjacent light levels blurring into each other

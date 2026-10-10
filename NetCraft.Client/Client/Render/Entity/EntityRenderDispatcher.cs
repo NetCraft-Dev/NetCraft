@@ -147,22 +147,20 @@ public sealed class EntityRenderDispatcher : IDisposable
     }
 
     //Draw records entity render commands batched by pipeline; a single buffer with per-layer offset DrawIndexed
-    //pipelineResolver resolves RenderPipeline→CompiledRenderPipeline; descBinder binds the descriptor set
+    //bindGlobals writes the terrain uniforms after each SetPipeline
     //Solid→Cutout→Translucent order; per layer SetPipeline+DrawIndexed, skipping empty layers
-    public void Draw(IRenderPass pass,
-        Func<RenderPipeline, CompiledRenderPipeline> pipelineResolver,
-        Action<IRenderPass> descBinder)
+    public void Draw(RenderPass pass, Action<RenderPass> bindGlobals)
     {
         if (_vertexBuffer is null || _indexBuffer is null || _indexCount == 0) return;
-        pass.SetVertexBuffer(0, _vertexBuffer);
-        pass.SetIndexBuffer(_indexBuffer, GpuIndexType.UInt32);
+        pass.SetVertexBuffer(0, _vertexBuffer.Slice());
+        pass.SetIndexBuffer(_indexBuffer, NetCraft.Client.Blaze3d.IndexType.Int);
         LastDrawCallCount = 0;
         for (var layerIndex = 0; layerIndex < s_layerPipelines.Length; layerIndex++)
         {
             var (vertexStart, _, indexStart, indexCount) = _layerRanges[layerIndex];
             if (indexCount == 0) continue;
-            pass.SetPipeline(pipelineResolver(s_layerPipelines[layerIndex]));
-            descBinder(pass);
+            pass.SetPipeline(s_layerPipelines[layerIndex]);
+            bindGlobals(pass);
             pass.DisableScissor();
             pass.DrawIndexed(indexCount, 1, indexStart, vertexStart, 0);
             LastDrawCallCount++;

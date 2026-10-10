@@ -82,7 +82,7 @@ public sealed class BlockTextureAtlas : ITextureAtlas, IDisposable
         Width = stitcher.AtlasWidth;
         Height = stitcher.AtlasHeight;
         //Creates the atlas texture; ColorAttachment is not needed, only SampledImage
-        _atlasImage = _device.CreateTexture(GpuTexture.UsageTextureBinding, "texture", GpuFormat.Rgba8Unorm, Width, Height, 1, 1);
+        _atlasImage = _device.CreateTexture(null, GpuTexture.UsageTextureBinding, GpuFormat.Rgba8Unorm, Width, Height, 1, 1);
         //Nearest sampling preserves the pixel style and does not repeat addresses to avoid bleeding
         _sampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Nearest, FilterMode.Nearest, 1, null);
         //Clears everything first, then uploads each sprite region-wise

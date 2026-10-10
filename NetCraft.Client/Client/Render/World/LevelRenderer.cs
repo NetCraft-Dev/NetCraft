@@ -146,11 +146,9 @@ public sealed class LevelRenderer : IDisposable, IWorldRenderer
     }
 
     //Draw iterates visible sections in Solid→Cutout→Translucent order and submits via GetSectionSlice
-    //Pipeline switches per layer: one SetPipeline+descBinder per layer, one DrawCall per layer within a section
+    //Pipeline switches per layer: one SetPipeline+bindGlobals per layer, one DrawCall per layer within a section
     //Traversal inside the Lock ensures buffer references are not reclaimed between Upload and Draw
-    public void Draw(IRenderPass pass,
-        Func<RenderPipeline, CompiledRenderPipeline> pipelineResolver,
-        Action<IRenderPass> descBinder)
+    public void Draw(RenderPass pass, Action<RenderPass> bindGlobals)
     {
         DrawCallCount = 0;
         _totalVertexCount = 0;
@@ -173,16 +171,18 @@ public sealed class LevelRenderer : IDisposable, IWorldRenderer
                     RenderLayer.Translucent => WorldRenderPipelines.TRANSLUCENT_TERRAIN,
                     _ => throw new InvalidOperationException($"Unknown RenderLayer {layer}")
                 };
-                pass.SetPipeline(pipelineResolver(pipeline));
-                descBinder(pass);
+                pass.SetPipeline(pipeline);
+                bindGlobals(pass);
                 //The terrain pipeline enables VK_DYNAMIC_STATE_SCISSOR, so CmdSetScissor must be called before draw or driver behavior is undefined
                 pass.DisableScissor();
                 foreach (var section in _visibleSectionBuffer)
                 {
                     var slice = _dispatcher.GetSectionSlice(section.Pos, layer);
                     if (slice is null) continue;
-                    pass.SetVertexBuffer(0, slice.Value.VertexBuffer, (ulong)slice.Value.BaseVertex * VertexStride);
-                    pass.SetIndexBuffer(slice.Value.IndexBuffer, GpuIndexType.UInt32);
+                    var offset = (long)((ulong)slice.Value.BaseVertex * VertexStride);
+                    var vertexBuffer = slice.Value.VertexBuffer;
+                    pass.SetVertexBuffer(0, vertexBuffer.Slice(offset, vertexBuffer.Size - offset));
+                    pass.SetIndexBuffer(slice.Value.IndexBuffer, NetCraft.Client.Blaze3d.IndexType.Int);
                     pass.DrawIndexed(slice.Value.IndexCount, 1, slice.Value.FirstIndex, 0, 0);
                     DrawCallCount++;
                 }
@@ -192,14 +192,14 @@ public sealed class LevelRenderer : IDisposable, IWorldRenderer
         //Moving blocks use the terrain pipelines and are drawn after chunks in the same pass
         if (MovingBlocks is not null)
         {
-            MovingBlocks.Draw(pass, pipelineResolver, descBinder);
+            MovingBlocks.Draw(pass, bindGlobals);
             DrawCallCount += MovingBlocks.LastDrawCallCount;
         }
         //Entity rendering comes after terrain in the same world pass; depth test ensures correct occlusion
         //Batched by model.Pipeline into Solid/Cutout/Translucent, each layer with its own SetPipeline
         if (EntityDispatcher is not null && EntityDispatcher.HasContent)
         {
-            EntityDispatcher.Draw(pass, pipelineResolver, descBinder);
+            EntityDispatcher.Draw(pass, bindGlobals);
             DrawCallCount += EntityDispatcher.LastDrawCallCount;
         }
     }

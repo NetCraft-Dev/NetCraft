@@ -61,7 +61,7 @@ public abstract class GuiItemAtlas : IDisposable
         SlotTextureSize = slotTextureSize;
         var storageSize = textureSize / slotTextureSize;
         AtlasTexture = device.CreateTexture((GpuTexture.UsageRenderAttachment | GpuTexture.UsageTextureBinding), "texture", GpuFormat.Rgba8Unorm, textureSize, textureSize, 1, 1);
-        AtlasDepth = device.CreateTexture(GpuTexture.UsageRenderAttachment, "texture", GpuFormat.D32Float, textureSize, textureSize, 1, 1);
+        AtlasDepth = device.CreateTexture(null, GpuTexture.UsageRenderAttachment, GpuFormat.D32Float, textureSize, textureSize, 1, 1);
         Allocator = new DynamicAtlasAllocator<object>(storageSize, storageSize);
     }
 

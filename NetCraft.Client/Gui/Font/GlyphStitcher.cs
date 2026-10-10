@@ -71,7 +71,7 @@ public sealed class GlyphStitcher : IUnbakedGlyph.Stitcher, IDisposable
     //colored=true uses an RGBA8 atlas + CreateForColorTexture, colored=false uses an R8 atlas + CreateForGrayscaleTexture
     private FontTexture CreateTexture(bool colored)
     {
-                var image = _device.CreateTexture(GpuTexture.UsageTextureBinding, "texture", colored ? GpuFormat.Rgba8Unorm : GpuFormat.R8Unorm, FontTexture.Size, FontTexture.Size, 1, 1);
+                var image = _device.CreateTexture(null, GpuTexture.UsageTextureBinding, colored ? GpuFormat.Rgba8Unorm : GpuFormat.R8Unorm, FontTexture.Size, FontTexture.Size, 1, 1);
         var textureSetup = _resourceManager.RegisterFontTexture(image);
         var renderTypes = colored
             ? GlyphRenderTypes.CreateForColorTexture()

@@ -64,7 +64,7 @@ public sealed class ItemTextureAtlas : IDisposable
     //CreateResources creates the GPU texture + sampler, called only when SupportsGpuRendering=true
     private void CreateResources()
     {
-        _texture = _device!.CreateTexture(GpuTexture.UsageTextureBinding, "texture", GpuFormat.Rgba8Unorm, AtlasSize, AtlasSize, 1, 1);
+        _texture = _device!.CreateTexture(null, GpuTexture.UsageTextureBinding, GpuFormat.Rgba8Unorm, AtlasSize, AtlasSize, 1, 1);
         _texture.Upload(GenerateTestTexture());
         //The small item texture atlas uses nearest to keep the pixel feel, matching vanilla Minecraft's pixel style
         _sampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Nearest, FilterMode.Nearest, 1, null);

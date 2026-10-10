@@ -113,9 +113,7 @@ public sealed class MovingBlockRenderer : IDisposable
     }
 
     //Draw submits in Solid→Cutout→Translucent order, skipping empty layers
-    public void Draw(IRenderPass pass,
-        Func<RenderPipeline, CompiledRenderPipeline> pipelineResolver,
-        Action<IRenderPass> descBinder)
+    public void Draw(RenderPass pass, Action<RenderPass> bindGlobals)
     {
         LastDrawCallCount = 0;
         for (var i = 0; i < LayerCount; i++)
@@ -129,11 +127,11 @@ public sealed class MovingBlockRenderer : IDisposable
                 RenderLayer.Cutout => WorldRenderPipelines.CUTOUT_TERRAIN,
                 _ => WorldRenderPipelines.TRANSLUCENT_TERRAIN
             };
-            pass.SetPipeline(pipelineResolver(pipeline));
-            descBinder(pass);
+            pass.SetPipeline(pipeline);
+            bindGlobals(pass);
             pass.DisableScissor();
-            pass.SetVertexBuffer(0, vertexBuffer);
-            pass.SetIndexBuffer(indexBuffer, GpuIndexType.UInt32);
+            pass.SetVertexBuffer(0, vertexBuffer.Slice());
+            pass.SetIndexBuffer(indexBuffer, NetCraft.Client.Blaze3d.IndexType.Int);
             pass.DrawIndexed(_indexCounts[i], 1, 0, 0, 0);
             LastDrawCallCount++;
         }
