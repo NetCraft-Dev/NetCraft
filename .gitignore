@@ -55,6 +55,7 @@ log/
 artifacts/
 publish/
 target/
+third_party/
 TestResults/
 BenchmarkDotNet.Artifacts/
 
