@@ -54,6 +54,7 @@ debug/
 log/
 artifacts/
 publish/
+target/
 TestResults/
 BenchmarkDotNet.Artifacts/
 
