@@ -30,4 +30,9 @@ public static class CodecExtensions
     //Mirrors vanilla Codec.validate, rejecting or rewriting values that fail the checker
     public static Codec<T> Validate<T>(this Codec<T> codec, Func<T, DataResult<T>> checker)
         => new ValidateCodec<T>(codec, checker);
+
+    //Mirrors vanilla Codec.dispatch, selecting the value codec from a type field carried by the value itself
+    public static Codec<E> Dispatch<E, K>(this Codec<K> keyCodec, string typeKey, Func<E, K> typeGetter,
+        Func<K, MapCodec<E>> codecGetter) where K : notnull
+        => new DispatchCodec<E, K>(typeKey, keyCodec, typeGetter, codecGetter);
 }

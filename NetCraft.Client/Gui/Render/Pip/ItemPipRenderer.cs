@@ -81,13 +81,8 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
     private LightTexture? _lightTexture;
     private ItemTextureAtlas? _itemAtlas;
     private GpuBuffer? _mvpUbo;
-    private GpuDescriptorLayout? _mvpLayout;
-    private GpuDescriptorSet? _mvpSet;
-    private GpuDescriptorLayout? _lightmapLayout;
-    private GpuDescriptorSet? _lightmapSet;
-    private GpuDescriptorLayout? _atlasLayout;
-    private GpuDescriptorSet? _atlasSet;
-    private CompiledRenderPipeline? _pipeline;
+    private GpuTextureView? _lightmapView;
+    private GpuTextureView? _atlasView;
     private GpuBuffer? _vertexBuffer;
     private GpuBuffer? _indexBuffer;
     //_blitSampler the offscreen→GUI blit sampler with linear filtering, reused across frames to avoid leaking a CreateSampler every frame
@@ -99,7 +94,9 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
     //Async SubmitAsync does not wait for the GPU so the CPU keeps recording the main cmd; the two encoders rotate to avoid command buffer reuse contention
     private readonly GpuTexture?[] _offscreenTextures = new GpuTexture[2];
     private readonly GpuTexture?[] _offscreenDepths = new GpuTexture[2];
-    private readonly ICommandEncoder?[] _encoders = new ICommandEncoder[2];
+    private readonly GpuTextureView?[] _offscreenViews = new GpuTextureView[2];
+    private readonly GpuTextureView?[] _offscreenDepthViews = new GpuTextureView[2];
+    private readonly CommandEncoder?[] _encoders = new CommandEncoder[2];
     private int _writeIndex;
     private int _readIndex = -1;
 
@@ -134,8 +131,10 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         }
         for (var i = 0; i < 2; i++)
         {
-            _offscreenTextures[i] = _device.CreateTexture((GpuTexture.UsageRenderAttachment | GpuTexture.UsageTextureBinding), "texture", GpuFormat.Rgba8Unorm, width, height, 1, 1);
+            _offscreenTextures[i] = _device.CreateTexture(null, (GpuTexture.UsageRenderAttachment | GpuTexture.UsageTextureBinding), GpuFormat.Rgba8Unorm, width, height, 1, 1);
             _offscreenDepths[i] = _device.CreateTexture(null, GpuTexture.UsageRenderAttachment, GpuFormat.D32Float, width, height, 1, 1);
+            _offscreenViews[i] = _device.CreateTextureView(_offscreenTextures[i]!);
+            _offscreenDepthViews[i] = _device.CreateTextureView(_offscreenDepths[i]!);
         }
         //Perspective projection for offscreen 3D rendering; MockDevice also sets the projection for tests
         _projection.SetupPerspective(0.05f, 1000f, MathF.PI / 4f, width, height);
@@ -147,13 +146,12 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         //Both depths initial layout transition Undefined->DepthStencilAttachmentOptimal
         foreach (var depth in _offscreenDepths)
             depth!.Upload(ReadOnlySpan<byte>.Empty);
-        //The pipeline is recompiled when the size changes, with the viewport fixed to the offscreen size
-        if (_pipeline == null || _pipelineWidth != width || _pipelineHeight != height)
+        //The pipeline is shared; the viewport comes from the render area so no per-size recompile is needed
+        if (_pipelineWidth != width || _pipelineHeight != height)
         {
-            _pipeline?.Dispose();
             _pipelineWidth = width;
             _pipelineHeight = height;
-            EnsureGpuResources();
+            Device_Precompile();
         }
         //The two encoders are reused across frames with async Submit ping-pong; created on first use and reused after resize
         _encoders[0] ??= _device.CreateCommandEncoder();
@@ -162,11 +160,18 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         for (var i = 0; i < 2; i++)
         {
             using var initEncoder = _device.CreateCommandEncoder();
-            using var initPass = initEncoder.CreateRenderPass(_pipeline!, _offscreenTextures[i]!, new Vector4(0f, 0f, 0f, 1f), _offscreenDepths[i]!, 1.0f);
-            initPass.Close();
+            var initDescriptor = RenderPassDescriptor.Create(() => "pip-init")
+                .WithColorAttachment(_offscreenViews[i]!, new Vector4(0f, 0f, 0f, 1f))
+                .WithDepthAttachment(_offscreenDepthViews[i]!, 1.0)
+                .WithRenderArea(new NetCraft.Client.Blaze3d.Systems.RenderPass.RenderArea(0, 0, width, height));
+            using var initPass = initEncoder.CreateRenderPass(initDescriptor);
+            initPass.SetPipeline(RenderPipelines.ITEM_3D);
             initEncoder.Submit();
         }
     }
+
+    //Device_Precompile keeps the pipeline warm for the offscreen size; the declarative pipeline is shared
+    private void Device_Precompile() => _device.PrecompilePipeline(RenderPipelines.ITEM_3D);
 
     //EnsureGpuResources creates Lighting+LightTexture+ItemTextureAtlas+MVP UBO+descriptor sets+pipeline+index buffer
     private void EnsureGpuResources()
@@ -176,46 +181,11 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         _lightTexture ??= new LightTexture(_device);
         _itemAtlas ??= new ItemTextureAtlas(_device);
 
+        //The MVP matrix is bound by the name "Mvp" (3 mat4 = 192 bytes); the lightmap/atlas by "LightmapSampler"/"AtlasSampler"
         if (_mvpUbo == null)
-        {
-            var mvpLayoutDesc = new GpuDescriptorLayoutDescription();
-            mvpLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-            {
-                Binding = 0,
-                DescriptorType = GpuDescriptorType.UniformBuffer,
-                StageFlags = GpuShaderStageFlags.Vertex
-            });
-            _mvpLayout = _device.CreateDescriptorLayout(mvpLayoutDesc);
             _mvpUbo = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 192);
-            _mvpSet = _device.AllocateDescriptorSet(_mvpLayout);
-            _mvpSet.WriteBuffer(0, _mvpUbo, 0, -1);
-        }
-        if (_lightmapSet == null)
-        {
-            var lightmapLayoutDesc = new GpuDescriptorLayoutDescription();
-            lightmapLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-            {
-                Binding = 0,
-                DescriptorType = GpuDescriptorType.CombinedImageSampler,
-                StageFlags = GpuShaderStageFlags.Fragment
-            });
-            _lightmapLayout = _device.CreateDescriptorLayout(lightmapLayoutDesc);
-            _lightmapSet = _device.AllocateDescriptorSet(_lightmapLayout);
-            _lightmapSet.WriteImage(0, _lightTexture.Texture!, _lightTexture.Sampler!);
-        }
-        if (_atlasSet == null)
-        {
-            var atlasLayoutDesc = new GpuDescriptorLayoutDescription();
-            atlasLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-            {
-                Binding = 0,
-                DescriptorType = GpuDescriptorType.CombinedImageSampler,
-                StageFlags = GpuShaderStageFlags.Fragment
-            });
-            _atlasLayout = _device.CreateDescriptorLayout(atlasLayoutDesc);
-            _atlasSet = _device.AllocateDescriptorSet(_atlasLayout);
-            _atlasSet.WriteImage(0, _itemAtlas.Texture!, _itemAtlas.Sampler!);
-        }
+        _lightmapView ??= _device.CreateTextureView(_lightTexture.Texture!);
+        _atlasView ??= _device.CreateTextureView(_itemAtlas.Texture!);
         if (_indexBuffer == null)
         {
             var indices = GenerateQuadIndices(6);
@@ -225,13 +195,8 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         //_blitSampler linear filtering of the offscreen 3D render result blitted to the GUI, smoothly reused across frames
         _blitSampler ??= _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Linear, FilterMode.Linear, 1, null);
 
-        var item3dDesc = RenderPipelineDescription.FromDeclaration(RenderPipelines.ITEM_3D, _device.ShaderManager);
-        item3dDesc.TargetWidth = _pipelineWidth;
-        item3dDesc.TargetHeight = _pipelineHeight;
-        foreach (var layoutDesc in item3dDesc.DescriptorLayoutDescriptions)
-            item3dDesc.DescriptorLayouts.Add(_device.CreateDescriptorLayout(layoutDesc));
-        item3dDesc.DescriptorLayoutDescriptions.Clear();
-        _pipeline = _device.CreateRenderPipeline(item3dDesc);
+        //Precompiles the shared 3D item pipeline
+        Device_Precompile();
     }
 
     //RenderToTexture renders the 3D item to offscreen
@@ -304,18 +269,24 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         //After the first render's initial clear it is already ColorAttachmentOptimal; TransitionImageLayout internally skips it as a no-op
         encoder.TransitionImageLayout(_offscreenTextures[idx]!, GpuImageLayout.ColorAttachment);
         var clearColor = new Vector4(0f, 0f, 0f, 1f);
-        using var pass = encoder.CreateRenderPass(_pipeline!, _offscreenTextures[idx]!, clearColor, _offscreenDepths[idx]!, 1.0f, GpuLoadOp.Clear);
-        pass.SetVertexBuffer(0, _vertexBuffer!);
-        pass.SetIndexBuffer(_indexBuffer!, GpuIndexType.UInt16);
-        pass.BindDescriptorSet(_mvpSet!, 0);
-        pass.BindDescriptorSet(_lighting!.CurrentDescriptorSet!, 1);
-        pass.BindDescriptorSet(_lightmapSet!, 2);
-        pass.BindDescriptorSet(_atlasSet!, 3);
-        //With DynamicScissorEnabled=true, DisableScissor must be called to set the scissor to the pipeline extent or DrawIndexed crashes
-        pass.DisableScissor();
-        //CubeModel 6 faces * 6 indices = 36
-        pass.DrawIndexed(36);
-        pass.Close();
+        var descriptor = RenderPassDescriptor.Create(() => "pip-item")
+            .WithColorAttachment(_offscreenViews[idx]!, clearColor)
+            .WithDepthAttachment(_offscreenDepthViews[idx]!, 1.0)
+            .WithRenderArea(new NetCraft.Client.Blaze3d.Systems.RenderPass.RenderArea(0, 0, _pipelineWidth, _pipelineHeight));
+        using (var pass = encoder.CreateRenderPass(descriptor))
+        {
+            pass.SetPipeline(RenderPipelines.ITEM_3D);
+            pass.SetUniform("Mvp", _mvpUbo!);
+            pass.SetUniform("Lighting", _lighting!.CurrentBuffer!);
+            pass.BindTexture("LightmapSampler", _lightmapView!, _lightTexture!.Sampler!);
+            pass.BindTexture("AtlasSampler", _atlasView!, _itemAtlas!.Sampler!);
+            pass.SetVertexBuffer(0, _vertexBuffer!.Slice());
+            pass.SetIndexBuffer(_indexBuffer!, NetCraft.Client.Blaze3d.IndexType.Short);
+            //DisableScissor resets the scissor to the full render area before drawing
+            pass.DisableScissor();
+            //CubeModel 6 faces * 6 indices = 36
+            pass.DrawIndexed(36, 1, 0, 0, 0);
+        }
         //Transition to ShaderReadOnly after render for BlitTexture to sample; sampling ColorAttachmentOptimal would crash the driver
         encoder.TransitionImageLayout(_offscreenTextures[idx]!, GpuImageLayout.ShaderReadOnly);
         //Async Submit does not wait for the GPU so the CPU keeps recording the main cmd; blit reads the previous frame's texture with no dependency on this frame
@@ -357,10 +328,16 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
     {
         foreach (var enc in _encoders)
             enc?.WaitForCompletion();
+        foreach (var view in _offscreenViews)
+            view?.Dispose();
+        foreach (var view in _offscreenDepthViews)
+            view?.Dispose();
         foreach (var tex in _offscreenTextures)
             tex?.Dispose();
         foreach (var depth in _offscreenDepths)
             depth?.Dispose();
+        Array.Fill(_offscreenViews, null);
+        Array.Fill(_offscreenDepthViews, null);
         Array.Fill(_offscreenTextures, null);
         Array.Fill(_offscreenDepths, null);
         OffscreenTexture = null;
@@ -401,14 +378,9 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         _vertexBuffer?.Dispose();
         _indexBuffer?.Dispose();
         _blitSampler?.Dispose();
-        _atlasSet?.Dispose();
-        _atlasLayout?.Dispose();
-        _lightmapSet?.Dispose();
-        _lightmapLayout?.Dispose();
-        _mvpSet?.Dispose();
-        _mvpLayout?.Dispose();
+        _atlasView?.Dispose();
+        _lightmapView?.Dispose();
         _mvpUbo?.Dispose();
-        _pipeline?.Dispose();
         _itemAtlas?.Dispose();
         _lightTexture?.Dispose();
         _lighting?.Dispose();

@@ -195,7 +195,7 @@ public class MappedRegistry<T> : WritableRegistry<T>, HolderOwner<T> where T : c
         _byValueFrozen = _byValue.ToFrozenDictionary();
         _allTagsFrozen = _allTags.ToFrozenDictionary();
         //TODO component: build componentLookup
-        Log.Debug($"Freeze exit result={this}");
+        Log.Warning($"Freeze exit result={this}");
         return this;
     }
 

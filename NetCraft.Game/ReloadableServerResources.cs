@@ -51,6 +51,8 @@ public sealed class ReloadableServerResources
         rsr.Reload();
         //The menu needs the recipe table to compute crafting results, so it is attached right after assembly
         RecipeManager.Active = recipes;
+        //Loot tables are read after the reload finishes so the final pack list is already in place
+        NetCraft.Game.World.Loot.LootTables.Active = NetCraft.Game.World.Loot.LootTables.Load(rm);
         //Log.Debug($"ReloadableServerResources.LoadResources exit");
         return rsr;
     }

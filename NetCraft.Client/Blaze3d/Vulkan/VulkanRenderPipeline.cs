@@ -244,9 +244,9 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
         {
             SType = StructureType.PipelineViewportStateCreateInfo,
             ViewportCount = 1,
-            PViewports = &viewport,
+            //With dynamic state the viewport/scissor come from vkCmdSetViewport/vkCmdSetScissor at render pass start
+            PViewports = description.DynamicScissorEnabled ? null : &viewport,
             ScissorCount = 1,
-            //With DynamicScissorEnabled the scissor is provided dynamically by vkCmdSetScissor and PScissors is null
             PScissors = description.DynamicScissorEnabled ? null : &scissor
         };
         var rasterizer = new PipelineRasterizationStateCreateInfo
@@ -352,8 +352,10 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
             };
             //DynamicScissorEnabled enables VK_DYNAMIC_STATE_SCISSOR, setting the scissor at runtime with vkCmdSetScissor
             //dynamicStates/dynamicStateInfo are stackalloc'd at the top of the fixed block with a scope covering the CreateGraphicsPipelines call
-            var dynamicStates = stackalloc DynamicState[1];
-            dynamicStates[0] = DynamicState.Scissor;
+            //DynamicScissorEnabled enables the dynamic viewport and scissor so one pipeline serves any render extent
+            var dynamicStates = stackalloc DynamicState[2];
+            dynamicStates[0] = DynamicState.Viewport;
+            dynamicStates[1] = DynamicState.Scissor;
             var dynamicStateInfo = new PipelineDynamicStateCreateInfo
             {
                 SType = StructureType.PipelineDynamicStateCreateInfo,

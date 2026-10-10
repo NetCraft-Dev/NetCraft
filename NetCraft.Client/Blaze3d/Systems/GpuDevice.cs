@@ -12,18 +12,19 @@ public sealed class GpuDevice : IDisposable
     private readonly GpuDeviceBackend _backend;
     private readonly System.Action _criticalShaderLoader;
 
-    public GpuDevice(GpuDeviceBackend backend, ShaderManager shaderManager, System.Action criticalShaderLoader)
+    public GpuDevice(GpuDeviceBackend backend, ShaderManager shaderManager, System.Action criticalShaderLoader, bool supportsGpuRendering = true)
     {
         _backend = backend;
         ShaderManager = shaderManager;
         _criticalShaderLoader = criticalShaderLoader;
+        SupportsGpuRendering = supportsGpuRendering;
     }
 
     //Limits convenience accessor for the device limits
     public DeviceLimits Limits => GetDeviceInfo().Limits;
 
     //SupportsGpuRendering whether recording GPU render commands is supported, a NetCraft flag used by atlases to pick the GPU path
-    public bool SupportsGpuRendering => true;
+    public bool SupportsGpuRendering { get; }
 
     //ShaderManager the shader loader, a NetCraft convenience for callers that compile custom pipelines
     public ShaderManager ShaderManager { get; }

@@ -265,7 +265,29 @@ public sealed unsafe class VulkanRenderPass : RenderPassBackend
             };
             _dynRenderingExt.CmdBeginRendering(_cmd, &renderingInfo);
         }
+        //Dynamic viewport and scissor are set from the render area, so one pipeline fits any render target size
+        SetViewportAndScissor(area);
         _begun = true;
+    }
+
+    private void SetViewportAndScissor(NetCraft.Client.Blaze3d.Systems.RenderPass.RenderArea area)
+    {
+        var viewport = new Viewport
+        {
+            X = area.X,
+            Y = area.Y,
+            Width = area.Width,
+            Height = area.Height,
+            MinDepth = 0f,
+            MaxDepth = 1f
+        };
+        _vk.CmdSetViewport(_cmd, 0, 1, &viewport);
+        var scissor = new Rect2D
+        {
+            Offset = new Offset2D { X = area.X, Y = area.Y },
+            Extent = new Extent2D { Width = (uint)area.Width, Height = (uint)area.Height }
+        };
+        _vk.CmdSetScissor(_cmd, 0, 1, &scissor);
     }
 
     private void AllocateDescriptorSets(VulkanRenderPipeline pipeline)

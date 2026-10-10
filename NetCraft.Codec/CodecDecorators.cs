@@ -59,3 +59,52 @@ internal sealed class ValidateCodec<T> : Codec<T>
     public Codec<R> ComapFlatMap<R>(Func<T, DataResult<R>> to, Func<R, T> from)
         => new ComapFlatMapCodec<T, R>(this, to, from);
 }
+
+//DispatchCodec picks the value codec from a type field inside the same object, mirroring vanilla Codec.dispatch
+//Decode reads the type field first and hands the whole map to the selected codec; encode writes the type field back
+internal sealed class DispatchCodec<E, K> : AbstractMapCodec<E> where K : notnull
+{
+    private readonly string _typeKey;
+    private readonly Codec<K> _keyCodec;
+    private readonly Func<E, K> _typeGetter;
+    private readonly Func<K, MapCodec<E>> _codecGetter;
+
+    public DispatchCodec(string typeKey, Codec<K> keyCodec, Func<E, K> typeGetter, Func<K, MapCodec<E>> codecGetter)
+    {
+        _typeKey = typeKey;
+        _keyCodec = keyCodec;
+        _typeGetter = typeGetter;
+        _codecGetter = codecGetter;
+    }
+
+    public override DataResult<E> Decode<U>(DynamicOps<U> ops, MapLike<U> input)
+    {
+        var typeElement = input.Get(_typeKey);
+        if (!typeElement.IsPresent)
+            return DataResult<E>.Error(() => $"Missing key {_typeKey}");
+        var key = _keyCodec.Parse(ops, typeElement.Get());
+        if (!key.Result().IsPresent)
+            return DataResult<E>.Error(() => $"Failed to parse {_typeKey}");
+        return _codecGetter(key.GetOrThrow()).Decode(ops, input);
+    }
+
+    public override RecordBuilder<U> EncodeTo<U>(DynamicOps<U> ops, E value, RecordBuilder<U> builder)
+    {
+        var key = _typeGetter(value);
+        _codecGetter(key).EncodeTo(ops, value, builder);
+        builder.Add(_typeKey, _keyCodec.EncodeStart(ops, key).GetOrThrow());
+        return builder;
+    }
+}
+
+//UnitMapCodec consumes and emits no field at all and always yields the same instance, mirroring vanilla MapCodec.unit
+internal sealed class UnitMapCodec<T> : AbstractMapCodec<T>
+{
+    private readonly T _value;
+
+    public UnitMapCodec(T value) => _value = value;
+
+    public override DataResult<T> Decode<U>(DynamicOps<U> ops, MapLike<U> input) => DataResult<T>.Success(_value);
+
+    public override RecordBuilder<U> EncodeTo<U>(DynamicOps<U> ops, T value, RecordBuilder<U> builder) => builder;
+}

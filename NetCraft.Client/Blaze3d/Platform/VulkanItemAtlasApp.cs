@@ -125,7 +125,7 @@ public sealed unsafe class VulkanItemAtlasApp : VulkanAppBase
     public byte[] RenderSlotAndReadback(int itemIndex, int slotX, int slotY)
     {
         _itemAtlas.GetOrUpdate(_itemIds[itemIndex], isAnimated: false);
-        _device.WaitIdle();
+        _vkDevice.WaitIdle();
         return _itemAtlas.ReadbackSlot(slotX, slotY);
     }
 
@@ -134,7 +134,7 @@ public sealed unsafe class VulkanItemAtlasApp : VulkanAppBase
     public byte[] RenderAndReadbackFullAtlas(int itemIndex)
     {
         _itemAtlas.GetOrUpdate(_itemIds[itemIndex], isAnimated: false);
-        _device.WaitIdle();
+        _vkDevice.WaitIdle();
         return _itemAtlas.ReadbackFullAtlas();
     }
 
@@ -158,7 +158,7 @@ public sealed unsafe class VulkanItemAtlasApp : VulkanAppBase
         base.OnBeforeRun();
         for (int i = 0; i < ItemCount; i++)
             _itemAtlas.GetOrUpdate(_itemIds[i], isAnimated: false);
-        _device.WaitIdle();
+        _vkDevice.WaitIdle();
         LastVertexCount = _itemAtlas.LastFrameVertices.VertexCount;
         FullAtlasReadbackPixels = _itemAtlas.ReadbackFullAtlas();
         Slot0ReadbackPixels = _itemAtlas.ReadbackSlot(0, 0);

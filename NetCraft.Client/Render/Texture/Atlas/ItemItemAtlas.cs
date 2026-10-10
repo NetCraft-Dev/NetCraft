@@ -65,13 +65,10 @@ public sealed class ItemItemAtlas : GuiItemAtlas
     private LightTexture? _lightTexture;
     private ItemTextureAtlas? _itemAtlas;
     private GpuBuffer? _mvpUbo;
-    private GpuDescriptorLayout? _mvpLayout;
-    private GpuDescriptorSet? _mvpSet;
-    private GpuDescriptorLayout? _lightmapLayout;
-    private GpuDescriptorSet? _lightmapSet;
-    private GpuDescriptorLayout? _atlasLayout;
-    private GpuDescriptorSet? _atlasSet;
-    private CompiledRenderPipeline? _pipeline;
+    private GpuTextureView? _lightmapView;
+    private GpuTextureView? _atlasView;
+    private GpuTextureView? _atlasTextureView;
+    private GpuTextureView? _atlasDepthView;
     private GpuBuffer? _vertexBuffer;
     private GpuBuffer? _indexBuffer;
 
@@ -90,52 +87,16 @@ public sealed class ItemItemAtlas : GuiItemAtlas
         _lightTexture = new LightTexture(Device);
         _itemAtlas = new ItemTextureAtlas(Device);
 
-        var mvpLayoutDesc = new GpuDescriptorLayoutDescription();
-        mvpLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-        {
-            Binding = 0,
-            DescriptorType = GpuDescriptorType.UniformBuffer,
-            StageFlags = GpuShaderStageFlags.Vertex
-        });
-        _mvpLayout = Device.CreateDescriptorLayout(mvpLayoutDesc);
+        //The MVP matrix is bound by the name "Mvp" declared in BindGroupLayouts.ITEM_MATRICES
         //3 mat4 = 192 bytes
         _mvpUbo = Device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 192);
-        _mvpSet = Device.AllocateDescriptorSet(_mvpLayout);
-        _mvpSet.WriteBuffer(0, _mvpUbo, 0, -1);
+        _lightmapView = Device.CreateTextureView(_lightTexture.Texture!);
+        _atlasView = Device.CreateTextureView(_itemAtlas.Texture!);
+        _atlasTextureView = Device.CreateTextureView(AtlasTexture);
+        _atlasDepthView = Device.CreateTextureView(AtlasDepth);
 
-        //lightmap sampler bound to set 2 binding 0 CombinedImageSampler
-        var lightmapLayoutDesc = new GpuDescriptorLayoutDescription();
-        lightmapLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-        {
-            Binding = 0,
-            DescriptorType = GpuDescriptorType.CombinedImageSampler,
-            StageFlags = GpuShaderStageFlags.Fragment
-        });
-        _lightmapLayout = Device.CreateDescriptorLayout(lightmapLayoutDesc);
-        _lightmapSet = Device.AllocateDescriptorSet(_lightmapLayout);
-        _lightmapSet.WriteImage(0, _lightTexture.Texture!, _lightTexture.Sampler!);
-
-        //item texture atlas sampler bound to set 3 binding 0 CombinedImageSampler
-        var atlasLayoutDesc = new GpuDescriptorLayoutDescription();
-        atlasLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-        {
-            Binding = 0,
-            DescriptorType = GpuDescriptorType.CombinedImageSampler,
-            StageFlags = GpuShaderStageFlags.Fragment
-        });
-        _atlasLayout = Device.CreateDescriptorLayout(atlasLayoutDesc);
-        _atlasSet = Device.AllocateDescriptorSet(_atlasLayout);
-        _atlasSet.WriteImage(0, _itemAtlas.Texture!, _itemAtlas.Sampler!);
-
-        //Cache the compiled artifact to avoid recompiling on every DrawToSlot
-        //extent must match the AtlasTexture size, otherwise the viewport maps vertices to wrong positions and the scissor clips them
-        var item3dDesc = RenderPipelineDescription.FromDeclaration(RenderPipelines.ITEM_3D, Device.ShaderManager);
-        item3dDesc.TargetWidth = TextureSize;
-        item3dDesc.TargetHeight = TextureSize;
-        foreach (var layoutDesc in item3dDesc.DescriptorLayoutDescriptions)
-            item3dDesc.DescriptorLayouts.Add(Device.CreateDescriptorLayout(layoutDesc));
-        item3dDesc.DescriptorLayoutDescriptions.Clear();
-        _pipeline = Device.CreateRenderPipeline(item3dDesc);
+        //Precompiles the 3D item pipeline; the viewport comes from the render area so no per-size recompile is needed
+        Device.PrecompilePipeline(RenderPipelines.ITEM_3D);
 
         //CubeModel 6 faces * 6 indices = 36 indices, uploaded once and fixed
         var indices = GenerateQuadIndices(6);
@@ -147,12 +108,16 @@ public sealed class ItemItemAtlas : GuiItemAtlas
         //dynamic rendering expects DepthStencilAttachmentOptimal, requiring an explicit transition
         AtlasDepth.Upload(ReadOnlySpan<byte>.Empty);
 
-        //Initially clears the whole AtlasTexture to opaque black; later DrawToSlot uses LoadOp=Load to preserve other slots' content
+        //Initially clears the whole AtlasTexture to opaque black; later DrawToSlot loads to preserve other slots' content
         //Without the initial clear, the first DrawToSlot with Load reads Undefined content and validation errors
         using (var initEncoder = Device.CreateCommandEncoder())
         {
-            using var initPass = initEncoder.CreateRenderPass(_pipeline!, AtlasTexture, new Vector4(0f, 0f, 0f, 1f), AtlasDepth, 1.0f);
-            initPass.Close();
+            var initDescriptor = RenderPassDescriptor.Create(() => "atlas-init")
+                .WithColorAttachment(_atlasTextureView, new Vector4(0f, 0f, 0f, 1f))
+                .WithDepthAttachment(_atlasDepthView, 1.0)
+                .WithRenderArea(new NetCraft.Client.Blaze3d.Systems.RenderPass.RenderArea(0, 0, TextureSize, TextureSize));
+            using var initPass = initEncoder.CreateRenderPass(initDescriptor);
+            initPass.SetPipeline(RenderPipelines.ITEM_3D);
             initEncoder.Submit();
         }
     }
@@ -263,21 +228,24 @@ public sealed class ItemItemAtlas : GuiItemAtlas
         };
         _mvpUbo!.Upload<MvpUniform>(new[] { mvp });
 
-        //Records render commands with colorLoadOp=Load to preserve other slots' content and depth cleared to 1.0 each time
+        //Records render commands loading the color attachment to preserve other slots' content and depth cleared to 1.0 each time
         //scissor restricts rendering to the current slot region without polluting other slots
         using var encoder = Device.CreateCommandEncoder();
-        var clearColor = new Vector4(0f, 0f, 0f, 1f);
-        using var pass = encoder.CreateRenderPass(_pipeline!, AtlasTexture, clearColor, AtlasDepth, 1.0f, GpuLoadOp.Load);
-        pass.SetVertexBuffer(0, _vertexBuffer!);
-        pass.SetIndexBuffer(_indexBuffer!, GpuIndexType.UInt16);
-        pass.BindDescriptorSet(_mvpSet!, 0);
-        pass.BindDescriptorSet(_lighting!.CurrentDescriptorSet!, 1);
-        pass.BindDescriptorSet(_lightmapSet!, 2);
-        pass.BindDescriptorSet(_atlasSet!, 3);
+        var descriptor = RenderPassDescriptor.Create(() => "item-slot")
+            .WithColorAttachment(_atlasTextureView!)
+            .WithDepthAttachment(_atlasDepthView!, 1.0)
+            .WithRenderArea(new NetCraft.Client.Blaze3d.Systems.RenderPass.RenderArea(0, 0, TextureSize, TextureSize));
+        using var pass = encoder.CreateRenderPass(descriptor);
+        pass.SetPipeline(RenderPipelines.ITEM_3D);
+        pass.SetUniform("Mvp", _mvpUbo!);
+        pass.SetUniform("Lighting", _lighting!.CurrentBuffer!);
+        pass.BindTexture("LightmapSampler", _lightmapView!, _lightTexture!.Sampler!);
+        pass.BindTexture("AtlasSampler", _atlasView!, _itemAtlas!.Sampler!);
+        pass.SetVertexBuffer(0, _vertexBuffer!.Slice());
+        pass.SetIndexBuffer(_indexBuffer!, NetCraft.Client.Blaze3d.IndexType.Short);
         pass.EnableScissor(slotX * SlotTextureSize, slotY * SlotTextureSize, SlotTextureSize, SlotTextureSize);
         //CubeModel 6 faces * 6 indices = 36
-        pass.DrawIndexed(36);
-        pass.Close();
+        pass.DrawIndexed(36, 1, 0, 0, 0);
         encoder.Submit();
     }
 
@@ -310,14 +278,11 @@ public sealed class ItemItemAtlas : GuiItemAtlas
     {
         _vertexBuffer?.Dispose();
         _indexBuffer?.Dispose();
-        _atlasSet?.Dispose();
-        _atlasLayout?.Dispose();
-        _lightmapSet?.Dispose();
-        _lightmapLayout?.Dispose();
-        _mvpSet?.Dispose();
-        _mvpLayout?.Dispose();
+        _atlasTextureView?.Dispose();
+        _atlasDepthView?.Dispose();
+        _atlasView?.Dispose();
+        _lightmapView?.Dispose();
         _mvpUbo?.Dispose();
-        _pipeline?.Dispose();
         _itemAtlas?.Dispose();
         _lightTexture?.Dispose();
         _lighting?.Dispose();

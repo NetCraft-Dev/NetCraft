@@ -12,6 +12,7 @@
   <Project Path="NetCraft.Nbt/NetCraft.Nbt.csproj" />
   <Project Path="NetCraft.Network/NetCraft.Network.csproj" />
   <Project Path="NetCraft.ModLoader/NetCraft.ModLoader.csproj" />
+  <Project Path="NetCraft.Hook/NetCraft.Hook.csproj" />
   <Project Path="NetCraft.Primitives/NetCraft.Primitives.csproj" />
   <Project Path="NetCraft.Registry/NetCraft.Registry.csproj" />
   <Project Path="NetCraft.Resources/NetCraft.Resources.csproj" />

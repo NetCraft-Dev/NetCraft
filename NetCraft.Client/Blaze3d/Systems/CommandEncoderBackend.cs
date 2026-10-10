@@ -41,4 +41,13 @@ public interface CommandEncoderBackend : IDisposable
     GpuFence CreateFence();
 
     void WriteTimestamp(GpuQueryPool pool, int index);
+
+    //NetCraft extensions: encoder reuse and explicit image layout transitions used by the offscreen PIP path
+    void BeginRecording() => throw new NotSupportedException("The current backend does not support encoder reuse");
+
+    void SubmitAsync() => throw new NotSupportedException("The current backend does not support async Submit");
+
+    void WaitForCompletion() => throw new NotSupportedException("The current backend does not support async Submit");
+
+    void TransitionImageLayout(GpuTexture image, GpuImageLayout newLayout) => throw new NotSupportedException("The current backend does not support explicit layout transitions");
 }

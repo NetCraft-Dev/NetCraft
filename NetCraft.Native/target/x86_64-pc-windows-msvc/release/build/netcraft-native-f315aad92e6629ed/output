@@ -53,6 +53,7 @@ CXXFLAGS_x86_64-pc-windows-msvc = None
 cargo:rerun-if-env-changed=CC_ENABLE_DEBUG_OUTPUT
 com_base.cpp
 entry.cpp
+shell/entry.cpp(106): warning C4245: “初始化”: 从“int”转换到“DWORD”，有符号/无符号不匹配
 cargo:rerun-if-env-changed=CC_FORCE_DISABLE
 CC_FORCE_DISABLE = None
 cargo:rerun-if-env-changed=AR_x86_64-pc-windows-msvc

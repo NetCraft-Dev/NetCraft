@@ -8,11 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NetCraft\NetCraft.csproj" />
-    <!--Referencing the local build of Lead.Hook 2.3.0: the version just pushed to nuget.org is not servable yet
-        Switch this back to a PackageReference once the feed has caught up-->
-    <Reference Include="Lead.Hook">
-      <HintPath>..\..\Lead.Hook\bin\Release\net10.0\Lead.Hook.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\NetCraft.Hook\NetCraft.Hook.csproj" />
     <PackageReference Include="Mono.Cecil" Version="0.11.6" />
   </ItemGroup>
 

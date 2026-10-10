@@ -1,11 +1,11 @@
 using System.Reflection;
 using System.Runtime.Loader;
-using Lead.Hook;
+using NetCraft.Hook;
 using NetCraft.Logging;
 
 namespace NetCraft.ModLoader;
 
-//ModHooks: injection assembly, converts a mod's hook list into Lead.Hook rules
+//ModHooks: injection assembly, converts a mod's hook list into NetCraft.Hook rules
 //Assembly must precede the resolution of kernel sub-libraries; once a sub-library comes in there is no chance to rewrite
 //The replacement class must not reference kernel types; resolving it also resolves base classes and may pull the kernel up early
 public sealed class ModHooks

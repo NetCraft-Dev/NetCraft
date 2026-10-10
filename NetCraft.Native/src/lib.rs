@@ -5,11 +5,15 @@
 //! again, and the runtime picks the library up from there.
 //!
 //! Modules:
+//! - `il`: IL parsing and encoding, used by the rewrite engine
 //! - `logging`: the single diagnostic file every part of the layer writes to
+//! - `rejit`: the runtime rewrite engine, driven by the managed side
 //! - `report`: the report produced once managed code can no longer run
 //! - `stack`: the vectored exception handler that catches a stack overflow
 
+mod il;
 mod logging;
+mod rejit;
 mod report;
 mod stack;
 
@@ -80,6 +84,10 @@ pub extern "C" fn ncn_on_initialize(_profiler_info_unknown: *mut c_void) -> i32 
     // The handler is deliberately not installed here
     // Vectored handlers run newest first, and the runtime registers its own while it starts up, so a handler put in
     // place this early would sit behind it; waiting until the managed side asks for the callback puts this one first
+
+    // The rewrite fulfil thread is the opposite case and may start now: it waits for its own thread to be registered
+    // with the runtime before it touches anything
+    rejit::start_worker();
     0
 }
 

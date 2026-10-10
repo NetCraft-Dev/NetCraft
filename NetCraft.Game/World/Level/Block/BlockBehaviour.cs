@@ -141,6 +141,19 @@ public abstract class BlockBehaviour : NetCraft.Registry.Block, IBlockUpdateBeha
     //Differences like grass dropping dirt or stone dropping cobblestone are handled by overriding this per block later
     public virtual IEnumerable<ItemStack> GetDrops(ServerLevel level, ServerPlayer? player, BlockPos pos, BlockState state)
     {
+        //A block's loot table sits at blocks/<id> in its own namespace; a block without one drops its own block item
+        var table = NetCraft.Game.World.Loot.LootTables.Active.Get(
+            Identifier.FromNamespaceAndPath(Id.Namespace, $"blocks/{Id.Path}"));
+        if (table is not null)
+        {
+            var parameters = new NetCraft.Game.World.Loot.LootParams.Builder(level)
+                .WithParameter(NetCraft.Game.World.Loot.LootContextParams.Origin,
+                    new Vec3(pos.X + 0.5, pos.Y + 0.5, pos.Z + 0.5))
+                .WithParameter(NetCraft.Game.World.Loot.LootContextParams.Tool, ItemStack.Empty)
+                .WithParameter(NetCraft.Game.World.Loot.LootContextParams.BlockState, state)
+                .Create(NetCraft.Game.World.Loot.LootContextParamSets.Block);
+            return table.GetRandomItems(parameters);
+        }
         //The namespace segment Items clashes with the registry class, it must be fully qualified or it resolves to the namespace
         var item = NetCraft.Game.World.Items.Items.ItemForBlock(this);
         if (item is null || ReferenceEquals(item, NetCraft.Game.World.Items.Items.AIR))

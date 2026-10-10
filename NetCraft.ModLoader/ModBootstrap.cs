@@ -25,10 +25,9 @@ public static class ModBootstrap
         var kernelNames = CollectKernelAssemblies();
         var hooks = ModHooks.Build(scanned, kernelNames, environment);
 
-        //ReJIT can only be enabled at process start; with runtime injection rules the process must restart with the native layer
-        //A failed restart does not block; those rules are judged unusable when committed and leave a warning
-        if (hooks.RuntimeTargets.Count > 0 && !ProfilerRelaunch.Attached)
-            ProfilerRelaunch.Relaunch();
+        //ReJIT can only be switched on at process start, and that restart belongs to the native layer's own guard: by the
+        //time this runs the profiler is either attached or it never will be, so nothing is started from here
+        //A runtime rule that cannot be committed is reported as a warning by ApplyRuntimeInjects below
 
         if (hooks.TargetAssemblies.Count > 0 || hooks.RuntimeTargets.Count > 0)
         {

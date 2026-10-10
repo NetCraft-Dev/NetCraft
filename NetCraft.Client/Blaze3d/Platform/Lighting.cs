@@ -56,8 +56,6 @@ public sealed class Lighting : IDisposable
     private readonly Dictionary<Entry, LightUniform> _lights = new();
     private readonly GpuDevice? _device;
     private Dictionary<Entry, GpuBuffer>? _ubos;
-    private Dictionary<Entry, GpuDescriptorSet>? _sets;
-    private GpuDescriptorLayout? _layout;
     private Entry _current = Entry.Items3D;
 
     public Lighting(GpuDevice? device = null)
@@ -95,28 +93,16 @@ public sealed class Lighting : IDisposable
         _lights[Entry.PlayerSkin] = _lights[Entry.EntityInUi];
     }
 
-    //CreateUbos creates the UBO + DescriptorSet for each Entry
+    //CreateUbos creates the UBO for each Entry; the render pass binds it by the name "Lighting"
     //The PoC simplifies to a separate UBO per Entry without the vanilla slice alignment
     private void CreateUbos()
     {
         _ubos = new();
-        _sets = new();
-        var layoutDesc = new GpuDescriptorLayoutDescription();
-        layoutDesc.Bindings.Add(new GpuDescriptorBinding
-        {
-            Binding = 0,
-            DescriptorType = GpuDescriptorType.UniformBuffer,
-            StageFlags = GpuShaderStageFlags.Vertex
-        });
-        _layout = _device!.CreateDescriptorLayout(layoutDesc);
         foreach (var (entry, light) in _lights)
         {
-            var ubo = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 32);
+            var ubo = _device!.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 32);
             ubo.Upload<LightUniform>(new[] { light });
             _ubos![entry] = ubo;
-            var set = _device.AllocateDescriptorSet(_layout!);
-            set.WriteBuffer(0, ubo, 0, -1);
-            _sets![entry] = set;
         }
     }
 
@@ -126,18 +112,14 @@ public sealed class Lighting : IDisposable
     //SetupFor sets the current lighting Entry, binding its UBO on render
     public void SetupFor(Entry entry) => _current = entry;
 
-    //CurrentDescriptorSet the current Entry's DescriptorSet for the render pass to bind
+    //CurrentBuffer the current Entry's UBO for the render pass to bind by the name "Lighting"
     //Returns null without a GPU backend
-    public GpuDescriptorSet? CurrentDescriptorSet => _sets?.TryGetValue(_current, out var s) == true ? s : null;
-    public GpuDescriptorLayout? Layout => _layout;
+    public GpuBuffer? CurrentBuffer => _ubos?.TryGetValue(_current, out var b) == true ? b : null;
     public Entry Current => _current;
 
     public void Dispose()
     {
         if (_ubos is not null)
             foreach (var ubo in _ubos.Values) ubo.Dispose();
-        if (_sets is not null)
-            foreach (var set in _sets.Values) set.Dispose();
-        _layout?.Dispose();
     }
 }

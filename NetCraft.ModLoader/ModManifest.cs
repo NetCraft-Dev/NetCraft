@@ -133,7 +133,7 @@ public sealed class ModContact
     public string Issues { get; set; } = string.Empty;
 }
 
-//ModHookRule: an injection rule whose fields map one to one to Lead.Hook's HookRule
+//ModHookRule: an injection rule whose fields map one to one to NetCraft.Hook's HookRule
 public sealed class ModHookRule
 {
     //Target: the target type full name, usually a type in the kernel
@@ -144,11 +144,11 @@ public sealed class ModHookRule
     [JsonPropertyName("method")]
     public string Method { get; set; } = string.Empty;
 
-    //HookTypeName: the injection type name, maps to Lead.Hook's HookType, taking CallSite/MethodBody/NewObj etc.
+    //HookTypeName: the injection type name, maps to NetCraft.Hook's HookType, taking CallSite/MethodBody/NewObj etc.
     [JsonPropertyName("type")]
     public string HookTypeName { get; set; } = "CallSite";
 
-    //PatchModeName: the patch mode name, maps to Lead.Hook's PatchMode, taking ILRewrite or RuntimeInject
+    //PatchModeName: the patch mode name, maps to NetCraft.Hook's PatchMode, taking ILRewrite or RuntimeInject
     //ILRewrite rewrites bytes before the target assembly loads; RuntimeInject uses ReJIT to rewrite already loaded code
     //RuntimePatch is a retiring entry patch and should not be used by new rules
     [JsonPropertyName("patchMode")]

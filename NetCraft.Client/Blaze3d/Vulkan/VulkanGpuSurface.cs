@@ -93,8 +93,9 @@ public sealed unsafe class VulkanGpuSurface : GpuSurfaceBackend
         if (!_configured)
             throw new InvalidOperationException("Surface is not configured");
         var fence = _acquireFence;
-        var result = _device.SwapchainExtension.AcquireNextImage(
-            _device.Device, _swapchain, ulong.MaxValue, default, fence, out _imageIndex);
+        var pImageIndex = stackalloc uint[1];
+        var result = _device.SwapchainExtension.AcquireNextImage(_device.Device, _swapchain, ulong.MaxValue, default, fence, pImageIndex);
+        _imageIndex = pImageIndex[0];
         if (result == Result.ErrorOutOfDateKhr)
         {
             _suboptimal = true;
@@ -104,8 +105,10 @@ public sealed unsafe class VulkanGpuSurface : GpuSurfaceBackend
             throw new SurfaceException($"AcquireNextImage failed with {result}");
         _suboptimal = result == Result.SuboptimalKhr;
         //Waits on a fence instead of a semaphore so the acquired image is usable right away
-        _vk.WaitForFences(_device.Device, 1, &fence, Vk.True, ulong.MaxValue);
-        _vk.ResetFences(_device.Device, 1, &fence);
+        var pFence = stackalloc Fence[1];
+        pFence[0] = _acquireFence;
+        _vk.WaitForFences(_device.Device, 1, pFence, Vk.True, ulong.MaxValue);
+        _vk.ResetFences(_device.Device, 1, pFence);
         _hasAcquired = true;
     }
 

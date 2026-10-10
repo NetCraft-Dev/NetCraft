@@ -38,6 +38,9 @@ public static class Codecs
     public static Codec<Dictionary<K, V>> UnboundedMap<K, V>(Codec<K> keyCodec, Codec<V> valueCodec)
         where K : notnull
         => new UnboundedMapCodec<K, V>(keyCodec, valueCodec);
+
+    //Unit reads and writes nothing and always yields the same instance, mirroring vanilla MapCodec.unit
+    public static MapCodec<T> Unit<T>(T value) => new UnitMapCodec<T>(value);
 }
 
 //UnboundedMapCodec is the map implementation with independent key and value codecs

@@ -18,14 +18,17 @@ internal sealed unsafe class VulkanFence : GpuFence
         _vk = vk;
         _device = device;
         var info = new FenceCreateInfo { SType = StructureType.FenceCreateInfo };
-        if (_vk.CreateFence(_device, &info, null, &_fence) != Result.Success)
+        Fence fence;
+        if (_vk.CreateFence(_device, &info, null, &fence) != Result.Success)
             throw new InvalidOperationException("Fence creation failed");
+        _fence = fence;
     }
 
     public bool AwaitCompletion(long timeoutNS)
     {
-        var fence = _fence;
-        var result = _vk.WaitForFences(_device, 1, &fence, Vk.True, timeoutNS < 0 ? ulong.MaxValue : (ulong)timeoutNS);
+        var pFence = stackalloc Fence[1];
+        pFence[0] = _fence;
+        var result = _vk.WaitForFences(_device, 1, pFence, Vk.True, timeoutNS < 0 ? ulong.MaxValue : (ulong)timeoutNS);
         return result == Result.Success;
     }
 

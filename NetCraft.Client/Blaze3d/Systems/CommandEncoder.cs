@@ -296,6 +296,18 @@ public sealed class CommandEncoder : IDisposable
         return _backend.CreateFence();
     }
 
+    //BeginRecording restarts recording so the encoder can be reused across frames, a NetCraft extension
+    public void BeginRecording() => _backend.BeginRecording();
+
+    //SubmitAsync submits without waiting, a NetCraft extension used by the offscreen PIP path
+    public void SubmitAsync() => _backend.SubmitAsync();
+
+    //WaitForCompletion waits for an async submit to finish, a NetCraft extension
+    public void WaitForCompletion() => _backend.WaitForCompletion();
+
+    //TransitionImageLayout records an explicit layout transition, a NetCraft extension
+    public void TransitionImageLayout(GpuTexture image, GpuImageLayout newLayout) => _backend.TransitionImageLayout(image, newLayout);
+
     public void WriteTimestamp(GpuQueryPool pool, int index)
     {
         if (index < 0 || index > pool.Size)

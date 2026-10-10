@@ -1,3 +1,4 @@
+using NetCraft.Logging;
 using NetCraft.Registry;
 
 namespace NetCraft.Resources;
@@ -35,6 +36,16 @@ public sealed class ResourceManager
             _packs.Add(pack);
         }
         RebuildCache();
+        //Read the metadata on acceptance so a malformed pack.mcmeta surfaces here rather than at first use
+        try
+        {
+            if (PackMetadataSectionReader.Read(pack.Resources, PackType.ServerData) is null)
+                Log.Debug($"Pack {pack.Id} carries no readable pack.mcmeta");
+        }
+        catch (Exception e)
+        {
+            Log.Warning($"Pack {pack.Id} has a malformed pack.mcmeta: {e.Message}");
+        }
     }
 
     //RemovePack removes a resource pack by id

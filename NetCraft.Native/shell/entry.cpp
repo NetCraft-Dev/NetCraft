@@ -11,6 +11,7 @@
 #include <map>
 #include <mutex>
 #include <set>
+#include <string>
 #include <utility>
 #include <unknwn.h>
 #include <cor.h>
@@ -32,6 +33,9 @@ static const IID IidMetaDataEmit = {
 //The reference table is not on the plain import; that interface only offers it through this one
 static const IID IidMetaDataAssemblyImport = {
     0xEE62470B, 0xE94B, 0x424E, {0x9B, 0x7C, 0x2F, 0x00, 0xC9, 0x24, 0x9F, 0x93}};
+//ReJIT only exists from the seventh revision of the profiling interface on
+static const IID IidProfilerInfo7 = {
+    0x9AEECC0D, 0x63E0, 0x4187, {0x8C, 0x00, 0xE3, 0x12, 0xF5, 0x03, 0xF6, 0x63}};
 
 //IIDs are written out as file-local constants instead of __uuidof, which is an MSVC extension that cannot see the uuid
 //of interfaces the platform headers only declare; spelling them out avoids depending on any external symbol
@@ -72,6 +76,9 @@ int32_t ncn_on_initialize(void* profiler_info_unknown);
 void ncn_on_shutdown();
 int32_t ncn_on_jit_compiled(size_t function_id);
 void ncn_on_jit_notifications(bool taken);
+void ncn_on_module_load_finished(uint64_t module_id, int32_t hr_status);
+void ncn_on_module_unload_started(uint64_t module_id);
+int32_t ncn_on_get_rejit_parameters(uint64_t module_id, uint32_t method_def, void* function_control);
 int32_t ncn_should_rewrite_module(const char* simple_name, int32_t ecosystem_reference);
 int32_t ncn_stack_guard_ready();
 void ncn_on_injected();
@@ -84,15 +91,29 @@ int32_t ncn_com_can_unload_now();
 //SetEventMask has to be called from Initialize and the callbacks arrive on runtime threads afterwards
 static ICorProfilerInfo* g_profiler_info = nullptr;
 
-//SetNeedJitNotifications turns the JIT callback on and reports whether the runtime accepted the mask
-//Without it no method is reported and there is nothing to rewrite, so a failure here is worth surfacing
-static bool SetJitNotifications()
+//A second reference, to the revision that carries ReJIT
+//It is taken from the same object during Initialize and released the same way
+static ICorProfilerInfo7* g_profiler_info7 = nullptr;
+
+//The runtime mask has to carry what both sides need
+//
+//A process has exactly one profiler, so there is one mask, and setting it twice would have the later call replace the
+//earlier one and silently switch that side off. The union is therefore built here and set once.
+//
+//MONITOR_JIT_COMPILATION is notification only and costs nothing by itself
+//ENABLE_REJIT is what makes RequestReJIT possible, and the runtime refuses it unless ReadyToRun images are given up
+//alongside it, which is why DISABLE_ALL_NGEN_IMAGES comes too
+static const DWORD ProfilerEventMask = COR_PRF_MONITOR_JIT_COMPILATION | COR_PRF_MONITOR_MODULE_LOADS |
+    COR_PRF_ENABLE_REJIT | COR_PRF_DISABLE_ALL_NGEN_IMAGES;
+
+//SetProfilerMask enables the combined mask and reports whether the runtime took it
+//A failure costs both the early stack check and every runtime rewrite, so it is surfaced rather than swallowed
+static bool SetProfilerMask()
 {
     if (g_profiler_info == nullptr)
         return false;
 
-    //This mask is notification only; unlike its neighbours it does not disable inlining or optimizations by itself
-    const HRESULT hr = g_profiler_info->SetEventMask(COR_PRF_MONITOR_JIT_COMPILATION);
+    const HRESULT hr = g_profiler_info->SetEventMask(ProfilerEventMask);
     return SUCCEEDED(hr);
 }
 
@@ -736,6 +757,10 @@ public:
         if (pICorProfilerInfoUnk != nullptr)
         {
             hr = pICorProfilerInfoUnk->QueryInterface(IidCorProfilerInfo, reinterpret_cast<void**>(&g_profiler_info));
+
+            //The rewrite engine needs the seventh revision, reached from the same object; a runtime that does not
+            //offer it leaves that pointer null, which costs runtime rewrites and nothing else
+            pICorProfilerInfoUnk->QueryInterface(IidProfilerInfo7, reinterpret_cast<void**>(&g_profiler_info7));
         }
 
         //The interface is forwarded untouched as well; the Rust side keeps it in case a later module needs it
@@ -743,9 +768,9 @@ public:
         if (result != 0)
             return E_FAIL;
 
-        if (FAILED(hr) || !SetJitNotifications())
+        if (FAILED(hr) || !SetProfilerMask())
         {
-            //Stack checks need the notification to have any effect, so the Rust side is told it did not take
+            //Both the stack check and the rewrite engine depend on the mask, so the Rust side is told it did not take
             ncn_on_jit_notifications(false);
         }
         else
@@ -758,6 +783,12 @@ public:
     HRESULT STDMETHODCALLTYPE Shutdown() override
     {
         ncn_on_shutdown();
+
+        if (g_profiler_info7 != nullptr)
+        {
+            g_profiler_info7->Release();
+            g_profiler_info7 = nullptr;
+        }
 
         if (g_profiler_info != nullptr)
         {
@@ -775,6 +806,30 @@ public:
         ncn_on_jit_compiled(static_cast<size_t>(functionId));
         TryInjectStackCheck(functionId, fIsSafeToBlock);
         return S_OK;
+    }
+
+    //ModuleLoadFinished is where the rewrite engine learns that a module is in place
+    //Requests wait on this: a module that is not loaded cannot be looked up and its name is not even known
+    HRESULT STDMETHODCALLTYPE ModuleLoadFinished(ModuleID moduleId, HRESULT hrStatus) override
+    {
+        ncn_on_module_load_finished(static_cast<uint64_t>(moduleId), static_cast<int32_t>(hrStatus));
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE ModuleUnloadStarted(ModuleID moduleId) override
+    {
+        ncn_on_module_unload_started(static_cast<uint64_t>(moduleId));
+        return S_OK;
+    }
+
+    //GetReJITParameters is the moment a runtime rewrite actually happens: the runtime is waiting for the new IL
+    HRESULT STDMETHODCALLTYPE GetReJITParameters(ModuleID moduleId, mdMethodDef methodId,
+                                                 ICorProfilerFunctionControl* pFunctionControl) override
+    {
+        return ncn_on_get_rejit_parameters(static_cast<uint64_t>(moduleId), static_cast<uint32_t>(methodId),
+                                           pFunctionControl) == 0
+                   ? S_OK
+                   : E_FAIL;
     }
 };
 
@@ -855,8 +910,313 @@ extern "C" int32_t ncn_com_get_class_object(const GUID* rclsid, const GUID* riid
     return hr;
 }
 
+//---- façade for the rewrite engine ----
+//The Rust side reaches the profiling API only through these; no COM is written over there
+//
+//Every one of them goes through the seventh revision, because that is the one the rewrite engine is built on and it
+//inherits everything the earlier ones offered. A runtime that did not hand it over leaves the pointer null, and each
+//call then fails on its own rather than taking the layer down
+
+//WCHAR is wchar_t on Windows and char16_t elsewhere, so wide text is stored under this alias throughout
+using WideString = std::basic_string<WCHAR>;
+
+//ToWide widens an ASCII name byte by byte
+//No platform API is used, which keeps the same code working on every target
+static WideString ToWide(const char* text)
+{
+    WideString wide;
+    if (text == nullptr)
+        return wide;
+    for (const char* cursor = text; *cursor != '\0'; ++cursor)
+        wide.push_back(static_cast<WCHAR>(static_cast<unsigned char>(*cursor)));
+    return wide;
+}
+
+//ncn_get_module_name spells out a module's file name, which is what identifies the target of a request
+extern "C" int32_t ncn_get_module_name(uint64_t module_id, char* buffer, uint32_t capacity)
+{
+    if (g_profiler_info7 == nullptr || buffer == nullptr || capacity == 0)
+        return -1;
+
+    WCHAR name[512] = {};
+    ULONG length = 0;
+    const HRESULT hr = g_profiler_info7->GetModuleInfo(static_cast<ModuleID>(module_id), nullptr, 512,
+                                                       &length, name, nullptr);
+    if (hr != S_OK)
+        return -1;
+
+    uint32_t index = 0;
+    for (; name[index] != 0 && index + 1 < capacity; ++index)
+        buffer[index] = static_cast<char>(name[index]);
+    buffer[index] = '\0';
+    return 0;
+}
+
+//ncn_find_method looks a method up by type and method name inside one module, answering its metadata token
+extern "C" uint32_t ncn_find_method(uint64_t module_id, const char* type_name, const char* method_name)
+{
+    if (g_profiler_info7 == nullptr || type_name == nullptr || method_name == nullptr)
+        return 0;
+
+    IMetaDataImport* import = nullptr;
+    const HRESULT import_hr = g_profiler_info7->GetModuleMetaData(
+        static_cast<ModuleID>(module_id), ofRead, IidMetaDataImport, reinterpret_cast<IUnknown**>(&import));
+    if (import_hr != S_OK || import == nullptr)
+        return 0;
+
+    const WideString wide_type = ToWide(type_name);
+    const WideString wide_method = ToWide(method_name);
+
+    uint32_t found = 0;
+    mdTypeDef type_def = mdTypeDefNil;
+    if (import->FindTypeDefByName(wide_type.c_str(), mdTokenNil, &type_def) == S_OK)
+    {
+        HCORENUM enumerator = nullptr;
+        mdMethodDef methods[32] = {};
+        ULONG fetched = 0;
+        while (found == 0 && import->EnumMethods(&enumerator, type_def, methods, 32, &fetched) == S_OK && fetched > 0)
+        {
+            for (ULONG i = 0; i < fetched && found == 0; ++i)
+            {
+                WCHAR name[256] = {};
+                ULONG name_length = 0;
+                if (import->GetMethodProps(methods[i], nullptr, name, 256, &name_length, nullptr, nullptr, nullptr,
+                                           nullptr, nullptr) == S_OK &&
+                    wide_method == name)
+                {
+                    found = methods[i];
+                }
+            }
+        }
+        import->CloseEnum(enumerator);
+    }
+
+    import->Release();
+    return found;
+}
+
+//ncn_request_rejit asks the runtime to recompile a method the next time it is called
+//That is when it asks back for the replacement body, through GetReJITParameters
+extern "C" int32_t ncn_request_rejit(uint64_t module_id, uint32_t method_def)
+{
+    if (g_profiler_info7 == nullptr || method_def == 0)
+        return -1;
+
+    ModuleID modules[1] = {static_cast<ModuleID>(module_id)};
+    mdMethodDef tokens[1] = {static_cast<mdMethodDef>(method_def)};
+    return g_profiler_info7->RequestReJIT(1, modules, tokens) == S_OK ? 0 : -1;
+}
+
+//ncn_set_il_function_body hands the replacement body over at the moment the runtime asks for it
+extern "C" int32_t ncn_set_il_function_body(void* function_control, const uint8_t* body, uint32_t size)
+{
+    if (function_control == nullptr || body == nullptr || size == 0)
+        return -1;
+
+    auto* control = static_cast<ICorProfilerFunctionControl*>(function_control);
+    return control->SetILFunctionBody(size, body) == S_OK ? 0 : -1;
+}
+
+//ncn_get_il_function_body copies a method's current IL out so the Rust side can parse it
+extern "C" int32_t ncn_get_il_function_body(uint64_t module_id, uint32_t method_def, uint8_t* buffer, uint32_t capacity)
+{
+    if (g_profiler_info7 == nullptr || buffer == nullptr || capacity == 0)
+        return -1;
+
+    LPCBYTE body = nullptr;
+    ULONG size = 0;
+    const HRESULT hr = g_profiler_info7->GetILFunctionBody(static_cast<ModuleID>(module_id),
+                                                           static_cast<mdMethodDef>(method_def), &body, &size);
+    if (hr != S_OK || body == nullptr || size == 0 || size > capacity)
+        return -1;
+
+    memcpy(buffer, body, size);
+    return static_cast<int32_t>(size);
+}
+
+//ncn_initialize_current_thread lets the runtime recognize a thread belonging to this layer
+//A call into the profiling API from any other thread has to be preceded by it or it fails
+extern "C" int32_t ncn_initialize_current_thread()
+{
+    if (g_profiler_info7 == nullptr)
+        return -1;
+    return g_profiler_info7->InitializeCurrentThread() == S_OK ? 0 : -1;
+}
+
+//FindOrCreateAssemblyRef reuses a reference the module already carries
+//Adding a duplicate would leave two entries with the same name, and every token after it in the table would shift
+static mdAssemblyRef FindOrCreateAssemblyRef(IMetaDataAssemblyImport* assembly_import,
+                                             IMetaDataAssemblyEmit* assembly_emit, const WideString& name)
+{
+    if (assembly_import != nullptr)
+    {
+        HCORENUM enumerator = nullptr;
+        mdAssemblyRef refs[32] = {};
+        ULONG fetched = 0;
+        while (assembly_import->EnumAssemblyRefs(&enumerator, refs, 32, &fetched) == S_OK && fetched > 0)
+        {
+            for (ULONG i = 0; i < fetched; ++i)
+            {
+                WCHAR ref_name[256] = {};
+                ULONG name_length = 0;
+                if (assembly_import->GetAssemblyRefProps(refs[i], nullptr, nullptr, ref_name, 256, &name_length,
+                                                         nullptr, nullptr, nullptr, nullptr) == S_OK &&
+                    name == ref_name)
+                {
+                    assembly_import->CloseEnum(enumerator);
+                    return refs[i];
+                }
+            }
+        }
+        assembly_import->CloseEnum(enumerator);
+    }
+
+    if (assembly_emit == nullptr)
+        return mdAssemblyRefNil;
+
+    ASSEMBLYMETADATA metadata = {};
+    mdAssemblyRef created = mdAssemblyRefNil;
+    if (assembly_emit->DefineAssemblyRef(nullptr, 0, name.c_str(), &metadata, nullptr, 0, 0, &created) != S_OK)
+        return mdAssemblyRefNil;
+    return created;
+}
+
+//ncn_ensure_type_ref makes sure a module carries a reference to a type and answers its TypeRef token
+extern "C" uint32_t ncn_ensure_type_ref(uint64_t module_id, const char* assembly_name, const char* type_name)
+{
+    if (g_profiler_info7 == nullptr || assembly_name == nullptr || type_name == nullptr)
+        return 0;
+
+    IMetaDataAssemblyImport* assembly_import = nullptr;
+    IMetaDataAssemblyEmit* assembly_emit = nullptr;
+    g_profiler_info7->GetModuleMetaData(static_cast<ModuleID>(module_id), ofRead, IidMetaDataAssemblyImport,
+                                        reinterpret_cast<IUnknown**>(&assembly_import));
+    g_profiler_info7->GetModuleMetaData(static_cast<ModuleID>(module_id), ofRead | ofWrite, IidMetaDataAssemblyEmit,
+                                        reinterpret_cast<IUnknown**>(&assembly_emit));
+
+    const mdAssemblyRef scope = FindOrCreateAssemblyRef(assembly_import, assembly_emit, ToWide(assembly_name));
+
+    if (assembly_emit != nullptr)
+        assembly_emit->Release();
+    if (assembly_import != nullptr)
+        assembly_import->Release();
+
+    if (scope == mdAssemblyRefNil)
+        return 0;
+
+    //The scope has to be settled before the lookup: FindTypeRef only matches references without a scope when it is
+    //handed mdTokenNil, and everything built here hangs off an AssemblyRef. A nil scope would therefore never find
+    //the reference already made, would try to build it a second time, fail, and leave the caller without a token
+    IMetaDataImport* import = nullptr;
+    IMetaDataEmit* emit = nullptr;
+    g_profiler_info7->GetModuleMetaData(static_cast<ModuleID>(module_id), ofRead, IidMetaDataImport,
+                                        reinterpret_cast<IUnknown**>(&import));
+    g_profiler_info7->GetModuleMetaData(static_cast<ModuleID>(module_id), ofRead | ofWrite, IidMetaDataEmit,
+                                        reinterpret_cast<IUnknown**>(&emit));
+
+    const WideString wide = ToWide(type_name);
+
+    if (import != nullptr)
+    {
+        mdTypeRef existing = mdTypeRefNil;
+        if (import->FindTypeRef(scope, wide.c_str(), &existing) == S_OK)
+        {
+            import->Release();
+            if (emit != nullptr)
+                emit->Release();
+            return static_cast<uint32_t>(existing);
+        }
+    }
+
+    uint32_t created = 0;
+    if (emit != nullptr)
+    {
+        mdTypeRef type_ref = mdTypeRefNil;
+        if (emit->DefineTypeRefByName(scope, wide.c_str(), &type_ref) == S_OK)
+            created = static_cast<uint32_t>(type_ref);
+    }
+
+    if (import != nullptr)
+        import->Release();
+    if (emit != nullptr)
+        emit->Release();
+    return created;
+}
+
+//ncn_ensure_member_ref makes sure a module carries a reference to a member and answers its MemberRef token
+//The MemberRef table holds method and field references alike; what the signature blob starts with decides which one
+//this is, so a field travels through here too with a FIELD-tagged signature
+extern "C" uint32_t ncn_ensure_member_ref(uint64_t module_id, const char* assembly_name, const char* type_name,
+                               const char* member_name, const uint8_t* signature, uint32_t signature_size)
+{
+    if (g_profiler_info7 == nullptr || assembly_name == nullptr || type_name == nullptr || member_name == nullptr ||
+        signature == nullptr || signature_size == 0)
+        return 0;
+
+    const uint32_t type_ref = ncn_ensure_type_ref(module_id, assembly_name, type_name);
+    if (type_ref == 0)
+        return 0;
+
+    IMetaDataImport* import = nullptr;
+    IMetaDataEmit* emit = nullptr;
+    g_profiler_info7->GetModuleMetaData(static_cast<ModuleID>(module_id), ofRead, IidMetaDataImport,
+                                        reinterpret_cast<IUnknown**>(&import));
+    g_profiler_info7->GetModuleMetaData(static_cast<ModuleID>(module_id), ofRead | ofWrite, IidMetaDataEmit,
+                                        reinterpret_cast<IUnknown**>(&emit));
+
+    const WideString wide = ToWide(member_name);
+
+    if (import != nullptr)
+    {
+        mdMemberRef existing = mdMemberRefNil;
+        if (import->FindMemberRef(static_cast<mdTypeRef>(type_ref), wide.c_str(), signature, signature_size,
+                                  &existing) == S_OK)
+        {
+            import->Release();
+            if (emit != nullptr)
+                emit->Release();
+            return static_cast<uint32_t>(existing);
+        }
+    }
+
+    uint32_t created = 0;
+    if (emit != nullptr)
+    {
+        mdMemberRef member_ref = mdMemberRefNil;
+        if (emit->DefineMemberRef(static_cast<mdTypeRef>(type_ref), wide.c_str(), signature, signature_size,
+                                  &member_ref) == S_OK)
+            created = static_cast<uint32_t>(member_ref);
+    }
+
+    if (import != nullptr)
+        import->Release();
+    if (emit != nullptr)
+        emit->Release();
+    return created;
+}
+
+//ncn_define_user_string interns a string literal and answers its token
+//Strings live in a heap of their own, which is why they need an entry point of their own
+//The caller hands over UTF-16 code units, the same shape the heap stores
+extern "C" uint32_t ncn_define_user_string(uint64_t module_id, const uint16_t* text, uint32_t length)
+{
+    if (g_profiler_info7 == nullptr || text == nullptr)
+        return 0;
+
+    IMetaDataEmit* emit = nullptr;
+    if (FAILED(g_profiler_info7->GetModuleMetaData(static_cast<ModuleID>(module_id), ofRead | ofWrite,
+                                                   IidMetaDataEmit, reinterpret_cast<IUnknown**>(&emit))) ||
+        emit == nullptr)
+        return 0;
+
+    mdString token = 0;
+    const HRESULT hr = emit->DefineUserString(reinterpret_cast<LPCWSTR>(text), length, &token);
+    emit->Release();
+    return SUCCEEDED(hr) ? static_cast<uint32_t>(token) : 0;
+}
+
 //The layer stays in the process for its whole life, so it never reports itself as unloadable
-int32_t ncn_com_can_unload_now()
+extern "C" int32_t ncn_com_can_unload_now()
 {
     return S_FALSE;
 }
