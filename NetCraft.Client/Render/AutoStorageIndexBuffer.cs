@@ -88,7 +88,7 @@ public sealed class AutoStorageIndexBuffer : IDisposable
         if (_indexBuffer == null || _indexBuffer.Size < size)
         {
             _indexBuffer?.Dispose();
-            _indexBuffer = device.CreateHostVisibleBuffer(size, GpuBufferUsage.IndexBuffer);
+            _indexBuffer = device.CreateHostVisibleBuffer(size, GpuBuffer.UsageIndex | GpuBuffer.UsageCopyDst);
         }
         _indexBuffer.Upload<uint>(_indices.ToArray());
     }

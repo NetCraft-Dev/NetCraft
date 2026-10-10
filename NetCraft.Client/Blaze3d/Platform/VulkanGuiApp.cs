@@ -40,6 +40,7 @@ using NetCraft.Client.Gui.Navigation;
 using NetCraft.Client.Gui.Layouts;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
+using NetCraft.Client.Blaze3d;
 
 namespace NetCraft.Client.Blaze3d.Platform;
 
@@ -78,8 +79,8 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
 
     //Blur post-processing resources: the BeforeBlur segment renders to offscreen, horizontally blurs to temp and vertically blurs to the swapchain
     //The AfterBlur segment uses LoadOp=Load to preserve the blurred background with GUI widgets overlaid
-    private GpuImage? _blurOffscreen;
-    private GpuImage? _blurTemp;
+    private GpuTexture? _blurOffscreen;
+    private GpuTexture? _blurTemp;
     private GpuSampler? _blurSampler;
     private GpuBuffer? _blurUniformBuffer;
     private GpuDescriptorSet? _blurUniformDescriptorSet;
@@ -103,14 +104,14 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
     //IWorldRenderer injected by the Game layer; VulkanGuiApp schedules Prepare/Upload/Draw and manages GPU resources
     //Using an interface avoids a circular dependency where NetCraft.Gpu references NetCraft.Game
     private IWorldRenderer? _levelRenderer;
-    private GpuImage? _depthImage;
+    private GpuTexture? _depthImage;
     private GpuBuffer? _worldViewProjBuffer;
     private GpuDescriptorSet? _worldViewProjSet;
     private GpuDescriptorLayout? _worldViewProjLayout;
     private GpuDescriptorLayout? _worldSamplerLayout;
     private GpuDescriptorSet? _worldAtlasSet;
-    private GpuImage? _blockAtlasImage;
-    private GpuImage? _lightmapImage;
+    private GpuTexture? _blockAtlasImage;
+    private GpuTexture? _lightmapImage;
     private GpuSampler? _worldSampler;
     //_injectedBlockAtlas/_injectedLightmap real textures injected by the Game layer; when null CreateWorldResources uses placeholders
     //Injected resources are managed by this class and released in OnCleanupPipelineResources; DisposeWorldResources does not release them
@@ -293,13 +294,7 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
         cache.Precompile(WorldRenderPipelines.TRANSLUCENT_TERRAIN);
 
         //depth image D32Sfloat DepthAttachment with the same extent as the swapchain
-        _depthImage = _device.CreateImage(new GpuImageDescription
-        {
-            Width = w,
-            Height = h,
-            Format = GpuImageFormat.D32Sfloat,
-            Usage = GpuImageUsage.DepthAttachment
-        });
+        _depthImage = _device.CreateTexture(GpuTexture.UsageRenderAttachment, "texture", GpuFormat.D32Float, w, h, 1, 1);
         //First layout transition of the depth image Undefined→DepthStencilAttachmentOptimal
         //Upload does not read pixels for a DepthAttachment and only does the barrier so dynamic rendering sees the expected layout
         _depthImage.Upload(ReadOnlySpan<byte>.Empty);
@@ -313,7 +308,7 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
             StageFlags = GpuShaderStageFlags.Vertex
         });
         _worldViewProjLayout = _device.CreateDescriptorLayout(viewProjLayoutDesc);
-        _worldViewProjBuffer = _device.CreateBuffer(64, GpuBufferUsage.UniformBuffer);
+        _worldViewProjBuffer = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 64);
         _worldViewProjSet = _device.AllocateDescriptorSet(_worldViewProjLayout);
         _worldViewProjSet.WriteBuffer(0, _worldViewProjBuffer, 0, -1);
 
@@ -334,14 +329,10 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
         _worldSamplerLayout = _device.CreateDescriptorLayout(samplerLayoutDesc);
 
         //Placeholder textures share a linear sampler; injected textures bring their own nearest sampler
-        _worldSampler = _device.CreateSampler(new GpuSamplerDescription
-        {
-            LinearFilter = true,
-            RepeatAddress = false
-        });
+        _worldSampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Linear, FilterMode.Linear, 1, null);
 
         //If blockAtlas is injected use the real atlas, otherwise create a 1x1 white RGBA8 placeholder
-        GpuImage blockAtlasImage;
+        GpuTexture blockAtlasImage;
         GpuSampler blockAtlasSampler;
         if (_injectedBlockAtlas is not null && _injectedBlockAtlas.AtlasImage is not null && _injectedBlockAtlas.Sampler is not null)
         {
@@ -350,20 +341,14 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
         }
         else
         {
-            _blockAtlasImage = _device.CreateImage(new GpuImageDescription
-            {
-                Width = 1,
-                Height = 1,
-                Format = GpuImageFormat.R8G8B8A8Unorm,
-                Usage = GpuImageUsage.SampledImage
-            });
+            _blockAtlasImage = _device.CreateTexture(GpuTexture.UsageTextureBinding, "texture", GpuFormat.Rgba8Unorm, 1, 1, 1, 1);
             _blockAtlasImage.Upload(new byte[] { 255, 255, 255, 255 });
             blockAtlasImage = _blockAtlasImage;
             blockAtlasSampler = _worldSampler;
         }
 
         //If lightmap is injected use the real LightTexture, otherwise create a 16x16 full-bright RGBA8 placeholder
-        GpuImage lightmapImage;
+        GpuTexture lightmapImage;
         GpuSampler lightmapSampler;
         if (_injectedLightmap is not null && _injectedLightmap.Texture is not null && _injectedLightmap.Sampler is not null)
         {
@@ -372,13 +357,7 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
         }
         else
         {
-            _lightmapImage = _device.CreateImage(new GpuImageDescription
-            {
-                Width = 16,
-                Height = 16,
-                Format = GpuImageFormat.R8G8B8A8Unorm,
-                Usage = GpuImageUsage.SampledImage
-            });
+            _lightmapImage = _device.CreateTexture(GpuTexture.UsageTextureBinding, "texture", GpuFormat.Rgba8Unorm, 16, 16, 1, 1);
             var lightmapPixels = new byte[16 * 16 * 4];
             for (var i = 0; i < lightmapPixels.Length; i += 4)
             {
@@ -480,20 +459,10 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
     //On swapchain recreation the old resources are Disposed and rebuilt to match the new extent
     private void CreateBlurResources(int w, int h)
     {
-        var imageDesc = new GpuImageDescription
-        {
-            Width = w,
-            Height = h,
-            Format = GpuImageFormat.R8G8B8A8Unorm,
-            Usage = GpuImageUsage.ColorAttachment | GpuImageUsage.SampledImage
-        };
-        _blurOffscreen = _device.CreateImage(imageDesc);
-        _blurTemp = _device.CreateImage(imageDesc);
-        _blurSampler = _device.CreateSampler(new GpuSamplerDescription
-        {
-            LinearFilter = true,
-            RepeatAddress = false
-        });
+        var imageUsage = GpuTexture.UsageRenderAttachment | GpuTexture.UsageTextureBinding;
+        _blurOffscreen = _device.CreateTexture(imageUsage, "texture", GpuFormat.Rgba8Unorm, w, h, 1, 1);
+        _blurTemp = _device.CreateTexture(imageUsage, "texture", GpuFormat.Rgba8Unorm, w, h, 1, 1);
+        _blurSampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Linear, FilterMode.Linear, 1, null);
         //IN_SAMPLER layout 1 combined image sampler binding 0 visible to the fragment shader
         var samplerLayoutDesc = new GpuDescriptorLayoutDescription();
         samplerLayoutDesc.Bindings.Add(new GpuDescriptorBinding
@@ -516,7 +485,7 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
             StageFlags = GpuShaderStageFlags.Fragment
         });
         _blurUniformLayout = _device.CreateDescriptorLayout(uniformLayoutDesc);
-        _blurUniformBuffer = _device.CreateBuffer(16, GpuBufferUsage.UniformBuffer);
+        _blurUniformBuffer = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 16);
         _blurUniformDescriptorSet = _device.AllocateDescriptorSet(_blurUniformLayout);
         _blurUniformDescriptorSet.WriteBuffer(0, _blurUniformBuffer, 0, -1);
         _blurPipeline = _device.PipelineCache.Precompile(RenderPipelines.BLUR);

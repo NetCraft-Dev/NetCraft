@@ -50,9 +50,6 @@
     <EmbeddedResource Include="..\NetCraft.Config\bin\$(Configuration)\net10.0\NetCraft.Config.dll">
       <LogicalName>NetCraft.Embedded.NetCraft.Config.dll</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\NetCraft.Interop\bin\$(Configuration)\net10.0\NetCraft.Interop.dll">
-      <LogicalName>NetCraft.Embedded.NetCraft.Interop.dll</LogicalName>
-    </EmbeddedResource>
     <EmbeddedResource Include="..\NetCraft.Nbt\bin\$(Configuration)\net10.0\NetCraft.Nbt.dll">
       <LogicalName>NetCraft.Embedded.NetCraft.Nbt.dll</LogicalName>
     </EmbeddedResource>

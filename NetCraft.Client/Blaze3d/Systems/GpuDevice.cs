@@ -1,113 +1,123 @@
-using NetCraft.Client.Blaze3d.Pipeline;
-using NetCraft.Client.Blaze3d.Systems;
 using NetCraft.Client.Blaze3d.Buffers;
+using NetCraft.Client.Blaze3d.Pipeline;
 using NetCraft.Client.Blaze3d.Textures;
-using NetCraft.Client.Blaze3d.Shaders;
-using NetCraft.Client.Blaze3d.Vertex;
-using NetCraft.Client.Blaze3d.Vulkan;
-using NetCraft.Client.Render;
-using NetCraft.Client.Blaze3d.Platform;
-using NetCraft.Client.Blaze3d.Font;
-using NetCraft.Client.Blaze3d.Resource;
-using NetCraft.Client.Blaze3d.Audio;
-using NetCraft.Client.Blaze3d.Framegraph;
-using NetCraft.Client.Blaze3d.Preprocessor;
-using NetCraft.Client.Blaze3d.Util;
-using NetCraft.Client.Render.Model;
-using NetCraft.Client.Render.Texture;
-using NetCraft.Client.Render.Texture.Atlas;
-using NetCraft.Client.Render.Item;
-using NetCraft.Client.Render.Entity;
-using NetCraft.Client.Render.Entity.State;
-using NetCraft.Client.Render.State.Gui;
-using NetCraft.Client.Gui;
-using NetCraft.Client.Gui.Render;
-using NetCraft.Client.Gui.Render.State;
-using NetCraft.Client.Gui.Render.Pip;
-using NetCraft.Client.Gui.Navigation;
-using NetCraft.Client.Gui.Layouts;
-using NetCraft.Client.Gui.Font;
-using NetCraft.Client.Gui.Font.Providers;
-using NetCraft.Client.Gui.Font.Glyphs;
-using NetCraft.Client.Model;
-using NetCraft.Client.Model.Geom;
-using NetCraft.Client.Resources.Metadata.Gui;
 
 namespace NetCraft.Client.Blaze3d.Systems;
 
-//GpuDevice GPU logical device, corresponds to the vanilla RenderSystem abstraction
-//Provides command buffer allocation and resource creation entry points
-public abstract class GpuDevice : IDisposable
+//GpuDevice the logical GPU device, aligns with vanilla com.mojang.blaze3d.systems.GpuDevice
+//A thin validating wrapper over GpuDeviceBackend; the backend owns the native handles
+public sealed class GpuDevice : IDisposable
 {
-    public GpuContext Context { get; }
-    //ShaderManager declarative pipeline shader load/compile entry; stage 8 completes the FromDeclaration shader loading
-    public ShaderManager ShaderManager { get; }
+    private readonly GpuDeviceBackend _backend;
+    private readonly System.Action _criticalShaderLoader;
 
-    //Limits GPU hardware limits, maps to vanilla device.getDeviceInfo().limits()
-    //Subclasses query the backend's real values; Vulkan uses VkPhysicalDeviceLimits.maxImageDimension2D
-    //The Empty/Mock backends use 4096 as a default placeholder so they compile and run without Vulkan
-    public abstract DeviceLimits Limits { get; }
-
-    //SupportsGpuRendering whether recording GPU render commands is supported; true for the Vulkan backend, false for Empty/Mock
-    //ItemItemAtlas.DrawToSlot uses this to decide between GPU rendering and CPU-only vertex generation
-    public virtual bool SupportsGpuRendering => false;
-
-    protected GpuDevice(GpuContext context)
+    public GpuDevice(GpuDeviceBackend backend, System.Action criticalShaderLoader)
     {
-        Context = context;
-        ShaderManager = new ShaderManager();
+        _backend = backend;
+        _criticalShaderLoader = criticalShaderLoader;
     }
 
-    //CreateCommandBuffer creates a command buffer for recording render commands
-    public abstract GpuCommandBuffer CreateCommandBuffer();
+    //Limits convenience accessor for the device limits
+    public DeviceLimits Limits => GetDeviceInfo().Limits;
 
-    //CreateRenderPipeline creates a render pipeline
-    public abstract CompiledRenderPipeline CreateRenderPipeline(RenderPipelineDescription description);
+    public GpuSurface CreateSurface(long windowHandle) => new(_backend.CreateSurface(windowHandle));
 
-    //CreateBuffer creates a GPU buffer
-    public abstract GpuBuffer CreateBuffer(int size, GpuBufferUsage usage);
+    public CommandEncoder CreateCommandEncoder() => new(_backend, _backend.CreateCommandEncoder());
 
-    //CreateHostVisibleBuffer creates a host-visible memory buffer, suited to vertex/index buffers updated every frame
-    //The default falls back to CreateBuffer using device-local+staging; subclasses may override to provide the host-visible optimization
-    //Host-visible uses map+memcpy to avoid the QueueSubmit+QueueWaitIdle synchronization cost of staging
-    public virtual GpuBuffer CreateHostVisibleBuffer(int size, GpuBufferUsage usage)
-        => CreateBuffer(size, usage);
-
-    //CreateImage creates a GPU image/texture
-    public abstract GpuImage CreateImage(GpuImageDescription desc);
-
-    //CreateShader creates a SPIR-V shader module
-    public abstract GpuShader CreateShader(GpuShaderStage stage, byte[] spirvCode, string entryPoint = "main");
-
-    //CreateDescriptorLayout creates a descriptor set layout
-    public abstract GpuDescriptorLayout CreateDescriptorLayout(GpuDescriptorLayoutDescription description);
-
-    //AllocateDescriptorSet allocates a descriptor set from the internal pool
-    public abstract GpuDescriptorSet AllocateDescriptorSet(GpuDescriptorLayout layout);
-
-    //CreateSampler creates a texture sampler
-    public abstract GpuSampler CreateSampler(GpuSamplerDescription description);
-
-    //CreateCommandEncoder creates a command encoder to record copy/render pass commands
-    //Legacy backends throw NotSupportedException; the Vulkan backend overrides it
-    public virtual ICommandEncoder CreateCommandEncoder() =>
-        throw new NotSupportedException("The current backend does not support ICommandEncoder");
-
-    //PrecompilePipeline compiles a declarative RenderPipeline into a CompiledRenderPipeline
-    //The default converts the declaration to a RenderPipelineDescription, compiles the descriptor layout, then CreateRenderPipeline
-    //Subclasses may override to hook into PipelineCache and cache the compiled artifact
-    public virtual CompiledRenderPipeline PrecompilePipeline(RenderPipeline declaration)
+    public GpuSampler CreateSampler(AddressMode addressModeU, AddressMode addressModeV, FilterMode minFilter, FilterMode magFilter, int maxAnisotropy, double? maxLod)
     {
-        var description = RenderPipelineDescription.FromDeclaration(declaration, ShaderManager);
-        foreach (var layoutDesc in description.DescriptorLayoutDescriptions)
-            description.DescriptorLayouts.Add(CreateDescriptorLayout(layoutDesc));
-        description.DescriptorLayoutDescriptions.Clear();
-        return CreateRenderPipeline(description);
+        int maxSupportedAnisotropy = GetDeviceInfo().Limits.MaxAnisotropy;
+        if (maxAnisotropy < 1 || maxAnisotropy > maxSupportedAnisotropy)
+            throw new ArgumentException($"maxAnisotropy out of range; must be >= 1 and <= {maxSupportedAnisotropy}, but was {maxAnisotropy}");
+        return _backend.CreateSampler(addressModeU, addressModeV, minFilter, magFilter, maxAnisotropy, maxLod);
     }
 
-    //PrecompilePipeline legacy RenderPipelineDescription overload, callers do not cache
-    public virtual CompiledRenderPipeline PrecompilePipeline(RenderPipelineDescription description) =>
-        CreateRenderPipeline(description);
+    public GpuTexture CreateTexture(string? label, int usage, GpuFormat format, int width, int height, int depthOrLayers, int mipLevels)
+    {
+        VerifyTextureCreationArgs(usage, width, height, depthOrLayers, mipLevels);
+        return _backend.CreateTexture(label, usage, format, width, height, depthOrLayers, mipLevels);
+    }
 
-    public virtual void Dispose() { }
+    public GpuTextureView CreateTextureView(GpuTexture texture)
+    {
+        VerifyTextureViewCreationArgs(texture, 0, texture.MipLevels);
+        return _backend.CreateTextureView(texture, 0, texture.MipLevels);
+    }
+
+    public GpuTextureView CreateTextureView(GpuTexture texture, int baseMipLevel, int mipLevels)
+    {
+        VerifyTextureViewCreationArgs(texture, baseMipLevel, mipLevels);
+        return _backend.CreateTextureView(texture, baseMipLevel, mipLevels);
+    }
+
+    public GpuBuffer CreateBuffer(string? label, int usage, long size)
+    {
+        if (size <= 0)
+            throw new ArgumentException("Buffer size must be greater than zero");
+        return _backend.CreateBuffer(label, usage, size);
+    }
+
+    public IReadOnlyList<string> GetLastDebugMessages() => _backend.GetLastDebugMessages();
+
+    public bool IsDebuggingEnabled => _backend.IsDebuggingEnabled;
+
+    public CompiledRenderPipeline PrecompilePipeline(RenderPipeline pipeline) => _backend.PrecompilePipeline(pipeline);
+
+    public void ClearPipelineCache() => _backend.ClearPipelineCache();
+
+    public void LoadCriticalShaders() => _criticalShaderLoader();
+
+    public GpuQueryPool CreateTimestampQueryPool(int size) => _backend.CreateTimestampQueryPool(size);
+
+    public long GetTimestampNow() => _backend.GetTimestampNow();
+
+    public DeviceInfo GetDeviceInfo() => _backend.GetDeviceInfo();
+
+    public void Dispose() => _backend.Dispose();
+
+    private static void VerifyTextureCreationArgs(int usage, int width, int height, int depthOrLayers, int mipLevels)
+    {
+        if (mipLevels < 1)
+            throw new ArgumentException("mipLevels must be at least 1");
+        int maxDimension = Math.Max(width, height);
+        int maxMipSupported = Log2(maxDimension) + 1;
+        if (mipLevels > maxMipSupported)
+            throw new ArgumentException($"mipLevels must be at most {maxMipSupported} for a texture of width {width} and height {height} (asked for {mipLevels} mipLevels)");
+        if (depthOrLayers < 1)
+            throw new ArgumentException("depthOrLayers must be at least 1");
+        bool isCubemap = (usage & GpuTexture.UsageCubemapCompatible) != 0;
+        if (isCubemap)
+        {
+            if (width != height)
+                throw new ArgumentException($"Cubemap compatible textures must be square, but size is {width}x{height}");
+            if (depthOrLayers % 6 != 0)
+                throw new ArgumentException($"Cubemap compatible textures must have a layer count with a multiple of 6, was {depthOrLayers}");
+            if (depthOrLayers > 6)
+                throw new NotSupportedException("Array textures are not yet supported");
+        }
+        else if (depthOrLayers > 1)
+        {
+            throw new NotSupportedException("Array or 3D textures are not yet supported");
+        }
+    }
+
+    private static void VerifyTextureViewCreationArgs(GpuTexture texture, int baseMipLevel, int mipLevels)
+    {
+        if (texture.IsClosed)
+            throw new ArgumentException("Can't create texture view with closed texture");
+        if (baseMipLevel < 0 || baseMipLevel + mipLevels > texture.MipLevels)
+            throw new ArgumentException($"{mipLevels} mip levels starting from {baseMipLevel} would be out of range for texture with only {texture.MipLevels} mip levels");
+    }
+
+    //Log2 base-2 logarithm of a positive integer, maps to vanilla Mth.log2
+    private static int Log2(int value)
+    {
+        int result = 0;
+        while (value > 1)
+        {
+            value >>= 1;
+            result++;
+        }
+        return result;
+    }
 }

@@ -32,29 +32,30 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 namespace NetCraft.Client.Gui.Font;
 
 //FontTexture dynamic glyph atlas, maps to vanilla FontTexture
 //256×256 pixel atlas; a Node binary-tree allocator assigns space on demand to upload glyph pixels
 //Returns null when it does not fit, and GlyphStitcher creates the next atlas
 //colored=true uses an RGBA8 atlas, false uses an R8 atlas, corresponding to vanilla GpuFormat.RGBA8_UNORM/R8_UNORM
-//The GpuImage is created and injected by GlyphStitcher and released on Dispose; TextureSetup+GlyphRenderTypes are injected the same way
+//The GpuTexture is created and injected by GlyphStitcher and released on Dispose; TextureSetup+GlyphRenderTypes are injected the same way
 internal sealed class FontTexture : IDisposable
 {
     public const int Size = 256;
 
-    private readonly GpuImage _texture;
+    private readonly GpuTexture _texture;
     private readonly Node _root;
     private readonly bool _colored;
     private readonly TextureSetup _textureSetup;
     private readonly GlyphRenderTypes _renderTypes;
 
-    public GpuImage Texture => _texture;
+    public GpuTexture Texture => _texture;
     public bool Colored => _colored;
     public TextureSetup TextureSetup => _textureSetup;
     public GlyphRenderTypes RenderTypes => _renderTypes;
 
-    public FontTexture(GpuImage texture, bool colored, TextureSetup textureSetup, GlyphRenderTypes renderTypes)
+    public FontTexture(GpuTexture texture, bool colored, TextureSetup textureSetup, GlyphRenderTypes renderTypes)
     {
         _texture = texture;
         _colored = colored;

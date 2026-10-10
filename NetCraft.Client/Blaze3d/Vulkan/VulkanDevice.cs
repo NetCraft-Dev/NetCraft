@@ -50,14 +50,15 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 namespace NetCraft.Client.Blaze3d.Vulkan;
 
-//VulkanGpuDevice Vulkan backend logical device
-//Wraps Device + GraphicsQueue + PresentQueue + CommandPool + the KhrSwapchain extension
-//Provides creation entry points for Buffer/Image/Shader/CommandBuffer/CompiledRenderPipeline
-public sealed unsafe class VulkanGpuDevice : GpuDevice
+//VulkanDevice Vulkan logical device, aligns with vanilla com.mojang.blaze3d.vulkan.VulkanDevice
+//Owns the VkDevice + queues + command pool + descriptor pool and implements GpuDeviceBackend
+public sealed unsafe class VulkanDevice : GpuDeviceBackend
 {
-    private readonly VulkanGpuContext _context;
+    private readonly VulkanBackend _backend;
+    private readonly ShaderManager _shaderManager;
     private readonly Vk _vk;
     private Device _device;
     private Queue _graphicsQueue;
@@ -67,11 +68,10 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
     private CommandPool _commandPool;
     private DescriptorPool _descriptorPool;
     private KhrSwapchain _swapchainExtension;
-    //DynamicRenderingExt the VK_KHR_dynamic_rendering extension for VulkanRenderPass/VulkanCommandBuffer to call CmdBeginRenderingKHR
+    //DynamicRenderingExt the VK_KHR_dynamic_rendering extension for VulkanRenderPass to call CmdBeginRenderingKHR
     private KhrDynamicRendering _dynamicRenderingExtension;
     private PhysicalDeviceMemoryProperties _memoryProperties;
-    //Limits device hardware limits queried from VkPhysicalDeviceLimits.maxImageDimension2D at construction
-    private readonly DeviceLimits _limits;
+    private readonly DeviceInfo _deviceInfo;
     private bool _disposed;
 
     public Vk Api => _vk;
@@ -79,129 +79,94 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
     public Queue GraphicsQueue => _graphicsQueue;
     public Queue PresentQueue => _presentQueue;
     public uint GraphicsFamilyIndex => _graphicsFamily;
-    //PipelineCache declarative RenderPipeline → CompiledRenderPipeline compile cache avoiding recompilation
-    public NetCraft.Client.Blaze3d.Pipeline.PipelineCache PipelineCache { get; }
     public uint PresentFamilyIndex => _presentFamily;
     public CommandPool CommandPool => _commandPool;
     public KhrSwapchain SwapchainExtension => _swapchainExtension;
     //DynamicRenderingExt exposes the KHR_dynamic_rendering extension instance for RenderPass to call CmdBeginRenderingKHR/CmdEndRenderingKHR
     public KhrDynamicRendering DynamicRenderingExt => _dynamicRenderingExtension;
-    public PhysicalDevice PhysicalDevice => _context.PhysicalDevice;
-    //Limits GPU hardware limits, maps to vanilla device.getDeviceInfo().limits()
-    public override DeviceLimits Limits => _limits;
+    public PhysicalDevice PhysicalDevice => _backend.PhysicalDevice;
+    //PipelineCache declarative RenderPipeline → CompiledRenderPipeline compile cache avoiding recompilation
+    public NetCraft.Client.Blaze3d.Pipeline.PipelineCache PipelineCache { get; }
+    public ShaderManager ShaderManager => _shaderManager;
 
-    //SupportsGpuRendering the Vulkan backend supports recording GPU render commands so ItemItemAtlas takes the real render path
-    public override bool SupportsGpuRendering => true;
-
-    internal VulkanGpuDevice(VulkanGpuContext context, GpuDeviceOptions options) : base(context)
+    internal VulkanDevice(VulkanBackend backend, ShaderManager shaderManager, GpuDebugOptions debugOptions)
     {
-        _context = context;
-        _vk = context.Api;
-        var indices = context.FindQueueFamilies(context.PhysicalDevice);
-        CreateLogicalDevice(indices, options);
+        _backend = backend;
+        _shaderManager = shaderManager;
+        _vk = backend.Api;
+        var indices = backend.FindQueueFamilies(backend.PhysicalDevice);
+        CreateLogicalDevice(indices);
         _vk.CurrentDevice = _device;
-        if (!_vk.TryGetDeviceExtension(context.Instance, _device, out _swapchainExtension))
+        if (!_vk.TryGetDeviceExtension(backend.Instance, _device, out _swapchainExtension))
         {
             throw new NotSupportedException("The KHR_swapchain device extension is unavailable");
         }
-        //KHR_dynamic_rendering is a Vulkan 1.3 core extension; the 4.3 rework replaces the traditional RenderPass with CmdBeginRenderingKHR
-        if (!_vk.TryGetDeviceExtension(context.Instance, _device, out _dynamicRenderingExtension))
+        //KHR_dynamic_rendering is a Vulkan 1.3 core extension; it replaces the traditional RenderPass with CmdBeginRenderingKHR
+        if (!_vk.TryGetDeviceExtension(backend.Instance, _device, out _dynamicRenderingExtension))
         {
             throw new NotSupportedException("The KHR_dynamic_rendering device extension is unavailable; Vulkan 1.3+ or the KHR extension is required");
         }
         CreateCommandPool(indices);
         CreateDescriptorPool();
-        _vk.GetPhysicalDeviceMemoryProperties(_context.PhysicalDevice, out _memoryProperties);
-        //Queries VkPhysicalDeviceLimits.maxImageDimension2D as the max texture size, maps to vanilla limits.maxTextureSize()
-        //MinUniformBufferOffsetAlignment used by Lighting for UBO slice alignment, maps to vanilla limits.minUniformOffsetAlignment()
-        _vk.GetPhysicalDeviceProperties(_context.PhysicalDevice, out var props);
-        _limits = new DeviceLimits((int)props.Limits.MaxImageDimension2D, (int)props.Limits.MinUniformBufferOffsetAlignment);
-        PipelineCache = new PipelineCache(this);
+        _vk.GetPhysicalDeviceMemoryProperties(backend.PhysicalDevice, out _memoryProperties);
+        _deviceInfo = BuildDeviceInfo();
+        PipelineCache = new NetCraft.Client.Blaze3d.Pipeline.PipelineCache();
     }
 
-    //PrecompilePipeline override calls the base's FromDeclaration+CreateDescriptorLayout+CreateRenderPipeline to compile
-    //The cache is managed externally by PipelineCache.Precompile; callers go through PipelineCache.Precompile for a zero-compile cache hit
-    //The old implementation called PipelineCache.Precompile, which called back into PrecompilePipeline and recursed infinitely; fixed
-    public override CompiledRenderPipeline PrecompilePipeline(RenderPipeline declaration)
-        => base.PrecompilePipeline(declaration);
+    public GpuSurfaceBackend CreateSurface(long windowHandle)
+        => throw new NotSupportedException("Vulkan surface creation is not wired up yet");
 
-    //CreateCommandBuffer allocates a primary command buffer from the command pool
-    //Submit internally uses a fence to wait synchronously, suited to single-threaded serial submission
-    //4.3 rework passes DynamicRenderingExt for VulkanCommandBuffer to call CmdBeginRendering
-    public override GpuCommandBuffer CreateCommandBuffer()
-    {
-        var allocInfo = new CommandBufferAllocateInfo
-        {
-            SType = StructureType.CommandBufferAllocateInfo,
-            CommandPool = _commandPool,
-            Level = CommandBufferLevel.Primary,
-            CommandBufferCount = 1
-        };
-        CommandBuffer buffer;
-        if (_vk.AllocateCommandBuffers(_device, &allocInfo, &buffer) != Result.Success)
-        {
-            throw new InvalidOperationException("Command buffer allocation failed");
-        }
-        return new VulkanCommandBuffer(_vk, _device, _commandPool, buffer, _graphicsQueue, _dynamicRenderingExtension);
-    }
+    public CommandEncoderBackend CreateCommandEncoder()
+        => new VulkanCommandEncoder(_vk, _device, this, _commandPool, _graphicsQueue, _dynamicRenderingExtension);
 
-    //CreateRenderPipeline creates a VulkanRenderPipeline from a RenderPipelineDescription
-    //description.VertexShaderSource/FragmentShaderSource may be an embedded:vert.spv placeholder using the PoC's built-in shader
-    public override CompiledRenderPipeline CreateRenderPipeline(RenderPipelineDescription description)
+    public GpuSampler CreateSampler(AddressMode addressModeU, AddressMode addressModeV, FilterMode minFilter, FilterMode magFilter, int maxAnisotropy, double? maxLod)
+        => new VulkanSampler(_vk, _device, addressModeU, addressModeV, minFilter, magFilter, maxAnisotropy, maxLod);
+
+    public GpuTexture CreateTexture(string? label, int usage, GpuFormat format, int width, int height, int depthOrLayers, int mipLevels)
+        => new VulkanImage(_vk, _device, this, usage, label ?? "", format, width, height, mipLevels);
+
+    public GpuTextureView CreateTextureView(GpuTexture texture)
+        => new VulkanTextureView((VulkanImage)texture, 0, texture.MipLevels);
+
+    public GpuTextureView CreateTextureView(GpuTexture texture, int baseMipLevel, int mipLevels)
+        => new VulkanTextureView((VulkanImage)texture, baseMipLevel, mipLevels);
+
+    public GpuBuffer CreateBuffer(string? label, int usage, long size)
+        => new VulkanBuffer(_vk, _device, this, label, usage, size);
+
+    public IReadOnlyList<string> GetLastDebugMessages() => Array.Empty<string>();
+
+    public bool IsDebuggingEnabled => false;
+
+    //PipelineHits/PipelineMisses cache counters for the perf acceptance check
+    public int PipelineHits => PipelineCache.HitCount;
+    public int PipelineMisses => PipelineCache.MissCount;
+
+    public CompiledRenderPipeline PrecompilePipeline(RenderPipeline pipeline)
+        => PipelineCache.Precompile(pipeline, CompilePipeline);
+
+    public void ClearPipelineCache() => PipelineCache.Clear();
+
+    //CompilePipeline compiles a declarative RenderPipeline without caching, maps to vanilla VulkanDevice.compilePipeline
+    private CompiledRenderPipeline CompilePipeline(RenderPipeline pipeline)
     {
+        var description = RenderPipelineDescription.FromDeclaration(pipeline, _shaderManager);
+        foreach (var layoutDesc in description.DescriptorLayoutDescriptions)
+            description.DescriptorLayouts.Add(CreateDescriptorLayout(layoutDesc));
+        description.DescriptorLayoutDescriptions.Clear();
         return VulkanRenderPipeline.FromDescription(this, description);
     }
 
-    //CreateBuffer creates a VulkanBuffer using host-visible+host-coherent memory, simplified without staging
-    public override GpuBuffer CreateBuffer(int size, GpuBufferUsage usage)
-        => new VulkanBuffer(_vk, _device, this, size, usage);
-
-    //CreateHostVisibleBuffer override forces host-visible memory, suited to per-frame vertex/index buffers
-    //Uses map+memcpy to avoid staging's QueueSubmit+QueueWaitIdle synchronization cost, removing the per-frame GPU block
-    //Covariant return of VulkanBuffer; existing callers like VulkanGuiRenderer assign it directly to a VulkanBuffer field with no change
-    public override VulkanBuffer CreateHostVisibleBuffer(int size, GpuBufferUsage usage)
-        => new VulkanBuffer(_vk, _device, this, size, usage, hostVisible: true);
-
-    //CreateImage creates a VulkanImage and performs the initial layout transition
-    public override GpuImage CreateImage(GpuImageDescription desc)
-        => new VulkanImage(_vk, _device, this, desc);
-
-    //CreateShader creates a VkShaderModule
-    public override GpuShader CreateShader(GpuShaderStage stage, byte[] spirvCode, string entryPoint = "main")
-        => new VulkanShader(_vk, _device, stage, spirvCode, entryPoint);
-
-    //CreateDescriptorLayout creates a VkDescriptorSetLayout
-    public override GpuDescriptorLayout CreateDescriptorLayout(GpuDescriptorLayoutDescription description)
+    //CreateDescriptorLayout creates a VkDescriptorSetLayout, used internally while compiling pipelines
+    internal GpuDescriptorLayout CreateDescriptorLayout(GpuDescriptorLayoutDescription description)
         => new VulkanDescriptorLayout(_vk, _device, description);
 
-    //AllocateDescriptorSet allocates a VkDescriptorSet from the internal pool
-    public override GpuDescriptorSet AllocateDescriptorSet(GpuDescriptorLayout layout)
-    {
-        var vkLayout = (VulkanDescriptorLayout)layout;
-        var layouts = stackalloc DescriptorSetLayout[1];
-        layouts[0] = vkLayout.Handle;
-        var allocInfo = new DescriptorSetAllocateInfo
-        {
-            SType = StructureType.DescriptorSetAllocateInfo,
-            DescriptorPool = _descriptorPool,
-            DescriptorSetCount = 1,
-            PSetLayouts = layouts
-        };
-        DescriptorSet set;
-        if (_vk.AllocateDescriptorSets(_device, &allocInfo, &set) != Result.Success)
-            throw new InvalidOperationException("DescriptorSet allocation failed");
-        return new VulkanDescriptorSet(_vk, _device, vkLayout, set);
-    }
+    public GpuQueryPool CreateTimestampQueryPool(int size)
+        => throw new NotSupportedException("Timestamp queries are not implemented yet");
 
-    //CreateSampler creates a VkSampler
-    public override GpuSampler CreateSampler(GpuSamplerDescription description)
-        => new VulkanSampler(_vk, _device, description);
+    public long GetTimestampNow() => 0;
 
-    //CreateCommandEncoder creates a VulkanCommandEncoder to record copy/render pass commands
-    //Replaces the legacy CreateCommandBuffer, separating command encoding from render passes
-    //4.3 rework passes in DynamicRenderingExt for VulkanRenderPass to call CmdBeginRendering
-    public override ICommandEncoder CreateCommandEncoder()
-        => new VulkanCommandEncoder(_vk, _device, this, _commandPool, _graphicsQueue, _dynamicRenderingExtension);
+    public DeviceInfo GetDeviceInfo() => _deviceInfo;
 
     //FindMemoryType finds the memory type index matching typeBits and properties
     public uint FindMemoryType(uint typeBits, MemoryPropertyFlags properties)
@@ -284,7 +249,52 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
         _vk.DeviceWaitIdle(_device);
     }
 
-    private void CreateLogicalDevice(QueueFamilyIndices indices, GpuDeviceOptions options)
+    private DeviceInfo BuildDeviceInfo()
+    {
+        //maxMemoryAllocationSize lives in VkPhysicalDeviceVulkan11Properties, chained through Properties2
+        var props11 = new PhysicalDeviceVulkan11Properties { SType = StructureType.PhysicalDeviceVulkan11Properties };
+        var props2 = new PhysicalDeviceProperties2 { SType = StructureType.PhysicalDeviceProperties2, PNext = &props11 };
+        _vk.GetPhysicalDeviceProperties2(_backend.PhysicalDevice, &props2);
+        var props = props2.Properties;
+        var limits = props.Limits;
+
+        var deviceLimits = new DeviceLimits(
+            (int)limits.MaxSamplerAnisotropy,
+            (int)limits.MinUniformBufferOffsetAlignment,
+            (int)limits.MaxImageDimension2D,
+            (long)props11.MaxMemoryAllocationSize,
+            (int)limits.MaxDrawIndirectCount,
+            (int)limits.MaxColorAttachments);
+
+        //NetCraft does not enable any optional draw features, so every capability flag stays false
+        var features = new DeviceFeatures(false, false, false, false, false, false, false);
+        var hints = new HintsAndWorkarounds(false, false);
+        var extensions = new HashSet<string> { KhrSwapchain.ExtensionName, KhrDynamicRendering.ExtensionName };
+
+        return new DeviceInfo(
+            SilkMarshal.PtrToString((nint)props.DeviceName) ?? "Unknown",
+            $"0x{props.VendorID:X}",
+            $"0x{props.DriverVersion:X}",
+            true,
+            "Vulkan",
+            limits.TimestampPeriod,
+            deviceLimits,
+            features,
+            extensions,
+            hints,
+            ToDeviceType(props.DeviceType));
+    }
+
+    private static DeviceType ToDeviceType(PhysicalDeviceType type) => type switch
+    {
+        PhysicalDeviceType.IntegratedGpu => DeviceType.Integrated,
+        PhysicalDeviceType.DiscreteGpu => DeviceType.Discrete,
+        PhysicalDeviceType.VirtualGpu => DeviceType.Virtual,
+        PhysicalDeviceType.Cpu => DeviceType.Cpu,
+        _ => DeviceType.Other
+    };
+
+    private void CreateLogicalDevice(QueueFamilyIndices indices)
     {
         var uniqueQueueFamilies = indices.GraphicsFamily.Value == indices.PresentFamily.Value
             ? new[] { indices.GraphicsFamily.Value }
@@ -302,11 +312,10 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
             };
         }
         var deviceFeatures = new PhysicalDeviceFeatures();
-        //KHR_swapchain swapchain + KHR_dynamic_rendering 4.3 rework replacing the traditional RenderPass
+        //KHR_swapchain swapchain + KHR_dynamic_rendering replacing the traditional RenderPass
         string[] deviceExtensions = { KhrSwapchain.ExtensionName, KhrDynamicRendering.ExtensionName };
         var enabledExtNames = (byte**)SilkMarshal.StringArrayToPtr(deviceExtensions);
         //PhysicalDeviceDynamicRenderingFeaturesKHR enables the dynamic rendering feature via the PNext chain
-        //Vulkan 1.3+ requires explicitly enabling VK_TRUE before CmdBeginRenderingKHR may be called
         var dynamicRenderingFeatures = new PhysicalDeviceDynamicRenderingFeaturesKHR
         {
             SType = StructureType.PhysicalDeviceDynamicRenderingFeatures,
@@ -323,7 +332,7 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
             PpEnabledExtensionNames = enabledExtNames
         };
         Device device;
-        if (_vk.CreateDevice(_context.PhysicalDevice, &createInfo, null, &device) != Result.Success)
+        if (_vk.CreateDevice(_backend.PhysicalDevice, &createInfo, null, &device) != Result.Success)
         {
             throw new InvalidOperationException("VkDevice creation failed");
         }
@@ -374,7 +383,7 @@ public sealed unsafe class VulkanGpuDevice : GpuDevice
         }
     }
 
-    public override void Dispose()
+    public void Dispose()
     {
         if (_disposed) return;
         _vk.DestroyDescriptorPool(_device, _descriptorPool, null);

@@ -35,9 +35,9 @@ using NetCraft.Client.Resources.Metadata.Gui;
 namespace NetCraft.Client.Resources.Metadata.Gui;
 
 //GuiSprite a single sprite corresponding to one PNG + .mcmeta scaling config
-//A simplified TextureAtlasSprite; NetCraft does no atlas packing, each sprite gets its own GpuImage
+//A simplified TextureAtlasSprite; NetCraft does no atlas packing, each sprite gets its own GpuTexture
 //TextureId returned by GuiResourceManager.RegisterTexture for GuiRenderContext.DrawImage
-//Texture holds the GpuImage+Sampler registered by GuiResourceManager
+//Texture holds the GpuTexture+Sampler registered by GuiResourceManager
 //Width/Height are the source PNG's actual pixel size Scaling is the parsed .mcmeta result
 public sealed class GuiSprite
 {

@@ -53,9 +53,9 @@ using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
 namespace NetCraft.Client.Blaze3d.Vulkan;
 
-//VulkanGpuContext Vulkan backend GPU context
-//Wraps Vk API + Instance + PhysicalDevice providing the creation entry point for VulkanGpuDevice
-public sealed unsafe class VulkanGpuContext : GpuContext
+//VulkanBackend Vulkan graphics backend, aligns with vanilla com.mojang.blaze3d.vulkan.VulkanBackend
+//Wraps Vk API + Instance + PhysicalDevice and creates the logical VulkanDevice
+public sealed unsafe class VulkanBackend : GpuBackend
 {
     private readonly Vk _vk;
     private Instance _instance;
@@ -81,7 +81,7 @@ public sealed unsafe class VulkanGpuContext : GpuContext
         }
     }
 
-    public VulkanGpuContext(IWindow window, bool enableValidation = false) : base(GpuBackend.Vulkan)
+    public VulkanBackend(IWindow window, bool enableValidation = false)
     {
         _vk = Vk.GetApi();
         CreateInstance(window, enableValidation);
@@ -91,15 +91,20 @@ public sealed unsafe class VulkanGpuContext : GpuContext
         }
     }
 
-    //CreateDevice creates the logical device and returns a VulkanGpuDevice
+    public string Name => "Vulkan";
+
+    //SetWindowHints has no window hints to apply for Vulkan in NetCraft
+    public void SetWindowHints() { }
+
+    //CreateDevice creates the logical device and returns the wrapping GpuDevice, maps to vanilla VulkanBackend.createDevice
     //The Surface property must be set before calling
-    public override GpuDevice CreateDevice(GpuDeviceOptions options)
+    public GpuDevice CreateDevice(long windowHandle, ShaderManager shaderManager, GpuDebugOptions debugOptions, System.Action criticalShaderLoader)
     {
         if (!_surfaceCreated)
         {
             throw new InvalidOperationException("Surface is not set, cannot create the device");
         }
-        return new VulkanGpuDevice(this, options);
+        return new GpuDevice(new VulkanDevice(this, shaderManager, debugOptions), criticalShaderLoader);
     }
 
     //FindQueueFamilies finds the physical device's graphics and present queue families
@@ -199,7 +204,7 @@ public sealed unsafe class VulkanGpuContext : GpuContext
         throw new NotSupportedException("No suitable graphics GPU device");
     }
 
-    public override void Dispose()
+    public void Dispose()
     {
         if (_disposed) return;
         _khrSurface?.Dispose();

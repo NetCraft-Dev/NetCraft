@@ -189,7 +189,7 @@ public sealed class GuiRenderContext : IGuiRenderContext
     public int LineHeight => (_font?.LineHeight ?? _fontAtlas?.LineHeight ?? 0) * _guiScale;
 
     //DrawImage draws a texture sub-region, submitting a BlitRenderState to the GUI_TEXTURED pipeline
-    //UVs are computed from src pixels and the GpuImage size; textureId is resolved to a TextureSetup via textureResolver
+    //UVs are computed from src pixels and the GpuTexture size; textureId is resolved to a TextureSetup via textureResolver
     //srcW/srcH<=0 means the full texture size, so the caller need not know the texture size
     public void DrawImage(int textureId, int x, int y, int width, int height,
         int srcX, int srcY, int srcW, int srcH, GuiColor tint)

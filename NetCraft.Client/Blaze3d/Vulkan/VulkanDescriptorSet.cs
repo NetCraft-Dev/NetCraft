@@ -152,7 +152,7 @@ public sealed unsafe class VulkanDescriptorSet : GpuDescriptorSet
     }
 
     //WriteImage binds a combined image sampler; the image must be in ShaderReadOnlyOptimal layout
-    public override void WriteImage(int binding, GpuImage image, GpuSampler sampler)
+    public override void WriteImage(int binding, GpuTexture image, GpuSampler sampler)
     {
         var vkImage = (VulkanImage)image;
         var vkSampler = (VulkanSampler)sampler;
@@ -185,24 +185,41 @@ public sealed unsafe class VulkanSampler : GpuSampler
 
     public Sampler Handle => _handle;
 
-    internal VulkanSampler(Vk vk, Device device, GpuSamplerDescription desc)
+    public override AddressMode AddressModeU { get; }
+    public override AddressMode AddressModeV { get; }
+    public override FilterMode MinFilter { get; }
+    public override FilterMode MagFilter { get; }
+    public override int MaxAnisotropy { get; }
+    public override double? MaxLod { get; }
+
+    internal VulkanSampler(Vk vk, Device device,
+        AddressMode addressModeU, AddressMode addressModeV,
+        FilterMode minFilter, FilterMode magFilter, int maxAnisotropy, double? maxLod)
     {
         _vk = vk;
         _device = device;
+        AddressModeU = addressModeU;
+        AddressModeV = addressModeV;
+        MinFilter = minFilter;
+        MagFilter = magFilter;
+        MaxAnisotropy = maxAnisotropy;
+        MaxLod = maxLod;
         var info = new SamplerCreateInfo
         {
             SType = StructureType.SamplerCreateInfo,
-            MagFilter = desc.LinearFilter ? Filter.Linear : Filter.Nearest,
-            MinFilter = desc.LinearFilter ? Filter.Linear : Filter.Nearest,
-            AddressModeU = desc.RepeatAddress ? SamplerAddressMode.Repeat : SamplerAddressMode.ClampToEdge,
-            AddressModeV = desc.RepeatAddress ? SamplerAddressMode.Repeat : SamplerAddressMode.ClampToEdge,
-            AddressModeW = desc.RepeatAddress ? SamplerAddressMode.Repeat : SamplerAddressMode.ClampToEdge,
-            AnisotropyEnable = Vk.False,
+            MagFilter = magFilter == FilterMode.Linear ? Filter.Linear : Filter.Nearest,
+            MinFilter = minFilter == FilterMode.Linear ? Filter.Linear : Filter.Nearest,
+            AddressModeU = addressModeU == AddressMode.Repeat ? SamplerAddressMode.Repeat : SamplerAddressMode.ClampToEdge,
+            AddressModeV = addressModeV == AddressMode.Repeat ? SamplerAddressMode.Repeat : SamplerAddressMode.ClampToEdge,
+            AddressModeW = addressModeV == AddressMode.Repeat ? SamplerAddressMode.Repeat : SamplerAddressMode.ClampToEdge,
+            AnisotropyEnable = maxAnisotropy > 1 ? Vk.True : Vk.False,
+            MaxAnisotropy = maxAnisotropy > 1 ? maxAnisotropy : 1f,
             BorderColor = BorderColor.IntOpaqueBlack,
             UnnormalizedCoordinates = Vk.False,
             CompareEnable = Vk.False,
             CompareOp = CompareOp.Always,
-            MipmapMode = SamplerMipmapMode.Linear
+            MipmapMode = SamplerMipmapMode.Linear,
+            MaxLod = maxLod.HasValue ? (float)maxLod.Value : 0f
         };
         if (_vk.CreateSampler(_device, &info, null, out _handle) != Result.Success)
             throw new InvalidOperationException("Sampler creation failed");

@@ -32,6 +32,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 namespace NetCraft.Client.Blaze3d.Pipeline;
 
 //BlendFactor blend factor, maps to vanilla BlendFactor
@@ -103,26 +104,7 @@ public enum PrimitiveTopology
     Quads
 }
 
-//GpuFormat GPU pixel format, maps to vanilla GpuFormat
-//ColorTargetState uses it to declare the attachment format
-public enum GpuFormat
-{
-    R8Unorm,
-    R8G8Unorm,
-    R8G8B8A8Unorm,
-    B8G8R8A8Unorm,
-    R8G8B8A8Srgb,
-    B8G8R8A8Srgb,
-    R16Float,
-    R16G16Float,
-    R16G16B16A16Float,
-    R32Float,
-    R32G32Float,
-    R32G32B32A32Float,
-    D32Sfloat,
-    D24UnormS8Uint,
-    D16Unorm
-}
+//GpuFormat moved to NetCraft.Client.Blaze3d.GpuFormat, matching vanilla's package
 
 //UniformType shader uniform type, maps to vanilla UniformType
 //Used by BindGroupLayout.UniformDescription to describe the type of a uniform buffer/texture binding

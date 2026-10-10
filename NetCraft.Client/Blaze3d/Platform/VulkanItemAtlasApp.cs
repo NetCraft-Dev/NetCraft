@@ -34,6 +34,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 
 namespace NetCraft.Client.Blaze3d.Platform;
 
@@ -74,14 +75,7 @@ public sealed unsafe class VulkanItemAtlasApp : VulkanAppBase
     //CreateDepthImage creates a depth attachment for the clear pipeline
     private void CreateDepthImage()
     {
-        var desc = new GpuImageDescription
-        {
-            Width = (int)_swapchainExtent.Width,
-            Height = (int)_swapchainExtent.Height,
-            Format = GpuImageFormat.D32Sfloat,
-            Usage = GpuImageUsage.DepthAttachment
-        };
-        _depthImage = (VulkanImage)_device.CreateImage(desc);
+                _depthImage = (VulkanImage)_device.CreateTexture(GpuTexture.UsageRenderAttachment, "texture", GpuFormat.D32Float, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height, 1, 1);
         _depthImage.Upload(ReadOnlySpan<byte>.Empty);
     }
 
@@ -171,14 +165,7 @@ public sealed unsafe class VulkanItemAtlasApp : VulkanAppBase
     //Verifies staging buffer lifetime management: not released before Submit so the GPU can read the data correctly
     private byte[] TestWriteToTexture()
     {
-        var desc = new GpuImageDescription
-        {
-            Width = 4,
-            Height = 4,
-            Format = GpuImageFormat.R8G8B8A8Unorm,
-            Usage = GpuImageUsage.SampledImage
-        };
-        var img = (VulkanImage)_device.CreateImage(desc);
+                var img = (VulkanImage)_device.CreateTexture(GpuTexture.UsageRenderAttachment, "texture", GpuFormat.D32Float, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height, 1, 1);
         try
         {
             //4x4 full red RGBA(255,0,0,255)

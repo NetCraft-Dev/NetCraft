@@ -34,6 +34,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 
 namespace NetCraft.Client.Gui.Render;
 
@@ -62,7 +63,7 @@ public sealed class GuiResourceManager : IDisposable
 
     //Font atlas texture
     private readonly FontAtlas? _fontAtlas;
-    private readonly GpuImage? _fontImage;
+    private readonly GpuTexture? _fontImage;
     private readonly GpuSampler? _fontSampler;
     private readonly TextureSetup? _fontTexture;
     private readonly GpuDescriptorSet? _fontDescriptorSet;
@@ -72,9 +73,9 @@ public sealed class GuiResourceManager : IDisposable
     private readonly Dictionary<string, int> _pathCache = new();
     private int _nextTextureId = 1;
     private readonly Dictionary<TextureSetup, GpuDescriptorSet> _descriptorSetCache = new();
-    //_externalTextureIds set of externally managed textureIds; Dispose does not release their GpuImage
+    //_externalTextureIds set of externally managed textureIds; Dispose does not release their GpuTexture
     //The ItemAtlas's AtlasTexture is managed by ItemItemAtlas itself; here it is only registered to get a textureId
-    //_internalSamplers samplers created internally by RegisterImage, released on Dispose while the GpuImage is not
+    //_internalSamplers samplers created internally by RegisterImage, released on Dispose while the GpuTexture is not
     private readonly HashSet<int> _externalTextureIds = new();
     private readonly List<GpuSampler> _internalSamplers = new();
     private readonly IGpuLogger _logger;
@@ -97,7 +98,7 @@ public sealed class GuiResourceManager : IDisposable
             StageFlags = GpuShaderStageFlags.Vertex
         });
         var globalsLayout = _device.CreateDescriptorLayout(globalsLayoutDesc);
-        _globalsBuffer = _device.CreateBuffer(64, GpuBufferUsage.UniformBuffer);
+        _globalsBuffer = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 64);
         _globalsDescriptorSet = _device.AllocateDescriptorSet(globalsLayout);
         _globalsDescriptorSet.WriteBuffer(0, _globalsBuffer, 0, -1);
 
@@ -110,7 +111,7 @@ public sealed class GuiResourceManager : IDisposable
             StageFlags = GpuShaderStageFlags.Vertex
         });
         var projLayout = _device.CreateDescriptorLayout(projLayoutDesc);
-        _projectionBuffer = _device.CreateBuffer(64, GpuBufferUsage.UniformBuffer);
+        _projectionBuffer = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 64);
         _projectionDescriptorSet = _device.AllocateDescriptorSet(projLayout);
         _projectionDescriptorSet.WriteBuffer(0, _projectionBuffer, 0, -1);
 
@@ -128,11 +129,7 @@ public sealed class GuiResourceManager : IDisposable
         if (_fontAtlas is not null)
         {
             _fontImage = CreateFontImage(_fontAtlas);
-            _fontSampler = _device.CreateSampler(new GpuSamplerDescription
-            {
-                LinearFilter = true,
-                RepeatAddress = false
-            });
+            _fontSampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Linear, FilterMode.Linear, 1, null);
             _fontTexture = TextureSetup.SingleTexture(_fontImage, _fontSampler);
             _fontDescriptorSet = _device.AllocateDescriptorSet(_samplerLayout);
             _fontDescriptorSet.WriteImage(0, _fontImage, _fontSampler);
@@ -192,19 +189,9 @@ public sealed class GuiResourceManager : IDisposable
             _logger.Warning($"Texture decode returned empty {path}");
             return 0;
         }
-        var img = _device.CreateImage(new GpuImageDescription
-        {
-            Width = result.Width,
-            Height = result.Height,
-            Format = GpuImageFormat.R8G8B8A8Unorm,
-            Usage = GpuImageUsage.SampledImage
-        });
+        var img = _device.CreateTexture(GpuTexture.UsageTextureBinding, "texture", GpuFormat.Rgba8Unorm, result.Width, result.Height, 1, 1);
         img.Upload(result.Data);
-        var sampler = _device.CreateSampler(new GpuSamplerDescription
-        {
-            LinearFilter = true,
-            RepeatAddress = false
-        });
+        var sampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Linear, FilterMode.Linear, 1, null);
         var texture = TextureSetup.SingleTexture(img, sampler);
         var id = _nextTextureId++;
         _textures[id] = texture;
@@ -233,30 +220,22 @@ public sealed class GuiResourceManager : IDisposable
     }
 
     //RegisterFontTexture registers a dynamic glyph atlas texture and returns a TextureSetup
-    //Used by F7 when GlyphStitcher creates a FontTexture to register the atlas GpuImage and get a TextureSetup
+    //Used by F7 when GlyphStitcher creates a FontTexture to register the atlas GpuTexture and get a TextureSetup
     //The sampler reuses LinearFilter+RepeatAddress=false, consistent with FontAtlas
     //The descriptorSet is lazily created and cached by ResolveDescriptorSet
-    public TextureSetup RegisterFontTexture(GpuImage image)
+    public TextureSetup RegisterFontTexture(GpuTexture image)
     {
-        var sampler = _device.CreateSampler(new GpuSamplerDescription
-        {
-            LinearFilter = true,
-            RepeatAddress = false
-        });
+        var sampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Linear, FilterMode.Linear, 1, null);
         var texture = TextureSetup.SingleTexture(image, sampler);
         return texture;
     }
 
-    //RegisterImage registers an external GpuImage and returns a textureId for GuiRenderContext.DrawImage
-    //Does not take ownership of the GpuImage, which the caller Disposes; internally creates a nearest sampler for the pixel-style item atlas
-    //Dispose releases the internal sampler but not the GpuImage (whose lifetime is managed by ItemItemAtlas)
-    public int RegisterImage(GpuImage image)
+    //RegisterImage registers an external GpuTexture and returns a textureId for GuiRenderContext.DrawImage
+    //Does not take ownership of the GpuTexture, which the caller Disposes; internally creates a nearest sampler for the pixel-style item atlas
+    //Dispose releases the internal sampler but not the GpuTexture (whose lifetime is managed by ItemItemAtlas)
+    public int RegisterImage(GpuTexture image)
     {
-        var sampler = _device.CreateSampler(new GpuSamplerDescription
-        {
-            LinearFilter = false,
-            RepeatAddress = false
-        });
+        var sampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Nearest, FilterMode.Nearest, 1, null);
         _internalSamplers.Add(sampler);
         var texture = TextureSetup.SingleTexture(image, sampler);
         var id = _nextTextureId++;
@@ -265,16 +244,10 @@ public sealed class GuiResourceManager : IDisposable
         return id;
     }
 
-    //CreateFontImage creates the font atlas GpuImage and uploads pixel data
-    private GpuImage CreateFontImage(FontAtlas atlas)
+    //CreateFontImage creates the font atlas GpuTexture and uploads pixel data
+    private GpuTexture CreateFontImage(FontAtlas atlas)
     {
-        var img = _device.CreateImage(new GpuImageDescription
-        {
-            Width = atlas.AtlasWidth,
-            Height = atlas.AtlasHeight,
-            Format = GpuImageFormat.R8Unorm,
-            Usage = GpuImageUsage.SampledImage
-        });
+        var img = _device.CreateTexture(GpuTexture.UsageTextureBinding, "texture", GpuFormat.R8Unorm, atlas.AtlasWidth, atlas.AtlasHeight, 1, 1);
         img.Upload(atlas.AtlasPixels);
         return img;
     }
@@ -288,7 +261,7 @@ public sealed class GuiResourceManager : IDisposable
         _fontSampler?.Dispose();
         foreach (var pair in _textures)
         {
-            //Externally managed textures (ItemAtlas AtlasTexture) do not release the GpuImage; the owner Disposes it
+            //Externally managed textures (ItemAtlas AtlasTexture) do not release the GpuTexture; the owner Disposes it
             //Samplers created internally by RegisterImage are released separately
             if (_externalTextureIds.Contains(pair.Key)) continue;
             pair.Value.Texture0?.Dispose();

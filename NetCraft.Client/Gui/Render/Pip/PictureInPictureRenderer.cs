@@ -57,9 +57,9 @@ public abstract class PictureInPictureRenderer<T> : IPictureInPictureRenderer, I
 {
     //OffscreenTexture offscreen color texture, PIP-area sized, rendering 3D content then blitted to the GUI
     //null means not created; lazily created by the subclass's EnsureTexturesAndProjection
-    protected GpuImage? OffscreenTexture { get; set; }
+    protected GpuTexture? OffscreenTexture { get; set; }
     //OffscreenDepth offscreen depth texture for 3D render depth testing
-    protected GpuImage? OffscreenDepth { get; set; }
+    protected GpuTexture? OffscreenDepth { get; set; }
     //_textureWidth/_textureHeight current offscreen size, rebuilt when the PIP area changes
     private int _textureWidth;
     private int _textureHeight;
@@ -106,7 +106,7 @@ public abstract class PictureInPictureRenderer<T> : IPictureInPictureRenderer, I
     protected virtual bool TextureIsReadyToBlit(T renderState) => false;
 
     //EnsureTexturesAndProjection ensures the offscreen texture exists and matches the size+clear+sets the orthographic projection
-    //The subclass creates the GpuImage (ColorAttachment|SampledImage) + DepthAttachment + clear + projection matrix
+    //The subclass creates the GpuTexture (ColorAttachment|SampledImage) + DepthAttachment + clear + projection matrix
     //maps to vanilla prepareTexturesAndProjection
     protected abstract void EnsureTexturesAndProjection(int width, int height);
 

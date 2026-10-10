@@ -111,7 +111,7 @@ public sealed class Lighting : IDisposable
         _layout = _device!.CreateDescriptorLayout(layoutDesc);
         foreach (var (entry, light) in _lights)
         {
-            var ubo = _device.CreateBuffer(32, GpuBufferUsage.UniformBuffer);
+            var ubo = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 32);
             ubo.Upload<LightUniform>(new[] { light });
             _ubos![entry] = ubo;
             var set = _device.AllocateDescriptorSet(_layout!);

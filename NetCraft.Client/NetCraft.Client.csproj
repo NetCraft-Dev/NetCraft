@@ -9,6 +9,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="NetCraft.Test" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="DnsClient" Version="1.8.0" />
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Vulkan" Version="2.23.0" />

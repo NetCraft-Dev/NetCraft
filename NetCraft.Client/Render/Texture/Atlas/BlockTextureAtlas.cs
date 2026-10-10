@@ -32,6 +32,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 namespace NetCraft.Client.Render.Texture.Atlas;
 
 //ITextureAtlas texture atlas query interface for BlockModelBaker to decouple from GpuDevice
@@ -43,7 +44,7 @@ public interface ITextureAtlas
 }
 
 //BlockTextureAtlas block texture atlas, maps to vanilla TextureAtlas
-//Takes a sprite list (name+pixels), stitches it into a GpuImage with TextureStitcher and provides name→TextureAtlasSprite lookup
+//Takes a sprite list (name+pixels), stitches it into a GpuTexture with TextureStitcher and provides name→TextureAtlasSprite lookup
 //The GPU layer only does stitching+upload+UV lookup and does not scan assets (scanning is done by the Game layer's BlockTextureCollector)
 //nearest sampler keeps the pixel style from blurring block texture edges
 //Animated frames are unsupported and to be added later
@@ -51,12 +52,12 @@ public sealed class BlockTextureAtlas : ITextureAtlas, IDisposable
 {
     private readonly GpuDevice _device;
     private readonly int _maxAtlasSize;
-    private GpuImage? _atlasImage;
+    private GpuTexture? _atlasImage;
     private GpuSampler? _sampler;
     private readonly Dictionary<string, TextureAtlasSprite> _sprites = new();
 
     //AtlasImage the stitched and uploaded atlas texture; null means not yet Built
-    public GpuImage? AtlasImage => _atlasImage;
+    public GpuTexture? AtlasImage => _atlasImage;
     //Sampler atlas sampler with nearest filtering
     public GpuSampler? Sampler => _sampler;
     //Width/Height atlas size
@@ -69,7 +70,7 @@ public sealed class BlockTextureAtlas : ITextureAtlas, IDisposable
         _maxAtlasSize = maxAtlasSize;
     }
 
-    //Build stitches the sprite list and uploads to a GpuImage
+    //Build stitches the sprite list and uploads to a GpuTexture
     //Calling it again Disposes the old atlas and rebuilds
     //Returns false when it does not fit within maxAtlasSize
     public bool Build(IReadOnlyList<TextureStitcher.SpriteInput> sprites)
@@ -81,19 +82,9 @@ public sealed class BlockTextureAtlas : ITextureAtlas, IDisposable
         Width = stitcher.AtlasWidth;
         Height = stitcher.AtlasHeight;
         //Creates the atlas texture; ColorAttachment is not needed, only SampledImage
-        _atlasImage = _device.CreateImage(new GpuImageDescription
-        {
-            Width = Width,
-            Height = Height,
-            Format = GpuImageFormat.R8G8B8A8Unorm,
-            Usage = GpuImageUsage.SampledImage
-        });
+        _atlasImage = _device.CreateTexture(GpuTexture.UsageTextureBinding, "texture", GpuFormat.Rgba8Unorm, Width, Height, 1, 1);
         //Nearest sampling preserves the pixel style and does not repeat addresses to avoid bleeding
-        _sampler = _device.CreateSampler(new GpuSamplerDescription
-        {
-            LinearFilter = false,
-            RepeatAddress = false
-        });
+        _sampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Nearest, FilterMode.Nearest, 1, null);
         //Clears everything first, then uploads each sprite region-wise
         //Clearing avoids garbage data in uncovered regions
         var zero = new byte[Width * Height * 4];

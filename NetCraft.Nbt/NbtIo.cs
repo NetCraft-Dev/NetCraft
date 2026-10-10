@@ -1,6 +1,6 @@
 using System.IO.Compression;
 using System.IO.MemoryMappedFiles;
-using NetCraft.Interop;
+using NetCraft.Util;
 
 namespace NetCraft.Nbt;
 

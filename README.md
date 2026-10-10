@@ -51,13 +51,11 @@ Layers are dependency tiers — layer 0 depends on nothing, layer 4 sits on top 
 | 1 | `NetCraft.DataFixer` | DFU stages, higher-kinded simulation, Profunctor optics |
 | 2 | `NetCraft.Storage` | MCA, `PalettedContainer`, `IOWorker`, `ChunkSource`, scheduled ticks |
 | 2 | `NetCraft.Registry` | `Identifier`, `ResourceKey<T>`, `Holder<T>` |
-| 2 | `NetCraft.Interop` | Native interop shims |
 | 3 | `NetCraft.Network` | Connection state machines, codecs |
 | 3 | `NetCraft.Commands` | Brigadier port |
 | 3 | `NetCraft.Network.Chat` | Text components |
 | 4 | `NetCraft.Resources` | Resource pack framework |
 | 4 | `NetCraft.Gpu` | Vulkan, submission/render phase separation |
-| 4 | `NetCraft.Optimizations` | FerriteCore-style `FastMap` and friends |
 | — | `NetCraft` | Kernel entry, embeds the sub-DLLs as resources |
 | — | `NetCraft.Game` | Shared client/server gameplay code |
 | — | `NetCraft.Client` | Client runtime and client-side protocol listeners |

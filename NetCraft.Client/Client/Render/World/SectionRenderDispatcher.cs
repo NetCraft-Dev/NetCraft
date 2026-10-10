@@ -160,7 +160,7 @@ public sealed class SectionRenderDispatcher : IDisposable
             {
                 //Empty mesh: release old buffers and mark Uploaded, but Slices are all null so Draw skips
                 if (section.HasUploadedBuffers) section.ReleaseBuffers(_bufferPool);
-                section.SetUploadedBuffers(_bufferPool.GetBuffer(4, GpuBufferUsage.VertexBuffer), _bufferPool.GetBuffer(4, GpuBufferUsage.IndexBuffer));
+                section.SetUploadedBuffers(_bufferPool.GetBuffer(4, GpuBuffer.UsageVertex | GpuBuffer.UsageCopyDst), _bufferPool.GetBuffer(4, GpuBuffer.UsageIndex | GpuBuffer.UsageCopyDst));
                 continue;
             }
             if (section.HasUploadedBuffers) section.ReleaseBuffers(_bufferPool);
@@ -185,8 +185,8 @@ public sealed class SectionRenderDispatcher : IDisposable
                 baseVertex += vertexCount;
                 firstIndex += indices.Length;
             }
-            var vb = _bufferPool.GetBuffer(vertexBytes.Length, GpuBufferUsage.VertexBuffer);
-            var ib = _bufferPool.GetBuffer(indexData.Length * sizeof(int), GpuBufferUsage.IndexBuffer);
+            var vb = _bufferPool.GetBuffer(vertexBytes.Length, GpuBuffer.UsageVertex | GpuBuffer.UsageCopyDst);
+            var ib = _bufferPool.GetBuffer(indexData.Length * sizeof(int), GpuBuffer.UsageIndex | GpuBuffer.UsageCopyDst);
             vb.Upload<byte>(vertexBytes);
             ib.Upload<int>(indexData);
             section.SetUploadedBuffers(vb, ib);

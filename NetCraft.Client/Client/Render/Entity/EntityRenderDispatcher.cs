@@ -137,12 +137,12 @@ public sealed class EntityRenderDispatcher : IDisposable
         //Upload vertices: 11 floats/vertex = 44 bytes
         var vertexSpan = CollectionsMarshal.AsSpan(_builder.Vertices);
         var vertexBytes = MemoryMarshal.AsBytes(vertexSpan).ToArray();
-        _vertexBuffer = _bufferPool.GetBuffer(vertexBytes.Length, GpuBufferUsage.VertexBuffer);
+        _vertexBuffer = _bufferPool.GetBuffer(vertexBytes.Length, GpuBuffer.UsageVertex | GpuBuffer.UsageCopyDst);
         _vertexBuffer.Upload<byte>(vertexBytes);
         //Upload indices: int/index = 4 bytes
         var indexSpan = CollectionsMarshal.AsSpan(_builder.Indices);
         var indexBytes = MemoryMarshal.AsBytes(indexSpan).ToArray();
-        _indexBuffer = _bufferPool.GetBuffer(indexBytes.Length, GpuBufferUsage.IndexBuffer);
+        _indexBuffer = _bufferPool.GetBuffer(indexBytes.Length, GpuBuffer.UsageIndex | GpuBuffer.UsageCopyDst);
         _indexBuffer.Upload<byte>(indexBytes);
     }
 

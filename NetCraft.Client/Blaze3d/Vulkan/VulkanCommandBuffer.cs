@@ -103,7 +103,7 @@ public sealed unsafe class VulkanCommandBuffer : GpuCommandBuffer
 
     //BeginRenderPass 4.3 rework to dynamic rendering using CmdBeginRendering instead of CmdBeginRenderPass
     //colorImageView is the swapchain image view passed by the caller; depthImage optionally passes a depth attachment
-    public void BeginRenderPass(CompiledRenderPipeline pipeline, ImageView colorImageView, GpuImage? depthImage = null, float clearDepth = 0f)
+    public void BeginRenderPass(CompiledRenderPipeline pipeline, ImageView colorImageView, GpuTexture? depthImage = null, float clearDepth = 0f)
     {
         if (pipeline is not VulkanRenderPipeline vkPipeline)
         {
@@ -277,10 +277,10 @@ public sealed unsafe class VulkanCommandBuffer : GpuCommandBuffer
         _vk.ResetCommandBuffer(_handle, CommandBufferResetFlags.ReleaseResourcesBit);
     }
 
-    private static IndexType ToVkIndexType(GpuIndexType type) => type switch
+    private static Silk.NET.Vulkan.IndexType ToVkIndexType(GpuIndexType type) => type switch
     {
-        GpuIndexType.UInt16 => IndexType.Uint16,
-        GpuIndexType.UInt32 => IndexType.Uint32,
+        GpuIndexType.UInt16 => Silk.NET.Vulkan.IndexType.Uint16,
+        GpuIndexType.UInt32 => Silk.NET.Vulkan.IndexType.Uint32,
         _ => throw new ArgumentOutOfRangeException(nameof(type))
     };
 

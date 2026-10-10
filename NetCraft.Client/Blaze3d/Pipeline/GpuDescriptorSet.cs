@@ -97,20 +97,7 @@ public abstract class GpuDescriptorSet : IDisposable
     public abstract void WriteBuffer(int binding, GpuBuffer buffer, int offset = 0, int range = -1);
 
     //WriteImage binds a combined image sampler
-    public abstract void WriteImage(int binding, GpuImage image, GpuSampler sampler);
+    public abstract void WriteImage(int binding, GpuTexture texture, GpuSampler sampler);
 
     public virtual void Dispose() { }
-}
-
-//GpuSampler texture sampler abstraction
-public abstract class GpuSampler : IDisposable
-{
-    public virtual void Dispose() { }
-}
-
-//GpuSamplerDescription sampler description
-public sealed class GpuSamplerDescription
-{
-    public bool LinearFilter { get; set; } = true;
-    public bool RepeatAddress { get; set; } = false;
 }

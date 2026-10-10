@@ -47,6 +47,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 namespace NetCraft.Client.Blaze3d.Vulkan;
 
 //ClearColorValue float RGBA clear color
@@ -95,9 +96,9 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
     }
 
     //FromDescription creates the pipeline from the description; the target format and extent default to B8G8R8A8Unorm/800x600
-    public static VulkanRenderPipeline FromDescription(VulkanGpuDevice device, RenderPipelineDescription description)
+    public static VulkanRenderPipeline FromDescription(VulkanDevice device, RenderPipelineDescription description)
     {
-        var fmt = description.TargetFormat ?? GpuImageFormat.B8G8R8A8Unorm;
+        var fmt = description.TargetFormat ?? GpuFormat.Bgra8Unorm;
         var extent = new Extent2D
         {
             Width = (uint)(description.TargetWidth > 0 ? description.TargetWidth : 800),
@@ -351,13 +352,13 @@ public sealed unsafe class VulkanRenderPipeline : CompiledRenderPipeline
         return pipeline;
     }
 
-    public static Format ToVkFormat(GpuImageFormat fmt) => fmt switch
+    public static Format ToVkFormat(GpuFormat fmt) => fmt switch
     {
-        GpuImageFormat.R8G8B8A8Unorm => Format.R8G8B8A8Unorm,
-        GpuImageFormat.B8G8R8A8Unorm => Format.B8G8R8A8Unorm,
-        GpuImageFormat.R8G8B8Unorm => Format.R8G8B8Unorm,
-        GpuImageFormat.R8Unorm => Format.R8Unorm,
-        GpuImageFormat.D32Sfloat => Format.D32Sfloat,
+        GpuFormat.Rgba8Unorm => Format.R8G8B8A8Unorm,
+        GpuFormat.Bgra8Unorm => Format.B8G8R8A8Unorm,
+        GpuFormat.Rgb8Unorm => Format.R8G8B8Unorm,
+        GpuFormat.R8Unorm => Format.R8Unorm,
+        GpuFormat.D32Float => Format.D32Sfloat,
         _ => throw new ArgumentOutOfRangeException(nameof(fmt))
     };
 

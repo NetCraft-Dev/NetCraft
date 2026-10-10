@@ -38,7 +38,7 @@ namespace NetCraft.Client.Render.Texture.Atlas;
 //Packs multiple sprites into the smallest atlas texture using a shelf algorithm
 //Sprites are sorted by descending height and placed row by row with rows aligned to their height; simple and reliable
 //Most block textures are 16x16, so shelf utilization is sufficient
-//A pure algorithm independent of GpuDevice; BlockTextureAtlas calls it and uploads the result to a GpuImage
+//A pure algorithm independent of GpuDevice; BlockTextureAtlas calls it and uploads the result to a GpuTexture
 public sealed class TextureStitcher
 {
     //Padding pixel gap between sprites to prevent linear-sampling bleeding

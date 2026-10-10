@@ -131,7 +131,7 @@ public sealed class StagedVertexBuffer : IDisposable
         if (_vertexBuffer == null || _vertexBuffer.Size < _vertices.Count)
         {
             _vertexBuffer?.Dispose();
-            _vertexBuffer = device.CreateHostVisibleBuffer(_vertices.Count, GpuBufferUsage.VertexBuffer);
+            _vertexBuffer = device.CreateHostVisibleBuffer(_vertices.Count, GpuBuffer.UsageVertex | GpuBuffer.UsageCopyDst);
         }
         _vertexBuffer.Upload<byte>(_vertices.ToArray());
         _indexBuffer.Upload(device);

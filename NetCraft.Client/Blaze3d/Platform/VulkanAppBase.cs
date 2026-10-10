@@ -54,8 +54,8 @@ public abstract unsafe class VulkanAppBase : IDisposable
     protected const int MaxFramesInFlight = 2;
 
     protected IWindow _window = null!;
-    protected VulkanGpuContext _context = null!;
-    protected VulkanGpuDevice _device = null!;
+    protected VulkanBackend _context = null!;
+    protected VulkanDevice _device = null!;
     protected KhrSwapchain _swapchainExt = null!;
     protected SwapchainKHR _swapchain;
     protected Image[] _swapchainImages = Array.Empty<Image>();
@@ -183,10 +183,10 @@ public abstract unsafe class VulkanAppBase : IDisposable
 
     private void InitVulkan()
     {
-        _context = new VulkanGpuContext(_window);
+        _context = new VulkanBackend(_window);
         CreateSurface();
         _context.PickPhysicalDevice();
-        _device = (VulkanGpuDevice)_context.CreateDevice(new GpuDeviceOptions());
+        _device = (VulkanDevice)_context.CreateDevice(new GpuDeviceOptions());
         _swapchainExt = _device.SwapchainExtension;
         CreateSwapChain();
         CreateImageViews();

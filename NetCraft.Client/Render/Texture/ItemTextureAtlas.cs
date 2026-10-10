@@ -32,6 +32,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 namespace NetCraft.Client.Render.Texture;
 
 //ItemTextureAtlas item texture atlas, maps to vanilla TextureAtlas
@@ -44,7 +45,7 @@ public sealed class ItemTextureAtlas : IDisposable
     public const int AtlasSize = 16;
 
     private readonly GpuDevice? _device;
-    private GpuImage? _texture;
+    private GpuTexture? _texture;
     private GpuSampler? _sampler;
     private bool _disposed;
 
@@ -56,27 +57,17 @@ public sealed class ItemTextureAtlas : IDisposable
     }
 
     //Texture item texture atlas; null means no GPU backend
-    public GpuImage? Texture => _texture;
+    public GpuTexture? Texture => _texture;
     //Sampler item texture sampler; null means no GPU backend
     public GpuSampler? Sampler => _sampler;
 
     //CreateResources creates the GPU texture + sampler, called only when SupportsGpuRendering=true
     private void CreateResources()
     {
-        _texture = _device!.CreateImage(new GpuImageDescription
-        {
-            Width = AtlasSize,
-            Height = AtlasSize,
-            Format = GpuImageFormat.R8G8B8A8Unorm,
-            Usage = GpuImageUsage.SampledImage
-        });
+        _texture = _device!.CreateTexture(GpuTexture.UsageTextureBinding, "texture", GpuFormat.Rgba8Unorm, AtlasSize, AtlasSize, 1, 1);
         _texture.Upload(GenerateTestTexture());
         //The small item texture atlas uses nearest to keep the pixel feel, matching vanilla Minecraft's pixel style
-        _sampler = _device.CreateSampler(new GpuSamplerDescription
-        {
-            LinearFilter = false,
-            RepeatAddress = false
-        });
+        _sampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Nearest, FilterMode.Nearest, 1, null);
     }
 
     //GenerateTestTexture generates a 16x16 RGBA checkerboard test texture

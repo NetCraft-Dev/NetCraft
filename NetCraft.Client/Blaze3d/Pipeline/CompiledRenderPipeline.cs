@@ -32,6 +32,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 
 namespace NetCraft.Client.Blaze3d.Pipeline;
 
@@ -114,7 +115,7 @@ public sealed class RenderPipelineDescription
     //GUI pipelines set true; triangle/cube pipelines keep the false default
     public bool DynamicScissorEnabled { get; set; }
     //TargetFormat target color attachment format; null means use the swapchain format
-    public GpuImageFormat? TargetFormat { get; set; }
+    public GpuFormat? TargetFormat { get; set; }
     //TargetExtent target extent; 0 means use the swapchain extent
     public int TargetWidth { get; set; }
     public int TargetHeight { get; set; }
@@ -187,13 +188,13 @@ public sealed class RenderPipelineDescription
         _ => GpuPrimitiveTopology.TriangleList
     };
 
-    private static GpuImageFormat ToLegacyFormat(GpuFormat f) => f switch
+    private static GpuFormat ToLegacyFormat(GpuFormat f) => f switch
     {
-        GpuFormat.R8G8B8A8Unorm => GpuImageFormat.R8G8B8A8Unorm,
-        GpuFormat.B8G8R8A8Unorm => GpuImageFormat.B8G8R8A8Unorm,
-        GpuFormat.R8Unorm => GpuImageFormat.R8Unorm,
-        GpuFormat.D32Sfloat => GpuImageFormat.D32Sfloat,
-        _ => GpuImageFormat.R8G8B8A8Unorm
+        GpuFormat.Rgba8Unorm => GpuFormat.Rgba8Unorm,
+        GpuFormat.Bgra8Unorm => GpuFormat.Bgra8Unorm,
+        GpuFormat.R8Unorm => GpuFormat.R8Unorm,
+        GpuFormat.D32Float => GpuFormat.D32Float,
+        _ => GpuFormat.Rgba8Unorm
     };
 
     private static GpuVertexFormat ToLegacyFormat(VertexElementFormat f) => f switch

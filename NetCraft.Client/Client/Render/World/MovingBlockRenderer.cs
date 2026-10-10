@@ -103,9 +103,9 @@ public sealed class MovingBlockRenderer : IDisposable
             var indices = mesh.GetIndices(layer);
             _indexCounts[i] = indices.Length;
             if (indices.Length == 0) continue;
-            var vertexBuffer = _bufferPool.GetBuffer(vertices.Length, GpuBufferUsage.VertexBuffer);
+            var vertexBuffer = _bufferPool.GetBuffer(vertices.Length, GpuBuffer.UsageVertex | GpuBuffer.UsageCopyDst);
             vertexBuffer.Upload(vertices.ToArray());
-            var indexBuffer = _bufferPool.GetBuffer(indices.Length * sizeof(int), GpuBufferUsage.IndexBuffer);
+            var indexBuffer = _bufferPool.GetBuffer(indices.Length * sizeof(int), GpuBuffer.UsageIndex | GpuBuffer.UsageCopyDst);
             indexBuffer.Upload(indices.ToArray());
             _vertexBuffers[i] = vertexBuffer;
             _indexBuffers[i] = indexBuffer;

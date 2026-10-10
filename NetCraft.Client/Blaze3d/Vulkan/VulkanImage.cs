@@ -48,16 +48,17 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 namespace NetCraft.Client.Blaze3d.Vulkan;
 
 //VulkanImage Vulkan backend GPU image/texture
 //Wraps VkImage + VkDeviceMemory + VkImageView
 //Upload goes through a staging buffer + CmdCopyBufferToImage + a layout transition to ShaderReadOnlyOptimal
-public sealed unsafe class VulkanImage : GpuImage
+public sealed unsafe class VulkanImage : GpuTexture
 {
     private readonly Vk _vk;
     private readonly Device _device;
-    private readonly VulkanGpuDevice _gpuDevice;
+    private readonly VulkanDevice _gpuDevice;
     private Image _image;
     private DeviceMemory _memory;
     private ImageView _view;
@@ -71,13 +72,18 @@ public sealed unsafe class VulkanImage : GpuImage
     //CurrentLayout the current image layout for the blur flow's barrier decisions
     public ImageLayout CurrentLayout => _currentLayout;
 
-    internal VulkanImage(Vk vk, Device device, VulkanGpuDevice gpuDevice, GpuImageDescription desc) : base(desc)
+    //IsClosed whether the image has been closed, maps to vanilla isClosed
+    public override bool IsClosed => _disposed;
+
+    internal VulkanImage(Vk vk, Device device, VulkanDevice gpuDevice,
+        int usage, string label, GpuFormat format, int width, int height, int mipLevels)
+        : base(usage, label, format, width, height, 1, mipLevels)
     {
         _vk = vk;
         _device = device;
         _gpuDevice = gpuDevice;
-        var fmt = ToVkFormat(desc.Format);
-        var usage = ToVkUsage(desc.Usage);
+        var fmt = ToVkFormat(format);
+        var vkUsage = ToVkUsage(usage, format);
         var imageInfo = new ImageCreateInfo
         {
             SType = StructureType.ImageCreateInfo,
@@ -88,7 +94,7 @@ public sealed unsafe class VulkanImage : GpuImage
             ArrayLayers = 1,
             Samples = SampleCountFlags.Count1Bit,
             Tiling = ImageTiling.Optimal,
-            Usage = usage,
+            Usage = vkUsage,
             SharingMode = SharingMode.Exclusive,
             InitialLayout = ImageLayout.Undefined
         };
@@ -109,7 +115,7 @@ public sealed unsafe class VulkanImage : GpuImage
         //dynamic rendering expects ColorAttachmentOptimal; without the transition written data is lost or a validation warning appears
         //A SampledImage without ColorAttachment uses the Upload path transition; a DepthAttachment uses the Upload(Empty) transition
         //ColorAttachment|SampledImage (e.g. AtlasTexture) needs ColorAttachmentOptimal before the first render
-        if (desc.Usage.HasFlag(GpuImageUsage.ColorAttachment))
+        if ((usage & GpuTexture.UsageRenderAttachment) != 0 && !format.HasDepthAspect())
             TransitionInitialColorAttachment();
     }
 
@@ -131,7 +137,7 @@ public sealed unsafe class VulkanImage : GpuImage
     {
         var fmt = ToVkFormat(Format);
         //DepthAttachment uses the DepthBit aspect, others use ColorBit
-        var aspectMask = Usage == GpuImageUsage.DepthAttachment
+        var aspectMask = Format.HasDepthAspect()
             ? ImageAspectFlags.DepthBit
             : ImageAspectFlags.ColorBit;
         var viewInfo = new ImageViewCreateInfo
@@ -158,7 +164,7 @@ public sealed unsafe class VulkanImage : GpuImage
     //DepthAttachment uploads no pixels and only does the Undefined->DepthStencilAttachmentOptimal layout transition
     public override void Upload(ReadOnlySpan<byte> pixels)
     {
-        if (Usage == GpuImageUsage.DepthAttachment)
+        if (Format.HasDepthAspect())
         {
             _gpuDevice.RunOneTimeCommand(cmd =>
             {
@@ -170,7 +176,7 @@ public sealed unsafe class VulkanImage : GpuImage
             _currentLayout = ImageLayout.DepthStencilAttachmentOptimal;
             return;
         }
-        var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(pixels.Length, GpuBufferUsage.StagingBuffer);
+        var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(null, GpuBuffer.UsageCopySrc | GpuBuffer.UsageCopyDst | GpuBuffer.UsageMapWrite, pixels.Length);
         try
         {
             staging.Upload(pixels.ToArray());
@@ -218,9 +224,9 @@ public sealed unsafe class VulkanImage : GpuImage
     //ShaderReadOnly→TransferDst→write region→ShaderReadOnly full layout transition cycle
     public override void UploadRegion(int x, int y, int width, int height, ReadOnlySpan<byte> pixels)
     {
-        if (Usage == GpuImageUsage.DepthAttachment)
+        if (Format.HasDepthAspect())
             throw new InvalidOperationException("DepthAttachment does not support UploadRegion");
-        var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(pixels.Length, GpuBufferUsage.StagingBuffer);
+        var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(null, GpuBuffer.UsageCopySrc | GpuBuffer.UsageCopyDst | GpuBuffer.UsageMapWrite, pixels.Length);
         try
         {
             staging.Upload(pixels.ToArray());
@@ -296,7 +302,7 @@ public sealed unsafe class VulkanImage : GpuImage
     public void TransitionLayout(CommandBuffer cmd, ImageLayout newLayout)
     {
         if (_currentLayout == newLayout) return;
-        var aspect = Usage.HasFlag(GpuImageUsage.DepthAttachment) ? ImageAspectFlags.DepthBit : ImageAspectFlags.ColorBit;
+        var aspect = Format.HasDepthAspect() ? ImageAspectFlags.DepthBit : ImageAspectFlags.ColorBit;
         var (srcAccess, srcStage) = GetBarrierParams(_currentLayout);
         var (dstAccess, dstStage) = GetBarrierParams(newLayout);
         TransitionLayout(cmd, _currentLayout, newLayout, srcAccess, dstAccess, srcStage, dstStage, aspect);
@@ -321,10 +327,10 @@ public sealed unsafe class VulkanImage : GpuImage
     //DepthAttachment does not support readback; the PoC does not verify depth images
     public override byte[] Readback()
     {
-        if (Usage == GpuImageUsage.DepthAttachment)
+        if (Format.HasDepthAspect())
             throw new NotSupportedException("DepthAttachment does not support Readback");
         var pixelSize = Width * Height * 4;
-        var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(pixelSize, GpuBufferUsage.StagingBuffer);
+        var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(null, GpuBuffer.UsageCopySrc | GpuBuffer.UsageCopyDst | GpuBuffer.UsageMapWrite, pixelSize);
         try
         {
             var originalLayout = _currentLayout;
@@ -376,27 +382,25 @@ public sealed unsafe class VulkanImage : GpuImage
         }
     }
 
-    private static VkFormat ToVkFormat(GpuImageFormat fmt) => fmt switch
+    private static VkFormat ToVkFormat(GpuFormat fmt) => fmt switch
     {
-        GpuImageFormat.R8G8B8A8Unorm => VkFormat.R8G8B8A8Unorm,
-        GpuImageFormat.B8G8R8A8Unorm => VkFormat.B8G8R8A8Unorm,
-        GpuImageFormat.R8G8B8Unorm => VkFormat.R8G8B8Unorm,
-        GpuImageFormat.R8Unorm => VkFormat.R8Unorm,
-        GpuImageFormat.D32Sfloat => VkFormat.D32Sfloat,
+        GpuFormat.Rgba8Unorm => VkFormat.R8G8B8A8Unorm,
+        GpuFormat.Bgra8Unorm => VkFormat.B8G8R8A8Unorm,
+        GpuFormat.Rgb8Unorm => VkFormat.R8G8B8Unorm,
+        GpuFormat.R8Unorm => VkFormat.R8Unorm,
+        GpuFormat.D32Float => VkFormat.D32Sfloat,
         _ => throw new ArgumentOutOfRangeException(nameof(fmt))
     };
 
-    private static ImageUsageFlags ToVkUsage(GpuImageUsage usage)
+    private static ImageUsageFlags ToVkUsage(int usage, GpuFormat format)
     {
         var flags = ImageUsageFlags.None;
-        if (usage.HasFlag(GpuImageUsage.SampledImage))
+        if ((usage & GpuTexture.UsageTextureBinding) != 0)
             flags |= ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit;
-        if (usage.HasFlag(GpuImageUsage.ColorAttachment))
-            flags |= ImageUsageFlags.ColorAttachmentBit;
-        if (usage.HasFlag(GpuImageUsage.DepthAttachment))
-            flags |= ImageUsageFlags.DepthStencilAttachmentBit;
+        if ((usage & GpuTexture.UsageRenderAttachment) != 0)
+            flags |= format.HasDepthAspect() ? ImageUsageFlags.DepthStencilAttachmentBit : ImageUsageFlags.ColorAttachmentBit;
         //All color images allow TransferSrc so Readback can use CmdCopyImageToBuffer
-        if (!usage.HasFlag(GpuImageUsage.DepthAttachment))
+        if (!format.HasDepthAspect())
             flags |= ImageUsageFlags.TransferSrcBit;
         return flags;
     }

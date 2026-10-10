@@ -32,6 +32,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 namespace NetCraft.Client.Render;
 
 //LightTexture 16x16 lightmap, maps to vanilla com.mojang.blaze3d.systems.LightTexture
@@ -48,7 +49,7 @@ public sealed class LightTexture : IDisposable
     public const int FullBrightCoords = (FullBlockLight << 4) | (FullSkyLight << 20);
 
     private readonly GpuDevice? _device;
-    private GpuImage? _texture;
+    private GpuTexture? _texture;
     private GpuSampler? _sampler;
     //_lastSkyBrightness the uploaded brightness; CreateResources uploads 1.0 first, consistent with the initial value
     private float _lastSkyBrightness = 1.0f;
@@ -62,7 +63,7 @@ public sealed class LightTexture : IDisposable
     }
 
     //Texture lightmap texture; null means no GPU backend
-    public GpuImage? Texture => _texture;
+    public GpuTexture? Texture => _texture;
     //Sampler lightmap sampler; null means no GPU backend
     public GpuSampler? Sampler => _sampler;
 
@@ -115,21 +116,11 @@ public sealed class LightTexture : IDisposable
     //CreateResources creates the GPU texture + sampler, called only when SupportsGpuRendering=true
     private void CreateResources()
     {
-        _texture = _device!.CreateImage(new GpuImageDescription
-        {
-            Width = Size,
-            Height = Size,
-            Format = GpuImageFormat.R8G8B8A8Unorm,
-            Usage = GpuImageUsage.SampledImage
-        });
+        _texture = _device!.CreateTexture(GpuTexture.UsageTextureBinding, "texture", GpuFormat.Rgba8Unorm, Size, Size, 1, 1);
         //The initial full-brightness table: the GUI item FullBright position (15,15) should be pure white
         _texture.Upload(GeneratePixels(1.0f));
         //The small 16x16 texture uses nearest to avoid adjacent light levels blurring into each other
-        _sampler = _device.CreateSampler(new GpuSamplerDescription
-        {
-            LinearFilter = false,
-            RepeatAddress = false
-        });
+        _sampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Nearest, FilterMode.Nearest, 1, null);
     }
 
     //Update regenerates pixels for the given skyBrightness and uploads to the GPU; a no-op without a GPU backend

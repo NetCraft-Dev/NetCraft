@@ -32,15 +32,30 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 namespace NetCraft.Client.Blaze3d.Systems;
 
-//DeviceLimits GPU hardware limits, maps to vanilla DeviceLimits
-//MaxTextureSize queried by GuiItemAtlas.ComputeTextureSizeFor instead of the hardcoded 4096
-//MinUniformBufferOffsetAlignment used by Lighting for UBO slice alignment, ignorable when a single UBO is used
-public sealed record DeviceLimits(int MaxTextureSize, int MinUniformBufferOffsetAlignment = 1)
+//DeviceLimits GPU hardware limits, aligns with vanilla com.mojang.blaze3d.systems.DeviceLimits
+public sealed record DeviceLimits(
+    int MaxAnisotropy,
+    int MinUniformOffsetAlignment,
+    int MaxTextureSize,
+    long MaxMemoryAllocationSize,
+    int MaxMultiDrawDirectInterleavedDrawCount,
+    int MaxColorAttachments)
 {
-    //MaxTextureSizeForFormat returns the max texture size for a GpuImageFormat
-    //maps to vanilla Integer.highestOneBit(min(maxTextureSize, sqrt(maxMemoryAllocationSize/blockSize)))
-    //NetCraft does not expose maxMemoryAllocationSize, so this simply returns MaxTextureSize
-    public int MaxTextureSizeForFormat(GpuImageFormat format) => MaxTextureSize;
+    //MaxTextureSizeForFormat clamps the texture size by the allocation budget, maps to vanilla maxTextureSizeForFormat
+    public int MaxTextureSizeForFormat(GpuFormat format)
+        => HighestOneBit(Math.Min(MaxTextureSize, (int)Math.Sqrt((double)MaxMemoryAllocationSize / format.BlockSize())));
+
+    //HighestOneBit the highest power of two not exceeding value, maps to vanilla Integer.highestOneBit
+    private static int HighestOneBit(int value)
+    {
+        value |= value >> 1;
+        value |= value >> 2;
+        value |= value >> 4;
+        value |= value >> 8;
+        value |= value >> 16;
+        return value - (value >> 1);
+    }
 }

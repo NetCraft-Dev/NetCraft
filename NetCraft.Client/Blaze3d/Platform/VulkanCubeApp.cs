@@ -38,6 +38,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 
 namespace NetCraft.Client.Blaze3d.Platform;
 
@@ -107,14 +108,7 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
 
     private void CreateDepthImage()
     {
-        var desc = new GpuImageDescription
-        {
-            Width = (int)_swapchainExtent.Width,
-            Height = (int)_swapchainExtent.Height,
-            Format = GpuImageFormat.D32Sfloat,
-            Usage = GpuImageUsage.DepthAttachment
-        };
-        _depthImage = (VulkanImage)_device.CreateImage(desc);
+                _depthImage = (VulkanImage)_device.CreateTexture(GpuTexture.UsageRenderAttachment, "texture", GpuFormat.D32Float, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height, 1, 1);
         //Uploading empty pixels triggers the Undefined->DepthStencilAttachmentOptimal layout transition
         _depthImage.Upload(ReadOnlySpan<byte>.Empty);
     }
@@ -133,7 +127,7 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
             new(-0.5f,  0.5f,  0.5f, 0f, 0f, 0f)
         };
         int size = vertices.Length * sizeof(CubeVertex);
-        _vertexBuffer = (VulkanBuffer)_device.CreateBuffer(size, GpuBufferUsage.VertexBuffer);
+        _vertexBuffer = (VulkanBuffer)_device.CreateBuffer(null, GpuBuffer.UsageVertex | GpuBuffer.UsageCopyDst, size);
         _vertexBuffer.Upload<CubeVertex>(vertices);
         ushort[] indices =
         {
@@ -145,13 +139,13 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
             1, 5, 6,  1, 6, 2
         };
         int indexSize = indices.Length * sizeof(ushort);
-        _indexBuffer = (VulkanBuffer)_device.CreateBuffer(indexSize, GpuBufferUsage.IndexBuffer);
+        _indexBuffer = (VulkanBuffer)_device.CreateBuffer(null, GpuBuffer.UsageIndex | GpuBuffer.UsageCopyDst, indexSize);
         _indexBuffer.Upload<ushort>(indices);
     }
 
     private void CreateUniformBuffer()
     {
-        _uniformBuffer = (VulkanBuffer)_device.CreateBuffer(sizeof(MvpUniform), GpuBufferUsage.UniformBuffer);
+        _uniformBuffer = (VulkanBuffer)_device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, sizeof(MvpUniform));
     }
 
     private void CreateDescriptorSet()
@@ -179,7 +173,7 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
             Topology = GpuPrimitiveTopology.TriangleList,
             BlendEnabled = false,
             DepthTestEnabled = true,
-            TargetFormat = GpuImageFormat.B8G8R8A8Unorm,
+            TargetFormat = GpuFormat.Bgra8Unorm,
             TargetWidth = (int)_swapchainExtent.Width,
             TargetHeight = (int)_swapchainExtent.Height
         };
@@ -194,7 +188,7 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
             }
         });
         desc.DescriptorLayouts.Add(_descriptorLayout);
-        var fmt = VulkanRenderPipeline.ToVkFormat(desc.TargetFormat ?? GpuImageFormat.B8G8R8A8Unorm);
+        var fmt = VulkanRenderPipeline.ToVkFormat(desc.TargetFormat ?? GpuFormat.Bgra8Unorm);
         _pipeline = new VulkanRenderPipeline(_device.Api, _device.Device, fmt, _swapchainExtent, desc);
     }
 

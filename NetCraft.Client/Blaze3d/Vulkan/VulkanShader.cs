@@ -50,7 +50,7 @@ using NetCraft.Client.Resources.Metadata.Gui;
 namespace NetCraft.Client.Blaze3d.Vulkan;
 
 //VulkanShader Vulkan backend SPIR-V shader module
-//Wraps VkShaderModule created by VulkanGpuDevice.CreateShader
+//Wraps VkShaderModule created by VulkanDevice.CreateShader
 public sealed unsafe class VulkanShader : GpuShader
 {
     private readonly Vk _vk;

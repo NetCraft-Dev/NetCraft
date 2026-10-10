@@ -53,13 +53,11 @@ NetCraft 不是移植。这里没有逐行翻译原版 Java，也没有反编译
 | 1 | `NetCraft.DataFixer` | DFU 各阶段、高阶类型模拟、Profunctor optics |
 | 2 | `NetCraft.Storage` | MCA、`PalettedContainer`、`IOWorker`、`ChunkSource`、调度刻 |
 | 2 | `NetCraft.Registry` | `Identifier`、`ResourceKey<T>`、`Holder<T>` |
-| 2 | `NetCraft.Interop` | 原生互操作垫片 |
 | 3 | `NetCraft.Network` | 连接状态机、编解码 |
 | 3 | `NetCraft.Commands` | Brigadier 移植 |
 | 3 | `NetCraft.Network.Chat` | 文本组件 |
 | 4 | `NetCraft.Resources` | 资源包框架 |
 | 4 | `NetCraft.Gpu` | Vulkan、提交/渲染两阶段拆分 |
-| 4 | `NetCraft.Optimizations` | FerriteCore 风格的 `FastMap` 等 |
 | — | `NetCraft` | 内核入口，把各子 DLL 作为资源内嵌 |
 | — | `NetCraft.Game` | 客户端与服务端的共享游戏代码 |
 | — | `NetCraft.Client` | 客户端运行时与客户端侧协议监听器 |

@@ -1,7 +1,6 @@
 <Solution>
   <Project Path="NetCraft.Commands/NetCraft.Commands.csproj" />
   <Project Path="NetCraft.Config/NetCraft.Config.csproj" />
-  <Project Path="NetCraft.Interop/NetCraft.Interop.csproj" />
   <Project Path="NetCraft.Codec/NetCraft.Codec.csproj" />
   <Project Path="NetCraft.DataFixer/NetCraft.DataFixer.csproj" />
   <Project Path="NetCraft.DataFixer.SourceGenerator/NetCraft.DataFixer.SourceGenerator.csproj" />

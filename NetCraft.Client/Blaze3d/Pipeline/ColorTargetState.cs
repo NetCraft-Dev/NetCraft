@@ -32,6 +32,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 namespace NetCraft.Client.Blaze3d.Pipeline;
 
 //ColorTargetState color attachment state, maps to vanilla ColorTargetState record
@@ -49,10 +50,10 @@ public readonly record struct ColorTargetState(BlendFunction? BlendFunction, Gpu
     public const int MaxColorTargets = 8;
 
     //DEFAULT default state RGBA8_UNORM no blending all-channel write
-    public static readonly ColorTargetState DEFAULT = new(null, GpuFormat.R8G8B8A8Unorm, WriteAll);
+    public static readonly ColorTargetState DEFAULT = new(null, GpuFormat.Rgba8Unorm, WriteAll);
 
     public ColorTargetState(BlendFunction blendFunction)
-        : this(blendFunction, GpuFormat.R8G8B8A8Unorm, WriteAll) { }
+        : this(blendFunction, GpuFormat.Rgba8Unorm, WriteAll) { }
 
     public bool RedChannel => (WriteMask & WriteRed) != 0;
     public bool GreenChannel => (WriteMask & WriteGreen) != 0;

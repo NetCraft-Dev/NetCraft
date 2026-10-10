@@ -32,6 +32,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 namespace NetCraft.Client.Gui.Render;
 
 //GuiItemAtlas item atlas abstract base class, maps to vanilla GuiItemAtlas
@@ -47,8 +48,8 @@ public abstract class GuiItemAtlas : IDisposable
 
     protected GpuDevice Device { get; }
     //AtlasTexture exposed for external registration with GuiResourceManager to get a textureId for DrawImage sampling
-    public GpuImage AtlasTexture { get; }
-    protected GpuImage AtlasDepth { get; }
+    public GpuTexture AtlasTexture { get; }
+    protected GpuTexture AtlasDepth { get; }
     protected DynamicAtlasAllocator<object> Allocator { get; }
     public int TextureSize { get; }
     public int SlotTextureSize { get; }
@@ -59,20 +60,8 @@ public abstract class GuiItemAtlas : IDisposable
         TextureSize = textureSize;
         SlotTextureSize = slotTextureSize;
         var storageSize = textureSize / slotTextureSize;
-        AtlasTexture = device.CreateImage(new GpuImageDescription
-        {
-            Width = textureSize,
-            Height = textureSize,
-            Format = GpuImageFormat.R8G8B8A8Unorm,
-            Usage = GpuImageUsage.ColorAttachment | GpuImageUsage.SampledImage
-        });
-        AtlasDepth = device.CreateImage(new GpuImageDescription
-        {
-            Width = textureSize,
-            Height = textureSize,
-            Format = GpuImageFormat.D32Sfloat,
-            Usage = GpuImageUsage.DepthAttachment
-        });
+        AtlasTexture = device.CreateTexture((GpuTexture.UsageRenderAttachment | GpuTexture.UsageTextureBinding), "texture", GpuFormat.Rgba8Unorm, textureSize, textureSize, 1, 1);
+        AtlasDepth = device.CreateTexture(GpuTexture.UsageRenderAttachment, "texture", GpuFormat.D32Float, textureSize, textureSize, 1, 1);
         Allocator = new DynamicAtlasAllocator<object>(storageSize, storageSize);
     }
 
@@ -82,7 +71,7 @@ public abstract class GuiItemAtlas : IDisposable
     //maxTextureSize is queried from device.Limits.MaxTextureSizeForFormat(R8G8B8A8Unorm) instead of the hardcoded 4096
     public static int ComputeTextureSizeFor(GpuDevice device, int slotTextureSize, int requiredSlotCount)
     {
-        var maxTextureSize = device.Limits.MaxTextureSizeForFormat(GpuImageFormat.R8G8B8A8Unorm);
+        var maxTextureSize = device.Limits.MaxTextureSizeForFormat(GpuFormat.Rgba8Unorm);
         return ComputeTextureSizeFor(slotTextureSize, requiredSlotCount, maxTextureSize);
     }
 
@@ -165,7 +154,7 @@ public abstract class GuiItemAtlas : IDisposable
 //SlotView atlas slot UV view, maps to vanilla GuiItemAtlas.SlotView
 //BlitRenderState uses these UVs to sample the item icon from the atlas texture
 public sealed record SlotView(
-    GpuImage Texture,
+    GpuTexture Texture,
     float U0,
     float V0,
     float U1,

@@ -61,17 +61,17 @@ public interface ICommandEncoder : IDisposable
 {
     //CreateRenderPass creates a render pass; the pipeline provides the RenderPass and framebuffer
     //Stage 3 introduced dynamic rendering, decoupling RenderPass from the pipeline and restoring the vanilla interface
-    IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuImage colorImage, Vector4 clearColor);
-    IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuImage colorImage, Vector4 clearColor, GpuImage depthImage, float clearDepth);
+    IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuTexture colorImage, Vector4 clearColor);
+    IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuTexture colorImage, Vector4 clearColor, GpuTexture depthImage, float clearDepth);
     //CreateRenderPass overload with colorLoadOp; Load preserves previous color content for multi-slot shared atlases
-    IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuImage colorImage, Vector4 clearColor, GpuImage depthImage, float clearDepth, GpuLoadOp colorLoadOp);
+    IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuTexture colorImage, Vector4 clearColor, GpuTexture depthImage, float clearDepth, GpuLoadOp colorLoadOp);
     //CopyBuffer copies the source buffer to the destination buffer
     void CopyBuffer(GpuBuffer src, GpuBuffer dst, ulong srcOffset, ulong dstOffset, ulong size);
     //WriteToTexture uploads pixel data to an image via staging
-    void WriteToTexture(GpuImage dst, ReadOnlySpan<byte> data, int dstX, int dstY, int width, int height);
+    void WriteToTexture(GpuTexture dst, ReadOnlySpan<byte> data, int dstX, int dstY, int width, int height);
     //TransitionImageLayout records an image layout transition into the current command buffer, for switching an offscreen render to a sampling layout
     //VulkanImage.TransitionLayout internally checks currentLayout==newLayout and safely skips redundant transitions
-    void TransitionImageLayout(GpuImage image, GpuImageLayout newLayout);
+    void TransitionImageLayout(GpuTexture image, GpuImageLayout newLayout);
     //Submit submits all recorded commands to the GPU queue and waits for completion
     void Submit();
     //SubmitAsync submits commands to the GPU queue without waiting, for PIP double-buffered async rendering

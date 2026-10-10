@@ -34,6 +34,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 
 namespace NetCraft.Client.Gui.Render.Pip;
 
@@ -96,8 +97,8 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
     //Double-buffered offscreen texture+depth+encoder ping-pong; this frame writes _writeIndex and blit reads _readIndex
     //_readIndex=-1 the first frame has no history; blit the currently written one, and the queue submission order guarantees the GPU dependency
     //Async SubmitAsync does not wait for the GPU so the CPU keeps recording the main cmd; the two encoders rotate to avoid command buffer reuse contention
-    private readonly GpuImage?[] _offscreenTextures = new GpuImage[2];
-    private readonly GpuImage?[] _offscreenDepths = new GpuImage[2];
+    private readonly GpuTexture?[] _offscreenTextures = new GpuTexture[2];
+    private readonly GpuTexture?[] _offscreenDepths = new GpuTexture[2];
     private readonly ICommandEncoder?[] _encoders = new ICommandEncoder[2];
     private int _writeIndex;
     private int _readIndex = -1;
@@ -133,20 +134,8 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         }
         for (var i = 0; i < 2; i++)
         {
-            _offscreenTextures[i] = _device.CreateImage(new GpuImageDescription
-            {
-                Width = width,
-                Height = height,
-                Format = GpuImageFormat.R8G8B8A8Unorm,
-                Usage = GpuImageUsage.ColorAttachment | GpuImageUsage.SampledImage
-            });
-            _offscreenDepths[i] = _device.CreateImage(new GpuImageDescription
-            {
-                Width = width,
-                Height = height,
-                Format = GpuImageFormat.D32Sfloat,
-                Usage = GpuImageUsage.DepthAttachment
-            });
+            _offscreenTextures[i] = _device.CreateTexture((GpuTexture.UsageRenderAttachment | GpuTexture.UsageTextureBinding), "texture", GpuFormat.Rgba8Unorm, width, height, 1, 1);
+            _offscreenDepths[i] = _device.CreateTexture(GpuTexture.UsageRenderAttachment, "texture", GpuFormat.D32Float, width, height, 1, 1);
         }
         //Perspective projection for offscreen 3D rendering; MockDevice also sets the projection for tests
         _projection.SetupPerspective(0.05f, 1000f, MathF.PI / 4f, width, height);
@@ -197,7 +186,7 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
                 StageFlags = GpuShaderStageFlags.Vertex
             });
             _mvpLayout = _device.CreateDescriptorLayout(mvpLayoutDesc);
-            _mvpUbo = _device.CreateBuffer(192, GpuBufferUsage.UniformBuffer);
+            _mvpUbo = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 192);
             _mvpSet = _device.AllocateDescriptorSet(_mvpLayout);
             _mvpSet.WriteBuffer(0, _mvpUbo, 0, -1);
         }
@@ -230,15 +219,11 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         if (_indexBuffer == null)
         {
             var indices = GenerateQuadIndices(6);
-            _indexBuffer = _device.CreateHostVisibleBuffer(indices.Length * sizeof(ushort), GpuBufferUsage.IndexBuffer);
+            _indexBuffer = _device.CreateHostVisibleBuffer(indices.Length * sizeof(ushort), GpuBuffer.UsageIndex | GpuBuffer.UsageCopyDst);
             _indexBuffer.Upload<ushort>(indices);
         }
         //_blitSampler linear filtering of the offscreen 3D render result blitted to the GUI, smoothly reused across frames
-        _blitSampler ??= _device.CreateSampler(new GpuSamplerDescription
-        {
-            LinearFilter = true,
-            RepeatAddress = false
-        });
+        _blitSampler ??= _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Linear, FilterMode.Linear, 1, null);
 
         var item3dDesc = RenderPipelineDescription.FromDeclaration(RenderPipelines.ITEM_3D, _device.ShaderManager);
         item3dDesc.TargetWidth = _pipelineWidth;
@@ -293,7 +278,7 @@ public sealed class ItemPipRenderer : PictureInPictureRenderer<ItemPipState>
         if (_vertexBuffer == null || _vertexBuffer.Size < vertexBytes.Length)
         {
             _vertexBuffer?.Dispose();
-            _vertexBuffer = _device.CreateHostVisibleBuffer(vertexBytes.Length, GpuBufferUsage.VertexBuffer);
+            _vertexBuffer = _device.CreateHostVisibleBuffer(vertexBytes.Length, GpuBuffer.UsageVertex | GpuBuffer.UsageCopyDst);
         }
         _vertexBuffer.Upload<byte>(vertexBytes);
 

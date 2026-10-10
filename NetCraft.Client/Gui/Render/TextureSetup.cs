@@ -39,14 +39,14 @@ namespace NetCraft.Client.Gui.Render;
 //Equals reference equality used for SortElements batching decisions
 public sealed class TextureSetup
 {
-    public GpuImage? Texture0 { get; }
+    public GpuTexture? Texture0 { get; }
     public GpuSampler? Sampler0 { get; }
-    public GpuImage? Texture1 { get; }
+    public GpuTexture? Texture1 { get; }
     public GpuSampler? Sampler1 { get; }
-    public GpuImage? Texture2 { get; }
+    public GpuTexture? Texture2 { get; }
     public GpuSampler? Sampler2 { get; }
 
-    private TextureSetup(GpuImage? t0, GpuSampler? s0, GpuImage? t1, GpuSampler? s1, GpuImage? t2, GpuSampler? s2)
+    private TextureSetup(GpuTexture? t0, GpuSampler? s0, GpuTexture? t1, GpuSampler? s1, GpuTexture? t2, GpuSampler? s2)
     {
         Texture0 = t0; Sampler0 = s0;
         Texture1 = t1; Sampler1 = s1;
@@ -57,11 +57,11 @@ public sealed class TextureSetup
     public static readonly TextureSetup NoTexture = new(null, null, null, null, null, null);
 
     //SingleTexture single texture binding
-    public static TextureSetup SingleTexture(GpuImage texture, GpuSampler sampler)
+    public static TextureSetup SingleTexture(GpuTexture texture, GpuSampler sampler)
         => new(texture, sampler, null, null, null, null);
 
     //SingleTextureWithLightmap single texture + lightmap two textures
-    public static TextureSetup SingleTextureWithLightmap(GpuImage texture, GpuSampler sampler, GpuImage lightmap, GpuSampler lightmapSampler)
+    public static TextureSetup SingleTextureWithLightmap(GpuTexture texture, GpuSampler sampler, GpuTexture lightmap, GpuSampler lightmapSampler)
         => new(texture, sampler, lightmap, lightmapSampler, null, null);
 
     public override bool Equals(object? obj)

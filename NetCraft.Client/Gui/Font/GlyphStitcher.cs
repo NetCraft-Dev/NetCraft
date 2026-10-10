@@ -32,6 +32,7 @@ using NetCraft.Client.Gui.Font.Glyphs;
 using NetCraft.Client.Model;
 using NetCraft.Client.Model.Geom;
 using NetCraft.Client.Resources.Metadata.Gui;
+using NetCraft.Client.Blaze3d;
 namespace NetCraft.Client.Gui.Font;
 
 //GlyphStitcher glyph stitcher, maps to vanilla GlyphStitcher
@@ -66,19 +67,11 @@ public sealed class GlyphStitcher : IUnbakedGlyph.Stitcher, IDisposable
             $"glyph {info.Advance} does not fit the new 256×256 atlas pixelSize={bitmap.PixelWidth}x{bitmap.PixelHeight}");
     }
 
-    //CreateTexture creates a new atlas GpuImage, registers it with GuiResourceManager to get a TextureSetup and creates GlyphRenderTypes
+    //CreateTexture creates a new atlas GpuTexture, registers it with GuiResourceManager to get a TextureSetup and creates GlyphRenderTypes
     //colored=true uses an RGBA8 atlas + CreateForColorTexture, colored=false uses an R8 atlas + CreateForGrayscaleTexture
     private FontTexture CreateTexture(bool colored)
     {
-        var desc = new GpuImageDescription
-        {
-            Width = FontTexture.Size,
-            Height = FontTexture.Size,
-            Format = colored ? GpuImageFormat.R8G8B8A8Unorm : GpuImageFormat.R8Unorm,
-            Usage = GpuImageUsage.SampledImage,
-            MipLevels = 1
-        };
-        var image = _device.CreateImage(desc);
+                var image = _device.CreateTexture(GpuTexture.UsageTextureBinding, "texture", colored ? GpuFormat.Rgba8Unorm : GpuFormat.R8Unorm, FontTexture.Size, FontTexture.Size, 1, 1);
         var textureSetup = _resourceManager.RegisterFontTexture(image);
         var renderTypes = colored
             ? GlyphRenderTypes.CreateForColorTexture()

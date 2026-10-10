@@ -99,7 +99,7 @@ public sealed class ItemItemAtlas : GuiItemAtlas
         });
         _mvpLayout = Device.CreateDescriptorLayout(mvpLayoutDesc);
         //3 mat4 = 192 bytes
-        _mvpUbo = Device.CreateBuffer(192, GpuBufferUsage.UniformBuffer);
+        _mvpUbo = Device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 192);
         _mvpSet = Device.AllocateDescriptorSet(_mvpLayout);
         _mvpSet.WriteBuffer(0, _mvpUbo, 0, -1);
 
@@ -139,7 +139,7 @@ public sealed class ItemItemAtlas : GuiItemAtlas
 
         //CubeModel 6 faces * 6 indices = 36 indices, uploaded once and fixed
         var indices = GenerateQuadIndices(6);
-        _indexBuffer = Device.CreateHostVisibleBuffer(indices.Length * sizeof(ushort), GpuBufferUsage.IndexBuffer);
+        _indexBuffer = Device.CreateHostVisibleBuffer(indices.Length * sizeof(ushort), GpuBuffer.UsageIndex | GpuBuffer.UsageCopyDst);
         _indexBuffer.Upload<ushort>(indices);
 
         //AtlasDepth initial layout transition Undefined->DepthStencilAttachmentOptimal
@@ -239,7 +239,7 @@ public sealed class ItemItemAtlas : GuiItemAtlas
         if (_vertexBuffer == null || _vertexBuffer.Size < vertexBytes.Length)
         {
             _vertexBuffer?.Dispose();
-            _vertexBuffer = Device.CreateHostVisibleBuffer(vertexBytes.Length, GpuBufferUsage.VertexBuffer);
+            _vertexBuffer = Device.CreateHostVisibleBuffer(vertexBytes.Length, GpuBuffer.UsageVertex | GpuBuffer.UsageCopyDst);
         }
         _vertexBuffer.Upload<byte>(vertexBytes);
 

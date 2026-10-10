@@ -1,6 +1,6 @@
 using System.IO.MemoryMappedFiles;
 
-namespace NetCraft.Interop;
+namespace NetCraft.Util;
 
 //MemoryMappedFileAccessor cross-platform memory-mapped file accessor
 //Wraps the vanilla .NET MemoryMappedFile to provide a unified access interface
@@ -26,13 +26,6 @@ public sealed class MemoryMappedFileAccessor : IDisposable
         return new MemoryMappedFileAccessor(mmf, fs);
     }
 
-    //CreateNew creates a non-persistent memory mapping (not backed by a file on disk)
-    public static MemoryMappedFileAccessor CreateNew(string? mapName, long capacity)
-    {
-        var mmf = MemoryMappedFile.CreateNew(mapName, capacity);
-        return new MemoryMappedFileAccessor(mmf, null);
-    }
-
     private MemoryMappedFileAccessor(MemoryMappedFile mmf, FileStream? fileStream)
     {
         _mmf = mmf;
@@ -42,19 +35,6 @@ public sealed class MemoryMappedFileAccessor : IDisposable
     //CreateViewStream creates a view stream for the given offset and length
     public MemoryMappedViewStream CreateViewStream(long offset, long size, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite)
         => _mmf.CreateViewStream(offset, size, access);
-
-    //CreateViewAccessor creates a view accessor for the given offset and length
-    public MemoryMappedViewAccessor CreateViewAccessor(long offset, long size, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite)
-        => _mmf.CreateViewAccessor(offset, size, access);
-
-    //CreateViewSpan creates a readable/writable Span view
-    public unsafe Span<byte> CreateViewSpan(long offset, int size, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite)
-    {
-        var accessor = _mmf.CreateViewAccessor(offset, size, access);
-        byte* ptr = null;
-        accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
-        return new Span<byte>(ptr, size);
-    }
 
     public void Dispose()
     {

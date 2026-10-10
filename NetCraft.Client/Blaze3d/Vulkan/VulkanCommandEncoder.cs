@@ -58,7 +58,7 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
 {
     private readonly Vk _vk;
     private readonly Device _device;
-    private readonly VulkanGpuDevice _gpuDevice;
+    private readonly VulkanDevice _gpuDevice;
     private readonly CommandPool _commandPool;
     private readonly Queue _graphicsQueue;
     //DynRenderingExt the KHR_dynamic_rendering extension instance passed to VulkanRenderPass to call CmdBeginRendering
@@ -76,7 +76,7 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
     private bool _disposed;
     private bool _recording;
 
-    internal VulkanCommandEncoder(Vk vk, Device device, VulkanGpuDevice gpuDevice, CommandPool commandPool, Queue graphicsQueue, KhrDynamicRendering dynRenderingExt)
+    internal VulkanCommandEncoder(Vk vk, Device device, VulkanDevice gpuDevice, CommandPool commandPool, Queue graphicsQueue, KhrDynamicRendering dynRenderingExt)
     {
         _vk = vk;
         _device = device;
@@ -105,7 +105,7 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
         _recording = true;
     }
 
-    public IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuImage colorImage, Vector4 clearColor)
+    public IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuTexture colorImage, Vector4 clearColor)
     {
         EnsureRecording();
         if (colorImage is not VulkanImage vkColor)
@@ -113,7 +113,7 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
         return new VulkanRenderPass(_vk, _dynRenderingExt, _handle, pipeline, vkColor.View, clearColor, null, 0f);
     }
 
-    public IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuImage colorImage, Vector4 clearColor, GpuImage depthImage, float clearDepth)
+    public IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuTexture colorImage, Vector4 clearColor, GpuTexture depthImage, float clearDepth)
     {
         EnsureRecording();
         if (colorImage is not VulkanImage vkColor)
@@ -121,7 +121,7 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
         return new VulkanRenderPass(_vk, _dynRenderingExt, _handle, pipeline, vkColor.View, clearColor, depthImage, clearDepth);
     }
 
-    public IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuImage colorImage, Vector4 clearColor, GpuImage depthImage, float clearDepth, GpuLoadOp colorLoadOp)
+    public IRenderPass CreateRenderPass(CompiledRenderPipeline pipeline, GpuTexture colorImage, Vector4 clearColor, GpuTexture depthImage, float clearDepth, GpuLoadOp colorLoadOp)
     {
         EnsureRecording();
         if (colorImage is not VulkanImage vkColor)
@@ -153,14 +153,14 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
     //Unlike VulkanImage.UploadRegion it does not Submit immediately but records into the current cmd, batchable with other commands
     //The staging buffer lives until after Submit and is released then; Submit calls WaitForFences to ensure the GPU has read it
     //Layout transitions currentLayout→TransferDstOptimal→copy→ShaderReadOnlyOptimal
-    public void WriteToTexture(GpuImage dst, ReadOnlySpan<byte> data, int dstX, int dstY, int width, int height)
+    public void WriteToTexture(GpuTexture dst, ReadOnlySpan<byte> data, int dstX, int dstY, int width, int height)
     {
         EnsureRecording();
         if (dst is not VulkanImage vkDst)
             throw new ArgumentException("dst must be a VulkanImage", nameof(dst));
-        if (vkDst.Usage == GpuImageUsage.DepthAttachment)
+        if (vkDst.Format.HasDepthAspect())
             throw new InvalidOperationException("DepthAttachment does not support WriteToTexture");
-        var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(data.Length, GpuBufferUsage.StagingBuffer);
+        var staging = (VulkanBuffer)_gpuDevice.CreateBuffer(null, GpuBuffer.UsageCopySrc | GpuBuffer.UsageCopyDst | GpuBuffer.UsageMapWrite, data.Length);
         staging.Upload(data.ToArray());
         _stagingBuffers.Add(staging);
         vkDst.TransitionLayout(_handle, ImageLayout.TransferDstOptimal);
@@ -186,7 +186,7 @@ public sealed unsafe class VulkanCommandEncoder : ICommandEncoder
     //TransitionImageLayout records an image layout transition into the current command buffer
     //After PIP offscreen rendering ColorAttachmentOptimal→ShaderReadOnlyOptimal for blit sampling
     //With cross-frame reuse it goes ShaderReadOnlyOptimal→ColorAttachmentOptimal before the next frame's render; VulkanImage.TransitionLayout already handles skipping
-    public void TransitionImageLayout(GpuImage image, GpuImageLayout newLayout)
+    public void TransitionImageLayout(GpuTexture image, GpuImageLayout newLayout)
     {
         EnsureRecording();
         if (image is not VulkanImage vkImg)

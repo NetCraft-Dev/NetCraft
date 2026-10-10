@@ -67,7 +67,7 @@ public sealed unsafe class VulkanRenderPass : IRenderPass
 
     internal VulkanRenderPass(Vk vk, KhrDynamicRendering dynRenderingExt, CommandBuffer cmd,
         CompiledRenderPipeline pipeline, ImageView colorImageView, Vector4 clearColor,
-        GpuImage? depthImage, float clearDepth)
+        GpuTexture? depthImage, float clearDepth)
         : this(vk, dynRenderingExt, cmd, pipeline, colorImageView, clearColor, AttachmentLoadOp.Clear, depthImage, clearDepth)
     {
     }
@@ -75,7 +75,7 @@ public sealed unsafe class VulkanRenderPass : IRenderPass
     //colorLoadOp controls the color attachment load strategy; BeforeBlur/blur use Clear and AfterBlur uses Load to preserve the blurred background
     internal VulkanRenderPass(Vk vk, KhrDynamicRendering dynRenderingExt, CommandBuffer cmd,
         CompiledRenderPipeline pipeline, ImageView colorImageView, Vector4 clearColor,
-        AttachmentLoadOp colorLoadOp, GpuImage? depthImage, float clearDepth)
+        AttachmentLoadOp colorLoadOp, GpuTexture? depthImage, float clearDepth)
     {
         _vk = vk;
         _dynRenderingExt = dynRenderingExt;
@@ -216,10 +216,10 @@ public sealed unsafe class VulkanRenderPass : IRenderPass
         _disposed = true;
     }
 
-    private static IndexType ToVkIndexType(GpuIndexType type) => type switch
+    private static Silk.NET.Vulkan.IndexType ToVkIndexType(GpuIndexType type) => type switch
     {
-        GpuIndexType.UInt16 => IndexType.Uint16,
-        GpuIndexType.UInt32 => IndexType.Uint32,
+        GpuIndexType.UInt16 => Silk.NET.Vulkan.IndexType.Uint16,
+        GpuIndexType.UInt32 => Silk.NET.Vulkan.IndexType.Uint32,
         _ => throw new ArgumentOutOfRangeException(nameof(type))
     };
 }
