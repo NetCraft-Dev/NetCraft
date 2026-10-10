@@ -49,30 +49,25 @@ public sealed class GuiResourceManager : IDisposable
     private readonly int _surfaceHeight;
     private bool _disposed;
 
-    //GLOBALS dummy uniform buffer + DescriptorSet set 0
+    //GLOBALS uniform buffer, bound to the render pass by the name "Globals"
     //gui.vert declares ScreenSize but never uses it; a dummy Mat4 is passed to avoid a layout mismatch
     private readonly GpuBuffer _globalsBuffer;
-    private readonly GpuDescriptorSet _globalsDescriptorSet;
 
-    //MATRICES_PROJECTION uniform buffer + DescriptorSet set 1
+    //MATRICES_PROJECTION uniform buffer, bound by the name "Matrices"
     private readonly GpuBuffer _projectionBuffer;
-    private readonly GpuDescriptorSet _projectionDescriptorSet;
-
-    //The SAMPLER0 layout is shared by the font and image texture DescriptorSets
-    private readonly GpuDescriptorLayout _samplerLayout;
 
     //Font atlas texture
     private readonly FontAtlas? _fontAtlas;
     private readonly GpuTexture? _fontImage;
     private readonly GpuSampler? _fontSampler;
     private readonly TextureSetup? _fontTexture;
-    private readonly GpuDescriptorSet? _fontDescriptorSet;
 
-    //Image textures textureId → TextureSetup + DescriptorSet
+    //Image textures textureId → TextureSetup
     private readonly Dictionary<int, TextureSetup> _textures = new();
     private readonly Dictionary<string, int> _pathCache = new();
     private int _nextTextureId = 1;
-    private readonly Dictionary<TextureSetup, GpuDescriptorSet> _descriptorSetCache = new();
+    //Texture views are created lazily because render passes bind GpuTextureView rather than GpuTexture
+    private readonly Dictionary<GpuTexture, GpuTextureView> _textureViews = new();
     //_externalTextureIds set of externally managed textureIds; Dispose does not release their GpuTexture
     //The ItemAtlas's AtlasTexture is managed by ItemItemAtlas itself; here it is only registered to get a textureId
     //_internalSamplers samplers created internally by RegisterImage, released on Dispose while the GpuTexture is not
@@ -89,41 +84,9 @@ public sealed class GuiResourceManager : IDisposable
         _fontAtlas = fontAtlas;
         _logger = logger ?? new ConsoleGpuLogger();
 
-        //GLOBALS layout 1 uniform Mat4
-        var globalsLayoutDesc = new GpuDescriptorLayoutDescription();
-        globalsLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-        {
-            Binding = 0,
-            DescriptorType = GpuDescriptorType.UniformBuffer,
-            StageFlags = GpuShaderStageFlags.Vertex
-        });
-        var globalsLayout = _device.CreateDescriptorLayout(globalsLayoutDesc);
+        //The globals and projection buffers are bound by name through the pipeline's BindGroupLayouts
         _globalsBuffer = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 64);
-        _globalsDescriptorSet = _device.AllocateDescriptorSet(globalsLayout);
-        _globalsDescriptorSet.WriteBuffer(0, _globalsBuffer, 0, -1);
-
-        //MATRICES_PROJECTION layout 1 uniform Mat4
-        var projLayoutDesc = new GpuDescriptorLayoutDescription();
-        projLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-        {
-            Binding = 0,
-            DescriptorType = GpuDescriptorType.UniformBuffer,
-            StageFlags = GpuShaderStageFlags.Vertex
-        });
-        var projLayout = _device.CreateDescriptorLayout(projLayoutDesc);
         _projectionBuffer = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 64);
-        _projectionDescriptorSet = _device.AllocateDescriptorSet(projLayout);
-        _projectionDescriptorSet.WriteBuffer(0, _projectionBuffer, 0, -1);
-
-        //SAMPLER0 layout 1 combined image sampler
-        var samplerLayoutDesc = new GpuDescriptorLayoutDescription();
-        samplerLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-        {
-            Binding = 0,
-            DescriptorType = GpuDescriptorType.CombinedImageSampler,
-            StageFlags = GpuShaderStageFlags.Fragment
-        });
-        _samplerLayout = _device.CreateDescriptorLayout(samplerLayoutDesc);
 
         //Font atlas texture
         if (_fontAtlas is not null)
@@ -131,8 +94,6 @@ public sealed class GuiResourceManager : IDisposable
             _fontImage = CreateFontImage(_fontAtlas);
             _fontSampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Linear, FilterMode.Linear, 1, null);
             _fontTexture = TextureSetup.SingleTexture(_fontImage, _fontSampler);
-            _fontDescriptorSet = _device.AllocateDescriptorSet(_samplerLayout);
-            _fontDescriptorSet.WriteImage(0, _fontImage, _fontSampler);
         }
 
         UpdateProjection();
@@ -156,11 +117,11 @@ public sealed class GuiResourceManager : IDisposable
         _projectionBuffer.Upload<Matrix4x4>(new[] { proj });
     }
 
-    //GlobalsDescriptorSet global uniform DescriptorSet bound to set 0
-    public GpuDescriptorSet GlobalsDescriptorSet => _globalsDescriptorSet;
+    //GlobalsBuffer global uniform buffer, bound by the name "Globals"
+    public GpuBuffer GlobalsBuffer => _globalsBuffer;
 
-    //ProjectionDescriptorSet projection matrix DescriptorSet bound to set 1
-    public GpuDescriptorSet ProjectionDescriptorSet => _projectionDescriptorSet;
+    //ProjectionBuffer projection matrix uniform buffer, bound by the name "Matrices"
+    public GpuBuffer ProjectionBuffer => _projectionBuffer;
 
     //FontTexture font atlas TextureSetup for GuiRenderContext to inject
     public TextureSetup? FontTexture => _fontTexture;
@@ -189,7 +150,7 @@ public sealed class GuiResourceManager : IDisposable
             _logger.Warning($"Texture decode returned empty {path}");
             return 0;
         }
-        var img = _device.CreateTexture(GpuTexture.UsageTextureBinding, "texture", GpuFormat.Rgba8Unorm, result.Width, result.Height, 1, 1);
+        var img = _device.CreateTexture(null, GpuTexture.UsageTextureBinding, GpuFormat.Rgba8Unorm, result.Width, result.Height, 1, 1);
         img.Upload(result.Data);
         var sampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Linear, FilterMode.Linear, 1, null);
         var texture = TextureSetup.SingleTexture(img, sampler);
@@ -205,18 +166,18 @@ public sealed class GuiResourceManager : IDisposable
         return _textures.TryGetValue(textureId, out var t) ? t : null;
     }
 
-    //ResolveDescriptorSet resolves a TextureSetup into a GpuDescriptorSet for GuiRenderer.Draw to bind
-    //NoTexture returns null; the font texture returns a cached DescriptorSet; image textures are lazily created and cached
-    public GpuDescriptorSet? ResolveDescriptorSet(TextureSetup texture)
+    //ResolveTextureBinding resolves a TextureSetup into the view and sampler a render pass binds by name
+    //NoTexture returns nulls; texture views are created lazily and cached
+    public (GpuTextureView? View, GpuSampler? Sampler) ResolveTextureBinding(TextureSetup texture)
     {
-        if (texture == TextureSetup.NoTexture) return null;
-        if (_fontTexture is not null && texture == _fontTexture) return _fontDescriptorSet;
-        if (_descriptorSetCache.TryGetValue(texture, out var cached)) return cached;
-        if (texture.Texture0 is null || texture.Sampler0 is null) return null;
-        var set = _device.AllocateDescriptorSet(_samplerLayout);
-        set.WriteImage(0, texture.Texture0, texture.Sampler0);
-        _descriptorSetCache[texture] = set;
-        return set;
+        if (texture == TextureSetup.NoTexture) return (null, null);
+        if (texture.Texture0 is null || texture.Sampler0 is null) return (null, null);
+        if (!_textureViews.TryGetValue(texture.Texture0, out var view))
+        {
+            view = _device.CreateTextureView(texture.Texture0);
+            _textureViews[texture.Texture0] = view;
+        }
+        return (view, texture.Sampler0);
     }
 
     //RegisterFontTexture registers a dynamic glyph atlas texture and returns a TextureSetup
@@ -247,7 +208,7 @@ public sealed class GuiResourceManager : IDisposable
     //CreateFontImage creates the font atlas GpuTexture and uploads pixel data
     private GpuTexture CreateFontImage(FontAtlas atlas)
     {
-        var img = _device.CreateTexture(GpuTexture.UsageTextureBinding, "texture", GpuFormat.R8Unorm, atlas.AtlasWidth, atlas.AtlasHeight, 1, 1);
+        var img = _device.CreateTexture(null, GpuTexture.UsageTextureBinding, GpuFormat.R8Unorm, atlas.AtlasWidth, atlas.AtlasHeight, 1, 1);
         img.Upload(atlas.AtlasPixels);
         return img;
     }
@@ -257,6 +218,8 @@ public sealed class GuiResourceManager : IDisposable
         if (_disposed) return;
         _globalsBuffer.Dispose();
         _projectionBuffer.Dispose();
+        foreach (var view in _textureViews.Values) view.Dispose();
+        _textureViews.Clear();
         _fontImage?.Dispose();
         _fontSampler?.Dispose();
         foreach (var pair in _textures)

@@ -15,7 +15,7 @@ public sealed class EmptyGpuBackend : GpuBackend
     public void SetWindowHints() { }
 
     public GpuDevice CreateDevice(long windowHandle, ShaderManager shaderManager, GpuDebugOptions debugOptions, System.Action criticalShaderLoader)
-        => new GpuDevice(new EmptyGpuDeviceBackend(), criticalShaderLoader);
+        => new GpuDevice(new EmptyGpuDeviceBackend(), shaderManager, criticalShaderLoader);
 }
 
 //EmptyGpuDeviceBackend GpuDeviceBackend placeholder for the null backend

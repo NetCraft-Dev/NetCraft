@@ -110,7 +110,8 @@ public sealed class CommandEncoder : IDisposable
         return new RenderPass(_backend.CreateRenderPass(descriptor), _device, descriptor.ColorAttachments, SubmitRenderPass, descriptor.RenderArea);
     }
 
-    private void SubmitRenderPass()
+    //SubmitRenderPass closes the current render pass; public in NetCraft because callers driving the backend directly need it
+    public void SubmitRenderPass()
     {
         if (!_isInRenderPass)
             throw new InvalidOperationException("Can't submit a render pass if one isn't open");

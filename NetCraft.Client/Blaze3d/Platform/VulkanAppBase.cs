@@ -139,7 +139,7 @@ public abstract unsafe class VulkanAppBase : IDisposable
         CreateSurface();
         _backend.PickPhysicalDevice();
         _vkDevice = new VulkanDevice(_backend, _shaderManager, GpuDebugOptions.None);
-        _device = new GpuDevice(_vkDevice, () => { });
+        _device = new GpuDevice(_vkDevice, _shaderManager, () => { });
         _vkSurface = (VulkanGpuSurface)_vkDevice.CreateSurface(0);
         _surface = new GpuSurface(_vkSurface);
         _presentMode = GpuSurface.GetSupportedVsyncMode(_vkSurface.SupportedPresentModes(), EnableVsync);

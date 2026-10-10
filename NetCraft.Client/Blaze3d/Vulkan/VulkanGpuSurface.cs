@@ -93,7 +93,7 @@ public sealed unsafe class VulkanGpuSurface : GpuSurfaceBackend
         if (!_configured)
             throw new InvalidOperationException("Surface is not configured");
         var fence = _acquireFence;
-        var result = _backend.SurfaceExtension.AcquireNextImage(
+        var result = _device.SwapchainExtension.AcquireNextImage(
             _device.Device, _swapchain, ulong.MaxValue, default, fence, out _imageIndex);
         if (result == Result.ErrorOutOfDateKhr)
         {
@@ -166,7 +166,7 @@ public sealed unsafe class VulkanGpuSurface : GpuSurfaceBackend
             PSwapchains = &swapchain,
             PImageIndices = &imageIndex
         };
-        var result = _backend.SurfaceExtension.QueuePresent(_device.PresentQueue, &presentInfo);
+        var result = _device.SwapchainExtension.QueuePresent(_device.PresentQueue, &presentInfo);
         _hasAcquired = false;
         if (result == Result.ErrorOutOfDateKhr || result == Result.SuboptimalKhr)
         {

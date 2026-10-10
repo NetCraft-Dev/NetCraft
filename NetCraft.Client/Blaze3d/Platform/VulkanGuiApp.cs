@@ -56,7 +56,7 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
     private GuiRenderer _guiRenderer = null!;
     private GuiRenderContext _renderContext = null!;
     private GuiResourceManager _resourceManager = null!;
-    //_guiPipeline the precompiled RenderPipelines.GUI, used to create the render pass and take the Extent for renderArea
+    //_guiPipeline the precompiled RenderPipelines.GUI, precompiled so the first frame does not stutter
     private CompiledRenderPipeline _guiPipeline = null!;
     private FontAtlas? _fontAtlas;
     //F7 GlyphFont dynamic bake path GlyphStitcher+GlyphFont replacing FontAtlas
@@ -81,14 +81,10 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
     //The AfterBlur segment uses LoadOp=Load to preserve the blurred background with GUI widgets overlaid
     private GpuTexture? _blurOffscreen;
     private GpuTexture? _blurTemp;
+    private GpuTextureView? _blurOffscreenView;
+    private GpuTextureView? _blurTempView;
     private GpuSampler? _blurSampler;
     private GpuBuffer? _blurUniformBuffer;
-    private GpuDescriptorSet? _blurUniformDescriptorSet;
-    private GpuDescriptorSet? _blurOffscreenDescriptorSet;
-    private GpuDescriptorSet? _blurTempDescriptorSet;
-    private GpuDescriptorLayout? _blurSamplerLayout;
-    private GpuDescriptorLayout? _blurUniformLayout;
-    private CompiledRenderPipeline? _blurPipeline;
     //BlurRadius sample step radius controlling blur strength; larger is blurrier
     private const float BlurRadius = 2.0f;
 
@@ -105,13 +101,14 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
     //Using an interface avoids a circular dependency where NetCraft.Gpu references NetCraft.Game
     private IWorldRenderer? _levelRenderer;
     private GpuTexture? _depthImage;
+    private GpuTextureView? _depthView;
     private GpuBuffer? _worldViewProjBuffer;
-    private GpuDescriptorSet? _worldViewProjSet;
-    private GpuDescriptorLayout? _worldViewProjLayout;
-    private GpuDescriptorLayout? _worldSamplerLayout;
-    private GpuDescriptorSet? _worldAtlasSet;
     private GpuTexture? _blockAtlasImage;
     private GpuTexture? _lightmapImage;
+    private GpuTextureView? _worldBlockAtlasView;
+    private GpuSampler? _worldBlockAtlasSampler;
+    private GpuTextureView? _worldLightmapView;
+    private GpuSampler? _worldLightmapSampler;
     private GpuSampler? _worldSampler;
     //_injectedBlockAtlas/_injectedLightmap real textures injected by the Game layer; when null CreateWorldResources uses placeholders
     //Injected resources are managed by this class and released in OnCleanupPipelineResources; DisposeWorldResources does not release them
@@ -288,46 +285,21 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
     private void CreateWorldResources(int w, int h)
     {
         //Precompiles the 3 terrain pipelines to avoid first-compile stutter in OnRecordCommandBuffer
-        var cache = _device.PipelineCache;
-        cache.Precompile(WorldRenderPipelines.SOLID_TERRAIN);
-        cache.Precompile(WorldRenderPipelines.CUTOUT_TERRAIN);
-        cache.Precompile(WorldRenderPipelines.TRANSLUCENT_TERRAIN);
+        _device.PrecompilePipeline(WorldRenderPipelines.SOLID_TERRAIN);
+        _device.PrecompilePipeline(WorldRenderPipelines.CUTOUT_TERRAIN);
+        _device.PrecompilePipeline(WorldRenderPipelines.TRANSLUCENT_TERRAIN);
 
         //depth image D32Sfloat DepthAttachment with the same extent as the swapchain
         _depthImage = _device.CreateTexture(null, GpuTexture.UsageRenderAttachment, GpuFormat.D32Float, w, h, 1, 1);
         //First layout transition of the depth image Undefined→DepthStencilAttachmentOptimal
         //Upload does not read pixels for a DepthAttachment and only does the barrier so dynamic rendering sees the expected layout
         _depthImage.Upload(ReadOnlySpan<byte>.Empty);
+        _depthView = _device.CreateTextureView(_depthImage);
 
-        //set 0 MATRICES_PROJECTION 1 uniform Mat4 visible to the vertex shader
-        var viewProjLayoutDesc = new GpuDescriptorLayoutDescription();
-        viewProjLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-        {
-            Binding = 0,
-            DescriptorType = GpuDescriptorType.UniformBuffer,
-            StageFlags = GpuShaderStageFlags.Vertex
-        });
-        _worldViewProjLayout = _device.CreateDescriptorLayout(viewProjLayoutDesc);
-        _worldViewProjBuffer = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 64, null);
-        _worldViewProjSet = _device.AllocateDescriptorSet(_worldViewProjLayout);
-        _worldViewProjSet.WriteBuffer(0, _worldViewProjBuffer, 0, -1);
+        //set 0 MATRICES_PROJECTION, bound by the name "Matrices"
+        _worldViewProjBuffer = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 64);
 
-        //set 1 SAMPLER0_SAMPLER1 atlas + lightmap two samplers visible to the fragment shader
-        var samplerLayoutDesc = new GpuDescriptorLayoutDescription();
-        samplerLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-        {
-            Binding = 0,
-            DescriptorType = GpuDescriptorType.CombinedImageSampler,
-            StageFlags = GpuShaderStageFlags.Fragment
-        });
-        samplerLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-        {
-            Binding = 1,
-            DescriptorType = GpuDescriptorType.CombinedImageSampler,
-            StageFlags = GpuShaderStageFlags.Fragment
-        });
-        _worldSamplerLayout = _device.CreateDescriptorLayout(samplerLayoutDesc);
-
+        //set 1 SAMPLER0_SAMPLER1 atlas + lightmap, bound by the names "Sampler0"/"Sampler1"
         //Placeholder textures share a linear sampler; injected textures bring their own nearest sampler
         _worldSampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Linear, FilterMode.Linear, 1, null);
 
@@ -371,29 +343,30 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
             lightmapSampler = _worldSampler;
         }
 
-        _worldAtlasSet = _device.AllocateDescriptorSet(_worldSamplerLayout);
-        _worldAtlasSet.WriteImage(0, blockAtlasImage, blockAtlasSampler);
-        _worldAtlasSet.WriteImage(1, lightmapImage, lightmapSampler);
+        _worldBlockAtlasView = _device.CreateTextureView(blockAtlasImage);
+        _worldBlockAtlasSampler = blockAtlasSampler;
+        _worldLightmapView = _device.CreateTextureView(lightmapImage);
+        _worldLightmapSampler = lightmapSampler;
     }
 
     //DisposeWorldResources releases world render resources, called on swapchain recreation and Cleanup
     private void DisposeWorldResources()
     {
+        _depthView?.Dispose();
         _depthImage?.Dispose();
         _worldViewProjBuffer?.Dispose();
-        _worldViewProjSet?.Dispose();
-        _worldViewProjLayout?.Dispose();
-        _worldSamplerLayout?.Dispose();
-        _worldAtlasSet?.Dispose();
+        _worldBlockAtlasView?.Dispose();
+        _worldLightmapView?.Dispose();
         _blockAtlasImage?.Dispose();
         _lightmapImage?.Dispose();
         _worldSampler?.Dispose();
+        _depthView = null;
         _depthImage = null;
         _worldViewProjBuffer = null;
-        _worldViewProjSet = null;
-        _worldViewProjLayout = null;
-        _worldSamplerLayout = null;
-        _worldAtlasSet = null;
+        _worldBlockAtlasView = null;
+        _worldBlockAtlasSampler = null;
+        _worldLightmapView = null;
+        _worldLightmapSampler = null;
         _blockAtlasImage = null;
         _lightmapImage = null;
         _worldSampler = null;
@@ -441,20 +414,19 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
     //Production windows that are not 800x600 need a dynamic viewport; a later optimization
     private void PrecompileGuiPipelines()
     {
-        var cache = _device.PipelineCache;
-        _guiPipeline = cache.Precompile(RenderPipelines.GUI);
-        cache.Precompile(RenderPipelines.GUI_INVERT);
-        cache.Precompile(RenderPipelines.GUI_TEXT);
-        cache.Precompile(RenderPipelines.GUI_TEXTURED);
+        _guiPipeline = _device.PrecompilePipeline(RenderPipelines.GUI);
+        _device.PrecompilePipeline(RenderPipelines.GUI_INVERT);
+        _device.PrecompilePipeline(RenderPipelines.GUI_TEXT);
+        _device.PrecompilePipeline(RenderPipelines.GUI_TEXTURED);
         //F7 precompiles the font pipeline to avoid first-compile stutter during Bake
-        cache.Precompile(RenderPipelines.GUI_TEXT_GRAYSCALE);
-        cache.Precompile(RenderPipelines.GUI_TEXT_SEE_THROUGH);
-        cache.Precompile(RenderPipelines.GUI_TEXT_POLYGON_OFFSET);
-        cache.Precompile(RenderPipelines.GUI_TEXT_GRAYSCALE_SEE_THROUGH);
-        cache.Precompile(RenderPipelines.GUI_TEXT_GRAYSCALE_POLYGON_OFFSET);
+        _device.PrecompilePipeline(RenderPipelines.GUI_TEXT_GRAYSCALE);
+        _device.PrecompilePipeline(RenderPipelines.GUI_TEXT_SEE_THROUGH);
+        _device.PrecompilePipeline(RenderPipelines.GUI_TEXT_POLYGON_OFFSET);
+        _device.PrecompilePipeline(RenderPipelines.GUI_TEXT_GRAYSCALE_SEE_THROUGH);
+        _device.PrecompilePipeline(RenderPipelines.GUI_TEXT_GRAYSCALE_POLYGON_OFFSET);
     }
 
-    //CreateBlurResources creates blur post-processing resources offscreen+temp double textures+uniform+descriptor
+    //CreateBlurResources creates blur post-processing resources offscreen+temp double textures+uniform
     //BeforeBlur renders to offscreen, horizontally blurs offscreen→temp and vertically blurs temp→swapchain
     //On swapchain recreation the old resources are Disposed and rebuilt to match the new extent
     private void CreateBlurResources(int w, int h)
@@ -462,58 +434,29 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
         var imageUsage = GpuTexture.UsageRenderAttachment | GpuTexture.UsageTextureBinding;
         _blurOffscreen = _device.CreateTexture(null, imageUsage, GpuFormat.Rgba8Unorm, w, h, 1, 1);
         _blurTemp = _device.CreateTexture(null, imageUsage, GpuFormat.Rgba8Unorm, w, h, 1, 1);
+        _blurOffscreenView = _device.CreateTextureView(_blurOffscreen);
+        _blurTempView = _device.CreateTextureView(_blurTemp);
         _blurSampler = _device.CreateSampler(AddressMode.ClampToEdge, AddressMode.ClampToEdge, FilterMode.Linear, FilterMode.Linear, 1, null);
-        //IN_SAMPLER layout 1 combined image sampler binding 0 visible to the fragment shader
-        var samplerLayoutDesc = new GpuDescriptorLayoutDescription();
-        samplerLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-        {
-            Binding = 0,
-            DescriptorType = GpuDescriptorType.CombinedImageSampler,
-            StageFlags = GpuShaderStageFlags.Fragment
-        });
-        _blurSamplerLayout = _device.CreateDescriptorLayout(samplerLayoutDesc);
-        _blurOffscreenDescriptorSet = _device.AllocateDescriptorSet(_blurSamplerLayout);
-        _blurOffscreenDescriptorSet.WriteImage(0, _blurOffscreen, _blurSampler);
-        _blurTempDescriptorSet = _device.AllocateDescriptorSet(_blurSamplerLayout);
-        _blurTempDescriptorSet.WriteImage(0, _blurTemp, _blurSampler);
-        //BLUR_CONFIG layout 1 uniform buffer binding 0 visible to the fragment shader
-        var uniformLayoutDesc = new GpuDescriptorLayoutDescription();
-        uniformLayoutDesc.Bindings.Add(new GpuDescriptorBinding
-        {
-            Binding = 0,
-            DescriptorType = GpuDescriptorType.UniformBuffer,
-            StageFlags = GpuShaderStageFlags.Fragment
-        });
-        _blurUniformLayout = _device.CreateDescriptorLayout(uniformLayoutDesc);
-        _blurUniformBuffer = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 16, null);
-        _blurUniformDescriptorSet = _device.AllocateDescriptorSet(_blurUniformLayout);
-        _blurUniformDescriptorSet.WriteBuffer(0, _blurUniformBuffer, 0, -1);
-        _blurPipeline = _device.PrecompilePipeline(RenderPipelines.BLUR);
+        //The blur uniform is bound by the name "BlurConfig" declared in BindGroupLayouts.BLUR_CONFIG
+        _blurUniformBuffer = _device.CreateBuffer(null, GpuBuffer.UsageUniform | GpuBuffer.UsageMapWrite, 16);
+        _device.PrecompilePipeline(RenderPipelines.BLUR);
     }
 
     //DisposeBlurResources releases blur resources, called on swapchain recreation and Cleanup
     private void DisposeBlurResources()
     {
+        _blurOffscreenView?.Dispose();
+        _blurTempView?.Dispose();
         _blurOffscreen?.Dispose();
         _blurTemp?.Dispose();
         _blurSampler?.Dispose();
         _blurUniformBuffer?.Dispose();
-        _blurUniformDescriptorSet?.Dispose();
-        _blurOffscreenDescriptorSet?.Dispose();
-        _blurTempDescriptorSet?.Dispose();
-        _blurSamplerLayout?.Dispose();
-        _blurUniformLayout?.Dispose();
-        _blurPipeline?.Dispose();
+        _blurOffscreenView = null;
+        _blurTempView = null;
         _blurOffscreen = null;
         _blurTemp = null;
         _blurSampler = null;
         _blurUniformBuffer = null;
-        _blurUniformDescriptorSet = null;
-        _blurOffscreenDescriptorSet = null;
-        _blurTempDescriptorSet = null;
-        _blurSamplerLayout = null;
-        _blurUniformLayout = null;
-        _blurPipeline = null;
     }
 
     //UpdateBlurUniform uploads BlurConfig vec4 Data xy=BlurDir z=Radius w=0
@@ -755,30 +698,27 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
     //On the first frame with no snapshot it only clears without binding a pipeline or drawing
     //Stage 7 holds _resourceLock to protect the _resourceManager field reference and inner dictionaries, mutually exclusive with the Tick thread's RegisterTexture
     //_guiPipeline/cmd/clearColor do not depend on _resourceManager and are prepared outside the lock
-    protected override void OnRecordCommandBuffer(VulkanCommandBuffer cmd, ImageView colorImageView)
+    protected override void OnRecordCommandBuffer(CommandEncoder encoder, GpuTextureView sceneView)
     {
         var snapshot = _latestSnapshot;
         var bg = Window.BackgroundColor;
         var clearColor = new Vector4(bg.R, bg.G, bg.B, bg.A);
         if (snapshot is null)
         {
-            cmd.BeginRecording();
-            //First frame with no snapshot published by Tick: only clear the swapchain without Draw
-            using var clearPass = new VulkanRenderPass(_vkDevice.Api, _vkDevice.DynamicRenderingExt, cmd.Handle,
-                _guiPipeline, colorImageView, clearColor, null, 0f);
-            clearPass.Close();
-            cmd.EndRecording();
+            //First frame with no snapshot published by Tick: only clear the scene target without Draw
+            var clearDescriptor = RenderPassDescriptor.Create(() => "gui-clear")
+                .WithColorAttachment(sceneView, clearColor)
+                .WithRenderArea(SceneRenderArea());
+            using var clearPass = encoder.CreateRenderPass(clearDescriptor);
             return;
         }
         var sw = Stopwatch.StartNew();
-        //P15 PreparePip does the PIP offscreen rendering+blit before the main cmd's BeginRecording
-        //vkQueueSubmit is not nested in the main cmd recording to avoid a driver crash
-        //PIP renderer.Prepare creates an independent encoder and only after its Submit completes does the main cmd BeginRecording
+        //P15 PreparePip does the PIP offscreen rendering+blit before the main recording
+        //PIP renderer.Prepare creates an independent encoder and only after its Submit completes does the main recording start
         lock (_resourceLock)
         {
             _guiRenderer.PreparePip(snapshot, Window.GuiScale);
-            //W8.5 world render Prepare+Upload moved before BeginRecording to avoid RunOneTimeCommand on device-local buffers
-            //QueueWaitIdle called during main cmd recording corrupts driver state, CmdDrawIndexed ACCESS_VIOLATION
+            //W8.5 world render Prepare+Upload moved before recording to avoid RunOneTimeCommand on device-local buffers
             if (WorldRenderEnabled && _depthImage is not null)
             {
                 _worldViewProjBuffer!.Upload<Matrix4x4>(new[] { _levelRenderer!.ViewProj });
@@ -786,136 +726,137 @@ public sealed unsafe class VulkanGuiApp : VulkanAppBase
                 _levelRenderer.Upload(_device);
             }
         }
-        cmd.BeginRecording();
         lock (_resourceLock)
         {
             _resourceManager.UpdateProjection();
             _guiRenderer.Prepare(snapshot);
             _guiRenderer.Upload(_device);
-            //When world rendering is enabled it uses a world+GUI composite pass; blur post-processing is not yet in the same frame as world rendering, a W8 optimization
+            //When world rendering is enabled it uses a world+GUI composite pass; blur post-processing is not yet in the same frame as world rendering
             if (WorldRenderEnabled && _depthImage is not null)
             {
-                RenderWorldAndGuiPass(cmd, colorImageView, clearColor);
+                RenderWorldAndGuiPass(encoder, sceneView, clearColor);
             }
-            else if (snapshot.HasBlurSplit && _blurPipeline is not null && _blurOffscreen is not null && _blurTemp is not null)
+            else if (snapshot.HasBlurSplit && _blurOffscreenView is not null && _blurTempView is not null)
             {
-                RenderBlurPasses(cmd, colorImageView, clearColor);
+                RenderBlurPasses(encoder, sceneView, clearColor);
             }
             else
             {
-                RenderSinglePass(cmd, colorImageView, clearColor);
+                RenderSinglePass(encoder, sceneView, clearColor);
             }
         }
         RenderCpuMs = sw.Elapsed.TotalMilliseconds;
-        cmd.EndRecording();
     }
 
-    //RenderSinglePass single render pass without blur splitting, rendering everything to the swapchain
-    private void RenderSinglePass(VulkanCommandBuffer cmd, ImageView colorImageView, Vector4 clearColor)
+    //SceneRenderArea the full-extent render area
+    private NetCraft.Client.Blaze3d.Systems.RenderPass.RenderArea SceneRenderArea()
+        => new(0, 0, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height);
+
+    //BindGuiGlobals writes the GUI global uniforms for the pipeline layout just bound
+    private void BindGuiGlobals(NetCraft.Client.Blaze3d.Systems.RenderPass pass)
     {
-        using var pass = new VulkanRenderPass(_vkDevice.Api, _vkDevice.DynamicRenderingExt, cmd.Handle,
-            _guiPipeline, colorImageView, clearColor, null, 0f);
-        pass.BindDescriptorSet(_resourceManager.GlobalsDescriptorSet, 0);
-        pass.BindDescriptorSet(_resourceManager.ProjectionDescriptorSet, 1);
-        _guiRenderer.Draw(pass,
-            p => _device.PrecompilePipeline(p),
-            t => _resourceManager.ResolveDescriptorSet(t));
-        pass.Close();
+        pass.SetUniform("Globals", _resourceManager.GlobalsBuffer);
+        pass.SetUniform("Matrices", _resourceManager.ProjectionBuffer);
+    }
+
+    //RenderSinglePass single render pass without blur splitting, rendering everything to the scene target
+    private void RenderSinglePass(CommandEncoder encoder, GpuTextureView sceneView, Vector4 clearColor)
+    {
+        var descriptor = RenderPassDescriptor.Create(() => "gui")
+            .WithColorAttachment(sceneView, clearColor)
+            .WithRenderArea(SceneRenderArea());
+        using var pass = encoder.CreateRenderPass(descriptor);
+        _guiRenderer.Draw(pass, BindGuiGlobals, t => _resourceManager.ResolveTextureBinding(t));
     }
 
     //RenderWorldAndGuiPass world rendering+GUI composite in two passes
     //The world pass clears color and depth, drawing terrain in Solid→Cutout→Translucent order
     //The GUI pass LoadOp=Load preserves the world color with no depth, overlaying GUI widgets
     //Prepare/Upload already completed before BeginRecording in OnRecordCommandBuffer, avoiding RunOneTimeCommand polluting the main cmd
-    private void RenderWorldAndGuiPass(VulkanCommandBuffer cmd, ImageView colorImageView, Vector4 clearColor)
+    private void RenderWorldAndGuiPass(CommandEncoder encoder, GpuTextureView sceneView, Vector4 clearColor)
     {
-        //The world pass's initial pipeline uses SOLID_TERRAIN carrying the depth layout DepthStencilAttachmentOptimal
-        //LevelRenderer.Draw internally SetPipelines between Solid/Cutout/Translucent sharing the same layout; rebinding desc is harmless
-        using var worldPass = new VulkanRenderPass(_vkDevice.Api, _vkDevice.DynamicRenderingExt, cmd.Handle,
-            _device.PrecompilePipeline(WorldRenderPipelines.SOLID_TERRAIN),
-            colorImageView, clearColor, _depthImage, 1.0f);
-        _levelRenderer!.Draw(worldPass,
-            p => _device.PrecompilePipeline(p),
-            p =>
-            {
-                p.BindDescriptorSet(_worldViewProjSet!, 0);
-                p.BindDescriptorSet(_worldAtlasSet!, 1);
-            });
-        worldPass.Close();
+        var area = SceneRenderArea();
+        //The world pass clears color+depth and binds the view-projection matrix by name plus the atlas/lightmap samplers
+        var worldDescriptor = RenderPassDescriptor.Create(() => "world")
+            .WithColorAttachment(sceneView, clearColor)
+            .WithDepthAttachment(_depthView!, 1.0)
+            .WithRenderArea(area);
+        using (var worldPass = encoder.CreateRenderPass(worldDescriptor))
+        {
+            _levelRenderer!.Draw(worldPass, BindWorldGlobals);
+        }
 
-        //The GUI pass LoadOp=Load preserves the world render result with null depth and no depth attachment
-        using var guiPass = new VulkanRenderPass(_vkDevice.Api, _vkDevice.DynamicRenderingExt, cmd.Handle,
-            _guiPipeline, colorImageView, clearColor, AttachmentLoadOp.Load, null, 0f);
-        guiPass.BindDescriptorSet(_resourceManager.GlobalsDescriptorSet, 0);
-        guiPass.BindDescriptorSet(_resourceManager.ProjectionDescriptorSet, 1);
-        _guiRenderer.Draw(guiPass,
-            p => _device.PrecompilePipeline(p),
-            t => _resourceManager.ResolveDescriptorSet(t));
-        guiPass.Close();
+        //The GUI pass uses LoadOp=Load to preserve the world render result with no depth attachment
+        var guiDescriptor = RenderPassDescriptor.Create(() => "gui")
+            .WithColorAttachment(sceneView)
+            .WithRenderArea(area);
+        using var guiPass = encoder.CreateRenderPass(guiDescriptor);
+        _guiRenderer.Draw(guiPass, BindGuiGlobals, t => _resourceManager.ResolveTextureBinding(t));
+    }
+
+    //BindWorldGlobals writes the terrain uniforms for the pipeline layout just bound
+    private void BindWorldGlobals(NetCraft.Client.Blaze3d.Systems.RenderPass pass)
+    {
+        pass.SetUniform("Matrices", _worldViewProjBuffer!);
+        pass.BindTexture("Sampler0", _worldBlockAtlasView!, _worldBlockAtlasSampler!);
+        pass.BindTexture("Sampler1", _worldLightmapView!, _worldLightmapSampler!);
     }
 
     //RenderBlurPasses segmented rendering BeforeBlur→horizontal blur→vertical blur→AfterBlur
-    //BeforeBlur renders to offscreen, horizontally blurs offscreen→temp and vertically blurs temp→swapchain
+    //BeforeBlur renders to offscreen, horizontally blurs offscreen→temp and vertically blurs temp→scene
     //The AfterBlur segment uses LoadOp=Load to preserve the blurred background with GUI widgets overlaid
-    private void RenderBlurPasses(VulkanCommandBuffer cmd, ImageView colorImageView, Vector4 clearColor)
+    private void RenderBlurPasses(CommandEncoder encoder, GpuTextureView sceneView, Vector4 clearColor)
     {
         var offscreen = (VulkanImage)_blurOffscreen!;
         var temp = (VulkanImage)_blurTemp!;
-        var blurPipeline = _blurPipeline!;
+        var vkEncoder = (VulkanCommandEncoder)encoder.Backend;
         var firstAfterBlur = _guiRenderer.FirstMeshIndexAfterBlur;
+        var area = SceneRenderArea();
 
-        //The BeforeBlur segment renders to offscreen, transitions the layout to ColorAttachmentOptimal and clears with LoadOp=Clear
-        offscreen.TransitionLayout(cmd.Handle, ImageLayout.ColorAttachmentOptimal);
-        using (var beforePass = new VulkanRenderPass(_vkDevice.Api, _vkDevice.DynamicRenderingExt, cmd.Handle,
-            _guiPipeline, offscreen.View, clearColor, AttachmentLoadOp.Clear, null, 0f))
+        //The BeforeBlur segment renders to offscreen after transitioning it to a color attachment layout
+        offscreen.TransitionLayout(vkEncoder.Handle, ImageLayout.ColorAttachmentOptimal);
+        using (var beforePass = encoder.CreateRenderPass(RenderPassDescriptor.Create(() => "blur-before")
+            .WithColorAttachment(_blurOffscreenView!, clearColor)
+            .WithRenderArea(area)))
         {
-            beforePass.BindDescriptorSet(_resourceManager.GlobalsDescriptorSet, 0);
-            beforePass.BindDescriptorSet(_resourceManager.ProjectionDescriptorSet, 1);
-            _guiRenderer.DrawRange(beforePass,
-                p => _device.PrecompilePipeline(p),
-                t => _resourceManager.ResolveDescriptorSet(t),
-                0, firstAfterBlur);
-            beforePass.Close();
+            _guiRenderer.DrawRange(beforePass, BindGuiGlobals, t => _resourceManager.ResolveTextureBinding(t), 0, firstAfterBlur);
         }
 
-        //Horizontal blur offscreen→temp offscreen to ShaderReadOnly temp to ColorAttachmentOptimal
-        offscreen.TransitionLayout(cmd.Handle, ImageLayout.ShaderReadOnlyOptimal);
-        temp.TransitionLayout(cmd.Handle, ImageLayout.ColorAttachmentOptimal);
+        //Horizontal blur offscreen→temp, offscreen to ShaderReadOnly, temp to ColorAttachmentOptimal
+        offscreen.TransitionLayout(vkEncoder.Handle, ImageLayout.ShaderReadOnlyOptimal);
+        temp.TransitionLayout(vkEncoder.Handle, ImageLayout.ColorAttachmentOptimal);
         UpdateBlurUniform(1f, 0f);
-        using (var hBlurPass = new VulkanRenderPass(_vkDevice.Api, _vkDevice.DynamicRenderingExt, cmd.Handle,
-            blurPipeline, temp.View, clearColor, AttachmentLoadOp.DontCare, null, 0f))
+        using (var hBlurPass = encoder.CreateRenderPass(RenderPassDescriptor.Create(() => "blur-h")
+            .WithColorAttachment(_blurTempView!, clearColor)
+            .WithRenderArea(area)))
         {
-            hBlurPass.BindDescriptorSet(_blurOffscreenDescriptorSet!, 0);
-            hBlurPass.BindDescriptorSet(_blurUniformDescriptorSet!, 1);
+            hBlurPass.SetPipeline(RenderPipelines.BLUR);
+            hBlurPass.SetUniform("BlurConfig", _blurUniformBuffer!);
+            hBlurPass.BindTexture("InSampler", _blurOffscreenView!, _blurSampler!);
             hBlurPass.DisableScissor();
             hBlurPass.Draw(6, 1, 0, 0);
-            hBlurPass.Close();
         }
 
-        //Vertical blur temp→swapchain temp to ShaderReadOnlyOptimal swapchain LoadOp=Clear overwrite
-        temp.TransitionLayout(cmd.Handle, ImageLayout.ShaderReadOnlyOptimal);
+        //Vertical blur temp→scene, temp to ShaderReadOnlyOptimal, scene overwritten with LoadOp=Clear
+        temp.TransitionLayout(vkEncoder.Handle, ImageLayout.ShaderReadOnlyOptimal);
         UpdateBlurUniform(0f, 1f);
-        using (var vBlurPass = new VulkanRenderPass(_vkDevice.Api, _vkDevice.DynamicRenderingExt, cmd.Handle,
-            blurPipeline, colorImageView, clearColor, AttachmentLoadOp.Clear, null, 0f))
+        using (var vBlurPass = encoder.CreateRenderPass(RenderPassDescriptor.Create(() => "blur-v")
+            .WithColorAttachment(sceneView, clearColor)
+            .WithRenderArea(area)))
         {
-            vBlurPass.BindDescriptorSet(_blurTempDescriptorSet!, 0);
-            vBlurPass.BindDescriptorSet(_blurUniformDescriptorSet!, 1);
+            vBlurPass.SetPipeline(RenderPipelines.BLUR);
+            vBlurPass.SetUniform("BlurConfig", _blurUniformBuffer!);
+            vBlurPass.BindTexture("InSampler", _blurTempView!, _blurSampler!);
             vBlurPass.DisableScissor();
             vBlurPass.Draw(6, 1, 0, 0);
-            vBlurPass.Close();
         }
 
-        //The AfterBlur segment renders to the swapchain with LoadOp=Load, preserving the vertical blur result with GUI widgets overlaid
-        using (var afterPass = new VulkanRenderPass(_vkDevice.Api, _vkDevice.DynamicRenderingExt, cmd.Handle,
-            _guiPipeline, colorImageView, clearColor, AttachmentLoadOp.Load, null, 0f))
+        //The AfterBlur segment renders to the scene target with LoadOp=Load, preserving the vertical blur result
+        using (var afterPass = encoder.CreateRenderPass(RenderPassDescriptor.Create(() => "blur-after")
+            .WithColorAttachment(sceneView)
+            .WithRenderArea(area)))
         {
-            afterPass.BindDescriptorSet(_resourceManager.GlobalsDescriptorSet, 0);
-            afterPass.BindDescriptorSet(_resourceManager.ProjectionDescriptorSet, 1);
-            _guiRenderer.DrawRange(afterPass,
-                p => _device.PrecompilePipeline(p),
-                t => _resourceManager.ResolveDescriptorSet(t),
-                firstAfterBlur, _guiRenderer.Meshes.Count);
-            afterPass.Close();
+            _guiRenderer.DrawRange(afterPass, BindGuiGlobals, t => _resourceManager.ResolveTextureBinding(t), firstAfterBlur, _guiRenderer.Meshes.Count);
         }
     }
 

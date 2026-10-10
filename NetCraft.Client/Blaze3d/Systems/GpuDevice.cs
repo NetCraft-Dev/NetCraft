@@ -1,6 +1,7 @@
 using NetCraft.Client.Blaze3d.Buffers;
 using NetCraft.Client.Blaze3d.Pipeline;
 using NetCraft.Client.Blaze3d.Textures;
+using NetCraft.Client.Render;
 
 namespace NetCraft.Client.Blaze3d.Systems;
 
@@ -11,14 +12,25 @@ public sealed class GpuDevice : IDisposable
     private readonly GpuDeviceBackend _backend;
     private readonly System.Action _criticalShaderLoader;
 
-    public GpuDevice(GpuDeviceBackend backend, System.Action criticalShaderLoader)
+    public GpuDevice(GpuDeviceBackend backend, ShaderManager shaderManager, System.Action criticalShaderLoader)
     {
         _backend = backend;
+        ShaderManager = shaderManager;
         _criticalShaderLoader = criticalShaderLoader;
     }
 
     //Limits convenience accessor for the device limits
     public DeviceLimits Limits => GetDeviceInfo().Limits;
+
+    //SupportsGpuRendering whether recording GPU render commands is supported, a NetCraft flag used by atlases to pick the GPU path
+    public bool SupportsGpuRendering => true;
+
+    //ShaderManager the shader loader, a NetCraft convenience for callers that compile custom pipelines
+    public ShaderManager ShaderManager { get; }
+
+    //CreateHostVisibleBuffer creates a host-visible buffer, a NetCraft convenience over usage | UsageMapWrite
+    public GpuBuffer CreateHostVisibleBuffer(long size, int usage)
+        => _backend.CreateBuffer(null, usage | GpuBuffer.UsageMapWrite, size);
 
     public GpuSurface CreateSurface(long windowHandle) => new(_backend.CreateSurface(windowHandle));
 

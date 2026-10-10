@@ -104,7 +104,7 @@ public sealed unsafe class VulkanBackend : GpuBackend
         {
             throw new InvalidOperationException("Surface is not set, cannot create the device");
         }
-        return new GpuDevice(new VulkanDevice(this, shaderManager, debugOptions), criticalShaderLoader);
+        return new GpuDevice(new VulkanDevice(this, shaderManager, debugOptions), shaderManager, criticalShaderLoader);
     }
 
     //FindQueueFamilies finds the physical device's graphics and present queue families

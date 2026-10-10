@@ -137,35 +137,29 @@ public sealed class GuiRenderer : IDisposable
 
     //Draw render phase submits everything, equivalent to DrawRange(0, _meshes.Count)
     //With a blur split the caller uses DrawRange to submit BeforeBlur/AfterBlur separately with blur in between
-    public void Draw(IRenderPass pass,
-        Func<RenderPipeline, CompiledRenderPipeline> pipelineResolver,
-        Func<TextureSetup, GpuDescriptorSet?> descriptorResolver)
-        => DrawRange(pass, pipelineResolver, descriptorResolver, 0, _meshes.Count);
+    public void Draw(RenderPass pass, Action<RenderPass> bindGlobals, Func<TextureSetup, (GpuTextureView? View, GpuSampler? Sampler)> textureResolver)
+        => DrawRange(pass, bindGlobals, textureResolver, 0, _meshes.Count);
 
     //DrawRange submits the meshes in _meshes[start..end) for segmented blur execution
-    //pipelineResolver resolves a declarative RenderPipeline into a compiled CompiledRenderPipeline, injected by the caller from PipelineCache.Precompile
-    //descriptorResolver resolves a TextureSetup into a texture GpuDescriptorSet; the Game layer manages texture resources and NoTexture returns null
-    //The global DescriptorSet (GLOBALS+MATRICES_PROJECTION) is bound by the caller at render pass start as set 0/1; textures bind to the last set
-    //Must be called after Upload with the IRenderPass open; QUADS uses DrawIndexed with baseVertex encoded in the indices, others use non-indexed Draw
-    public void DrawRange(IRenderPass pass,
-        Func<RenderPipeline, CompiledRenderPipeline> pipelineResolver,
-        Func<TextureSetup, GpuDescriptorSet?> descriptorResolver,
-        int start, int end)
+    //The pipeline is bound declaratively, then bindGlobals writes the global uniforms for that pipeline layout
+    //Each mesh's color texture is bound through the last BindGroupLayout's sampler name
+    //Must be called after Upload with the render pass open; QUADS uses DrawIndexed with baseVertex encoded in the indices, others use non-indexed Draw
+    public void DrawRange(RenderPass pass, Action<RenderPass> bindGlobals, Func<TextureSetup, (GpuTextureView? View, GpuSampler? Sampler)> textureResolver, int start, int end)
     {
         for (int i = start; i < end; i++)
         {
             var mesh = _meshes[i];
-            var compiled = pipelineResolver(mesh.Pipeline);
-            pass.SetPipeline(compiled);
+            pass.SetPipeline(mesh.Pipeline);
+            bindGlobals(pass);
             DrawCallCount++;
 
-            //Textures bind to the last set; the end of the pipeline's BindGroupLayouts is SAMPLER0
-            //The NoTexture singleton returns null and BindDescriptorSet is skipped; global sets 0/1 are already bound by the caller
-            var descSet = descriptorResolver(mesh.TextureSetup);
-            if (descSet != null)
+            //The color texture binds through the sampler name declared by the pipeline's last BindGroupLayout
+            var bindGroup = mesh.Pipeline.BindGroupLayouts[^1];
+            if (bindGroup.Samplers.Count > 0)
             {
-                var textureSetIndex = (uint)(mesh.Pipeline.BindGroupLayouts.Count - 1);
-                pass.BindDescriptorSet(descSet, textureSetIndex);
+                var (view, sampler) = textureResolver(mesh.TextureSetup);
+                if (view != null && sampler != null)
+                    pass.BindTexture(bindGroup.Samplers[0], view, sampler);
             }
 
             //scissor switched dynamically; an empty rectangle disables clipping for full-screen rendering
@@ -175,11 +169,11 @@ public sealed class GuiRenderer : IDisposable
                 pass.EnableScissor(mesh.ScissorArea.X, mesh.ScissorArea.Y, mesh.ScissorArea.Width, mesh.ScissorArea.Height);
 
             var info = _vertexBuffer.GetExecuteInfo(mesh.Draw);
-            pass.SetVertexBuffer(0, info.VertexBuffer, 0);
+            pass.SetVertexBuffer(0, info.VertexBuffer.Slice());
             if (info.IndexBuffer != null && info.IndexCount > 0)
             {
                 //QUADS indices already encode baseVertex; DrawIndexed passes vertexOffset 0 and relies on the firstIndex offset
-                pass.SetIndexBuffer(info.IndexBuffer, GpuIndexType.UInt32, 0);
+                pass.SetIndexBuffer(info.IndexBuffer, NetCraft.Client.Blaze3d.IndexType.Int);
                 pass.DrawIndexed(info.IndexCount, 1, info.FirstIndex, 0, 0);
             }
             else
