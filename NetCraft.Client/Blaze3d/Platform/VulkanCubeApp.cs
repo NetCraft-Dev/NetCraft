@@ -75,8 +75,8 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
     private VulkanBuffer _indexBuffer = null!;
     private VulkanBuffer _uniformBuffer = null!;
     private VulkanDescriptorLayout _descriptorLayout = null!;
-    private VulkanDescriptorSet _descriptorSet = null!;
     private VulkanImage _depthImage = null!;
+    private GpuTextureView _depthView = null!;
     private float _rotation;
 
     public VulkanCubeApp() : base(800, 600) { }
@@ -100,17 +100,18 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
     protected override void OnSwapchainRecreated()
     {
         _depthImage.Dispose();
+        _depthView.Dispose();
         _pipeline.Dispose();
         CreateDepthImage();
         CreatePipeline();
-        _descriptorSet.WriteBuffer(0, _uniformBuffer, 0, -1);
     }
 
     private void CreateDepthImage()
     {
-                _depthImage = (VulkanImage)_device.CreateTexture(GpuTexture.UsageRenderAttachment, "texture", GpuFormat.D32Float, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height, 1, 1);
+        _depthImage = (VulkanImage)_device.CreateTexture(null, GpuTexture.UsageRenderAttachment, GpuFormat.D32Float, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height, 1, 1);
         //Uploading empty pixels triggers the Undefined->DepthStencilAttachmentOptimal layout transition
         _depthImage.Upload(ReadOnlySpan<byte>.Empty);
+        _depthView = _device.CreateTextureView(_depthImage);
     }
 
     private void CreateVertexBuffer()
@@ -157,9 +158,7 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
             DescriptorType = GpuDescriptorType.UniformBuffer,
             StageFlags = GpuShaderStageFlags.Vertex
         });
-        _descriptorLayout = (VulkanDescriptorLayout)_device.CreateDescriptorLayout(layoutDesc);
-        _descriptorSet = (VulkanDescriptorSet)_device.AllocateDescriptorSet(_descriptorLayout);
-        _descriptorSet.WriteBuffer(0, _uniformBuffer, 0, -1);
+        _descriptorLayout = (VulkanDescriptorLayout)_vkDevice.CreateDescriptorLayout(layoutDesc);
     }
 
     private void CreatePipeline()
@@ -188,8 +187,10 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
             }
         });
         desc.DescriptorLayouts.Add(_descriptorLayout);
+        //The uniform block is declared as "ubo" in the shader; render passes bind it by that name
+        desc.DescriptorBindingNames.Add(new List<string> { "ubo" });
         var fmt = VulkanRenderPipeline.ToVkFormat(desc.TargetFormat ?? GpuFormat.Bgra8Unorm);
-        _pipeline = new VulkanRenderPipeline(_device.Api, _device.Device, fmt, _swapchainExtent, desc);
+        _pipeline = new VulkanRenderPipeline(_vkDevice.Api, _vkDevice.Device, fmt, _swapchainExtent, desc);
     }
 
     //UpdateUniformBuffer updates the model rotation matrix every frame with view/proj fixed
@@ -214,27 +215,30 @@ public sealed unsafe class VulkanCubeApp : VulkanAppBase
         _uniformBuffer.Upload<MvpUniform>(new[] { mvp });
     }
 
-    //OnRecordCommandBuffer 4.3 rework passes colorImageView + _depthImage + clearDepth=1.0 for dynamic rendering
-    protected override void OnRecordCommandBuffer(VulkanCommandBuffer cmd, ImageView colorImageView)
+    //OnRecordCommandBuffer records the cube into the scene texture with a depth attachment
+    protected override void OnRecordCommandBuffer(CommandEncoder encoder, GpuTextureView sceneView)
     {
         UpdateUniformBuffer();
-        cmd.BeginRecording();
-        cmd.BeginRenderPass(_pipeline, colorImageView, _depthImage, 1.0f);
-        cmd.BindVertexBuffer(_vertexBuffer, 0, 0);
-        cmd.BindIndexBuffer(_indexBuffer, GpuIndexType.UInt16, 0);
-        cmd.BindDescriptorSet(_descriptorSet, 0);
-        cmd.DrawIndexed(36, 1, 0, 0, 0);
-        cmd.EndRenderPass();
-        cmd.EndRecording();
+        var descriptor = RenderPassDescriptor.Create(() => "cube")
+            .WithColorAttachment(sceneView, new Vector4(0.05f, 0.05f, 0.08f, 1f))
+            .WithDepthAttachment(_depthView, 1.0)
+            .WithRenderArea(new NetCraft.Client.Blaze3d.Systems.RenderPass.RenderArea(0, 0, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height));
+        var pass = (VulkanRenderPass)encoder.Backend.CreateRenderPass(descriptor);
+        pass.SetCompiledPipeline(_pipeline);
+        pass.SetVertexBuffer(0, _vertexBuffer.Slice());
+        pass.SetIndexBuffer(_indexBuffer, NetCraft.Client.Blaze3d.IndexType.Short);
+        pass.SetUniform("ubo", _uniformBuffer);
+        pass.DrawIndexed(36, 1, 0, 0, 0);
+        encoder.SubmitRenderPass();
     }
 
     protected override void OnCleanupPipelineResources()
     {
-        _descriptorSet.Dispose();
         _descriptorLayout.Dispose();
         _uniformBuffer.Dispose();
         _indexBuffer.Dispose();
         _vertexBuffer.Dispose();
+        _depthView.Dispose();
         _depthImage.Dispose();
         _pipeline.Dispose();
     }

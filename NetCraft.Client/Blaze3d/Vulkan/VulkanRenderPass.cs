@@ -44,6 +44,14 @@ public sealed unsafe class VulkanRenderPass : RenderPassBackend
             throw new InvalidOperationException("SetPipeline may only be called once per render pass");
         if (_device.PrecompilePipeline(pipeline) is not VulkanRenderPipeline vkPipeline)
             throw new ArgumentException("pipeline must compile to a VulkanRenderPipeline", nameof(pipeline));
+        SetCompiledPipeline(vkPipeline);
+    }
+
+    //SetCompiledPipeline binds an already compiled pipeline, a NetCraft entry for callers that hold a VulkanRenderPipeline directly
+    internal void SetCompiledPipeline(VulkanRenderPipeline vkPipeline)
+    {
+        if (_pipeline != null)
+            throw new InvalidOperationException("SetPipeline may only be called once per render pass");
         _pipeline = vkPipeline;
         BeginRendering();
         _vk.CmdBindPipeline(_cmd, PipelineBindPoint.Graphics, vkPipeline.Pipeline);

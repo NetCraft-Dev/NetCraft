@@ -47,7 +47,6 @@ Layers are dependency tiers — layer 0 depends on nothing, layer 4 sits on top 
 | 1 | `NetCraft.Util` | Logging, `CrashReport`, `BitSet`, `Mth`, executors, `Xoroshiro128++`, `Profiler` |
 | 1 | `NetCraft.Nbt` | 13 tags, `NbtOps`, SNBT parser |
 | 1 | `NetCraft.Codec` | `Codec` / `MapCodec` / `DynamicOps`, `RecordCodecBuilder` |
-| 1 | `NetCraft.Tags` | `TagLoader`, `TagManager` |
 | 1 | `NetCraft.DataFixer` | DFU stages, higher-kinded simulation, Profunctor optics |
 | 2 | `NetCraft.Storage` | MCA, `PalettedContainer`, `IOWorker`, `ChunkSource`, scheduled ticks |
 | 2 | `NetCraft.Registry` | `Identifier`, `ResourceKey<T>`, `Holder<T>` |

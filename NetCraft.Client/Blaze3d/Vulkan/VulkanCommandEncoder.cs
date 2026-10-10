@@ -36,6 +36,9 @@ public sealed unsafe class VulkanCommandEncoder : CommandEncoderBackend
     private bool _disposed;
     private bool _recording;
 
+    //Handle the underlying VkCommandBuffer, used by the surface when blitting into the swapchain
+    internal CommandBuffer Handle => _handle;
+
     internal VulkanCommandEncoder(Vk vk, Device device, VulkanDevice gpuDevice, CommandPool commandPool, Queue graphicsQueue, KhrDynamicRendering dynRenderingExt)
     {
         _vk = vk;

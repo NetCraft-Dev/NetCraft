@@ -1,7 +1,7 @@
 using NetCraft.Logging;
 using NetCraft.Registry;
 
-namespace NetCraft.Tags;
+namespace NetCraft.Registry;
 
 //ITagLoader non-generic marker interface
 //Works around C# generic invariance, TagLoader<Block> cannot be cast to TagLoader<object>

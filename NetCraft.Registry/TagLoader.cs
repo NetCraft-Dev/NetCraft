@@ -2,7 +2,7 @@ using NetCraft.Codec;
 using NetCraft.Logging;
 using NetCraft.Registry;
 
-namespace NetCraft.Tags;
+namespace NetCraft.Registry;
 
 //TagLoader tag loader, maps to vanilla net.minecraft.tags.TagLoader
 //Loads all TagFiles from the data pack directory and builds the tag-to-element mapping

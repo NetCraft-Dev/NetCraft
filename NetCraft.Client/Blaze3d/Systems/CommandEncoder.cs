@@ -6,7 +6,7 @@ namespace NetCraft.Client.Blaze3d.Systems;
 
 //CommandEncoder records and submits GPU commands, aligns with vanilla com.mojang.blaze3d.systems.CommandEncoder
 //Vanilla owns a TracyGpuProfiler here; NetCraft has no profiler, so the constructor drops that argument
-public sealed class CommandEncoder
+public sealed class CommandEncoder : IDisposable
 {
     private readonly GpuDeviceBackend _device;
     private readonly CommandEncoderBackend _backend;
@@ -19,6 +19,9 @@ public sealed class CommandEncoder
     }
 
     public CommandEncoderBackend Backend => _backend;
+
+    //Dispose releases the underlying backend, which owns the command buffer and fence
+    public void Dispose() => _backend.Dispose();
 
     public void Submit() => _backend.Submit();
 

@@ -50,6 +50,7 @@ public sealed unsafe class VulkanItemAtlasApp : VulkanAppBase
 
     private VulkanRenderPipeline _clearPipeline = null!;
     private VulkanImage _depthImage = null!;
+    private GpuTextureView _depthView = null!;
     private ItemItemAtlas _itemAtlas = null!;
     private readonly object[] _itemIds = new object[ItemCount];
 
@@ -67,6 +68,7 @@ public sealed unsafe class VulkanItemAtlasApp : VulkanAppBase
     protected override void OnSwapchainRecreated()
     {
         _depthImage.Dispose();
+        _depthView.Dispose();
         _clearPipeline.Dispose();
         CreateDepthImage();
         CreateClearPipeline();
@@ -75,8 +77,9 @@ public sealed unsafe class VulkanItemAtlasApp : VulkanAppBase
     //CreateDepthImage creates a depth attachment for the clear pipeline
     private void CreateDepthImage()
     {
-                _depthImage = (VulkanImage)_device.CreateTexture(GpuTexture.UsageRenderAttachment, "texture", GpuFormat.D32Float, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height, 1, 1);
+        _depthImage = (VulkanImage)_device.CreateTexture(null, GpuTexture.UsageRenderAttachment, GpuFormat.D32Float, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height, 1, 1);
         _depthImage.Upload(ReadOnlySpan<byte>.Empty);
+        _depthView = _device.CreateTextureView(_depthImage);
     }
 
     //CreateClearPipeline creates a pipeline that only clears the swapchain, using the built-in SpirvShaders shader
@@ -86,7 +89,7 @@ public sealed unsafe class VulkanItemAtlasApp : VulkanAppBase
         {
             DepthTestEnabled = true
         };
-        _clearPipeline = new VulkanRenderPipeline(_device.Api, _device.Device, _swapchainImageFormat, _swapchainExtent, description);
+        _clearPipeline = new VulkanRenderPipeline(_vkDevice.Api, _vkDevice.Device, _swapchainImageFormat, _swapchainExtent, description);
     }
 
     //CreateItemAtlas creates ItemItemAtlas and registers 10 items
@@ -101,17 +104,19 @@ public sealed unsafe class VulkanItemAtlasApp : VulkanAppBase
     }
 
     //OnRecordCommandBuffer rotates through GetOrUpdate every frame, triggering DrawToSlot to render items into AtlasTexture
-    //ItemItemAtlas.GetOrUpdate internally CreateCommandEncoder+Submit with an independent command buffer not affecting the main cmd
-    //The main cmd only clears the swapchain to dark gray, verifying the render loop is stable
-    protected override void OnRecordCommandBuffer(VulkanCommandBuffer cmd, ImageView colorImageView)
+    //The scene target is only cleared, verifying the render loop stays stable while the atlas is updated separately
+    protected override void OnRecordCommandBuffer(CommandEncoder encoder, GpuTextureView sceneView)
     {
         var frame = _framesRendered % ItemCount;
         _itemAtlas.GetOrUpdate(_itemIds[frame], isAnimated: false);
 
-        cmd.BeginRecording();
-        cmd.BeginRenderPass(_clearPipeline, colorImageView, _depthImage, 1.0f);
-        cmd.EndRenderPass();
-        cmd.EndRecording();
+        var descriptor = RenderPassDescriptor.Create(() => "atlas-clear")
+            .WithColorAttachment(sceneView, new Vector4(0.1f, 0.1f, 0.1f, 1f))
+            .WithDepthAttachment(_depthView, 1.0)
+            .WithRenderArea(new NetCraft.Client.Blaze3d.Systems.RenderPass.RenderArea(0, 0, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height));
+        var pass = (VulkanRenderPass)encoder.Backend.CreateRenderPass(descriptor);
+        pass.SetCompiledPipeline(_clearPipeline);
+        encoder.SubmitRenderPass();
     }
 
     //RenderSlotAndReadback renders the given item into a slot and reads back the slot pixels for integration tests
@@ -165,7 +170,7 @@ public sealed unsafe class VulkanItemAtlasApp : VulkanAppBase
     //Verifies staging buffer lifetime management: not released before Submit so the GPU can read the data correctly
     private byte[] TestWriteToTexture()
     {
-                var img = (VulkanImage)_device.CreateTexture(GpuTexture.UsageRenderAttachment, "texture", GpuFormat.D32Float, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height, 1, 1);
+        var img = (VulkanImage)_device.CreateTexture(null, GpuTexture.UsageRenderAttachment, GpuFormat.D32Float, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height, 1, 1);
         try
         {
             //4x4 full red RGBA(255,0,0,255)
@@ -178,7 +183,7 @@ public sealed unsafe class VulkanItemAtlasApp : VulkanAppBase
                 pixels[i + 3] = 255;
             }
             using var encoder = _device.CreateCommandEncoder();
-            encoder.WriteToTexture(img, pixels, 0, 0, 4, 4);
+            encoder.WriteToTexture(img, pixels, 0, 0, 0, 0, 4, 4);
             encoder.Submit();
             return img.Readback();
         }

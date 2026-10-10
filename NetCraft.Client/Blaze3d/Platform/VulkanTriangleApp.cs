@@ -1,3 +1,4 @@
+using System.Numerics;
 using Silk.NET.Vulkan;
 using NetCraft.Client.Blaze3d.Systems;
 using NetCraft.Client.Blaze3d.Buffers;
@@ -51,17 +52,19 @@ public sealed unsafe class VulkanTriangleApp : VulkanAppBase
     {
         //The PoC uses the built-in SpirvShaders shader and leaves description null, using VulkanRenderPipeline defaults
         var description = new RenderPipelineDescription();
-        _pipeline = new VulkanRenderPipeline(_device.Api, _device.Device, _swapchainImageFormat, _swapchainExtent, description);
+        _pipeline = new VulkanRenderPipeline(_vkDevice.Api, _vkDevice.Device, _swapchainImageFormat, _swapchainExtent, description);
     }
 
-    //OnRecordCommandBuffer 4.3 rework passes colorImageView for dynamic rendering
-    protected override void OnRecordCommandBuffer(VulkanCommandBuffer cmd, ImageView colorImageView)
+    //OnRecordCommandBuffer records one triangle into the scene texture
+    protected override void OnRecordCommandBuffer(CommandEncoder encoder, GpuTextureView sceneView)
     {
-        cmd.BeginRecording();
-        cmd.BeginRenderPass(_pipeline, colorImageView);
-        cmd.Draw(3);
-        cmd.EndRenderPass();
-        cmd.EndRecording();
+        var descriptor = RenderPassDescriptor.Create(() => "triangle")
+            .WithColorAttachment(sceneView, new Vector4(0.1f, 0.1f, 0.1f, 1f))
+            .WithRenderArea(new NetCraft.Client.Blaze3d.Systems.RenderPass.RenderArea(0, 0, (int)_swapchainExtent.Width, (int)_swapchainExtent.Height));
+        var pass = (VulkanRenderPass)encoder.Backend.CreateRenderPass(descriptor);
+        pass.SetCompiledPipeline(_pipeline);
+        pass.Draw(3, 1, 0, 0);
+        encoder.SubmitRenderPass();
     }
 
     //OnCleanupPipelineResources destroys pipeline resources

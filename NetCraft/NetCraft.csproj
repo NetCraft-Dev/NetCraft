@@ -26,11 +26,6 @@
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
       <Private>false</Private>
     </ProjectReference>
-    <ProjectReference Include="..\NetCraft.Tags\NetCraft.Tags.csproj">
-      <OutputItemType>ReferencePath</OutputItemType>
-      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
-      <Private>false</Private>
-    </ProjectReference>
     <ProjectReference Include="..\NetCraft.Network\NetCraft.Network.csproj">
       <OutputItemType>ReferencePath</OutputItemType>
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
@@ -64,9 +59,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="..\NetCraft.Resources\bin\$(Configuration)\net10.0\NetCraft.Resources.dll">
       <LogicalName>NetCraft.Embedded.NetCraft.Resources.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\NetCraft.Tags\bin\$(Configuration)\net10.0\NetCraft.Tags.dll">
-      <LogicalName>NetCraft.Embedded.NetCraft.Tags.dll</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="..\NetCraft.Network\bin\$(Configuration)\net10.0\NetCraft.Network.dll">
       <LogicalName>NetCraft.Embedded.NetCraft.Network.dll</LogicalName>

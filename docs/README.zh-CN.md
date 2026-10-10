@@ -49,7 +49,6 @@ NetCraft 不是移植。这里没有逐行翻译原版 Java，也没有反编译
 | 1 | `NetCraft.Util` | 日志、`CrashReport`、`BitSet`、`Mth`、执行器、`Xoroshiro128++`、`Profiler` |
 | 1 | `NetCraft.Nbt` | 13 种 tag、`NbtOps`、SNBT 解析器 |
 | 1 | `NetCraft.Codec` | `Codec` / `MapCodec` / `DynamicOps`、`RecordCodecBuilder` |
-| 1 | `NetCraft.Tags` | `TagLoader`、`TagManager` |
 | 1 | `NetCraft.DataFixer` | DFU 各阶段、高阶类型模拟、Profunctor optics |
 | 2 | `NetCraft.Storage` | MCA、`PalettedContainer`、`IOWorker`、`ChunkSource`、调度刻 |
 | 2 | `NetCraft.Registry` | `Identifier`、`ResourceKey<T>`、`Holder<T>` |

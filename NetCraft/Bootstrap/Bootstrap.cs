@@ -3,7 +3,7 @@ using NetCraft.Codec;
 using NetCraft.Logging;
 using NetCraft.Registry;
 using NetCraft.Resources;
-using NetCraft.Tags;
+using NetCraft.Registry;
 
 namespace NetCraft.Bootstrap;
 

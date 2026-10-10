@@ -6,7 +6,6 @@
     <ProjectReference Include="..\NetCraft.DataFixer\NetCraft.DataFixer.csproj" />
     <ProjectReference Include="..\NetCraft.Commands\NetCraft.Commands.csproj" />
     <ProjectReference Include="..\NetCraft.Resources\NetCraft.Resources.csproj" />
-    <ProjectReference Include="..\NetCraft.Tags\NetCraft.Tags.csproj" />
   </ItemGroup>
 
   <ItemGroup>

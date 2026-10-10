@@ -16,7 +16,6 @@
   <Project Path="NetCraft.Registry/NetCraft.Registry.csproj" />
   <Project Path="NetCraft.Resources/NetCraft.Resources.csproj" />
   <Project Path="NetCraft.Storage/NetCraft.Storage.csproj" />
-  <Project Path="NetCraft.Tags/NetCraft.Tags.csproj" />
   <Project Path="NetCraft.Util/NetCraft.Util.csproj" />
   <Project Path="NetCraft/NetCraft.csproj" />
   <Project Path="NetCraft.Loader/NetCraft.Loader.csproj" />

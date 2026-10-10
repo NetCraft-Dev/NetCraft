@@ -5,7 +5,8 @@ using NetCraft.Client.Blaze3d.Textures;
 namespace NetCraft.Client.Blaze3d.Systems;
 
 //CommandEncoderBackend raw command recording operations, aligns with vanilla CommandEncoderBackend
-public interface CommandEncoderBackend
+//NetCraft makes it disposable because every encoder owns its own command buffer and fence
+public interface CommandEncoderBackend : IDisposable
 {
     void Submit();
 

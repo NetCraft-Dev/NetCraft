@@ -1,7 +1,7 @@
 using System.Text.Json;
 using NetCraft.Registry;
 
-namespace NetCraft.Tags;
+namespace NetCraft.Registry;
 
 //TagFile tag file format, maps to vanilla net.minecraft.tags.TagFile
 //Contains a replace flag and a values list

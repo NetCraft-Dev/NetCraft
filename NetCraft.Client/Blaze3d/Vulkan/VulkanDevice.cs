@@ -114,7 +114,7 @@ public sealed unsafe class VulkanDevice : GpuDeviceBackend
     }
 
     public GpuSurfaceBackend CreateSurface(long windowHandle)
-        => throw new NotSupportedException("Vulkan surface creation is not wired up yet");
+        => new VulkanGpuSurface(_backend, this, windowHandle);
 
     public CommandEncoderBackend CreateCommandEncoder()
         => new VulkanCommandEncoder(_vk, _device, this, _commandPool, _graphicsQueue, _dynamicRenderingExtension);

@@ -1,7 +1,7 @@
 using NetCraft.Codec;
 using NetCraft.Registry;
 
-namespace NetCraft.Tags;
+namespace NetCraft.Registry;
 
 //TagEntry tag entry, maps to vanilla net.minecraft.tags.TagEntry
 //Represents an entry in a tag, either an element reference or a tag reference, each with a required flag

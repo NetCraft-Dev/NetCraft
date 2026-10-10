@@ -5,7 +5,7 @@ using NetCraft.Game.World.Level.Block;
 using NetCraft.Logging;
 using NetCraft.Registry;
 using NetCraft.Resources;
-using NetCraft.Tags;
+using NetCraft.Registry;
 
 namespace NetCraft.Game;
 
